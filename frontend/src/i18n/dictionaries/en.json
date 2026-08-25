@@ -1,0 +1,93 @@
+{
+  "meta": {
+    "chatroomTitle": "Chatroom",
+    "chatroomDescription": "Talk to a Staryield reader in real time — tarot, astrology and numerology guidance."
+  },
+  "nav": {
+    "brand": "Staryield",
+    "home": "Home",
+    "psychics": "Psychics",
+    "chatroom": "Chatroom",
+    "profile": "Profile",
+    "openMenu": "Open navigation",
+    "closeMenu": "Close navigation",
+    "menuTitle": "Menu",
+    "language": "Language",
+    "changeLanguage": "Change language"
+  },
+  "chatroom": {
+    "inbox": {
+      "title": "Conversations",
+      "openLabel": "Open conversations",
+      "srHeading": "Your conversations",
+      "unread_one": "{count} unread message",
+      "unread_other": "{count} unread messages",
+      "empty": "No conversations yet."
+    },
+    "status": {
+      "online": "Online",
+      "away": "Away",
+      "busy": "In a reading"
+    },
+    "header": {
+      "endChat": "End chat",
+      "endChatLabel": "End the chat with {name}",
+      "elapsed": "Elapsed session time",
+      "openDetails": "Open reader details",
+      "detailsTitle": "Reader details"
+    },
+    "feed": {
+      "label": "Conversation with {name}",
+      "bookmark": "Bookmark this message",
+      "bookmarked": "Message bookmarked",
+      "typing": "{name} is typing",
+      "revealAnswer": "See the answer",
+      "lockedAnswer": "This answer is hidden until you unlock it.",
+      "sentAt": "Sent at {time}",
+      "you": "You"
+    },
+    "composer": {
+      "label": "Message",
+      "placeholder": "Type your message...",
+      "note": "3 min free then 40 credits/min",
+      "send": "Send message",
+      "errors": {
+        "required": "Write something before sending.",
+        "max": "Keep your message under {max} characters."
+      }
+    },
+    "panel": {
+      "portraitAlt": "Portrait of {name}",
+      "portraitPending": "Portrait coming soon",
+      "freeMinutes_one": "{count} free minute remaining",
+      "freeMinutes_other": "{count} free minutes remaining",
+      "ratingLabel": "Rated {rating} out of 5",
+      "experience_one": "{count} year of experience",
+      "experience_other": "{count} years of experience",
+      "viewProfile": "View full profile"
+    }
+  },
+  "readers": {
+    "ramone": {
+      "preview": "Pleasure talking to you today, I will be here if you...",
+      "bio": "Are you looking for clarity, comfort, or a deeper understanding of what is happening in your life right now? Sometimes all it takes is a different perspective to recognize the light."
+    },
+    "theo": {
+      "preview": "You will be surprised sweetheart!",
+      "bio": "Looking for clarity on the road ahead? I believe the answers you seek already live within you — my role is to help you uncover them."
+    },
+    "solomon": {
+      "preview": "Solomon may know an answer to your question. As...",
+      "bio": "Are you looking for clarity about the road ahead? Through Tarot, I translate the universal language of energy into actionable guidance for your life."
+    }
+  },
+  "conversation": {
+    "m1": "Hello dear i hope you're doing well i have a project i am starting right now and iwas hoping you could help me figre out how it will go in the near future",
+    "m2": "I hope that you are well too!",
+    "m3": "Thank you so much for sharing and asking your question!",
+    "m4": "I am already shuffling my cards for you!",
+    "m5": "thank you! do you need anything from my side Ramone",
+    "m6": "Sunshine, I can see through the death, 6 of wand, ace of wands cards and the judgment card",
+    "m7": "Sunshine, I can see through the death, 4 of wand, ace of wands cards and the judgment card that you are standing on the edge of a big transit brought in your professional path now!"
+  }
+}
