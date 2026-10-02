@@ -486,7 +486,8 @@ input[type="checkbox"] {
   text-transform: uppercase;
   font-family: var(--font-display);
   font-size: 13px;
-  background: var(--amber) url("https://assets.staryield.net/assets/figma/fb9ee.jpg") center/cover;
+  background: var(--amber)
+    url("https://assets.staryield.net/assets/figma/fb9ee.jpg") center/cover;
   background-blend-mode: overlay;
   border-top: 1px solid var(--gold);
 }
@@ -1401,7 +1402,7 @@ html:not([lang="en"]) .figma-content > .figma-section {
   container-type: inline-size;
   aspect-ratio: 1404.082 / 960.445;
   margin: 16px auto 0;
-  overflow: hidden;
+  overflow: visible;
 }
 .tarot-spread-stage {
   width: 1404.082px;
@@ -1738,5 +1739,152 @@ html:not([lang="en"]) .figma-content > .figma-section {
 @media (min-width: 768px) {
   .tarot-spread-viewport {
     margin-top: -89px;
+  }
+}
+
+/* Shared motion and layering across frontend screens. */
+:root {
+  --motion-fast: 180ms;
+  --motion-enter: 420ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tarot-stack-card {
+  /* Empty space in rotated layout boxes must not intercept other cards. */
+  pointer-events: none;
+  outline: none;
+}
+.tarot-stack-card [data-name^="Card / The"],
+.tarot-stack-card [data-name^="Component / Tarot Card /"],
+.tarot-stack-card[data-name^="Card / The"] {
+  pointer-events: auto;
+  transition:
+    scale 240ms var(--motion-ease),
+    filter 240ms var(--motion-ease);
+}
+.tarot-stack-card:is(:hover, :focus) {
+  z-index: 30;
+}
+.tarot-stack-card:hover {
+  z-index: 40;
+}
+.tarot-stack-card:focus-visible {
+  z-index: 50;
+}
+.tarot-stack-card:is(:hover, :focus) [data-name^="Card / The"],
+.tarot-stack-card:is(:hover, :focus) [data-name^="Component / Tarot Card /"],
+.tarot-stack-card[data-name^="Card / The"]:is(:hover, :focus) {
+  filter: drop-shadow(0 12px 16px rgb(21 16 11 / 0.3));
+}
+.tarot-stack-card:focus-visible [data-name^="Card / The"],
+.tarot-stack-card:focus-visible [data-name^="Component / Tarot Card /"],
+.tarot-stack-card[data-name^="Card / The"]:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 5px;
+}
+.tarot-stack-card [data-name^="Image /"] {
+  width: 100%;
+  height: 100%;
+}
+.figma-content [data-name="Card / Tarot Fan"],
+[data-name="Container / Top Arc"] {
+  isolation: isolate;
+}
+.figma-content [data-name="Section / Hero"]:has(.tarot-stack-card) {
+  overflow: visible;
+}
+@keyframes staryield-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes staryield-enter {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .app-route-motion {
+    animation: staryield-fade-in var(--motion-enter) var(--motion-ease);
+  }
+  :is(
+    .figma-section,
+    .auth-card,
+    .contact-card,
+    .calculator-card,
+    .result-insight,
+    .profile-hero,
+    .account-body,
+    .advisor-card,
+    .event-card,
+    .number-tile,
+    .message-bubble,
+    .checkout-card
+  ) {
+    animation: staryield-enter var(--motion-enter) var(--motion-ease);
+  }
+  :is(.advisor-card, .event-card, .number-tile):nth-child(2) {
+    animation-duration: 500ms;
+  }
+  :is(.advisor-card, .event-card, .number-tile):nth-child(3) {
+    animation-duration: 580ms;
+  }
+  :is(.advisor-card, .event-card, .number-tile):nth-child(n + 4) {
+    animation-duration: 660ms;
+  }
+  .tarot-stack-card:is(:hover, :focus) [data-name^="Card / The"],
+  .tarot-stack-card:is(:hover, :focus) [data-name^="Component / Tarot Card /"],
+  .tarot-stack-card[data-name^="Card / The"]:is(:hover, :focus) {
+    scale: 1.04;
+  }
+}
+:is(button, a, input, select, textarea, summary) {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    opacity var(--motion-fast) ease;
+}
+:is(.advisor-card, .event-card, .number-tile, .stat-tile, [data-slot="card"]) {
+  transition:
+    box-shadow 240ms var(--motion-ease),
+    border-color 240ms ease;
+}
+:is(.advisor-card, .event-card, .number-tile, [data-slot="card"]):is(
+  :hover,
+  :focus-within
+) {
+  box-shadow: 0 8px 22px rgb(21 16 11 / 0.12);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :is(button, a):not(:disabled):not([aria-disabled="true"]) {
+    transition:
+      translate var(--motion-fast) var(--motion-ease),
+      color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease,
+      opacity var(--motion-fast) ease;
+  }
+  :is(button, a):not(:disabled):not([aria-disabled="true"]):hover {
+    translate: 0 -1px;
+  }
+  :is(button, a):not(:disabled):not([aria-disabled="true"]):active {
+    translate: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-iteration-count: 1 !important;
   }
 }

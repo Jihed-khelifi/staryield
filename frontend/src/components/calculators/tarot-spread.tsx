@@ -1,4 +1,5 @@
 "use client";
+import { TarotStackCard } from "@/components/ui/tarot-stack-card";
 import { useI18n } from "@/i18n/i18n-provider";
 /* eslint-disable @next/next/no-img-element */
 const imgImageJustice = "https://assets.staryield.net/assets/tarot/justice.png";
@@ -310,7 +311,8 @@ export function TarotSpread() {
                 data-node-id="483:1972"
                 data-name="Container / Top Arc"
               >
-                <div
+                <TarotStackCard
+                  label={text("The Fool")}
                   className="absolute flex h-[348.13px] items-center justify-center left-[-2.34px] top-[261.87px] w-[392.162px]"
                   data-node-id="483:1973"
                 >
@@ -322,8 +324,9 @@ export function TarotSpread() {
                       <ComponentTarotCardTheFool className="h-[357.631px] relative rounded-[8px] shrink-0 w-[196.739px]" />
                     </div>
                   </div>
-                </div>
-                <div
+                </TarotStackCard>
+                <TarotStackCard
+                  label={text("Judgement")}
                   className="absolute flex h-[395.728px] items-center justify-center left-[61.52px] top-[172.55px] w-[408.922px]"
                   data-node-id="483:1977"
                 >
@@ -332,11 +335,12 @@ export function TarotSpread() {
                       className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[350.602px] items-start relative w-[219.825px]"
                       data-name="Container / Cluster 2"
                     >
-                      <ComponentTarotCardJudgement className="h-[237px] relative rounded-[8px] shrink-0 w-[140px]" />
+                      <ComponentTarotCardJudgement className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
                     </div>
                   </div>
-                </div>
-                <div
+                </TarotStackCard>
+                <TarotStackCard
+                  label={text("The High Priestess")}
                   className="absolute flex h-[416.171px] items-center justify-center left-[151.05px] top-[120.37px] w-[390.679px]"
                   data-node-id="483:1981"
                 >
@@ -345,11 +349,12 @@ export function TarotSpread() {
                       className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[363.211px] items-start relative w-[211.381px]"
                       data-name="Container / Cluster 3"
                     >
-                      <ComponentTarotCardTheHighPriestess className="h-[237px] relative rounded-[8px] shrink-0 w-[140px]" />
+                      <ComponentTarotCardTheHighPriestess className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
                     </div>
                   </div>
-                </div>
-                <div
+                </TarotStackCard>
+                <TarotStackCard
+                  label={text("The Empress")}
                   className="absolute flex h-[403.94px] items-center justify-center left-[250.06px] top-[99.26px] w-[346.386px]"
                   data-node-id="483:1985"
                 >
@@ -358,11 +363,12 @@ export function TarotSpread() {
                       className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[345.333px] items-start relative w-[211.677px]"
                       data-name="Container / Cluster 4"
                     >
-                      <ComponentTarotCardTheEmpress className="h-[237px] relative rounded-[8px] shrink-0 w-[140px]" />
+                      <ComponentTarotCardTheEmpress className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
                     </div>
                   </div>
-                </div>
-                <div
+                </TarotStackCard>
+                <TarotStackCard
+                  label={text("The Emperor")}
                   className="absolute flex h-[401.404px] items-center justify-center left-[360.68px] top-[87.7px] w-[301.366px]"
                   data-node-id="483:1989"
                 >
@@ -371,11 +377,12 @@ export function TarotSpread() {
                       className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[356.896px] items-start relative w-[209.294px]"
                       data-name="Container / Cluster 5"
                     >
-                      <ComponentTarotCardTheEmperor className="h-[237px] relative rounded-[8px] shrink-0 w-[140px]" />
+                      <ComponentTarotCardTheEmperor className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
                     </div>
                   </div>
-                </div>
-                <div
+                </TarotStackCard>
+                <TarotStackCard
+                  label={text("The Hierophant")}
                   className="absolute flex h-[370.378px] items-center justify-center left-[476.35px] top-[106.87px] w-[241.94px]"
                   data-node-id="483:1993"
                 >
@@ -384,11 +391,12 @@ export function TarotSpread() {
                       className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[352.065px] items-start relative w-[209.423px]"
                       data-name="Container / Cluster 6"
                     >
-                      <ComponentTarotCardTheHierophant className="h-[237px] relative rounded-[8px] shrink-0 w-[140px]" />
+                      <ComponentTarotCardTheHierophant className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
                     </div>
                   </div>
-                </div>
-                <div
+                </TarotStackCard>
+                <TarotStackCard
+                  label={text("The Lovers")}
                   className="absolute flex h-[374.165px] items-center justify-center left-[558.61px] top-[125.05px] w-[245.898px]"
                   data-node-id="483:1997"
                 >
@@ -397,11 +405,12 @@ export function TarotSpread() {
                       className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[355.522px] items-start relative w-[213.068px]"
                       data-name="Container / Cluster 7"
                     >
-                      <ComponentTarotCardTheLovers className="h-[237px] relative rounded-[8px] shrink-0 w-[140px]" />
+                      <ComponentTarotCardTheLovers className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
                     </div>
                   </div>
-                </div>
-                <div
+                </TarotStackCard>
+                <TarotStackCard
+                  label={text("The Chariot")}
                   className="absolute flex h-[400.195px] items-center justify-center left-[609.35px] top-[147.47px] w-[302.024px]"
                   data-node-id="483:2002"
                 >
@@ -410,11 +419,12 @@ export function TarotSpread() {
                       className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[355.297px] items-start relative w-[210.45px]"
                       data-name="Container / Cluster 8"
                     >
-                      <ComponentTarotCardTheChariot className="h-[237px] relative rounded-[8px] shrink-0 w-[140px]" />
+                      <ComponentTarotCardTheChariot className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
                     </div>
                   </div>
-                </div>
-                <div
+                </TarotStackCard>
+                <TarotStackCard
+                  label={text("Strength")}
                   className="absolute flex h-[411.511px] items-center justify-center left-[656.77px] top-[191.36px] w-[348.667px]"
                   data-node-id="483:2006"
                 >
@@ -423,11 +433,12 @@ export function TarotSpread() {
                       className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[355.133px] items-start relative w-[209.191px]"
                       data-name="Container / Cluster 9"
                     >
-                      <ComponentTarotCardStrength className="h-[237px] relative rounded-[8px] shrink-0 w-[140px]" />
+                      <ComponentTarotCardStrength className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
                     </div>
                   </div>
-                </div>
-                <div
+                </TarotStackCard>
+                <TarotStackCard
+                  label={text("The Hermit")}
                   className="absolute flex h-[408.938px] items-center justify-center left-[698.74px] top-[255.35px] w-[384.766px]"
                   data-node-id="483:2010"
                 >
@@ -436,11 +447,12 @@ export function TarotSpread() {
                       className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[354.6px] items-start relative w-[210.631px]"
                       data-name="Container / Cluster 10"
                     >
-                      <ComponentTarotCardTheHermit className="h-[237px] relative rounded-[8px] shrink-0 w-[140px]" />
+                      <ComponentTarotCardTheHermit className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
                     </div>
                   </div>
-                </div>
-                <div
+                </TarotStackCard>
+                <TarotStackCard
+                  label={text("Wheel Of Fortune")}
                   className="absolute flex h-[390.418px] items-center justify-center left-[735.24px] top-[335.64px] w-[405.466px]"
                   data-node-id="483:2014"
                 >
@@ -449,11 +461,12 @@ export function TarotSpread() {
                       className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[356.686px] items-start relative w-[207.526px]"
                       data-name="Container / Cluster 11"
                     >
-                      <ComponentTarotCardWheelOfFortune className="h-[237px] relative rounded-[8px] shrink-0 w-[140px]" />
+                      <ComponentTarotCardWheelOfFortune className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
                     </div>
                   </div>
-                </div>
-                <div
+                </TarotStackCard>
+                <TarotStackCard
+                  label={text("Justice")}
                   className="absolute flex h-[359.058px] items-center justify-center left-[764.49px] top-[432.34px] w-[412.444px]"
                   data-node-id="483:2018"
                 >
@@ -462,10 +475,10 @@ export function TarotSpread() {
                       className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[355.316px] items-start relative w-[209.463px]"
                       data-name="Container / Cluster 12"
                     >
-                      <ComponentTarotCardJustice className="h-[237px] relative rounded-[8px] shrink-0 w-[140px]" />
+                      <ComponentTarotCardJustice className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
                     </div>
                   </div>
-                </div>
+                </TarotStackCard>
               </div>
             </div>
           </div>

@@ -1,4 +1,5 @@
 "use client";
+import { TarotStackCard } from "@/components/ui/tarot-stack-card";
 import { useI18n } from "@/i18n/i18n-provider";
 /* Figma 461:1616 — reusable responsive content regions. */
 /* eslint-disable @next/next/no-img-element */
@@ -125,7 +126,8 @@ export default function ScreenDesktopHome() {
           data-node-id="548:1786"
           data-name="Card / Tarot Fan"
         >
-          <div
+          <TarotStackCard
+            label={text("The Moon")}
             className="absolute flex h-[375.552px] items-center justify-center left-[258px] top-[83px] w-[284.289px]"
             data-node-id="539:1858"
           >
@@ -143,8 +145,9 @@ export default function ScreenDesktopHome() {
                 </div>
               </div>
             </div>
-          </div>
-          <div
+          </TarotStackCard>
+          <TarotStackCard
+            label={text("The Sun")}
             className="absolute flex h-[371.904px] items-center justify-center left-[-45px] top-[87px] w-[286.428px]"
             data-node-id="539:1859"
           >
@@ -160,8 +163,9 @@ export default function ScreenDesktopHome() {
                 />
               </div>
             </div>
-          </div>
-          <div
+          </TarotStackCard>
+          <TarotStackCard
+            label={text("The Star")}
             className="absolute border-2 border-[var(--gold)] border-solid h-[371px] left-[137.05px] right-[140.95px] rounded-[12px] shadow-[0px_12px_24px_0px_rgba(0,0,0,0.35)] top-[12px]"
             data-node-id="539:1860"
             data-name="Card / The Star"
@@ -173,7 +177,7 @@ export default function ScreenDesktopHome() {
                 src={imgCardTheStar}
               />
             </div>
-          </div>
+          </TarotStackCard>
         </div>
       </section>
       <section
