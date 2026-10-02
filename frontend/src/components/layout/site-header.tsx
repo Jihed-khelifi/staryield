@@ -1,114 +1,166 @@
-"use client"
-
-import * as React from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { FiMenu } from "react-icons/fi"
-
-import { useI18n } from "@/i18n/i18n-provider"
-import { cn } from "@/lib/utils"
-import { StaryieldMark } from "@/components/brand/staryield-mark"
-import { LocaleSwitcher } from "@/components/layout/locale-switcher"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
+"use client";
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Menu, UserRound, Sun, Sparkles, MessageCircle } from "lucide-react";
+import { useI18n } from "@/i18n/i18n-provider";
+import { SunLogo } from "@/components/brand/sun-logo";
+import { LocaleSwitcher } from "@/components/layout/locale-switcher";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet"
+} from "@/components/ui/sheet";
 
-const navItems = [
-  { href: "/psychics", labelKey: "nav.psychics" },
-  { href: "/chatroom", labelKey: "nav.chatroom" },
-  { href: "/profile", labelKey: "nav.profile" },
-] as const
-
-export function SiteHeader() {
-  const { locale, t } = useI18n()
-  const pathname = usePathname()
-  const [menuOpen, setMenuOpen] = React.useState(false)
-
-  const isActive = (href: string) => pathname === `/${locale}${href}`
-
+export function SiteHeader({
+  publicSite = false,
+  promo = false,
+}: {
+  publicSite?: boolean;
+  promo?: boolean;
+}) {
+  const { locale, t } = useI18n();
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const items = publicSite
+    ? [
+        ["Psychics", "/psychics"],
+        ["Natal Chart", "/calculators/natal-chart"],
+        ["Path of Life", "/calculators/path-of-life"],
+        ["Astrology", "/calculators/astrology"],
+      ]
+    : [
+        [t("nav.psychics"), "/psychics"],
+        [t("nav.chatroom"), "/chatroom"],
+        [t("nav.profile"), "/profile"],
+      ];
+  const active = (href: string) => pathname.startsWith(`/${locale}${href}`);
   return (
-    <header className="flex h-[35px] w-full items-start justify-between border-b border-border pb-3">
-      <Link
-        href={`/${locale}/chatroom`}
-        className="flex items-center gap-[5px] rounded-sm focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-      >
-        <StaryieldMark />
-        <span className="font-display text-lg leading-none text-ink sm:text-[20px]">
-          STARYIELD
-        </span>
-      </Link>
-
-      <div className="flex items-center gap-2">
-        <nav
-          aria-label={t("nav.menuTitle")}
-          className="hidden items-center font-serif text-[18px] text-deep-black md:flex md:gap-10 lg:gap-[102px]"
+    <>
+      {promo && (
+        <Link href={`/${locale}/signup`} className="promo-bar paper-page">
+          <span>3 MINUTES FREE + 80% OFF FOR NEW CUSTOMERS</span>
+          <span className="hidden sm:inline">CLAIM INTRO OFFER →</span>
+        </Link>
+      )}
+      <header className="site-header">
+        <Link
+          className={`brand ${pathname.endsWith("/chatroom") ? "chat-desktop-brand" : ""}`}
+          href={`/${locale}`}
         >
-          {navItems.map((item) => (
+          <SunLogo />
+          <span>Staryield</span>
+        </Link>
+        {pathname.endsWith("/chatroom") && (
+          <Link className="chat-mobile-heading" href={`/${locale}/psychics`}>
+            <span aria-hidden="true">‹</span> Chatroom
+          </Link>
+        )}
+        <nav aria-label={t("nav.menuTitle")} className="desktop-nav">
+          {items.map(([label, href]) => (
             <Link
-              key={item.href}
-              href={`/${locale}${item.href}`}
-              aria-current={isActive(item.href) ? "page" : undefined}
-              className={cn(
-                "whitespace-nowrap rounded-sm transition-colors hover:text-gold focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-                isActive(item.href) && "underline decoration-solid"
-              )}
+              key={href}
+              className={active(href) ? "active" : ""}
+              aria-current={active(href) ? "page" : undefined}
+              href={`/${locale}${href}`}
             >
-              {t(item.labelKey)}
+              {label}
             </Link>
           ))}
         </nav>
-
-        <LocaleSwitcher className="hidden md:inline-flex" />
-
-        <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-          <SheetTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("nav.openMenu")}
-              className="md:hidden"
-            >
-              <FiMenu className="size-5" aria-hidden />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-72 bg-cream">
-            <SheetHeader>
-              <SheetTitle className="font-display text-base tracking-wide uppercase">
-                {t("nav.menuTitle")}
-              </SheetTitle>
-            </SheetHeader>
-            <nav className="flex flex-col gap-1 px-4 font-serif text-[18px]">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={`/${locale}${item.href}`}
-                  onClick={() => setMenuOpen(false)}
-                  aria-current={isActive(item.href) ? "page" : undefined}
-                  className={cn(
-                    "rounded-md px-2 py-2 text-ink transition-colors hover:bg-gold/15",
-                    isActive(item.href) && "bg-sage/40 underline"
-                  )}
-                >
-                  {t(item.labelKey)}
-                </Link>
-              ))}
-            </nav>
-            <Separator className="mx-4 w-auto" />
-            <div className="flex items-center justify-between px-4 pb-4">
-              <span className="font-serif text-sm text-muted-foreground">
-                {t("nav.language")}
-              </span>
-              <LocaleSwitcher />
+        <div className="flex items-center gap-3">
+          {publicSite ? (
+            <div className="hidden items-center gap-4 md:flex">
+              <Link href={`/${locale}/login`}>Log In</Link>
+              <Button asChild className="gold-button w-40">
+                <Link href={`/${locale}/signup`}>Sign In</Link>
+              </Button>
             </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-    </header>
-  )
+          ) : (
+            <>
+              <Link href={`/${locale}/credits`} className="balance-pill">
+                <span className="md:hidden">✦ </span>
+                <span className="hidden md:inline">Balance: </span>320{" "}
+                <span className="md:capitalize">credits</span>
+              </Link>
+              <Link
+                href={`/${locale}/profile/settings`}
+                aria-label="Account settings"
+                className="hidden size-10 items-center justify-center rounded-full bg-gold text-cream-light md:flex"
+              >
+                <UserRound size={20} />
+              </Link>
+            </>
+          )}
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t("nav.openMenu")}
+                className={publicSite ? "md:hidden" : "hidden"}
+              >
+                <Menu />
+              </Button>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Staryield</SheetTitle>
+              </SheetHeader>
+              <nav className="flex flex-col gap-6 px-6">
+                {items.map(([label, href]) => (
+                  <Link
+                    key={href}
+                    onClick={() => setOpen(false)}
+                    href={`/${locale}${href}`}
+                  >
+                    {label}
+                  </Link>
+                ))}
+                <Link onClick={() => setOpen(false)} href={`/${locale}/login`}>
+                  Log In
+                </Link>
+                <Link onClick={() => setOpen(false)} href={`/${locale}/signup`}>
+                  Sign Up
+                </Link>
+                <LocaleSwitcher />
+              </nav>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </header>
+    </>
+  );
+}
+export function MobileNavigation() {
+  const { locale } = useI18n();
+  const path = usePathname();
+  const links = [
+    ["Today", "/profile", Sun],
+    ["Psychics", "/psychics", Sparkles],
+    ["Chat", "/chatroom", MessageCircle],
+    ["Profile", "/profile/chart", UserRound],
+  ] as const;
+  return (
+    <nav className="mobile-navigation" aria-label="Main navigation">
+      {links.map(([label, href, Icon]) => (
+        <Link
+          key={label}
+          href={`/${locale}${href}`}
+          className={
+            path === `/${locale}${href}` ||
+            (label === "Profile" && path.includes("/settings"))
+              ? "active"
+              : ""
+          }
+        >
+          <Icon size={19} strokeWidth={1} />
+          <span>{label}</span>
+        </Link>
+      ))}
+    </nav>
+  );
 }

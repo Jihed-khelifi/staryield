@@ -1,65 +1,76 @@
-"use client"
+"use client";
+import Link from "next/link";
+import { useI18n } from "@/i18n/i18n-provider";
+import type { Reader } from "@/lib/chatroom-data";
+import { RatingStar } from "@/components/brand/rating-star";
+import { Button } from "@/components/ui/button";
 
-import { useI18n } from "@/i18n/i18n-provider"
-import type { Reader } from "@/lib/chatroom-data"
-import { formatRating } from "@/lib/format"
-import { cn } from "@/lib/utils"
-import { RatingStar } from "@/components/brand/rating-star"
-import { Button } from "@/components/ui/button"
-
-/** Right-hand "detail-column" of the chatroom (Figma node 163:674). */
+export type SavedMessage = { id: string; body: string };
 export function ReaderPanel({
   reader,
-  className,
+  saved = [],
+  onRemove,
 }: {
-  reader: Reader
-  className?: string
+  reader: Reader;
+  saved?: SavedMessage[];
+  onRemove?: (id: string) => void;
 }) {
-  const { locale, t } = useI18n()
-
+  const { locale } = useI18n();
   return (
-    <div className={cn("flex flex-col items-center gap-4 pb-4", className)}>
-      <div
-        role="img"
-        aria-label={t("chatroom.panel.portraitAlt", { name: reader.name })}
-        className="flex h-[268px] w-full items-end justify-center bg-cream"
-      >
-        <span className="pb-3 font-serif text-[11px] text-ink/40">
-          {t("chatroom.panel.portraitPending")}
-        </span>
+    <div className="flex flex-col gap-4 px-4 py-16">
+      <div>
+        <h2 className="font-display text-xl">{reader.name}</h2>
+        <p className="flex items-center text-sm">
+          <RatingStar />
+          4.8
+        </p>
+        <p className="mt-1 text-xs font-light">12 years of experience</p>
       </div>
-
-      <p className="text-center font-serif text-xs font-light text-ink opacity-80">
-        {t("chatroom.panel.freeMinutes", { count: reader.freeMinutes })}
-      </p>
-
-      <div className="flex w-[238px] max-w-full flex-col gap-1.5">
-        <div className="flex flex-col">
-          <h2 className="-mb-[7px] font-serif text-2xl font-medium text-ink">
-            {reader.name}
-          </h2>
-          <p
-            className="flex items-center gap-px font-serif text-sm text-ink"
-            aria-label={t("chatroom.panel.ratingLabel", {
-              rating: formatRating(reader.rating, locale),
-            })}
-          >
-            <RatingStar />
-            <span aria-hidden>{formatRating(reader.rating, locale)}</span>
-          </p>
-        </div>
-        <p className="font-serif text-xs text-ink opacity-80">
-          {t("chatroom.panel.experience", { count: reader.years })}
+      <div>
+        <h3 className="mb-2 border-b border-gold/30 pb-2 font-display text-[9px] tracking-widest">
+          Overview
+        </h3>
+        <p className="text-sm leading-relaxed">
+          With over a decade of spiritual insight, I channel ancient wisdom to
+          help you navigate life’s greatest mysteries. Every question has an
+          answer waiting to be revealed.
         </p>
       </div>
-
-      <p className="w-[238px] max-w-full font-serif text-xs leading-[1.5] text-ink opacity-90">
-        {t(reader.bioKey)}
-      </p>
-
-      <Button variant="gold" className="h-[30px] w-full px-4 text-[13px]">
-        {t("chatroom.panel.viewProfile")}
+      <Button
+        asChild
+        variant="ghost"
+        className="my-3 w-full font-display text-[11px]"
+      >
+        <Link href={`/${locale}/psychics/${reader.id}`}>
+          View full profile ›
+        </Link>
       </Button>
+      <section>
+        <h3 className="border-b border-gold/30 pb-2 font-display text-[9px] tracking-widest">
+          ♧ Saved messages
+        </h3>
+        <div className="mt-3 space-y-2">
+          {saved.length ? (
+            saved.map((message) => (
+              <div key={message.id} className="rounded-lg bg-cream p-3">
+                <p className="text-xs">{message.body}</p>
+                <button
+                  className="mt-2 text-[10px] text-ink/60 underline"
+                  onClick={() => onRemove?.(message.id)}
+                  aria-label={`Remove saved message: ${message.body}`}
+                >
+                  Remove
+                </button>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs font-light">
+              No saved messages yet. Use the bookmark beside a message to save
+              it.
+            </p>
+          )}
+        </div>
+      </section>
     </div>
-  )
+  );
 }

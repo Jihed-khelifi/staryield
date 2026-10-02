@@ -1,0 +1,12 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": ["https://staryield.net", "http://localhost:3000", "http://localhost:3001", "http://localhost:8787"],
+        "methods": ["GET", "HEAD"]
+      },
+      "exposeHeaders": ["ETag", "Content-Type", "Cache-Control"],
+      "maxAgeSeconds": 86400
+    }
+  ]
+}

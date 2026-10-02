@@ -1,10 +1,10 @@
-import { redirect } from "next/navigation"
+import Home from "@/components/content/home";
+import { PublicFrame } from "@/components/layout/public-frame";
 
-export default async function LangIndexPage({
-  params,
-}: {
-  params: Promise<{ lang: string }>
-}) {
-  const { lang } = await params
-  redirect(`/${lang}/chatroom`)
+export default function LangIndexPage() {
+  return (
+    <PublicFrame>
+      <Home />
+    </PublicFrame>
+  );
 }

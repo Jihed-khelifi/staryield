@@ -1,0 +1,231 @@
+{
+  "tarot": [
+    {
+      "name": "The Fool",
+      "nodeId": "95:209",
+      "src": "https://assets.staryield.net/assets/tarot/the-fool.png"
+    },
+    {
+      "name": "Judgement",
+      "nodeId": "95:211",
+      "src": "https://assets.staryield.net/assets/tarot/judgement.png"
+    },
+    {
+      "name": "The High Priestess",
+      "nodeId": "95:213",
+      "src": "https://assets.staryield.net/assets/tarot/the-high-priestess.png"
+    },
+    {
+      "name": "The Empress",
+      "nodeId": "95:215",
+      "src": "https://assets.staryield.net/assets/tarot/the-empress.png"
+    },
+    {
+      "name": "The Emperor",
+      "nodeId": "95:217",
+      "src": "https://assets.staryield.net/assets/tarot/the-emperor.png"
+    },
+    {
+      "name": "The Hierophant",
+      "nodeId": "95:219",
+      "src": "https://assets.staryield.net/assets/tarot/the-hierophant.png"
+    },
+    {
+      "name": "The Lovers",
+      "nodeId": "95:221",
+      "src": "https://assets.staryield.net/assets/tarot/the-lovers.png"
+    },
+    {
+      "name": "The Chariot",
+      "nodeId": "95:223",
+      "src": "https://assets.staryield.net/assets/tarot/the-chariot.png"
+    },
+    {
+      "name": "Strength",
+      "nodeId": "95:225",
+      "src": "https://assets.staryield.net/assets/tarot/strength.png"
+    },
+    {
+      "name": "The Hermit",
+      "nodeId": "95:227",
+      "src": "https://assets.staryield.net/assets/tarot/the-hermit.png"
+    },
+    {
+      "name": "Wheel Of Fortune",
+      "nodeId": "95:229",
+      "src": "https://assets.staryield.net/assets/tarot/wheel-of-fortune.png"
+    },
+    {
+      "name": "Justice",
+      "nodeId": "95:231",
+      "src": "https://assets.staryield.net/assets/tarot/justice.png"
+    },
+    {
+      "name": "The Hanged Man",
+      "nodeId": "95:233",
+      "src": "https://assets.staryield.net/assets/tarot/the-hanged-man.png"
+    },
+    {
+      "name": "Death",
+      "nodeId": "95:235",
+      "src": "https://assets.staryield.net/assets/tarot/death.png"
+    },
+    {
+      "name": "Temperance",
+      "nodeId": "95:237",
+      "src": "https://assets.staryield.net/assets/tarot/temperance.png"
+    },
+    {
+      "name": "The Devil",
+      "nodeId": "95:239",
+      "src": "https://assets.staryield.net/assets/tarot/the-devil.png"
+    },
+    {
+      "name": "The Tower",
+      "nodeId": "95:241",
+      "src": "https://assets.staryield.net/assets/tarot/the-tower.png"
+    },
+    {
+      "name": "The Star",
+      "nodeId": "95:243",
+      "src": "https://assets.staryield.net/assets/tarot/the-star.png"
+    },
+    {
+      "name": "The Moon",
+      "nodeId": "95:245",
+      "src": "https://assets.staryield.net/assets/tarot/the-moon.png"
+    },
+    {
+      "name": "The Sun",
+      "nodeId": "95:247",
+      "src": "https://assets.staryield.net/assets/tarot/the-sun.png"
+    },
+    {
+      "name": "The Magician",
+      "nodeId": "95:249",
+      "src": "https://assets.staryield.net/assets/tarot/the-magician.png"
+    },
+    {
+      "name": "The World",
+      "nodeId": "95:251",
+      "src": "https://assets.staryield.net/assets/tarot/the-world.png"
+    }
+  ],
+  "zodiac": [
+    {
+      "name": "Aquarius",
+      "nodeId": "126:352",
+      "src": "https://assets.staryield.net/assets/zodiac/aquarius.png"
+    },
+    {
+      "name": "Pisces",
+      "nodeId": "126:353",
+      "src": "https://assets.staryield.net/assets/zodiac/pisces.png"
+    },
+    {
+      "name": "Aries",
+      "nodeId": "126:354",
+      "src": "https://assets.staryield.net/assets/zodiac/aries.png"
+    },
+    {
+      "name": "Taurus",
+      "nodeId": "126:355",
+      "src": "https://assets.staryield.net/assets/zodiac/taurus.png"
+    },
+    {
+      "name": "Virgo",
+      "nodeId": "126:356",
+      "src": "https://assets.staryield.net/assets/zodiac/virgo.png"
+    },
+    {
+      "name": "Leo",
+      "nodeId": "126:357",
+      "src": "https://assets.staryield.net/assets/zodiac/leo.png"
+    },
+    {
+      "name": "Cancer",
+      "nodeId": "126:358",
+      "src": "https://assets.staryield.net/assets/zodiac/cancer.png"
+    },
+    {
+      "name": "Gemini",
+      "nodeId": "126:359",
+      "src": "https://assets.staryield.net/assets/zodiac/gemini.png"
+    },
+    {
+      "name": "Libra",
+      "nodeId": "126:360",
+      "src": "https://assets.staryield.net/assets/zodiac/libra.png"
+    },
+    {
+      "name": "Scorpio",
+      "nodeId": "126:361",
+      "src": "https://assets.staryield.net/assets/zodiac/scorpio.png"
+    },
+    {
+      "name": "Capricorn",
+      "nodeId": "126:362",
+      "src": "https://assets.staryield.net/assets/zodiac/capricorn.png"
+    },
+    {
+      "name": "Sagittarius",
+      "nodeId": "126:363",
+      "src": "https://assets.staryield.net/assets/zodiac/sagittarius.png"
+    },
+    {
+      "name": "Ascending 1",
+      "nodeId": "656:1457",
+      "src": "https://assets.staryield.net/assets/zodiac/ascending-1.png"
+    },
+    {
+      "name": "Jupiter 1",
+      "nodeId": "656:1462",
+      "src": "https://assets.staryield.net/assets/zodiac/jupiter-1.png"
+    },
+    {
+      "name": "Mars 1",
+      "nodeId": "656:1468",
+      "src": "https://assets.staryield.net/assets/zodiac/mars-1.png"
+    },
+    {
+      "name": "Mercury 1",
+      "nodeId": "656:1474",
+      "src": "https://assets.staryield.net/assets/zodiac/mercury-1.png"
+    },
+    {
+      "name": "Moon 1",
+      "nodeId": "656:1481",
+      "src": "https://assets.staryield.net/assets/zodiac/moon-1.png"
+    },
+    {
+      "name": "Neptune 1",
+      "nodeId": "656:1510",
+      "src": "https://assets.staryield.net/assets/zodiac/neptune-1.png"
+    },
+    {
+      "name": "Pluto 1",
+      "nodeId": "656:1485",
+      "src": "https://assets.staryield.net/assets/zodiac/pluto-1.png"
+    },
+    {
+      "name": "Saturn 1",
+      "nodeId": "656:1503",
+      "src": "https://assets.staryield.net/assets/zodiac/saturn-1.png"
+    },
+    {
+      "name": "Sun 1",
+      "nodeId": "656:1498",
+      "src": "https://assets.staryield.net/assets/zodiac/sun-1.svg"
+    },
+    {
+      "name": "Uranus 1",
+      "nodeId": "656:1516",
+      "src": "https://assets.staryield.net/assets/zodiac/uranus-1.svg"
+    },
+    {
+      "name": "Venus 1",
+      "nodeId": "656:1524",
+      "src": "https://assets.staryield.net/assets/zodiac/venus-1.svg"
+    }
+  ]
+}

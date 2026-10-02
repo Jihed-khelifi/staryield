@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { yupResolver } from "@hookform/resolvers/yup"
-import { useForm } from "react-hook-form"
-import { FiSend } from "react-icons/fi"
+import * as React from "react";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { useForm } from "react-hook-form";
+import { FiSend } from "react-icons/fi";
 
-import { useI18n } from "@/i18n/i18n-provider"
+import { useI18n } from "@/i18n/i18n-provider";
 import {
   createMessageSchema,
   type MessageFormValues,
-} from "@/lib/schemas/message-schema"
-import { Button } from "@/components/ui/button"
+} from "@/lib/schemas/message-schema";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -18,27 +18,29 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 
 export function MessageComposer({
   onSend,
   note,
+  disabled = false,
 }: {
-  onSend: (message: string) => void
-  note: string
+  onSend: (message: string) => void;
+  note: string;
+  disabled?: boolean;
 }) {
-  const { t } = useI18n()
-  const schema = React.useMemo(() => createMessageSchema(t), [t])
+  const { t } = useI18n();
+  const schema = React.useMemo(() => createMessageSchema(t), [t]);
 
   const form = useForm<MessageFormValues>({
     resolver: yupResolver(schema),
     defaultValues: { message: "" },
-  })
+  });
 
   function handleSubmit(values: MessageFormValues) {
-    onSend(values.message.trim())
-    form.reset({ message: "" })
+    onSend(values.message.trim());
+    form.reset({ message: "" });
   }
 
   return (
@@ -59,18 +61,20 @@ export function MessageComposer({
                 <FormControl>
                   <Input
                     {...field}
+                    disabled={disabled}
                     autoComplete="off"
                     enterKeyHint="send"
                     placeholder={t("chatroom.composer.placeholder")}
-                    className="h-auto rounded-lg border-0 bg-warm-gray px-2.5 py-2.5 font-ui text-sm text-ink shadow-none placeholder:text-ink/60 md:text-sm"
+                    className="h-auto rounded-lg border-0 bg-cream px-2.5 py-2.5 font-serif text-sm text-ink shadow-none placeholder:text-ink/60 md:text-sm"
                   />
                 </FormControl>
                 <Button
                   type="submit"
+                  disabled={disabled}
                   size="icon"
                   variant="ghost"
                   aria-label={t("chatroom.composer.send")}
-                  className="shrink-0 text-ink hover:bg-warm-gray sm:hidden"
+                  className="shrink-0 text-ink hover:bg-warm-gray"
                 >
                   <FiSend className="size-4" aria-hidden />
                 </Button>
@@ -83,5 +87,5 @@ export function MessageComposer({
         <p className="font-ui text-[10px] text-ink opacity-50">{note}</p>
       </form>
     </Form>
-  )
+  );
 }

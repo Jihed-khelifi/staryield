@@ -1,0 +1,2214 @@
+[
+  {
+    "key": "assets/bookmark.png",
+    "url": "https://assets.staryield.net/assets/bookmark.png",
+    "contentType": "image/png",
+    "bytes": 5408,
+    "sha256": "575e30625af66ea3164d2ad01564ac1d108e7da8469ce575774ca13cc1703894"
+  },
+  {
+    "key": "assets/figma/00a59.svg",
+    "url": "https://assets.staryield.net/assets/figma/00a59.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 13717,
+    "sha256": "3c92a0deb3125545b7962892655efcfbcadd7bd724ad8112f171826821abd962"
+  },
+  {
+    "key": "assets/figma/00e44.svg",
+    "url": "https://assets.staryield.net/assets/figma/00e44.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "75763c26bf1261dd4fc464e873becc46caade3eee412d87816e6cd35b498d73e"
+  },
+  {
+    "key": "assets/figma/00f47.svg",
+    "url": "https://assets.staryield.net/assets/figma/00f47.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 272,
+    "sha256": "4e7fb1e0121de2698e4b5058eb5efe283169bf43cde26356515962d9c65500be"
+  },
+  {
+    "key": "assets/figma/01957.svg",
+    "url": "https://assets.staryield.net/assets/figma/01957.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 687,
+    "sha256": "1138a8acd9cc1b209f3f26286fa987ecbdf612d5da414a80fa08ac040e1b4cf9"
+  },
+  {
+    "key": "assets/figma/01d8c.svg",
+    "url": "https://assets.staryield.net/assets/figma/01d8c.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 324,
+    "sha256": "ec0848dbb4bb698d632945074bb292afbaffb1dbe10622c910abef27c436d779"
+  },
+  {
+    "key": "assets/figma/028fd.svg",
+    "url": "https://assets.staryield.net/assets/figma/028fd.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1020,
+    "sha256": "daeebe77ea409f3bb3c7418dc96d90961fa3077da895db7bad4a063b159f75a1"
+  },
+  {
+    "key": "assets/figma/0487b.svg",
+    "url": "https://assets.staryield.net/assets/figma/0487b.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 568,
+    "sha256": "eafb201a1e0256590aacb96a64f8da1e5cce5b067c452afa86f78d4b22b185fa"
+  },
+  {
+    "key": "assets/figma/052b0.svg",
+    "url": "https://assets.staryield.net/assets/figma/052b0.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 326,
+    "sha256": "47b64ebc711d5bc38cd6d32367d51c5726084610b27d684a1fbb6f1730e560f7"
+  },
+  {
+    "key": "assets/figma/06c37.svg",
+    "url": "https://assets.staryield.net/assets/figma/06c37.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 964,
+    "sha256": "b60fffa16d9b1e7b76760c0416fa021d4387f594ff82c04ed6337d9fa730e046"
+  },
+  {
+    "key": "assets/figma/07613.svg",
+    "url": "https://assets.staryield.net/assets/figma/07613.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 391,
+    "sha256": "09b55e5351558dbc9d09a4f575eb31d8ab9941c782aee65e5f9748345984b863"
+  },
+  {
+    "key": "assets/figma/088fe.svg",
+    "url": "https://assets.staryield.net/assets/figma/088fe.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 292,
+    "sha256": "aed7c0dc1874e39cdb445ef645b7121830a76abc3561bdefd042446120bd1494"
+  },
+  {
+    "key": "assets/figma/08e18.png",
+    "url": "https://assets.staryield.net/assets/figma/08e18.png",
+    "contentType": "image/png",
+    "bytes": 3077,
+    "sha256": "e0f54d8bf6952ecd463bda84e0467ba126db45f667023e28c0812cec4a6df5bf"
+  },
+  {
+    "key": "assets/figma/0bcfe.svg",
+    "url": "https://assets.staryield.net/assets/figma/0bcfe.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 326,
+    "sha256": "064e4dd3a41b72adc357a41126e3f4a85118f70444b92e6ff1d4b006459323c2"
+  },
+  {
+    "key": "assets/figma/0c079.svg",
+    "url": "https://assets.staryield.net/assets/figma/0c079.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 312,
+    "sha256": "7443669f85130acbddcedb44fdfa838634c417760619e1c2104f3c1fdb4ade20"
+  },
+  {
+    "key": "assets/figma/0cf55.svg",
+    "url": "https://assets.staryield.net/assets/figma/0cf55.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 997,
+    "sha256": "1bf72dc5af0bed5bac286ecf3e74063374bcb8e378bff85b262c8ef3ac9eacd6"
+  },
+  {
+    "key": "assets/figma/0d0ac.svg",
+    "url": "https://assets.staryield.net/assets/figma/0d0ac.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 329,
+    "sha256": "c46e74d773c5e36bf3e38f1f899c58aabd4700742c70713754c49d6cabeb991b"
+  },
+  {
+    "key": "assets/figma/0d40b.svg",
+    "url": "https://assets.staryield.net/assets/figma/0d40b.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 687,
+    "sha256": "1138a8acd9cc1b209f3f26286fa987ecbdf612d5da414a80fa08ac040e1b4cf9"
+  },
+  {
+    "key": "assets/figma/0d57f.svg",
+    "url": "https://assets.staryield.net/assets/figma/0d57f.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 265,
+    "sha256": "29736993e74e5d9dc7b2058d02eed1191ec66194b44661f0d4957f9d842025ab"
+  },
+  {
+    "key": "assets/figma/0e6c1.svg",
+    "url": "https://assets.staryield.net/assets/figma/0e6c1.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 434,
+    "sha256": "13460eb81e3dd8731dfee7c2ad3ea007da9c1d1243aec80b92a31444e22a1657"
+  },
+  {
+    "key": "assets/figma/107bd.svg",
+    "url": "https://assets.staryield.net/assets/figma/107bd.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "a9068c75b47a06b295c3e8ecd9cbafd1ca0f8236bf3c36e305bf0bfb4b1e6df4"
+  },
+  {
+    "key": "assets/figma/117c3.svg",
+    "url": "https://assets.staryield.net/assets/figma/117c3.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 331,
+    "sha256": "ad0fa36f23473bbf6f4a54c73098855fb0248be94451a00b2d4d366417db5268"
+  },
+  {
+    "key": "assets/figma/11828.svg",
+    "url": "https://assets.staryield.net/assets/figma/11828.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 283,
+    "sha256": "08e0467f7abf0e9e5fd89cec630b6a5a9ee59ca23b9400cffcecd6ee723ee5b2"
+  },
+  {
+    "key": "assets/figma/11b17.png",
+    "url": "https://assets.staryield.net/assets/figma/11b17.png",
+    "contentType": "image/png",
+    "bytes": 373249,
+    "sha256": "e67c75cbb4e467dfaf4761152996aa8e039da3c7a0f3cb2c49f8efc7c5201ad1"
+  },
+  {
+    "key": "assets/figma/11ec8.svg",
+    "url": "https://assets.staryield.net/assets/figma/11ec8.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 568,
+    "sha256": "098afd12b764cc3e90a2d9ee6844c7550cde845a088ce364d3cf1c73f0dadce0"
+  },
+  {
+    "key": "assets/figma/125bb.svg",
+    "url": "https://assets.staryield.net/assets/figma/125bb.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 327,
+    "sha256": "246e0cd52490c256acd6eda07d1cf87c5342276ec9cf3e42670435d2a3af1d3b"
+  },
+  {
+    "key": "assets/figma/12acb.svg",
+    "url": "https://assets.staryield.net/assets/figma/12acb.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1362,
+    "sha256": "06c547b7ba150936165ddedd54034602e299e999e665226ccbdb686d8bea3e79"
+  },
+  {
+    "key": "assets/figma/12c77.svg",
+    "url": "https://assets.staryield.net/assets/figma/12c77.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 325,
+    "sha256": "f3af87bf33b82e66ae9ee4467e5a0633dd4ef171bc169f76e7549f02d5ccd93b"
+  },
+  {
+    "key": "assets/figma/12d3c.svg",
+    "url": "https://assets.staryield.net/assets/figma/12d3c.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 312,
+    "sha256": "15f05e333b2db675314d3e077188825fcad82f95cd8a83760efa182f5beb2ec1"
+  },
+  {
+    "key": "assets/figma/12e3a.svg",
+    "url": "https://assets.staryield.net/assets/figma/12e3a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "225e2605ca3db02f9b1202f5f6094fbe92f50de74db6fd54105eba05f55a29c3"
+  },
+  {
+    "key": "assets/figma/132e3.svg",
+    "url": "https://assets.staryield.net/assets/figma/132e3.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 287,
+    "sha256": "f6238c5cc0dfd6390d6e80805f4afbf7f030137309836347e4ba0c86705f5d96"
+  },
+  {
+    "key": "assets/figma/13742.svg",
+    "url": "https://assets.staryield.net/assets/figma/13742.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 590,
+    "sha256": "a3f7c655bde6b41c48b341ae9d0698e253e19c212f04ebed65653c89189ce066"
+  },
+  {
+    "key": "assets/figma/146b1.png",
+    "url": "https://assets.staryield.net/assets/figma/146b1.png",
+    "contentType": "image/png",
+    "bytes": 4635,
+    "sha256": "40e35598fb9ebeff2d4dc127aa09af1b495b29aa78f908d440503a8e36ac109c"
+  },
+  {
+    "key": "assets/figma/16866.svg",
+    "url": "https://assets.staryield.net/assets/figma/16866.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 313,
+    "sha256": "373b17e3ec4c1032159d07e309d290a3793b2c6fd16df0e11fcc13994010ac8a"
+  },
+  {
+    "key": "assets/figma/168d0.svg",
+    "url": "https://assets.staryield.net/assets/figma/168d0.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 326,
+    "sha256": "63a4c95861962f0015021db9b086638a81fc53d0262ffba4b0ba3d8a92ab1467"
+  },
+  {
+    "key": "assets/figma/17788.svg",
+    "url": "https://assets.staryield.net/assets/figma/17788.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 325,
+    "sha256": "0914dcbb28c4f885c0dd91a608d71631703cf3b916b5443d8b6b05698f6e09b6"
+  },
+  {
+    "key": "assets/figma/1849b.svg",
+    "url": "https://assets.staryield.net/assets/figma/1849b.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 312,
+    "sha256": "68f0d7b1b6dce7bd8391a20a32c7f9893abeea324718d0f808c5204ec287dae0"
+  },
+  {
+    "key": "assets/figma/1c316.svg",
+    "url": "https://assets.staryield.net/assets/figma/1c316.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 274,
+    "sha256": "abc2160b95358dd829477cdf0c738cd094b65b9045f791b0eeb1eb7eb556975a"
+  },
+  {
+    "key": "assets/figma/1c3f4.png",
+    "url": "https://assets.staryield.net/assets/figma/1c3f4.png",
+    "contentType": "image/png",
+    "bytes": 5050,
+    "sha256": "d397c0712414102205ba6bad0b9e19b92431f1f08cf6eda9ca73b4d43fe869f6"
+  },
+  {
+    "key": "assets/figma/1d4ad.svg",
+    "url": "https://assets.staryield.net/assets/figma/1d4ad.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 329,
+    "sha256": "dae933a6fae3a22c1a2fa9283b56f0fc99580a53b5f85f16ff64c60b5fa5b5d4"
+  },
+  {
+    "key": "assets/figma/1dae0.svg",
+    "url": "https://assets.staryield.net/assets/figma/1dae0.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1848,
+    "sha256": "717d8c37b68b9d513ae10dbc7269e2b0eb2bf3d684f152c539bc80165d042456"
+  },
+  {
+    "key": "assets/figma/1e525.svg",
+    "url": "https://assets.staryield.net/assets/figma/1e525.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1215,
+    "sha256": "2bd8d6cd49ff4fe175bdaaa75d6771948b4b333e637e79305faedd34c1db7ff6"
+  },
+  {
+    "key": "assets/figma/1f031.svg",
+    "url": "https://assets.staryield.net/assets/figma/1f031.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 289,
+    "sha256": "27f07d4a6511b7dd8ec8926fc33b7e6bb963fd7be9e2feb3131e13175fd60b31"
+  },
+  {
+    "key": "assets/figma/1f3a8.png",
+    "url": "https://assets.staryield.net/assets/figma/1f3a8.png",
+    "contentType": "image/png",
+    "bytes": 1335535,
+    "sha256": "1724f07edad877ee063740a2818a799cecc0396403489cc27fc72fb58ddbe591"
+  },
+  {
+    "key": "assets/figma/1fa85.svg",
+    "url": "https://assets.staryield.net/assets/figma/1fa85.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 328,
+    "sha256": "f14c059b92ea1ac4d93e87f6faef1ad18ae4e5f5dafb6ba3e6d4a1dd213267de"
+  },
+  {
+    "key": "assets/figma/20b27.png",
+    "url": "https://assets.staryield.net/assets/figma/20b27.png",
+    "contentType": "image/png",
+    "bytes": 2127,
+    "sha256": "8c904e4d736ca4319d163ee1bf982de26a223bac2c6dc17aae750819ed1d37d8"
+  },
+  {
+    "key": "assets/figma/22672.svg",
+    "url": "https://assets.staryield.net/assets/figma/22672.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1290,
+    "sha256": "9ed081ff7ca9e2069ee9ce2aaf5ecbb3cc1f351f7f4ed2e088b5b91a214d8b68"
+  },
+  {
+    "key": "assets/figma/25b84.svg",
+    "url": "https://assets.staryield.net/assets/figma/25b84.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "dc88f20347a96e0a333c5686e1a2a55cb6b89dcdaf53bb9fe39280bd9bc36d95"
+  },
+  {
+    "key": "assets/figma/25b9c.svg",
+    "url": "https://assets.staryield.net/assets/figma/25b9c.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 2357,
+    "sha256": "ded6606e6ca7f92e15be0897392cf52f1ecf90798dd13f4b6525b30957b924cb"
+  },
+  {
+    "key": "assets/figma/25e36.svg",
+    "url": "https://assets.staryield.net/assets/figma/25e36.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 307,
+    "sha256": "5a29d93a0505f8225f2f824fe541df7779ba462fa23993af97231ef85d9aab14"
+  },
+  {
+    "key": "assets/figma/27119.svg",
+    "url": "https://assets.staryield.net/assets/figma/27119.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 568,
+    "sha256": "f44342df869f31e4ca31980150e3dcd735a0136952beb555cd53e3d503bef8dc"
+  },
+  {
+    "key": "assets/figma/27235.svg",
+    "url": "https://assets.staryield.net/assets/figma/27235.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 264,
+    "sha256": "3431b7e45c6c810cf2bcc74e6f6b84c661772e8b5414efbee3d691c05a5b777d"
+  },
+  {
+    "key": "assets/figma/29171.svg",
+    "url": "https://assets.staryield.net/assets/figma/29171.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "79338e075fa34265610a743125108d20d515977d9182c6dd5074163e4632de7c"
+  },
+  {
+    "key": "assets/figma/29df8.svg",
+    "url": "https://assets.staryield.net/assets/figma/29df8.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 254,
+    "sha256": "31ebb5bc767b74dbb5f1662f10bd74eea092a1d2e34fa71051b03999828ff5e2"
+  },
+  {
+    "key": "assets/figma/29efd.svg",
+    "url": "https://assets.staryield.net/assets/figma/29efd.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 328,
+    "sha256": "75e1a7b9b6ac56ae5e1383dea32438c43651877a6368573d0212c2a5ac33d3b8"
+  },
+  {
+    "key": "assets/figma/2a60a.svg",
+    "url": "https://assets.staryield.net/assets/figma/2a60a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1927,
+    "sha256": "42adda16d884b2524b76b9572d43893c47d7c74084cfe6552dc2a86aea74bb26"
+  },
+  {
+    "key": "assets/figma/2bd47.svg",
+    "url": "https://assets.staryield.net/assets/figma/2bd47.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 336,
+    "sha256": "0b8de1122f9dbc180a8d9c0e829c4db65e14f566751199cabad517d142b5c6e7"
+  },
+  {
+    "key": "assets/figma/2c340.svg",
+    "url": "https://assets.staryield.net/assets/figma/2c340.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1267,
+    "sha256": "de60fbc83f9a6faac34ac993b3eabab5b9733cef1cc4971882dc0506da28debf"
+  },
+  {
+    "key": "assets/figma/2d305.svg",
+    "url": "https://assets.staryield.net/assets/figma/2d305.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 305,
+    "sha256": "59484ef054a3c897d93533572c76492477533062bbf0d75aed7a062be5247486"
+  },
+  {
+    "key": "assets/figma/2d4a4.png",
+    "url": "https://assets.staryield.net/assets/figma/2d4a4.png",
+    "contentType": "image/png",
+    "bytes": 400249,
+    "sha256": "3586fd7e07a13738871921af628d11296e99d9df07c56badb1c1536fc1b212f4"
+  },
+  {
+    "key": "assets/figma/2e284.png",
+    "url": "https://assets.staryield.net/assets/figma/2e284.png",
+    "contentType": "image/png",
+    "bytes": 4918,
+    "sha256": "7f5eecb0e253625218610dd8240cbd8510aa84d10a41febd3894b4bf68a35e67"
+  },
+  {
+    "key": "assets/figma/2e925.svg",
+    "url": "https://assets.staryield.net/assets/figma/2e925.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 258,
+    "sha256": "03e953f147b0a7b90032dc19269ca30e5ea75e3839a648219a59c78eb50664a0"
+  },
+  {
+    "key": "assets/figma/2f624.svg",
+    "url": "https://assets.staryield.net/assets/figma/2f624.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 870,
+    "sha256": "c6ba12808ae61ac93c7770f7d2a410bb9495e0b0bf5dfce8d18f48d6963667b0"
+  },
+  {
+    "key": "assets/figma/31cc8.svg",
+    "url": "https://assets.staryield.net/assets/figma/31cc8.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 249,
+    "sha256": "6ed138770433f23b0c99e3fb108bbc8536d677534f9cd057cbfbb878b62bbf87"
+  },
+  {
+    "key": "assets/figma/32437.svg",
+    "url": "https://assets.staryield.net/assets/figma/32437.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 972,
+    "sha256": "e698c8496db422c66a353ea293b45171f613da88bffc7d3f11881cebdbefe72e"
+  },
+  {
+    "key": "assets/figma/324dd.svg",
+    "url": "https://assets.staryield.net/assets/figma/324dd.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1052,
+    "sha256": "0a93fa1da605e262d304a8a7abac3aaaed5ab8143ddc75ed99473d2fa1f37fba"
+  },
+  {
+    "key": "assets/figma/32d82.svg",
+    "url": "https://assets.staryield.net/assets/figma/32d82.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 336,
+    "sha256": "505f2e16ac5a2bbf7f3a3ab39881f69286529c80daa13b42dc43362263f4c76f"
+  },
+  {
+    "key": "assets/figma/341a8.svg",
+    "url": "https://assets.staryield.net/assets/figma/341a8.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1208,
+    "sha256": "f8fa1f228aa4cc612b6f8c5c138c9797c2d06190c41678185ecb2a83a186fe9f"
+  },
+  {
+    "key": "assets/figma/3543e.svg",
+    "url": "https://assets.staryield.net/assets/figma/3543e.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 336,
+    "sha256": "494d1118ccc3e98fe00f87864814e56725f595814e40005c5e3d4ba17c348f44"
+  },
+  {
+    "key": "assets/figma/359ff.svg",
+    "url": "https://assets.staryield.net/assets/figma/359ff.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 282,
+    "sha256": "a0244633f88426d94e4c6c7e9c9c84ff05fdf306302dd17b384b4b51143a2367"
+  },
+  {
+    "key": "assets/figma/35a51.png",
+    "url": "https://assets.staryield.net/assets/figma/35a51.png",
+    "contentType": "image/png",
+    "bytes": 44409,
+    "sha256": "180253edf39522623fab20588349bf00ad7a3791ae33d6a85bd1b32389e22b37"
+  },
+  {
+    "key": "assets/figma/35e9a.png",
+    "url": "https://assets.staryield.net/assets/figma/35e9a.png",
+    "contentType": "image/png",
+    "bytes": 396813,
+    "sha256": "29d71c040d3fa820dad339b10c03ec64b91d643f5ca32594b6635e9e902b388b"
+  },
+  {
+    "key": "assets/figma/36f2e.svg",
+    "url": "https://assets.staryield.net/assets/figma/36f2e.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 325,
+    "sha256": "7240e0add857ff34a5e4f5acba4d92fbdfd12757ad55c82f78db5fc5acb70ec9"
+  },
+  {
+    "key": "assets/figma/37661.svg",
+    "url": "https://assets.staryield.net/assets/figma/37661.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 312,
+    "sha256": "0f60e15c1683e663a69f403d734145befdf8e35507287ce6984147a3321317fe"
+  },
+  {
+    "key": "assets/figma/38c16.svg",
+    "url": "https://assets.staryield.net/assets/figma/38c16.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1820,
+    "sha256": "ba476b0da3e1e51df71a15e50576a836c38031a349a4609a42c402436f224541"
+  },
+  {
+    "key": "assets/figma/392dc.svg",
+    "url": "https://assets.staryield.net/assets/figma/392dc.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 312,
+    "sha256": "03c0264217c7e98a42dcae2d95020dbbcb06f38184ad350bad7b3d8496141e48"
+  },
+  {
+    "key": "assets/figma/3ac07.svg",
+    "url": "https://assets.staryield.net/assets/figma/3ac07.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "87630ed37474be03de82955b5b1f4a4b545a7d7190399a09ac8d361662f22638"
+  },
+  {
+    "key": "assets/figma/3c61f.svg",
+    "url": "https://assets.staryield.net/assets/figma/3c61f.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 312,
+    "sha256": "f6e788327bb09dbbe26764ff95a136a1188f4a33cd17c140bce5aa4504dd1c5d"
+  },
+  {
+    "key": "assets/figma/3d519.svg",
+    "url": "https://assets.staryield.net/assets/figma/3d519.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 975,
+    "sha256": "0e5bb5fe449ec69b4dd71c71d9eee46f6d3b1a25b68aeabb13d77037b99018d1"
+  },
+  {
+    "key": "assets/figma/3df5d.svg",
+    "url": "https://assets.staryield.net/assets/figma/3df5d.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 336,
+    "sha256": "51ef181d0df45889870a212412030bb03233c11d40e13e1ed854ce36a53ecbcd"
+  },
+  {
+    "key": "assets/figma/3e3d0.svg",
+    "url": "https://assets.staryield.net/assets/figma/3e3d0.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 13765,
+    "sha256": "02ed4bbdefe9df66d29658417e9ee76cf0afafe5f37ddb2757afa957dd8f763e"
+  },
+  {
+    "key": "assets/figma/3f1b3.svg",
+    "url": "https://assets.staryield.net/assets/figma/3f1b3.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 568,
+    "sha256": "098afd12b764cc3e90a2d9ee6844c7550cde845a088ce364d3cf1c73f0dadce0"
+  },
+  {
+    "key": "assets/figma/3fe2c.svg",
+    "url": "https://assets.staryield.net/assets/figma/3fe2c.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 331,
+    "sha256": "41524cfb180a1a1e42c23cec9d86f2803553f652bfdefcfaded1bbcf406e9688"
+  },
+  {
+    "key": "assets/figma/4016e.svg",
+    "url": "https://assets.staryield.net/assets/figma/4016e.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 324,
+    "sha256": "70c226e8e29995ac9458a2ea921658ebfa2607f69b654436ab1d5bd64e558530"
+  },
+  {
+    "key": "assets/figma/41c0a.png",
+    "url": "https://assets.staryield.net/assets/figma/41c0a.png",
+    "contentType": "image/png",
+    "bytes": 1887313,
+    "sha256": "85aacfa853a16604b0911c45db50afec0094dedf996b31f240c0d9245768b770"
+  },
+  {
+    "key": "assets/figma/42094.svg",
+    "url": "https://assets.staryield.net/assets/figma/42094.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 815,
+    "sha256": "f2807a3011561cc5229b032f43fa5907bab9e444825d184174234c524ce4b985"
+  },
+  {
+    "key": "assets/figma/44c81.svg",
+    "url": "https://assets.staryield.net/assets/figma/44c81.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 290,
+    "sha256": "cf7cf0735eb9212b738edc49621b6d1a561242f83e56f1f4fb56a3b8f19ca50f"
+  },
+  {
+    "key": "assets/figma/44f22.svg",
+    "url": "https://assets.staryield.net/assets/figma/44f22.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 336,
+    "sha256": "c8519f5a9cae14e717c651545b30f5e388b3dd33da272abb360fa5079a25f640"
+  },
+  {
+    "key": "assets/figma/46d54.svg",
+    "url": "https://assets.staryield.net/assets/figma/46d54.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 312,
+    "sha256": "79720cd8e1415a9faec79ed1d10e9e5d7f06e01f2b58f746f744336645c7a848"
+  },
+  {
+    "key": "assets/figma/47775.svg",
+    "url": "https://assets.staryield.net/assets/figma/47775.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 330,
+    "sha256": "edd0a8fe10c0731513523035bcef7df34d8c90fbc296f3191f95f91afbb44b4c"
+  },
+  {
+    "key": "assets/figma/47a9f.png",
+    "url": "https://assets.staryield.net/assets/figma/47a9f.png",
+    "contentType": "image/png",
+    "bytes": 1609851,
+    "sha256": "ea13ada87bb4d1d8b252f8fda2835ed67fc416c3712dbb726c94f2e110bf1586"
+  },
+  {
+    "key": "assets/figma/4a759.png",
+    "url": "https://assets.staryield.net/assets/figma/4a759.png",
+    "contentType": "image/png",
+    "bytes": 2275,
+    "sha256": "19f3d5ad79524e6b14b142d339c384d7c361896485e31199e5869d2e21dd14fe"
+  },
+  {
+    "key": "assets/figma/4b3ef.svg",
+    "url": "https://assets.staryield.net/assets/figma/4b3ef.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 289,
+    "sha256": "27f07d4a6511b7dd8ec8926fc33b7e6bb963fd7be9e2feb3131e13175fd60b31"
+  },
+  {
+    "key": "assets/figma/4bb06.svg",
+    "url": "https://assets.staryield.net/assets/figma/4bb06.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1200,
+    "sha256": "9c9b118bfe11a9416a337e6f7869ca97fb840fe69a497f2a109e697dd8df8de0"
+  },
+  {
+    "key": "assets/figma/4cf6a.svg",
+    "url": "https://assets.staryield.net/assets/figma/4cf6a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 331,
+    "sha256": "81d894bcbbf8ccb03b8fa48f796e6b1f2f8320c45e1fad6d06c83f83b9a625ab"
+  },
+  {
+    "key": "assets/figma/4f09a.svg",
+    "url": "https://assets.staryield.net/assets/figma/4f09a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 254,
+    "sha256": "31ebb5bc767b74dbb5f1662f10bd74eea092a1d2e34fa71051b03999828ff5e2"
+  },
+  {
+    "key": "assets/figma/4fd5e.svg",
+    "url": "https://assets.staryield.net/assets/figma/4fd5e.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 330,
+    "sha256": "01efae1663f7996a1e06e8df64590c6cdce2a29180281ec9cee503c282330bdc"
+  },
+  {
+    "key": "assets/figma/5455a.svg",
+    "url": "https://assets.staryield.net/assets/figma/5455a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 281,
+    "sha256": "a7294493bbce7d4ae21d7c0e956ab490d53ee1d7080ac4046016cac927dfd332"
+  },
+  {
+    "key": "assets/figma/546ff.svg",
+    "url": "https://assets.staryield.net/assets/figma/546ff.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 331,
+    "sha256": "1f50da5c11d8bc9f43798a42ca08430d848d0f559f805188f47f89400ac134b9"
+  },
+  {
+    "key": "assets/figma/54c44.png",
+    "url": "https://assets.staryield.net/assets/figma/54c44.png",
+    "contentType": "image/png",
+    "bytes": 1583695,
+    "sha256": "18240c0244072aefe420c892dbd40585d0ff6e3a803b83330cf783613cd11cce"
+  },
+  {
+    "key": "assets/figma/55b10.png",
+    "url": "https://assets.staryield.net/assets/figma/55b10.png",
+    "contentType": "image/png",
+    "bytes": 2019,
+    "sha256": "f20ac3301937649d513e354ac4e8b49d0164d8fd101c651cc9598c9ba449cb92"
+  },
+  {
+    "key": "assets/figma/5605f.svg",
+    "url": "https://assets.staryield.net/assets/figma/5605f.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 997,
+    "sha256": "1bf72dc5af0bed5bac286ecf3e74063374bcb8e378bff85b262c8ef3ac9eacd6"
+  },
+  {
+    "key": "assets/figma/5696a.png",
+    "url": "https://assets.staryield.net/assets/figma/5696a.png",
+    "contentType": "image/png",
+    "bytes": 282742,
+    "sha256": "f7d663df3975c8dbc7bff51da8ecd31e5f97d22678819bae655a7a82a6bfbe06"
+  },
+  {
+    "key": "assets/figma/56e9a.svg",
+    "url": "https://assets.staryield.net/assets/figma/56e9a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1267,
+    "sha256": "de60fbc83f9a6faac34ac993b3eabab5b9733cef1cc4971882dc0506da28debf"
+  },
+  {
+    "key": "assets/figma/58967.svg",
+    "url": "https://assets.staryield.net/assets/figma/58967.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1759,
+    "sha256": "b4d1cdf76f635c896d6eee0b442dae4ee88e43404e4d39a667f213ab4bb215d8"
+  },
+  {
+    "key": "assets/figma/59105.svg",
+    "url": "https://assets.staryield.net/assets/figma/59105.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 568,
+    "sha256": "09203a315ba608b0ddc4e49e4322e71557ae4479c323ccd81dc4cff465057f7b"
+  },
+  {
+    "key": "assets/figma/59fc7.svg",
+    "url": "https://assets.staryield.net/assets/figma/59fc7.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 276,
+    "sha256": "2d7a7272db61a5c352eeeaff4c4239663fe601ea5b58e868cb1647f4c8da3052"
+  },
+  {
+    "key": "assets/figma/5aacb.svg",
+    "url": "https://assets.staryield.net/assets/figma/5aacb.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 324,
+    "sha256": "9cb56946da83a21193916350b518628e666fd18f1c8d51bd548b34dfb4cc4394"
+  },
+  {
+    "key": "assets/figma/5ad52.svg",
+    "url": "https://assets.staryield.net/assets/figma/5ad52.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 330,
+    "sha256": "df6c16867243f0a02ce7436e334aafd3d3b6cdc3cd67f2345b77979d4c838dc5"
+  },
+  {
+    "key": "assets/figma/5b12f.svg",
+    "url": "https://assets.staryield.net/assets/figma/5b12f.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1524,
+    "sha256": "ea8f579b24493146db3fe509087b3bc1aa99894b922aef5f81157c773e428bef"
+  },
+  {
+    "key": "assets/figma/5d5a7.svg",
+    "url": "https://assets.staryield.net/assets/figma/5d5a7.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 282,
+    "sha256": "757436f4fdda52e45f7b9ccacace3529e739d64e8407aae657b68f315c906fce"
+  },
+  {
+    "key": "assets/figma/5db3a.svg",
+    "url": "https://assets.staryield.net/assets/figma/5db3a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 330,
+    "sha256": "944777fe33f59cf6a67863ba68b80d7d398647e3970ef5d5ad82ed85ec6517e1"
+  },
+  {
+    "key": "assets/figma/61948.svg",
+    "url": "https://assets.staryield.net/assets/figma/61948.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 329,
+    "sha256": "be106075492e3254345b7d445fed4d9de35d8529e276d3e711f94d1eec6fa8a1"
+  },
+  {
+    "key": "assets/figma/62388.svg",
+    "url": "https://assets.staryield.net/assets/figma/62388.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 330,
+    "sha256": "1aacb82a4224c6ca27122c6f17f8987160f8c4a19909ef5827fb5d09a4319230"
+  },
+  {
+    "key": "assets/figma/6304d.png",
+    "url": "https://assets.staryield.net/assets/figma/6304d.png",
+    "contentType": "image/png",
+    "bytes": 368407,
+    "sha256": "0a3a928990b4c198ddd3e09fa47c52089d206519dff1d2ebf7b307670caabf28"
+  },
+  {
+    "key": "assets/figma/63b4c.svg",
+    "url": "https://assets.staryield.net/assets/figma/63b4c.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 326,
+    "sha256": "936000d30d05a724901f050b5641c1623b0f9a8836be9d29c1a4d8dc96621001"
+  },
+  {
+    "key": "assets/figma/66a4a.svg",
+    "url": "https://assets.staryield.net/assets/figma/66a4a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 888,
+    "sha256": "90fa24db50ea51965dae38b5c846de725ee7b7e994d877bd850ba6e023b4f2bf"
+  },
+  {
+    "key": "assets/figma/67067.svg",
+    "url": "https://assets.staryield.net/assets/figma/67067.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 326,
+    "sha256": "a12ec5c202b06fa8a6a42690236030982f6ee7f8dd639a7c9e25fc0aca8c038c"
+  },
+  {
+    "key": "assets/figma/671bc.png",
+    "url": "https://assets.staryield.net/assets/figma/671bc.png",
+    "contentType": "image/png",
+    "bytes": 392753,
+    "sha256": "28917e56fc9ce2275749ab8fad748e17c51777da13998d828f2002c4015080be"
+  },
+  {
+    "key": "assets/figma/6bfd2.svg",
+    "url": "https://assets.staryield.net/assets/figma/6bfd2.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 281,
+    "sha256": "fe6d9f40d4dab245744bd5dde38736ad134f3469530a9ce14201bd5f3a5f5320"
+  },
+  {
+    "key": "assets/figma/6c959.svg",
+    "url": "https://assets.staryield.net/assets/figma/6c959.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 281,
+    "sha256": "1ab60458e38dd690708349bb6fc226198a4cd7a517a3266dd1510d2f63c7e20c"
+  },
+  {
+    "key": "assets/figma/6d1f0.png",
+    "url": "https://assets.staryield.net/assets/figma/6d1f0.png",
+    "contentType": "image/png",
+    "bytes": 100427,
+    "sha256": "ade789d2e3b77631bb38d7a125de82099c198d0bf27c00432d5ee4a3aa7edf7c"
+  },
+  {
+    "key": "assets/figma/6da8f.svg",
+    "url": "https://assets.staryield.net/assets/figma/6da8f.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 312,
+    "sha256": "c106a5473f9e5d3fa6323e9ad7cdc6e2727f67c669b1b7bbc6be9e47715c70f0"
+  },
+  {
+    "key": "assets/figma/6e31f.svg",
+    "url": "https://assets.staryield.net/assets/figma/6e31f.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1375,
+    "sha256": "8193385dd63a2b93fc2b11d0ee49010d510da726c84a423418953ebdd287b51a"
+  },
+  {
+    "key": "assets/figma/6ebb8.svg",
+    "url": "https://assets.staryield.net/assets/figma/6ebb8.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 175465,
+    "sha256": "5e560b7823e241557b5518bebd58ce37a0175125de2562949348f14497cccb6c"
+  },
+  {
+    "key": "assets/figma/6facd.svg",
+    "url": "https://assets.staryield.net/assets/figma/6facd.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 323,
+    "sha256": "411d5d751550297e9e3256def747f559d3a8d0097d1f1d098a14fdf64e9691af"
+  },
+  {
+    "key": "assets/figma/7022a.svg",
+    "url": "https://assets.staryield.net/assets/figma/7022a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 330,
+    "sha256": "01efae1663f7996a1e06e8df64590c6cdce2a29180281ec9cee503c282330bdc"
+  },
+  {
+    "key": "assets/figma/70db2.svg",
+    "url": "https://assets.staryield.net/assets/figma/70db2.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 252,
+    "sha256": "4b1974e8f7453f8a39dce51480ab09141005e561c7d1985450762ed2d72c6845"
+  },
+  {
+    "key": "assets/figma/70ebb.svg",
+    "url": "https://assets.staryield.net/assets/figma/70ebb.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 2671,
+    "sha256": "a2465ac9a5dd2636abf81703b0e92d1ebecb068b04a7c7968031baf09e44427d"
+  },
+  {
+    "key": "assets/figma/71982.svg",
+    "url": "https://assets.staryield.net/assets/figma/71982.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 330,
+    "sha256": "d9304518eb49d057b988132d6f923d17577792a46380a21ca8973722aac0d285"
+  },
+  {
+    "key": "assets/figma/71fe1.svg",
+    "url": "https://assets.staryield.net/assets/figma/71fe1.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 327,
+    "sha256": "f2d60f135de5e666ed53ff0d0c6e1dc943159603ae79201229bd4bdeca7f9cde"
+  },
+  {
+    "key": "assets/figma/733d7.svg",
+    "url": "https://assets.staryield.net/assets/figma/733d7.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "f99f8030242b25a264aa5c38db2a9bdd7c219e219fcb5cc13532bd11238e684d"
+  },
+  {
+    "key": "assets/figma/73b00.png",
+    "url": "https://assets.staryield.net/assets/figma/73b00.png",
+    "contentType": "image/png",
+    "bytes": 46469,
+    "sha256": "4548aa81e8c08370680f8d93c45620fcd3860d18d1baba9b13a599de1ad31a6a"
+  },
+  {
+    "key": "assets/figma/771c6.png",
+    "url": "https://assets.staryield.net/assets/figma/771c6.png",
+    "contentType": "image/png",
+    "bytes": 424844,
+    "sha256": "e1c1630b8664847008964c522609b28f1e3ee630ed326d29d70b1d4a28473f81"
+  },
+  {
+    "key": "assets/figma/7770d.svg",
+    "url": "https://assets.staryield.net/assets/figma/7770d.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 13574,
+    "sha256": "0c9e4b07790c56522007de61f668df5fa9ae5597cec0e4de4208d15ea637dc45"
+  },
+  {
+    "key": "assets/figma/78cd5.jpg",
+    "url": "https://assets.staryield.net/assets/figma/78cd5.jpg",
+    "contentType": "image/jpeg",
+    "bytes": 44031,
+    "sha256": "1315e9b3b18dbd879d58f06f6148c3fd3702f7c8afecc60475ac08150733351b"
+  },
+  {
+    "key": "assets/figma/7a911.svg",
+    "url": "https://assets.staryield.net/assets/figma/7a911.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 331,
+    "sha256": "16c0c0a39ff85f57e4060f9452a2d3f89c01bc3e1c86b52f4884c140ae95d145"
+  },
+  {
+    "key": "assets/figma/7bd7f.svg",
+    "url": "https://assets.staryield.net/assets/figma/7bd7f.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 251,
+    "sha256": "197764d6cd18c4cca41083e74a134b3c0ca30cbf466645b20e1a9ad768f4afab"
+  },
+  {
+    "key": "assets/figma/7d5aa.svg",
+    "url": "https://assets.staryield.net/assets/figma/7d5aa.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 527,
+    "sha256": "7d690b193119d22c4353e926be74a0ea8406e42d0f3b1a4be19a98f3b7a4abb9"
+  },
+  {
+    "key": "assets/figma/7d7cc.png",
+    "url": "https://assets.staryield.net/assets/figma/7d7cc.png",
+    "contentType": "image/png",
+    "bytes": 1973,
+    "sha256": "81800aea94515322ea37be49182b1daab4242fe725320dccfa7021dc35a1a8ef"
+  },
+  {
+    "key": "assets/figma/7e58d.svg",
+    "url": "https://assets.staryield.net/assets/figma/7e58d.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 331,
+    "sha256": "41524cfb180a1a1e42c23cec9d86f2803553f652bfdefcfaded1bbcf406e9688"
+  },
+  {
+    "key": "assets/figma/7e5e5.svg",
+    "url": "https://assets.staryield.net/assets/figma/7e5e5.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 606,
+    "sha256": "7d2aea84b605d1b303cf73db711837ba5e0cd2d017c45d8ea4338707beb90189"
+  },
+  {
+    "key": "assets/figma/7e959.svg",
+    "url": "https://assets.staryield.net/assets/figma/7e959.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 235,
+    "sha256": "8b2fb11a80bab8afc755d2a1e959ce819ea2afe710abfb79309139195bf59750"
+  },
+  {
+    "key": "assets/figma/7f87b.svg",
+    "url": "https://assets.staryield.net/assets/figma/7f87b.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1218,
+    "sha256": "a247f22d0757e9354f7320ce376caf3b9966685d8774562e1f0793c354b8716f"
+  },
+  {
+    "key": "assets/figma/8108a.svg",
+    "url": "https://assets.staryield.net/assets/figma/8108a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 248,
+    "sha256": "a2cebf93ac82b7b6cfae39b828fafa496e46b61a8e22ab9965aec1f66be82496"
+  },
+  {
+    "key": "assets/figma/836d2.svg",
+    "url": "https://assets.staryield.net/assets/figma/836d2.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 336,
+    "sha256": "5279679e1501a21e5a2f5870013c87472c9c818570285a299868fa22434d004d"
+  },
+  {
+    "key": "assets/figma/83a49.svg",
+    "url": "https://assets.staryield.net/assets/figma/83a49.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 307,
+    "sha256": "4e041075f4095dea073fa863fc2942cf8c4b41f96510a7462c836824e0d52371"
+  },
+  {
+    "key": "assets/figma/8580a.svg",
+    "url": "https://assets.staryield.net/assets/figma/8580a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 333,
+    "sha256": "10a0443e3cdc6c7b6f167ba7d8606b3c27b95ba9ef6c545b4b067021cfbc7927"
+  },
+  {
+    "key": "assets/figma/8757d.svg",
+    "url": "https://assets.staryield.net/assets/figma/8757d.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 336,
+    "sha256": "a8ed476838295d4d2679c3dd0b5d08fa38b50d78f9cfac1648a48caaba86afea"
+  },
+  {
+    "key": "assets/figma/87955.png",
+    "url": "https://assets.staryield.net/assets/figma/87955.png",
+    "contentType": "image/png",
+    "bytes": 4677,
+    "sha256": "f8ae9aa3759d6e38d11650750db5759f0e59d6461c99b8e718adbed16c342bcf"
+  },
+  {
+    "key": "assets/figma/87e4b.svg",
+    "url": "https://assets.staryield.net/assets/figma/87e4b.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 653,
+    "sha256": "6d199f214400074712260613c4a6e537f160c8dcffa49e6058e7513ed412538d"
+  },
+  {
+    "key": "assets/figma/88c70.svg",
+    "url": "https://assets.staryield.net/assets/figma/88c70.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 568,
+    "sha256": "5ae3697302ba00e56916b89fdf7207a452af1ce4eba6e3046db660448df5e527"
+  },
+  {
+    "key": "assets/figma/890a5.svg",
+    "url": "https://assets.staryield.net/assets/figma/890a5.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 213,
+    "sha256": "602cb116012786082d7d6824f700cbe92666fda09aca422138536c6ac35b4c5a"
+  },
+  {
+    "key": "assets/figma/8c4b2.svg",
+    "url": "https://assets.staryield.net/assets/figma/8c4b2.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 332,
+    "sha256": "94fe32f19996e8d3180c0fd4782087013cc4d1cbae30fe471ec1e8ec2a9da60a"
+  },
+  {
+    "key": "assets/figma/8f431.svg",
+    "url": "https://assets.staryield.net/assets/figma/8f431.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 330,
+    "sha256": "fc0ae70e34af23aa0ead71fd5e5d77abb0ef8360a408625fc90dca8042d13256"
+  },
+  {
+    "key": "assets/figma/8f6c3.svg",
+    "url": "https://assets.staryield.net/assets/figma/8f6c3.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 321,
+    "sha256": "a8088889432170a16aa4411e5131e9d4443f7d18eeb4293fb570e8664ab60a82"
+  },
+  {
+    "key": "assets/figma/90178.svg",
+    "url": "https://assets.staryield.net/assets/figma/90178.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 331,
+    "sha256": "20c034d1b02d071666dc6f17fedebb0ef4e04312c1f32658698a634741f7d1c7"
+  },
+  {
+    "key": "assets/figma/90584.svg",
+    "url": "https://assets.staryield.net/assets/figma/90584.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 248,
+    "sha256": "a5f1d33889518d848e45147dc0771a4bbcf0e2ca0ad63f411704777b115a7f5c"
+  },
+  {
+    "key": "assets/figma/90991.svg",
+    "url": "https://assets.staryield.net/assets/figma/90991.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "ac58ed7cc8c2354e135b9a0c681bd83df882d36a734ff1ae266ea91d46824242"
+  },
+  {
+    "key": "assets/figma/91055.svg",
+    "url": "https://assets.staryield.net/assets/figma/91055.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 324,
+    "sha256": "a63ef46a86eda622a49a6909f059df86a3d19d7f5ba9bd17b81c007fcf416669"
+  },
+  {
+    "key": "assets/figma/91da9.svg",
+    "url": "https://assets.staryield.net/assets/figma/91da9.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 283,
+    "sha256": "fe0a0991ed257fcfe321415c49eb3713a23aaf4f9ffe194f7227bc24c1558cbc"
+  },
+  {
+    "key": "assets/figma/96404.svg",
+    "url": "https://assets.staryield.net/assets/figma/96404.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 329,
+    "sha256": "c0b63616b4fba59086c97a74e2b5ebbbe20100203fcc2c04c941914f3ee56660"
+  },
+  {
+    "key": "assets/figma/9657c.svg",
+    "url": "https://assets.staryield.net/assets/figma/9657c.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 542,
+    "sha256": "5f66a543ad5b5c4dbc65e635866680abf6d71144fb87d7a59a9549017b4244bc"
+  },
+  {
+    "key": "assets/figma/96fb1.svg",
+    "url": "https://assets.staryield.net/assets/figma/96fb1.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 271,
+    "sha256": "cfd8a17eab22fda143d41ee0859bb165586c2fd4ea6466c5811ec5f7997f4b58"
+  },
+  {
+    "key": "assets/figma/977c0.svg",
+    "url": "https://assets.staryield.net/assets/figma/977c0.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 329,
+    "sha256": "d41e4ff002c1c1a6ff44debdd66f3bafba7b0d7646377c92929ecae3364cd44b"
+  },
+  {
+    "key": "assets/figma/9861f.svg",
+    "url": "https://assets.staryield.net/assets/figma/9861f.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 323,
+    "sha256": "966ab0eb7c0befb85f0a67d86949c212a6b9cf524738a0e7dd60aaf3a207c6aa"
+  },
+  {
+    "key": "assets/figma/989c1.png",
+    "url": "https://assets.staryield.net/assets/figma/989c1.png",
+    "contentType": "image/png",
+    "bytes": 2964,
+    "sha256": "c44f1f5519ca3f3f1a30b9ff406b3a40e73b3e01962c373effabffb85d9ae9a6"
+  },
+  {
+    "key": "assets/figma/98d0a.svg",
+    "url": "https://assets.staryield.net/assets/figma/98d0a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 824,
+    "sha256": "1e950eeb9fbd34f10a5c7874cdd03093348ec06af9423ee4854cdb3382dff790"
+  },
+  {
+    "key": "assets/figma/9a293.svg",
+    "url": "https://assets.staryield.net/assets/figma/9a293.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 973,
+    "sha256": "c7a92b167138311b0b6be0435d8df243a3e430c6076f91372ac59b0460a1ea81"
+  },
+  {
+    "key": "assets/figma/9aa21.svg",
+    "url": "https://assets.staryield.net/assets/figma/9aa21.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 327,
+    "sha256": "ee977f173a805d02082c6fd8d05ddf3ff94628026fa98cdd1847fbe6e8a137e2"
+  },
+  {
+    "key": "assets/figma/9bc38.svg",
+    "url": "https://assets.staryield.net/assets/figma/9bc38.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 312,
+    "sha256": "99c4141d98e765a3c1c66537b4949afb9a7fdfebd221245a0d55394adcf7cc36"
+  },
+  {
+    "key": "assets/figma/9e1aa.png",
+    "url": "https://assets.staryield.net/assets/figma/9e1aa.png",
+    "contentType": "image/png",
+    "bytes": 285745,
+    "sha256": "836f0acb95c0b42d48c99880b12ecc5200dd886bfa930f661db17f6fd28be099"
+  },
+  {
+    "key": "assets/figma/9eb65.svg",
+    "url": "https://assets.staryield.net/assets/figma/9eb65.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 331,
+    "sha256": "1437b9bad4c9c4db7db351ca47b95b6c37edafd1814a1d032d66eb810986ef2d"
+  },
+  {
+    "key": "assets/figma/9f12c.png",
+    "url": "https://assets.staryield.net/assets/figma/9f12c.png",
+    "contentType": "image/png",
+    "bytes": 2764,
+    "sha256": "b71f87ff7a322b6bccfa98dbcaf1e3af406a8663add7aca766bed874de4d48f8"
+  },
+  {
+    "key": "assets/figma/9faa9.svg",
+    "url": "https://assets.staryield.net/assets/figma/9faa9.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 329,
+    "sha256": "481bb4d9f76db1096f39d4ecefe66dc96d760f3b8156f3a9aba45bb8cc5a4165"
+  },
+  {
+    "key": "assets/figma/a0e30.svg",
+    "url": "https://assets.staryield.net/assets/figma/a0e30.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 271,
+    "sha256": "fc8dda681387289adfaefccfd5bec5084d7da32bcf63f8f46e31fd6b37a245a2"
+  },
+  {
+    "key": "assets/figma/a3b24.svg",
+    "url": "https://assets.staryield.net/assets/figma/a3b24.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "ee1012ec68c6d105366d385f3125f1a69f79689f354a9bb3b632c082601b2bea"
+  },
+  {
+    "key": "assets/figma/a460e.svg",
+    "url": "https://assets.staryield.net/assets/figma/a460e.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 328,
+    "sha256": "7417ff20262516eb2160be5bcf2ad34f7f03fdf4045ef5339f67ba219f7cd8ba"
+  },
+  {
+    "key": "assets/figma/a469e.svg",
+    "url": "https://assets.staryield.net/assets/figma/a469e.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 512,
+    "sha256": "e1717c3f4ee6dbdde6b240bf36e13955104a933c16903ddeac1b1c40ddd8f4b8"
+  },
+  {
+    "key": "assets/figma/a53ec.svg",
+    "url": "https://assets.staryield.net/assets/figma/a53ec.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 330,
+    "sha256": "944777fe33f59cf6a67863ba68b80d7d398647e3970ef5d5ad82ed85ec6517e1"
+  },
+  {
+    "key": "assets/figma/a5ec5.svg",
+    "url": "https://assets.staryield.net/assets/figma/a5ec5.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 485,
+    "sha256": "574b8a2a24302cc597a3dab53f94340f7809415c3ceb9c3c441d0b94e73eaf55"
+  },
+  {
+    "key": "assets/figma/a6894.svg",
+    "url": "https://assets.staryield.net/assets/figma/a6894.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 274,
+    "sha256": "70e3b053a8b6d699c9231b05fc9c6a3df4fdb372b8ccc914a37df4fdb8a0e265"
+  },
+  {
+    "key": "assets/figma/a6eaa.png",
+    "url": "https://assets.staryield.net/assets/figma/a6eaa.png",
+    "contentType": "image/png",
+    "bytes": 3720,
+    "sha256": "f1dccd55f576bb2c38edbc5963a3a4eeff3260d03849b404434bfc72b984032f"
+  },
+  {
+    "key": "assets/figma/a775b.svg",
+    "url": "https://assets.staryield.net/assets/figma/a775b.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1927,
+    "sha256": "bda9bd3286117e9fdc0eac38d18e0e63d65e85fa3b00324a33280f1f4b8c729b"
+  },
+  {
+    "key": "assets/figma/a7bbb.svg",
+    "url": "https://assets.staryield.net/assets/figma/a7bbb.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 316,
+    "sha256": "e24607b66bfd519ef12cee5c36a3ea94b6029935b99064929831cdb33442027a"
+  },
+  {
+    "key": "assets/figma/abdf2.svg",
+    "url": "https://assets.staryield.net/assets/figma/abdf2.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 332,
+    "sha256": "94fe32f19996e8d3180c0fd4782087013cc4d1cbae30fe471ec1e8ec2a9da60a"
+  },
+  {
+    "key": "assets/figma/ac80f.svg",
+    "url": "https://assets.staryield.net/assets/figma/ac80f.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 13582,
+    "sha256": "6e95f6319423e861f7d97b19faf08aaefca85bc0d8ec16062563b6ad62e46233"
+  },
+  {
+    "key": "assets/figma/af295.png",
+    "url": "https://assets.staryield.net/assets/figma/af295.png",
+    "contentType": "image/png",
+    "bytes": 3172,
+    "sha256": "213686fed556ddf3c52d9e8b34efe17fbce45e7410e52b1bb247e66516a47289"
+  },
+  {
+    "key": "assets/figma/b25c4.png",
+    "url": "https://assets.staryield.net/assets/figma/b25c4.png",
+    "contentType": "image/png",
+    "bytes": 5408,
+    "sha256": "575e30625af66ea3164d2ad01564ac1d108e7da8469ce575774ca13cc1703894"
+  },
+  {
+    "key": "assets/figma/b3264.svg",
+    "url": "https://assets.staryield.net/assets/figma/b3264.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 710,
+    "sha256": "fda817967cdbdd7fa7c0cabf07403073254c5af49087ad78b9bcb982c9e9737c"
+  },
+  {
+    "key": "assets/figma/b3389.svg",
+    "url": "https://assets.staryield.net/assets/figma/b3389.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1203,
+    "sha256": "da78bc8e481df47b346bf159bc4008522c744513d91fbef9c7b193a0d1227747"
+  },
+  {
+    "key": "assets/figma/b370b.svg",
+    "url": "https://assets.staryield.net/assets/figma/b370b.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 312,
+    "sha256": "f28332983e95bfffa147d9bfd6f02c6b14596d31e87747450c73f94b072cdaca"
+  },
+  {
+    "key": "assets/figma/b3de0.png",
+    "url": "https://assets.staryield.net/assets/figma/b3de0.png",
+    "contentType": "image/png",
+    "bytes": 17458,
+    "sha256": "f046dbdf02eed36695565cc603216166c785d497f00d3343585fd010f5f167a9"
+  },
+  {
+    "key": "assets/figma/b438b.svg",
+    "url": "https://assets.staryield.net/assets/figma/b438b.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 391,
+    "sha256": "09b55e5351558dbc9d09a4f575eb31d8ab9941c782aee65e5f9748345984b863"
+  },
+  {
+    "key": "assets/figma/b5aed.png",
+    "url": "https://assets.staryield.net/assets/figma/b5aed.png",
+    "contentType": "image/png",
+    "bytes": 2122798,
+    "sha256": "f9d3c43a52061051cd3a2b148a9afe9da3472b4663ed55b5a821dd82788271b8"
+  },
+  {
+    "key": "assets/figma/b66ae.png",
+    "url": "https://assets.staryield.net/assets/figma/b66ae.png",
+    "contentType": "image/png",
+    "bytes": 371123,
+    "sha256": "79fae24d5889cb23ff983bbeced52f2096fb4a34c3c9f930362f16e40b157299"
+  },
+  {
+    "key": "assets/figma/b77b2.svg",
+    "url": "https://assets.staryield.net/assets/figma/b77b2.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 329,
+    "sha256": "39e8b1e6a92b096d7e7dbeb36de933df0c54ae58cd7dcd1b1111c5f94d620097"
+  },
+  {
+    "key": "assets/figma/b8016.svg",
+    "url": "https://assets.staryield.net/assets/figma/b8016.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 281,
+    "sha256": "4dc67c513f3dc09d477301eefd9c7d0d974be7f0eb10f3f0753752a1ec73d184"
+  },
+  {
+    "key": "assets/figma/b86b4.png",
+    "url": "https://assets.staryield.net/assets/figma/b86b4.png",
+    "contentType": "image/png",
+    "bytes": 5388,
+    "sha256": "e05c8d7e5f462faae3d225cb12c07422620e058774d5426e0924523b2c5a9918"
+  },
+  {
+    "key": "assets/figma/b9f9e.svg",
+    "url": "https://assets.staryield.net/assets/figma/b9f9e.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 287,
+    "sha256": "151f78fd5e17a328bb3e6596261b05abf80b588a393344d8404f6f9076ab20e6"
+  },
+  {
+    "key": "assets/figma/bb596.png",
+    "url": "https://assets.staryield.net/assets/figma/bb596.png",
+    "contentType": "image/png",
+    "bytes": 406914,
+    "sha256": "0d4c742c788492662360d8e7c8b615831848bc0db1bcc94f76900cc9b95c72f7"
+  },
+  {
+    "key": "assets/figma/bb9b0.svg",
+    "url": "https://assets.staryield.net/assets/figma/bb9b0.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 233,
+    "sha256": "dce60cda138533d760984a38e784994669515e8aada3e1432bb333c8d49668e2"
+  },
+  {
+    "key": "assets/figma/bbdfd.svg",
+    "url": "https://assets.staryield.net/assets/figma/bbdfd.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "e6b866e56f46a2672f8f42b6089cc52dae90ee2f75330e0af7056c4de73c51ee"
+  },
+  {
+    "key": "assets/figma/bc604.svg",
+    "url": "https://assets.staryield.net/assets/figma/bc604.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 335,
+    "sha256": "9778c398d7649417cf1e769d2c7777cc5dba3ce66df300e487f2729ba1be454a"
+  },
+  {
+    "key": "assets/figma/bcc7a.png",
+    "url": "https://assets.staryield.net/assets/figma/bcc7a.png",
+    "contentType": "image/png",
+    "bytes": 340637,
+    "sha256": "454852f7d0d6949b200bc31e1b217a7072e75728d0f35aa301d371a3c67a98e3"
+  },
+  {
+    "key": "assets/figma/bd61f.svg",
+    "url": "https://assets.staryield.net/assets/figma/bd61f.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 568,
+    "sha256": "5ae3697302ba00e56916b89fdf7207a452af1ce4eba6e3046db660448df5e527"
+  },
+  {
+    "key": "assets/figma/bed2d.svg",
+    "url": "https://assets.staryield.net/assets/figma/bed2d.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1105,
+    "sha256": "ff8e48c391aace34f3d81998eb9b4473a9314c5b561c9955b8cc3775e4c76caa"
+  },
+  {
+    "key": "assets/figma/bf1b5.svg",
+    "url": "https://assets.staryield.net/assets/figma/bf1b5.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 235,
+    "sha256": "654490d6183cf58fe16de7a09fa41fd116915f8283ea47c41d328937ea963701"
+  },
+  {
+    "key": "assets/figma/bf4e8.svg",
+    "url": "https://assets.staryield.net/assets/figma/bf4e8.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "17a88c12f061db7c759312f6b30f52a91fce12e481dddaa00c1c780c205668c9"
+  },
+  {
+    "key": "assets/figma/c0009.svg",
+    "url": "https://assets.staryield.net/assets/figma/c0009.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1653,
+    "sha256": "419543d4d25bbe516744079593a9061fafc921f2f85469154cbb8a823e0dcf9a"
+  },
+  {
+    "key": "assets/figma/c0861.svg",
+    "url": "https://assets.staryield.net/assets/figma/c0861.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1931,
+    "sha256": "d8ad8d6d8ec1247f23852c8b7130ec1a12f924d0f0cb4aaa57e4ccf4e9c3b3e1"
+  },
+  {
+    "key": "assets/figma/c0fde.svg",
+    "url": "https://assets.staryield.net/assets/figma/c0fde.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 323,
+    "sha256": "966ab0eb7c0befb85f0a67d86949c212a6b9cf524738a0e7dd60aaf3a207c6aa"
+  },
+  {
+    "key": "assets/figma/c32b2.svg",
+    "url": "https://assets.staryield.net/assets/figma/c32b2.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 312,
+    "sha256": "7f1e81c8cbb7a25557a6e7b197a281b1d9c43c35b4f6423bddfc8c3170a617e7"
+  },
+  {
+    "key": "assets/figma/c355c.png",
+    "url": "https://assets.staryield.net/assets/figma/c355c.png",
+    "contentType": "image/png",
+    "bytes": 368627,
+    "sha256": "81b1d60351db5e57e6ace81e277069ec8b0938cb887fe70e74d253abfd84d7fd"
+  },
+  {
+    "key": "assets/figma/c4bf9.svg",
+    "url": "https://assets.staryield.net/assets/figma/c4bf9.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 307,
+    "sha256": "2bd159eb9a109e41e9157ed591a181db01d3b64b1fbaae7474505a2c5b459309"
+  },
+  {
+    "key": "assets/figma/c5966.svg",
+    "url": "https://assets.staryield.net/assets/figma/c5966.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1927,
+    "sha256": "8167ca7f95ec566c70f60762320e532595626c4bfb201d1c4aa6101fb3450cb0"
+  },
+  {
+    "key": "assets/figma/c66ff.png",
+    "url": "https://assets.staryield.net/assets/figma/c66ff.png",
+    "contentType": "image/png",
+    "bytes": 46419,
+    "sha256": "16064876cdcaac660eefc754eb58e7491f8e3d050d1fcf9de9460d639443561b"
+  },
+  {
+    "key": "assets/figma/c6980.svg",
+    "url": "https://assets.staryield.net/assets/figma/c6980.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1286,
+    "sha256": "ee5110434a618a970b3dbe155521e45094dbe38230a4900b88533d848ba086b7"
+  },
+  {
+    "key": "assets/figma/c6d6d.svg",
+    "url": "https://assets.staryield.net/assets/figma/c6d6d.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 292,
+    "sha256": "ad268f9b2975c151117426742c791815474e65676457f4c1a988961508d844c6"
+  },
+  {
+    "key": "assets/figma/c76cc.svg",
+    "url": "https://assets.staryield.net/assets/figma/c76cc.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 331,
+    "sha256": "16c0c0a39ff85f57e4060f9452a2d3f89c01bc3e1c86b52f4884c140ae95d145"
+  },
+  {
+    "key": "assets/figma/c79a5.png",
+    "url": "https://assets.staryield.net/assets/figma/c79a5.png",
+    "contentType": "image/png",
+    "bytes": 1790,
+    "sha256": "09ac563d2754058705e47b02f0d21b176e24afac4cfa6091e7bfcd8cf8671dc0"
+  },
+  {
+    "key": "assets/figma/c829e.png",
+    "url": "https://assets.staryield.net/assets/figma/c829e.png",
+    "contentType": "image/png",
+    "bytes": 280317,
+    "sha256": "0642cb71c61563065b558452b03ff8af0f6979074a4d8af92bddbc4de48cd023"
+  },
+  {
+    "key": "assets/figma/c8665.svg",
+    "url": "https://assets.staryield.net/assets/figma/c8665.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 325,
+    "sha256": "e28253b561574b716f969e19ac5aeb34d33c385bbb296064af3ba1f11b39b11b"
+  },
+  {
+    "key": "assets/figma/c8a2b.svg",
+    "url": "https://assets.staryield.net/assets/figma/c8a2b.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 527,
+    "sha256": "a5f99dc516862e94b02cb44b6f7baa558a8275f2d447e05c98dd588c1c964bc3"
+  },
+  {
+    "key": "assets/figma/c8ed9.svg",
+    "url": "https://assets.staryield.net/assets/figma/c8ed9.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 324,
+    "sha256": "808b1da5e6646ace1cbadddf06c3dae3fe209deb8e678fe26225f3a48846c852"
+  },
+  {
+    "key": "assets/figma/c9789.svg",
+    "url": "https://assets.staryield.net/assets/figma/c9789.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 314,
+    "sha256": "24eab0479fee32115cf5b5386e161bf3e74021e726366acee3cd140b5c82980d"
+  },
+  {
+    "key": "assets/figma/cb88d.svg",
+    "url": "https://assets.staryield.net/assets/figma/cb88d.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 286,
+    "sha256": "e889573f5120d89f85fda650c35a73134d00d525cbe1bb55500989dd710aacb8"
+  },
+  {
+    "key": "assets/figma/cbc8d.svg",
+    "url": "https://assets.staryield.net/assets/figma/cbc8d.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1820,
+    "sha256": "ba476b0da3e1e51df71a15e50576a836c38031a349a4609a42c402436f224541"
+  },
+  {
+    "key": "assets/figma/ccffe.svg",
+    "url": "https://assets.staryield.net/assets/figma/ccffe.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 285,
+    "sha256": "e2a68d6ba2edf43a3e28bfb2d9d5925467e8accb4f906a0981ed8900b236b554"
+  },
+  {
+    "key": "assets/figma/cdf03.svg",
+    "url": "https://assets.staryield.net/assets/figma/cdf03.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 313,
+    "sha256": "bc8a3b2f6d146796dedb5bb28bb92e7a21fc1646de7e12c47722de30a32d2f23"
+  },
+  {
+    "key": "assets/figma/ce360.svg",
+    "url": "https://assets.staryield.net/assets/figma/ce360.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 336,
+    "sha256": "fb65c0f801d5084453d5d3b51c33abb20e08536d74a640297e5ee80ffb4b141c"
+  },
+  {
+    "key": "assets/figma/ceeda.svg",
+    "url": "https://assets.staryield.net/assets/figma/ceeda.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 332,
+    "sha256": "5317a545acee5d4767581f4c403a9ac50d60e92876533357f5e495c42e56c243"
+  },
+  {
+    "key": "assets/figma/d1599.svg",
+    "url": "https://assets.staryield.net/assets/figma/d1599.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 235,
+    "sha256": "2cc4bbe0848977a9cb2dfc434ade6dec1ff171966326986773af78b64017059d"
+  },
+  {
+    "key": "assets/figma/d42c1.svg",
+    "url": "https://assets.staryield.net/assets/figma/d42c1.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 313,
+    "sha256": "61dfba5d58e53ab2d9eeceeee8d9cc76d415fd003b1cff57d2f2bb8310118e0a"
+  },
+  {
+    "key": "assets/figma/d8eaf.svg",
+    "url": "https://assets.staryield.net/assets/figma/d8eaf.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 331,
+    "sha256": "1f50da5c11d8bc9f43798a42ca08430d848d0f559f805188f47f89400ac134b9"
+  },
+  {
+    "key": "assets/figma/d9e90.svg",
+    "url": "https://assets.staryield.net/assets/figma/d9e90.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1820,
+    "sha256": "7ef713af9fe9f4551b7391c54f11facb3037b1d0882727d22cfbef9e9a5154ee"
+  },
+  {
+    "key": "assets/figma/dd3fa.svg",
+    "url": "https://assets.staryield.net/assets/figma/dd3fa.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 611,
+    "sha256": "763783f3b46f7a7a5a3f7f7790c9eb60cbfdc1329376af6ce35f02fac6e9a9c4"
+  },
+  {
+    "key": "assets/figma/de2f9.svg",
+    "url": "https://assets.staryield.net/assets/figma/de2f9.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 313,
+    "sha256": "53908f90c0a1b2de602efb7c05fba31c4d1ddb536b983a23888ccdc454ab9c36"
+  },
+  {
+    "key": "assets/figma/e0d20.svg",
+    "url": "https://assets.staryield.net/assets/figma/e0d20.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 321,
+    "sha256": "835ccb9fa80efeab1fe82b1b477da559150099bf0fffb1f9d2915742964e7db7"
+  },
+  {
+    "key": "assets/figma/e1c11.png",
+    "url": "https://assets.staryield.net/assets/figma/e1c11.png",
+    "contentType": "image/png",
+    "bytes": 410841,
+    "sha256": "5c7e25c0e8223a736ad3cfe4185de8af4356af11545fc9da6f2ec64016e679d0"
+  },
+  {
+    "key": "assets/figma/e2d75.png",
+    "url": "https://assets.staryield.net/assets/figma/e2d75.png",
+    "contentType": "image/png",
+    "bytes": 19810,
+    "sha256": "c1e74df5b227c45cc79d058453652abc891bfdc477d99c5d70c99e938800649d"
+  },
+  {
+    "key": "assets/figma/e3f97.svg",
+    "url": "https://assets.staryield.net/assets/figma/e3f97.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 481,
+    "sha256": "532602c61ea72ef016490c5468c91904bd116716a1fd5621461f3146b9092ff7"
+  },
+  {
+    "key": "assets/figma/e5571.svg",
+    "url": "https://assets.staryield.net/assets/figma/e5571.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 265,
+    "sha256": "aa7dba69e145fac381f9af08826c56bd2e46505fed4bf391e402bc1a7d69967a"
+  },
+  {
+    "key": "assets/figma/e6c30.png",
+    "url": "https://assets.staryield.net/assets/figma/e6c30.png",
+    "contentType": "image/png",
+    "bytes": 2111,
+    "sha256": "a96ab3e248d89d1e3765ed967e1d01350fb20da8b6475d0e864a81ff7cd1f222"
+  },
+  {
+    "key": "assets/figma/e7923.svg",
+    "url": "https://assets.staryield.net/assets/figma/e7923.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 332,
+    "sha256": "94fe32f19996e8d3180c0fd4782087013cc4d1cbae30fe471ec1e8ec2a9da60a"
+  },
+  {
+    "key": "assets/figma/e7e99.png",
+    "url": "https://assets.staryield.net/assets/figma/e7e99.png",
+    "contentType": "image/png",
+    "bytes": 4635,
+    "sha256": "40e35598fb9ebeff2d4dc127aa09af1b495b29aa78f908d440503a8e36ac109c"
+  },
+  {
+    "key": "assets/figma/e80ef.svg",
+    "url": "https://assets.staryield.net/assets/figma/e80ef.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 263,
+    "sha256": "a3cd1bd490c8d220d68daf1c71cb3c3b00f34340b6aa5e4ed32fd8dc75a7e3f4"
+  },
+  {
+    "key": "assets/figma/e982e.svg",
+    "url": "https://assets.staryield.net/assets/figma/e982e.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 327,
+    "sha256": "dc4841c80a7a12e25ccbb60ed98631afa8e17fd05201b402029ca7b38b856b5f"
+  },
+  {
+    "key": "assets/figma/ea213.svg",
+    "url": "https://assets.staryield.net/assets/figma/ea213.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 265,
+    "sha256": "8e9354d44ecd2d46fca7c68712dc8592127b29d13ab4783f046d983ffc9fe6ff"
+  },
+  {
+    "key": "assets/figma/ea778.png",
+    "url": "https://assets.staryield.net/assets/figma/ea778.png",
+    "contentType": "image/png",
+    "bytes": 366074,
+    "sha256": "1e0d95c8434e203336447ce4b76f53a365962f7969c0d5aa85f8c41e5c4945e6"
+  },
+  {
+    "key": "assets/figma/ea7e5.svg",
+    "url": "https://assets.staryield.net/assets/figma/ea7e5.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 331,
+    "sha256": "d0bd6461d24cb02b2c8c520bd724cd15359529bbc42fd8bdb6f68d7bf29a14b2"
+  },
+  {
+    "key": "assets/figma/ea8b1.svg",
+    "url": "https://assets.staryield.net/assets/figma/ea8b1.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "45b4e1d9102074cfd3dc6fe8910dfc5a0d46fbe6af524259e61faaed8b4f9bc7"
+  },
+  {
+    "key": "assets/figma/ebaa9.svg",
+    "url": "https://assets.staryield.net/assets/figma/ebaa9.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 265,
+    "sha256": "00a491b131b04d1281aa67017b604ce5dc6ba255fe8432834e0b31b810dce647"
+  },
+  {
+    "key": "assets/figma/ec68d.png",
+    "url": "https://assets.staryield.net/assets/figma/ec68d.png",
+    "contentType": "image/png",
+    "bytes": 14721,
+    "sha256": "910ce8f63d11d8e0bddc0ba7f3d16d11f58e203ac513c90579197a2574cfad45"
+  },
+  {
+    "key": "assets/figma/ed49a.svg",
+    "url": "https://assets.staryield.net/assets/figma/ed49a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 307,
+    "sha256": "75bdfbd08424443c5c4a947a82a118b7885794c1e5c855b94ca2db8dd1a4c6e8"
+  },
+  {
+    "key": "assets/figma/ee9a5.svg",
+    "url": "https://assets.staryield.net/assets/figma/ee9a5.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 309,
+    "sha256": "43dbc16be027df7666583192b5a5156cda665702ba85b8905731f264e800b1dc"
+  },
+  {
+    "key": "assets/figma/ef883.png",
+    "url": "https://assets.staryield.net/assets/figma/ef883.png",
+    "contentType": "image/png",
+    "bytes": 5648,
+    "sha256": "27f7b8b1270faa7f4d633cdcbb3442e1835a6bf450915ee14f0a17649edc61f9"
+  },
+  {
+    "key": "assets/figma/f05b0.svg",
+    "url": "https://assets.staryield.net/assets/figma/f05b0.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 281,
+    "sha256": "ba50af757cc5453961b6d132367fff1d7237229779ec63be7dfe69d5a4fadee6"
+  },
+  {
+    "key": "assets/figma/f3865.svg",
+    "url": "https://assets.staryield.net/assets/figma/f3865.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1152,
+    "sha256": "cfa5bfa0185da0eae17e8f2ae900940e21085611c73a0056bae320ebf96f5c22"
+  },
+  {
+    "key": "assets/figma/f3a45.svg",
+    "url": "https://assets.staryield.net/assets/figma/f3a45.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 331,
+    "sha256": "f90e8f6bb8a0f33c7d8bf5ca1292e98ad85f39298a74a9ce2170be9d253ed0b5"
+  },
+  {
+    "key": "assets/figma/f3e9d.svg",
+    "url": "https://assets.staryield.net/assets/figma/f3e9d.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1267,
+    "sha256": "de60fbc83f9a6faac34ac993b3eabab5b9733cef1cc4971882dc0506da28debf"
+  },
+  {
+    "key": "assets/figma/f43b2.svg",
+    "url": "https://assets.staryield.net/assets/figma/f43b2.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 997,
+    "sha256": "644feda2c1ccc8582b8c49f0566b45751bb0da6e3c3d52c2aff2a4b118a9a03c"
+  },
+  {
+    "key": "assets/figma/f5cdc.jpg",
+    "url": "https://assets.staryield.net/assets/figma/f5cdc.jpg",
+    "contentType": "image/jpeg",
+    "bytes": 12287018,
+    "sha256": "bd201dacf60f80ed3c7de030bc60e683b7a3dd92ef88a46d052ec6e509a92d09"
+  },
+  {
+    "key": "assets/figma/f6692.svg",
+    "url": "https://assets.staryield.net/assets/figma/f6692.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 268,
+    "sha256": "84d7913d971981d711da62e3ad76c0c7b9cad82f83e78f024a983bcc14e1ab43"
+  },
+  {
+    "key": "assets/figma/f7239.svg",
+    "url": "https://assets.staryield.net/assets/figma/f7239.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1290,
+    "sha256": "9ed081ff7ca9e2069ee9ce2aaf5ecbb3cc1f351f7f4ed2e088b5b91a214d8b68"
+  },
+  {
+    "key": "assets/figma/f7e76.png",
+    "url": "https://assets.staryield.net/assets/figma/f7e76.png",
+    "contentType": "image/png",
+    "bytes": 1596682,
+    "sha256": "73683c574ccd9f860129bc44d4f9dd33c0afa8a3988cd750ee4d1f6cb1635f60"
+  },
+  {
+    "key": "assets/figma/f90ea.png",
+    "url": "https://assets.staryield.net/assets/figma/f90ea.png",
+    "contentType": "image/png",
+    "bytes": 28906,
+    "sha256": "a175207ac2029c3c213a9413555710252773f4e4337ee83b9fd5eb8d53a34b0e"
+  },
+  {
+    "key": "assets/figma/f9dc0.svg",
+    "url": "https://assets.staryield.net/assets/figma/f9dc0.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1052,
+    "sha256": "666302d9d04949125ed98c23481e627d25b6678081472dfcef8af1895828a3ac"
+  },
+  {
+    "key": "assets/figma/fb9ee.jpg",
+    "url": "https://assets.staryield.net/assets/figma/fb9ee.jpg",
+    "contentType": "image/jpeg",
+    "bytes": 877036,
+    "sha256": "ac5efb682af1fca3ac4a44c683469e09823f19c6f3062dd6ca5fcba83697a60e"
+  },
+  {
+    "key": "assets/paper-texture.jpg",
+    "url": "https://assets.staryield.net/assets/paper-texture.jpg",
+    "contentType": "image/jpeg",
+    "bytes": 53492,
+    "sha256": "5cb693ca51bbb81e68cf7b2c7fd32865f8b8c386d0bb4b4324b60bb5073c7e64"
+  },
+  {
+    "key": "assets/tarot/death.png",
+    "url": "https://assets.staryield.net/assets/tarot/death.png",
+    "contentType": "image/png",
+    "bytes": 182835,
+    "sha256": "61ae8da4ebbda807e2e52478cfc1c6d4bfd78aef74fbe96d6a7af962e0faaa42"
+  },
+  {
+    "key": "assets/tarot/judgement.png",
+    "url": "https://assets.staryield.net/assets/tarot/judgement.png",
+    "contentType": "image/png",
+    "bytes": 186298,
+    "sha256": "fef8acc9258e9d8a73f364476093aa949e3de5b76eeae8559e7638111c79ff72"
+  },
+  {
+    "key": "assets/tarot/justice.png",
+    "url": "https://assets.staryield.net/assets/tarot/justice.png",
+    "contentType": "image/png",
+    "bytes": 193417,
+    "sha256": "e0e7c2b069acb8e58cf12ada2f7413c7db1035d9d1678e4927e8ea9ee321b14c"
+  },
+  {
+    "key": "assets/tarot/strength.png",
+    "url": "https://assets.staryield.net/assets/tarot/strength.png",
+    "contentType": "image/png",
+    "bytes": 184560,
+    "sha256": "933c75434d260cc6cd1737d14251f82dcbf654bbdc6e98b8e16c84810bb26414"
+  },
+  {
+    "key": "assets/tarot/temperance.png",
+    "url": "https://assets.staryield.net/assets/tarot/temperance.png",
+    "contentType": "image/png",
+    "bytes": 196576,
+    "sha256": "f73d0712a2459ef1df5d348db29216c51f1604ef3716055a5625946d9dd4e32f"
+  },
+  {
+    "key": "assets/tarot/the-chariot.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-chariot.png",
+    "contentType": "image/png",
+    "bytes": 184179,
+    "sha256": "2acfe7abaf9541f2a54a560a82577eb336821e5a78e4464074da84db5d23a7ad"
+  },
+  {
+    "key": "assets/tarot/the-devil.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-devil.png",
+    "contentType": "image/png",
+    "bytes": 184122,
+    "sha256": "369141ddefe33c58b4afad346dd00ae60a911d493d0431a37c33ee2d1bd0d21b"
+  },
+  {
+    "key": "assets/tarot/the-emperor.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-emperor.png",
+    "contentType": "image/png",
+    "bytes": 196155,
+    "sha256": "6f290cad6282c0e851fcc78b66f35d2efa92e30a1fb11565f07b90159b19e052"
+  },
+  {
+    "key": "assets/tarot/the-empress.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-empress.png",
+    "contentType": "image/png",
+    "bytes": 190332,
+    "sha256": "656c83c3522112b21ab4baa2a068c6f7621420bda3993cc4368ad62c0782043b"
+  },
+  {
+    "key": "assets/tarot/the-fool.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-fool.png",
+    "contentType": "image/png",
+    "bytes": 193446,
+    "sha256": "d56c5bafe83060c4a7c628b9cedb346d41c887b1c957f1125fc87f2667faee32"
+  },
+  {
+    "key": "assets/tarot/the-hanged-man.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-hanged-man.png",
+    "contentType": "image/png",
+    "bytes": 173323,
+    "sha256": "81b46a093a3237a4c3873cecb9b00bf7b366f11bc8b8478a03df9c6df24e0f44"
+  },
+  {
+    "key": "assets/tarot/the-hermit.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-hermit.png",
+    "contentType": "image/png",
+    "bytes": 168202,
+    "sha256": "4e3ea37ab15ec49306be30245556d6311c517f919b5fbb9ce4d3f6c818886091"
+  },
+  {
+    "key": "assets/tarot/the-hierophant.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-hierophant.png",
+    "contentType": "image/png",
+    "bytes": 184828,
+    "sha256": "d17572c3015170fd694e69daf2db7683be9f53ca43851d070194d636fa5c9416"
+  },
+  {
+    "key": "assets/tarot/the-high-priestess.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-high-priestess.png",
+    "contentType": "image/png",
+    "bytes": 193442,
+    "sha256": "0ebfbc27bcd210abd46e9d70de0efc8dbca65d11fe7de01cd3c9c3186cd5ed8f"
+  },
+  {
+    "key": "assets/tarot/the-lovers.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-lovers.png",
+    "contentType": "image/png",
+    "bytes": 203311,
+    "sha256": "9c099d90d9a2fdfd723575e02b348150569cf1c1b3ad89a9a2b98da82c69fbdb"
+  },
+  {
+    "key": "assets/tarot/the-magician.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-magician.png",
+    "contentType": "image/png",
+    "bytes": 178682,
+    "sha256": "6c1bd2814f95b022a10bcc63b7b3a90dae840a5b007d2e5fb8a2e3c2267b638e"
+  },
+  {
+    "key": "assets/tarot/the-moon.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-moon.png",
+    "contentType": "image/png",
+    "bytes": 197383,
+    "sha256": "f76b2f0b4edcb9e85ff4a62cff3cc7f4e0e79d48e5c15f38987f2f025ddc05ec"
+  },
+  {
+    "key": "assets/tarot/the-star.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-star.png",
+    "contentType": "image/png",
+    "bytes": 183035,
+    "sha256": "c234757b6d4b16e2f91c749c8673d2e859b3712944654a9163b1ebf54aba414a"
+  },
+  {
+    "key": "assets/tarot/the-sun.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-sun.png",
+    "contentType": "image/png",
+    "bytes": 189101,
+    "sha256": "5755bf626afe0b0c93b1fd59b740464a63051abb36ced3e244c7e0e0670c5e04"
+  },
+  {
+    "key": "assets/tarot/the-tower.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-tower.png",
+    "contentType": "image/png",
+    "bytes": 186992,
+    "sha256": "6f9881a8de7226e88f68c11511a46e7a5fda6c9f9fc2cd5c04db51d2cb203ea8"
+  },
+  {
+    "key": "assets/tarot/the-world.png",
+    "url": "https://assets.staryield.net/assets/tarot/the-world.png",
+    "contentType": "image/png",
+    "bytes": 190835,
+    "sha256": "f8fa0665975bb911776fc5659d83b1115907654c8fe995b93dab39dd2e1bf428"
+  },
+  {
+    "key": "assets/tarot/wheel-of-fortune.png",
+    "url": "https://assets.staryield.net/assets/tarot/wheel-of-fortune.png",
+    "contentType": "image/png",
+    "bytes": 200596,
+    "sha256": "03e4b554b403fface9d7d0c8162d594a4accb2936480f6761b20f17550ef383d"
+  },
+  {
+    "key": "assets/zodiac/aquarius.png",
+    "url": "https://assets.staryield.net/assets/zodiac/aquarius.png",
+    "contentType": "image/png",
+    "bytes": 3125,
+    "sha256": "80cb5fc544ddbe752ca69e4e681c7415698de7f672651636017dfb87545eb1b4"
+  },
+  {
+    "key": "assets/zodiac/aries.png",
+    "url": "https://assets.staryield.net/assets/zodiac/aries.png",
+    "contentType": "image/png",
+    "bytes": 3616,
+    "sha256": "a378d464cdd2a0b3dbe430ccd4d1431e02f2d164c58103a0a8ce3b3cd9dd7233"
+  },
+  {
+    "key": "assets/zodiac/ascending-1.png",
+    "url": "https://assets.staryield.net/assets/zodiac/ascending-1.png",
+    "contentType": "image/png",
+    "bytes": 303,
+    "sha256": "a5074d2414034559f97b482ec6cd574d674231c0b90244aac9b029cbf34a3301"
+  },
+  {
+    "key": "assets/zodiac/cancer.png",
+    "url": "https://assets.staryield.net/assets/zodiac/cancer.png",
+    "contentType": "image/png",
+    "bytes": 4113,
+    "sha256": "8b5db1741d321a9b3694fc4fd272584b85f4162c563372f9470918f1561cad34"
+  },
+  {
+    "key": "assets/zodiac/capricorn.png",
+    "url": "https://assets.staryield.net/assets/zodiac/capricorn.png",
+    "contentType": "image/png",
+    "bytes": 4455,
+    "sha256": "2bbc4e0fdd3281dffad2674776aa65958385c76cdb4d3ed6d78f6ed4d954e0ad"
+  },
+  {
+    "key": "assets/zodiac/gemini.png",
+    "url": "https://assets.staryield.net/assets/zodiac/gemini.png",
+    "contentType": "image/png",
+    "bytes": 1752,
+    "sha256": "c75531c0bee595249c230e499575b4405dd18c312b58a17dd3c5a3a41250db43"
+  },
+  {
+    "key": "assets/zodiac/jupiter-1.png",
+    "url": "https://assets.staryield.net/assets/zodiac/jupiter-1.png",
+    "contentType": "image/png",
+    "bytes": 439,
+    "sha256": "8dfc541bdad7af916a57eb9f94ed7d32c3e6012e7d9e990fbfa4c42c709b4150"
+  },
+  {
+    "key": "assets/zodiac/leo.png",
+    "url": "https://assets.staryield.net/assets/zodiac/leo.png",
+    "contentType": "image/png",
+    "bytes": 3722,
+    "sha256": "efd11be84afabd32cd57968f8d73cc4cc8f48b9a5cdb9b47cc270aca8942953d"
+  },
+  {
+    "key": "assets/zodiac/libra.png",
+    "url": "https://assets.staryield.net/assets/zodiac/libra.png",
+    "contentType": "image/png",
+    "bytes": 2387,
+    "sha256": "54921beb57274995a71a176d5e1002c78edbbb5515ac6098ca400084cae28d23"
+  },
+  {
+    "key": "assets/zodiac/mars-1.png",
+    "url": "https://assets.staryield.net/assets/zodiac/mars-1.png",
+    "contentType": "image/png",
+    "bytes": 536,
+    "sha256": "c5e25e38aa2974bee82502099dd39d50941c7e4c948a4e20ac675111492ab5a7"
+  },
+  {
+    "key": "assets/zodiac/mercury-1.png",
+    "url": "https://assets.staryield.net/assets/zodiac/mercury-1.png",
+    "contentType": "image/png",
+    "bytes": 514,
+    "sha256": "a46c617ab23a51adac432dfd9c9a96b7c8e899453de10146451f82fc4e71a527"
+  },
+  {
+    "key": "assets/zodiac/moon-1.png",
+    "url": "https://assets.staryield.net/assets/zodiac/moon-1.png",
+    "contentType": "image/png",
+    "bytes": 567,
+    "sha256": "e326850bca853386691c2b7188bc248b767e05d9bb820ba51338024a6d5afb2a"
+  },
+  {
+    "key": "assets/zodiac/neptune-1.png",
+    "url": "https://assets.staryield.net/assets/zodiac/neptune-1.png",
+    "contentType": "image/png",
+    "bytes": 450,
+    "sha256": "6353c632f427247ec8e571d6d6652ee4086989f17d27bbfc10c889b9861d8926"
+  },
+  {
+    "key": "assets/zodiac/pisces.png",
+    "url": "https://assets.staryield.net/assets/zodiac/pisces.png",
+    "contentType": "image/png",
+    "bytes": 3068,
+    "sha256": "4696e87dbc8c16168d289371cbe3f6a5a594c6f147f3d0be347f8e869dba8a2d"
+  },
+  {
+    "key": "assets/zodiac/pluto-1.png",
+    "url": "https://assets.staryield.net/assets/zodiac/pluto-1.png",
+    "contentType": "image/png",
+    "bytes": 579,
+    "sha256": "c95365ae883226927a059f2552078490f9b1ff21fec9f6ee393ca854fef3d0b3"
+  },
+  {
+    "key": "assets/zodiac/sagittarius.png",
+    "url": "https://assets.staryield.net/assets/zodiac/sagittarius.png",
+    "contentType": "image/png",
+    "bytes": 3287,
+    "sha256": "575dd15271480f9564a745cc8b927e51e357396bb5a36b65396bcb736e242952"
+  },
+  {
+    "key": "assets/zodiac/saturn-1.png",
+    "url": "https://assets.staryield.net/assets/zodiac/saturn-1.png",
+    "contentType": "image/png",
+    "bytes": 449,
+    "sha256": "5320121aaa455f0d0af2c79898636eda98ee9c29ad7ad1fcfb40efc77b81757d"
+  },
+  {
+    "key": "assets/zodiac/scorpio.png",
+    "url": "https://assets.staryield.net/assets/zodiac/scorpio.png",
+    "contentType": "image/png",
+    "bytes": 2680,
+    "sha256": "5d960de88a71e439dd4a9a923122e5026309d24956146999b6eb856be4967bb0"
+  },
+  {
+    "key": "assets/zodiac/sun-1.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/sun-1.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 812,
+    "sha256": "a4cdb78e1828e76fa6cf4712d53fa2c5dff66e0afa0424bd4658ee086443f462"
+  },
+  {
+    "key": "assets/zodiac/taurus.png",
+    "url": "https://assets.staryield.net/assets/zodiac/taurus.png",
+    "contentType": "image/png",
+    "bytes": 3841,
+    "sha256": "5102350eb920720359be1f59f2281ac75bb1257755be6e98b1f7f2eb095b2e24"
+  },
+  {
+    "key": "assets/zodiac/uranus-1.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/uranus-1.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1001,
+    "sha256": "07355cbf483988efc8da61c5607db4645030ad32569171b1147a1ef4690df512"
+  },
+  {
+    "key": "assets/zodiac/venus-1.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/venus-1.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 679,
+    "sha256": "5fe56cc13105fbb47729af0d1480657865df4e25f345e8f2848c5b75de325811"
+  },
+  {
+    "key": "assets/zodiac/virgo.png",
+    "url": "https://assets.staryield.net/assets/zodiac/virgo.png",
+    "contentType": "image/png",
+    "bytes": 3593,
+    "sha256": "9161a5e90372c3b8284032b5a813077db99e778904116e80871c26ec9399baec"
+  },
+  {
+    "key": "favicon.ico",
+    "url": "https://assets.staryield.net/favicon.ico",
+    "contentType": "image/x-icon",
+    "bytes": 25931,
+    "sha256": "2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932"
+  }
+]

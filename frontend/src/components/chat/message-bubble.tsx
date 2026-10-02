@@ -1,39 +1,43 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 
-import { useI18n } from "@/i18n/i18n-provider"
-import type { ChatMessage } from "@/lib/chatroom-data"
-import { formatMessageTime } from "@/lib/format"
-import { cn } from "@/lib/utils"
-import { MessageBookmark } from "@/components/chat/message-bookmark"
-import { Button } from "@/components/ui/button"
+import { useI18n } from "@/i18n/i18n-provider";
+import type { ChatMessage } from "@/lib/chatroom-data";
+import { formatMessageTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { MessageBookmark } from "@/components/chat/message-bookmark";
+import { Button } from "@/components/ui/button";
 
 export function MessageBubble({
   message,
   authorName,
+  saved = false,
+  onBookmark,
 }: {
-  message: ChatMessage
-  authorName: string
+  message: ChatMessage;
+  authorName: string;
+  saved?: boolean;
+  onBookmark?: () => void;
 }) {
-  const { locale, t } = useI18n()
-  const [revealed, setRevealed] = React.useState(false)
+  const { locale, t } = useI18n();
+  const [revealed, setRevealed] = React.useState(false);
 
-  const isVisitor = message.author === "visitor"
-  const isHidden = Boolean(message.locked) && !revealed
-  const time = formatMessageTime(message.sentAt, locale)
+  const isVisitor = message.author === "visitor";
+  const isHidden = Boolean(message.locked) && !revealed;
+  const time = formatMessageTime(message.sentAt, locale);
 
   const bubble = (
     <div
       className={cn(
-        "flex w-fit max-w-[85%] flex-col gap-2 rounded-lg bg-warm-gray p-3 text-ink sm:max-w-[380px]",
-        message.locked && "items-center"
+        "message-bubble flex w-fit max-w-[85%] flex-col gap-2 rounded-lg bg-cream p-3 text-ink sm:max-w-[380px]",
+        message.locked && "items-center",
       )}
     >
       <p
         className={cn(
-          "w-full font-ui text-[13px] leading-[1.4] whitespace-pre-line",
-          isHidden && "blur-[4px] select-none"
+          "w-full font-serif text-[13px] leading-[1.4] whitespace-pre-line",
+          isHidden && "blur-[4px] select-none",
         )}
         aria-hidden={isHidden}
       >
@@ -60,13 +64,13 @@ export function MessageBubble({
         {time}
       </time>
     </div>
-  )
+  );
 
   return (
     <li
       className={cn(
         "flex w-full items-end gap-[5px]",
-        isVisitor && "justify-end"
+        isVisitor && "justify-end",
       )}
     >
       <span className="sr-only">
@@ -74,15 +78,15 @@ export function MessageBubble({
       </span>
       {isVisitor ? (
         <>
-          <MessageBookmark />
+          <MessageBookmark saved={saved} onToggle={onBookmark} />
           {bubble}
         </>
       ) : (
         <>
           {bubble}
-          <MessageBookmark />
+          <MessageBookmark saved={saved} onToggle={onBookmark} />
         </>
       )}
     </li>
-  )
+  );
 }

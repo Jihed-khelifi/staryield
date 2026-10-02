@@ -1,13 +1,13 @@
-import type { Metadata } from "next"
-import { Cinzel, Inter, Source_Serif_4 } from "next/font/google"
-import { notFound } from "next/navigation"
+import type { Metadata } from "next";
+import { Cinzel, Inter, Source_Serif_4 } from "next/font/google";
+import { notFound } from "next/navigation";
 
-import "@/app/globals.css"
+import "@/app/globals.css";
 
-import { isLocale, locales } from "@/i18n/config"
-import { getDictionary } from "@/i18n/dictionaries"
-import { I18nProvider } from "@/i18n/i18n-provider"
-import { TooltipProvider } from "@/components/ui/tooltip"
+import { isLocale, locales } from "@/i18n/config";
+import { getDictionary } from "@/i18n/dictionaries";
+import { I18nProvider } from "@/i18n/i18n-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 /** Stand-in for Castellar, which is not available as a webfont. */
 const cinzel = Cinzel({
@@ -15,51 +15,53 @@ const cinzel = Cinzel({
   weight: ["400", "500", "600"],
   variable: "--font-cinzel",
   display: "swap",
-})
+});
 
 const sourceSerif = Source_Serif_4({
   subsets: ["latin"],
   variable: "--font-source-serif",
   display: "swap",
-})
+});
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
   display: "swap",
-})
+});
 
-type LayoutParams = { params: Promise<{ lang: string }> }
+type LayoutParams = { params: Promise<{ lang: string }> };
 
 export function generateStaticParams() {
-  return locales.map((lang) => ({ lang }))
+  return locales.map((lang) => ({ lang }));
 }
 
 export async function generateMetadata({
   params,
 }: LayoutParams): Promise<Metadata> {
-  const { lang } = await params
-  if (!isLocale(lang)) return {}
+  const { lang } = await params;
+  if (!isLocale(lang)) return {};
 
-  const dictionary = await getDictionary(lang)
+  const dictionary = await getDictionary(lang);
 
   return {
     title: {
-      default: `${dictionary.nav.brand} — ${dictionary.meta.chatroomTitle}`,
+      default: `${dictionary.nav.brand} — Grounded wisdom. Personalized guidance.`,
       template: `%s — ${dictionary.nav.brand}`,
     },
-    description: dictionary.meta.chatroomDescription,
-  }
+    icons: { icon: "https://assets.staryield.net/favicon.ico" },
+    description:
+      "Explore free astrology and numerology calculators, connect with psychics, and discover your cosmic profile.",
+  };
 }
 
 export default async function LangLayout({
   children,
   params,
 }: LayoutParams & { children: React.ReactNode }) {
-  const { lang } = await params
-  if (!isLocale(lang)) notFound()
+  const { lang } = await params;
+  if (!isLocale(lang)) notFound();
 
-  const dictionary = await getDictionary(lang)
+  const dictionary = await getDictionary(lang);
 
   return (
     <html lang={lang} dir="ltr">
@@ -71,5 +73,5 @@ export default async function LangLayout({
         </I18nProvider>
       </body>
     </html>
-  )
+  );
 }

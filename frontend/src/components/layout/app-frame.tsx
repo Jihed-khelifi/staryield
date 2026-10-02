@@ -1,9 +1,9 @@
-import { cn } from "@/lib/utils"
-import { SiteHeader } from "@/components/layout/site-header"
+import { cn } from "@/lib/utils";
+import { SiteHeader } from "@/components/layout/site-header";
+import { MobileNavigation } from "@/components/layout/site-header";
 
 /**
- * Page container matching the Figma frames: 1440 wide with 32px gutters,
- * 20px above the navbar and a 16px gap down to the content.
+ * Chatroom frame with a shared desktop header, inner scrolling, and mobile navigation.
  */
 export function AppFrame({
   children,
@@ -11,20 +11,21 @@ export function AppFrame({
   fill = false,
   className,
 }: {
-  children: React.ReactNode
-  fill?: boolean
-  className?: string
+  children: React.ReactNode;
+  fill?: boolean;
+  className?: string;
 }) {
   return (
     <div
       className={cn(
-        "mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-4 pt-5 pb-6 sm:px-6 xl:px-8",
+        "dashboard-page mx-auto flex w-full max-w-[1440px] flex-col gap-4 pb-6 max-md:pb-[88px]",
         fill ? "h-dvh" : "min-h-dvh",
-        className
+        className,
       )}
     >
       <SiteHeader />
       {children}
+      <MobileNavigation />
     </div>
-  )
+  );
 }

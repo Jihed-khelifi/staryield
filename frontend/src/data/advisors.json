@@ -1,0 +1,106 @@
+[
+  {
+    "slug": "ramone",
+    "name": "Ramone",
+    "image": "https://assets.staryield.net/assets/figma/47a9f.png",
+    "zodiac": "Taurus",
+    "skills": ["Numerology", "Astrology", "Tarot Reading"],
+    "rating": 4.9,
+    "reviews": 350,
+    "readings": "3,500+",
+    "years": 8,
+    "rate": 35,
+    "about": [
+      "Are you seeking clarity and a deeper understanding of the options ahead of you? I believe that every answer you are searching for is already within you, and my goal is simply to help you see your path more clearly.",
+      "I use Tarot because it allows me to translate the universal language of energy into practical steps for your life. By accessing cosmic guidance, numerological timelines, and intuitive energy readings, we will dissect current blockages and unlock your spiritual blueprint.",
+      "\"There are no absolute deterministic outcomes—only waves of energy waiting to be realized. Every session aims to return power to your hands through conscious choices.\""
+    ],
+    "services": [
+      {
+        "name": "Schedule a Reading",
+        "subtitle": "30 Min Live Session",
+        "price": "1,200 Credits",
+        "description": "Book a dedicated calendar slot for a private, uninterrupted deep-dive session focusing on career, love, or spiritual transition."
+      },
+      {
+        "name": "Candle Ritual",
+        "subtitle": "Spiritual Attunement",
+        "price": "850 Credits",
+        "description": "An ancient candle-burning manifestation ritual tailored to your specific numerological charts to draw alignment and luck."
+      }
+    ]
+  },
+  {
+    "slug": "theo",
+    "name": "Theo",
+    "image": "https://assets.staryield.net/assets/figma/1f3a8.png",
+    "zodiac": "Gemini",
+    "skills": ["Crystal Healing", "Mediumship", "Dream Analysis"],
+    "rating": 4.7,
+    "reviews": 195,
+    "readings": "1,200+",
+    "years": 5,
+    "rate": 35,
+    "about": [
+      "She channels ancestral wisdom passed down through generations of mystic tradition, forging a deep and sacred connection with spirit guides who dwell beyond the veil of ordinary perception. Through ancient rituals and meditative practices, she opens doorways to illuminate hidden truths that lie beneath the surface of everyday awareness. Drawing upon the vibrational power of carefully arranged crystal energy grids, she amplifies intuitive frequencies and harmonizes the flow of spiritual energy around you. Her gift for dream interpretation allows her to decode the symbolic language of your sleeping mind, mapping the vast and intricate terrain of your subconscious landscape. With gentle clarity, she reveals the profound messages your higher self is trying to send — guiding you toward deeper self-understanding, spiritual alignment, and the awakening of your true inner potential.",
+      "\"The crystals don't lie — they amplify what your soul already knows. My role is to help you listen to the frequencies that have always been there.\""
+    ],
+    "services": [
+      {
+        "name": "Schedule a Reading",
+        "subtitle": "30 Min Live Session",
+        "price": "1,200 Credits",
+        "description": "Book a dedicated calendar slot for a private, uninterrupted deep-dive session focusing on career, love, or spiritual transition."
+      },
+      {
+        "name": "Crystal Energy Session",
+        "subtitle": "45 Min Deep Healing",
+        "price": "1,800 Credits",
+        "description": "A guided crystal grid session aligned to your chakra map, designed to clear energetic debris and restore spiritual flow."
+      },
+      {
+        "name": "Dream Decode Package",
+        "subtitle": "Symbolic Analysis",
+        "price": "600 Credits",
+        "description": "Submit your recurring dreams for a detailed symbolic breakdown revealing patterns, warnings, and guidance from your subconscious mind."
+      }
+    ]
+  },
+  {
+    "slug": "solomon",
+    "name": "Solomon",
+    "image": "https://assets.staryield.net/assets/figma/54c44.png",
+    "zodiac": "Aries",
+    "skills": ["Palmistry", "Aura Reading", "Past Life"],
+    "rating": 4.7,
+    "reviews": 195,
+    "readings": "1,200+",
+    "years": 5,
+    "rate": 35,
+    "about": [
+      "Orion reads the map written in your hands and the colors radiating from your energy field. Trained in past life regression therapy, he helps clients understand karmic cycles and ancestral patterns that shape present-day choices.",
+      "In sessions, he moves between the physical landscape of the body and the subtle currents of the aura. He listens for the stories that the hands hold-lines that speak to resilience, the shape of the fingers that reveal how a person receives and acts on intuition, and the spaces between the fingers that describe the way a person navigates freedom and responsibility. When he looks at the energy field, he is not just seeing color; he is reading the vibration of a person's current state. A cool blue may indicate a need for stillness and trust, while a sharp orange may signal a call to creative action and the breaking of old patterns.",
+      "\"Your palms hold the blueprint of every life you've lived. Understanding those lines is the first step to rewriting the ones ahead.\""
+    ],
+    "services": [
+      {
+        "name": "Schedule a Reading",
+        "subtitle": "30 Min Live Session",
+        "price": "1,200 Credits",
+        "description": "Book a dedicated calendar slot for a private, uninterrupted deep-dive session focusing on career, love, or spiritual transition."
+      },
+      {
+        "name": "evil eye ritual",
+        "subtitle": "45 Min Deep Healing",
+        "price": "500 Credits",
+        "description": "A guided crystal grid session aligned to your chakra map, designed to clear energetic debris and restore spiritual flow."
+      },
+      {
+        "name": "Soul mate sketch",
+        "subtitle": "Symbolic Analysis",
+        "price": "1590 Credits",
+        "description": "Submit your recurring dreams for a detailed symbolic breakdown revealing patterns, warnings, and guidance from your subconscious mind."
+      }
+    ]
+  }
+]
