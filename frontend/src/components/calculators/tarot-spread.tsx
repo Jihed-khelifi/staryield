@@ -1,16 +1,29 @@
+"use client";
+import { useI18n } from "@/i18n/i18n-provider";
 /* eslint-disable @next/next/no-img-element */
 const imgImageJustice = "https://assets.staryield.net/assets/tarot/justice.png";
-const imgImageWheelOfFortune = "https://assets.staryield.net/assets/tarot/wheel-of-fortune.png";
-const imgImageTheHermit = "https://assets.staryield.net/assets/tarot/the-hermit.png";
-const imgImageStrength = "https://assets.staryield.net/assets/tarot/strength.png";
-const imgImageTheChariot = "https://assets.staryield.net/assets/tarot/the-chariot.png";
-const imgImageTheLovers = "https://assets.staryield.net/assets/tarot/the-lovers.png";
-const imgImageTheHierophant = "https://assets.staryield.net/assets/tarot/the-hierophant.png";
-const imgImageTheEmperor = "https://assets.staryield.net/assets/tarot/the-emperor.png";
-const imgImageTheEmpress = "https://assets.staryield.net/assets/tarot/the-empress.png";
-const imgImageTheHighPriestess = "https://assets.staryield.net/assets/tarot/the-high-priestess.png";
-const imgImageJudgement = "https://assets.staryield.net/assets/tarot/judgement.png";
-const imgImageTheFool = "https://assets.staryield.net/assets/tarot/the-fool.png";
+const imgImageWheelOfFortune =
+  "https://assets.staryield.net/assets/tarot/wheel-of-fortune.png";
+const imgImageTheHermit =
+  "https://assets.staryield.net/assets/tarot/the-hermit.png";
+const imgImageStrength =
+  "https://assets.staryield.net/assets/tarot/strength.png";
+const imgImageTheChariot =
+  "https://assets.staryield.net/assets/tarot/the-chariot.png";
+const imgImageTheLovers =
+  "https://assets.staryield.net/assets/tarot/the-lovers.png";
+const imgImageTheHierophant =
+  "https://assets.staryield.net/assets/tarot/the-hierophant.png";
+const imgImageTheEmperor =
+  "https://assets.staryield.net/assets/tarot/the-emperor.png";
+const imgImageTheEmpress =
+  "https://assets.staryield.net/assets/tarot/the-empress.png";
+const imgImageTheHighPriestess =
+  "https://assets.staryield.net/assets/tarot/the-high-priestess.png";
+const imgImageJudgement =
+  "https://assets.staryield.net/assets/tarot/judgement.png";
+const imgImageTheFool =
+  "https://assets.staryield.net/assets/tarot/the-fool.png";
 function ComponentTarotCardJustice({ className }: { className?: string }) {
   return (
     <div
@@ -276,10 +289,11 @@ function ComponentTarotCardTheFool({ className }: { className?: string }) {
   );
 }
 export function TarotSpread() {
+  const { text } = useI18n();
   return (
     <div
       className="tarot-spread-viewport"
-      aria-label="Twelve-card tarot spread"
+      aria-label={text("Twelve-card tarot spread")}
     >
       <div className="tarot-spread-stage">
         <div

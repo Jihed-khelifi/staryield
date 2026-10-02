@@ -34,28 +34,29 @@ const groups = [
   },
 ];
 export function SiteFooter() {
-  const { locale } = useI18n();
+  const { text, locale } = useI18n();
   return (
     <footer className="site-footer paper-page">
       <div className="footer-columns">
         <div>
           <Link href={`/${locale}`} className="brand">
             <SunLogo />
-            <span>Staryield</span>
+            <span>{text("Staryield")}</span>
           </Link>
           <p className="mt-4 max-w-80 text-sm font-light">
-            Professional spiritual guidance built with analytical clarity and
-            strict privacy standards.
+            {text(
+              "Professional spiritual guidance built with analytical clarity and strict privacy standards. ",
+            )}
           </p>
         </div>
         {groups.map((group) => (
-          <nav key={group.name} aria-label={group.name}>
-            <h2 className="mb-4 text-lg">{group.name.toUpperCase()}</h2>
+          <nav key={group.name} aria-label={text(group.name)}>
+            <h2 className="mb-4 text-lg">{text(group.name.toUpperCase())}</h2>
             <ul className="space-y-3 text-sm font-light">
               {group.links.map(([label, href]) => (
                 <li key={href}>
                   <Link className="hover:underline" href={`/${locale}${href}`}>
-                    {label}
+                    {text(label)}
                   </Link>
                 </li>
               ))}
@@ -65,11 +66,18 @@ export function SiteFooter() {
       </div>
       <div className="mt-12 flex flex-wrap items-center justify-between gap-6 border-t border-ink/60 pt-4 text-xs">
         <p>
-          © 2026 STARYIELD. All rights reserved. For entertainment and
-          alignment audits only.
+          {text(
+            "© 2026 STARYIELD. All rights reserved. For entertainment and alignment audits only. ",
+          )}
         </p>
-        <div className="flex items-center gap-4" aria-label="Social platforms">
-          <span aria-label="LinkedIn" className="text-base font-semibold">
+        <div
+          className="flex items-center gap-4"
+          aria-label={text("Social platforms")}
+        >
+          <span
+            aria-label={text("LinkedIn")}
+            className="text-base font-semibold"
+          >
             in
           </span>
           {[
@@ -80,7 +88,7 @@ export function SiteFooter() {
           ].map(([name, file]) => (
             <img
               key={name}
-              alt={name}
+              alt={text(name)}
               width={20}
               height={20}
               src={`https://assets.staryield.net/assets/figma/${file}`}

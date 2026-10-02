@@ -33,7 +33,7 @@ export function Calculator({
   kind: CalculatorKind;
   showResults?: boolean;
 }) {
-  const { locale } = useI18n();
+  const { text, locale } = useI18n();
   const [birth, setBirth] = useState(showResults ? "1945-04-30" : "");
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(showResults);
@@ -64,9 +64,9 @@ export function Calculator({
       {!submitted ? (
         <RadiantPanel>
           <form className="calculator-card paper-page" onSubmit={calculate}>
-            <h1 className="text-center text-4xl">Date of Birth</h1>
+            <h1 className="text-center text-4xl">{text("Date of Birth")}</h1>
             <p className="mt-4 text-center text-sm font-light leading-relaxed">
-              {descriptions[kind]}
+              {text(descriptions[kind])}
             </p>
             <div className="my-8 grid grid-cols-3 gap-4">
               {[
@@ -75,12 +75,12 @@ export function Calculator({
                 ["Year", "year", "YYYY", 1900, new Date().getFullYear()],
               ].map(([label, name, placeholder, min, max]) => (
                 <label className="field text-xs text-sage" key={name}>
-                  {label}
+                  {text(label)}
                   <Input
                     name={String(name)}
                     type="number"
                     inputMode="numeric"
-                    placeholder={String(placeholder)}
+                    placeholder={text(String(placeholder))}
                     min={Number(min)}
                     max={Number(max)}
                     required
@@ -90,14 +90,14 @@ export function Calculator({
               ))}
             </div>
             <p role="alert" className="mb-3 text-sm text-red-800">
-              {error}
+              {text(error)}
             </p>
             <Button className="gold-button h-12 w-full" type="submit">
-              Reveal your path
+              {text("Reveal your path ")}
             </Button>
             <p className="mt-4 flex items-center justify-center gap-2 text-xs text-sage">
               <LockKeyhole size={12} />
-              Your data is calculated locally &amp; never stored.
+              {text("Your data is calculated locally & never stored. ")}
             </p>
           </form>
         </RadiantPanel>
@@ -105,44 +105,49 @@ export function Calculator({
         <div className="calculator-results">
           <section className="result-date">
             <h1 className="font-display text-2xl md:text-[32px]">
-              Natal alignment calculated for:
+              {text("Natal alignment calculated for: ")}
             </h1>
             <button
               type="button"
               className="result-date-field gold-button"
               onClick={() => setSubmitted(false)}
-              aria-label="Change birth date"
+              aria-label={text("Change birth date")}
             >
-              {String(day).padStart(2, "0")} / {String(month).padStart(2, "0")}{" "}
-              / {year}
+              {text(String(day).padStart(2, "0"))} /{" "}
+              {text(String(month).padStart(2, "0"))} / {year}
             </button>
             {showResults && (
               <span className="sr-only">
-                Sample date from the design. Change the birth date to calculate
-                your own result.
+                {text(
+                  "Sample date from the design. Change the birth date to calculate your own result. ",
+                )}
               </span>
             )}
           </section>
           <section className="result-art">
             <h2 className="font-display text-[32px] md:text-[40px]">
-              ✦ Your{" "}
-              {kind === "natal-chart"
-                ? "spread"
-                : kind === "path-of-life"
-                  ? "numbers"
-                  : "zodiac"}{" "}
+              {text("✦ Your")}{" "}
+              {text(
+                kind === "natal-chart"
+                  ? "spread"
+                  : kind === "path-of-life"
+                    ? "numbers"
+                    : "zodiac",
+              )}{" "}
               ✦
             </h2>
             {kind === "natal-chart" ? (
               <>
                 <p className="mt-3 text-sm">
-                  A 12-card spread exploring the current landscape, themes, and
-                  guidance for your journey.
+                  {text(
+                    "A 12-card spread exploring the current landscape, themes, and guidance for your journey. ",
+                  )}
                 </p>
                 <TarotSpread />
                 <p className="text-xs text-sage">
-                  Illustrative tarot spread. A planetary birth chart requires
-                  the astrology service.
+                  {text(
+                    "Illustrative tarot spread. A planetary birth chart requires the astrology service. ",
+                  )}
                 </p>
               </>
             ) : kind === "path-of-life" ? (
@@ -166,12 +171,12 @@ export function Calculator({
                 ].map(([label, number, copy]) => (
                   <article className="number-tile" key={label}>
                     <h3 className="font-display text-sm tracking-wider">
-                      {label}
+                      {text(label)}
                     </h3>
                     <p className="my-4 font-display text-[72px] text-amber">
-                      {number}
+                      {text(number)}
                     </p>
-                    <p className="text-sm font-light">{copy}</p>
+                    <p className="text-sm font-light">{text(copy)}</p>
                   </article>
                 ))}
               </div>
@@ -184,46 +189,55 @@ export function Calculator({
           {kind === "path-of-life" && (
             <section className="result-insight paper-page">
               <h2 className="font-display text-[28px]">
-                Life path {lifePath(birth)}
+                {text("Life path ")}
+                {lifePath(birth)}
               </h2>
               <p className="mt-4">
-                {lifePath(birth) === 6
-                  ? "Deeply responsible, prioritizing family, domestic life, and acts of service. Life Path 6s are the ultimate caregivers. Their dark side is a tendency to become self-righteous meddlers or professional martyrs."
-                  : "Your life path number is calculated by reducing the digits of your birth date, preserving the master numbers 11, 22, and 33."}
+                {text(
+                  lifePath(birth) === 6
+                    ? "Deeply responsible, prioritizing family, domestic life, and acts of service. Life Path 6s are the ultimate caregivers. Their dark side is a tendency to become self-righteous meddlers or professional martyrs."
+                    : "Your life path number is calculated by reducing the digits of your birth date, preserving the master numbers 11, 22, and 33.",
+                )}
               </p>
             </section>
           )}
           {kind === "astrology" && (
             <section className="result-insight paper-page">
               <h2 className="text-[28px] font-semibold">
-                According to your alignment, the sun resides in the sign of{" "}
-                <span className="font-display text-[48px]">{zodiac}</span>
+                {text(
+                  "According to your alignment, the sun resides in the sign of",
+                )}{" "}
+                <span className="font-display text-[48px]">{text(zodiac)}</span>
               </h2>
               <p className="mt-4 text-lg leading-relaxed">
-                {zodiac === "Gemini"
-                  ? "This highlighted house reveals your native energy flow, communicative versatility, and intellectual curiosity. Gemini is ruled by Mercury and belongs to the Air element."
-                  : "The highlighted sign shows your sun sign based on your birth date. A complete natal chart also considers the time and place of birth."}
+                {text(
+                  zodiac === "Gemini"
+                    ? "This highlighted house reveals your native energy flow, communicative versatility, and intellectual curiosity. Gemini is ruled by Mercury and belongs to the Air element."
+                    : "The highlighted sign shows your sun sign based on your birth date. A complete natal chart also considers the time and place of birth.",
+                )}
               </p>
             </section>
           )}
           <section className="result-cta paper-page">
             <h2 className="mx-auto max-w-4xl font-display text-2xl">
-              {kind === "astrology"
-                ? "Want to discover your planetary coordinates?"
-                : kind === "natal-chart"
-                  ? "Get a better understanding of what this spread means with the guidance of one of our amazing psychics!"
-                  : "Get a deeper understanding of what a life path really means and the alignment that comes with it"}
+              {text(
+                kind === "astrology"
+                  ? "Want to discover your planetary coordinates?"
+                  : kind === "natal-chart"
+                    ? "Get a better understanding of what this spread means with the guidance of one of our amazing psychics!"
+                    : "Get a deeper understanding of what a life path really means and the alignment that comes with it",
+              )}
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-sm font-light">
-              Speak with our certified, strategic psychic advisors to map out
-              your life alignment metrics, address upcoming planetary
-              transitions, and clear your karmic debt with complete confidence.
+              {text(
+                "Speak with our certified, strategic psychic advisors to map out your life alignment metrics, address upcoming planetary transitions, and clear your karmic debt with complete confidence. ",
+              )}
             </p>
             <Button asChild className="gold-button mt-6 h-11 w-full max-w-sm">
               <Link
                 href={`/${locale}/${kind === "astrology" ? "signup" : "psychics"}`}
               >
-                {kind === "astrology" ? "Sign in / up" : "Click here!"}
+                {text(kind === "astrology" ? "Sign in / up" : "Click here!")}
               </Link>
             </Button>
           </section>

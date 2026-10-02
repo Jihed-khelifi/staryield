@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 export function ContactForm() {
-  const { locale } = useI18n();
+  const { text, locale } = useI18n();
   const [description, setDescription] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
@@ -38,9 +38,9 @@ export function ContactForm() {
   return (
     <PublicFrame>
       <section className="contact-page">
-        <p className="eyebrow text-center">Support portal</p>
+        <p className="eyebrow text-center">{text("Support portal")}</p>
         <h1 className="mt-4 text-center font-display text-[44px]">
-          Contact us
+          {text("Contact us ")}
         </h1>
         <div className="mx-auto my-6 h-px w-24 bg-gold" />
         <form
@@ -53,30 +53,34 @@ export function ContactForm() {
           }}
         >
           <p className="mb-7 border-b border-gold/30 pb-6 font-light leading-relaxed">
-            Have questions about your spiritual readings, natal chart accuracy,
-            or billing? Our dedicated support circle is here to offer guidance
-            and align your technical path.
+            {text(
+              "Have questions about your spiritual readings, natal chart accuracy, or billing? Our dedicated support circle is here to offer guidance and align your technical path. ",
+            )}
           </p>
           <label className="field">
-            Subject{" "}
-            <Input placeholder="Enter your subject" required name="subject" />
+            {text("Subject")}{" "}
+            <Input
+              placeholder={text("Enter your subject")}
+              required
+              name="subject"
+            />
           </label>
           <label className="field mt-6">
-            Email{" "}
+            {text("Email")}{" "}
             <Input
               type="email"
               autoComplete="email"
               name="email"
-              placeholder="example@email.com"
+              placeholder={text("example@email.com")}
               required
             />
           </label>
           <label className="field mt-6">
-            Describe your issue
+            {text("Describe your issue ")}
             <Textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Describe your issue in detail…"
+              placeholder={text("Describe your issue in detail…")}
               minLength={10}
               maxLength={5000}
               name="description"
@@ -84,12 +88,14 @@ export function ContactForm() {
               className="min-h-36 resize-y bg-white"
             />
             <span className="text-xs font-light">
-              {description.length}/5000 — Please describe your situation in as
-              much detail as possible so we can help you quickly and accurately.
+              {description.length}
+              {text(
+                "/5000 — Please describe your situation in as much detail as possible so we can help you quickly and accurately. ",
+              )}
             </span>
           </label>
           <div className="mt-6">
-            <p className="mb-2 text-sm">Attachments (optional)</p>
+            <p className="mb-2 text-sm">{text("Attachments (optional)")}</p>
             <label
               className="attachment-dropzone"
               onDragOver={(event) => event.preventDefault()}
@@ -100,11 +106,13 @@ export function ContactForm() {
             >
               <Upload size={20} className="mx-auto text-gold" />
               <p className="mt-3">
-                <span className="text-amber underline">Click to upload</span> or
-                drag and drop
+                <span className="text-amber underline">
+                  {text("Click to upload")}
+                </span>{" "}
+                {text("or drag and drop ")}
               </p>
               <p className="mt-3 text-xs font-light">
-                SVG, PNG, JPG, GIF (max. 45MB total)
+                {text("SVG, PNG, JPG, GIF (max. 45MB total) ")}
               </p>
               <input
                 className="sr-only"
@@ -117,22 +125,22 @@ export function ContactForm() {
               />
             </label>
             <p className="mt-2 text-xs font-light">
-              Upload files to support your request (Maximum 5 files)
+              {text("Upload files to support your request (Maximum 5 files) ")}
             </p>
             {files.map((file) => (
               <div
                 key={file.name}
                 className="mt-2 flex justify-between gap-4 text-sm"
               >
-                <span className="truncate">{file.name}</span>
+                <span className="truncate">{text(file.name)}</span>
                 <button
                   type="button"
-                  aria-label={`Remove ${file.name}`}
+                  aria-label={text("Remove {value0}", { value0: file.name })}
                   onClick={() =>
                     setFiles(files.filter((item) => item !== file))
                   }
                 >
-                  Remove
+                  {text("Remove ")}
                 </button>
               </div>
             ))}
@@ -140,25 +148,27 @@ export function ContactForm() {
           <label className="mt-7 flex items-start gap-3 text-xs">
             <input type="checkbox" required />
             <span>
-              I accept Staryield’s{" "}
+              {text("I accept Staryield’s")}{" "}
               <Link className="underline" href={`/${locale}/terms`}>
-                Terms of Use
+                {text("Terms of Use ")}
               </Link>{" "}
-              and{" "}
+              {text("and")}{" "}
               <Link className="underline" href={`/${locale}/privacy`}>
-                Privacy Policy
+                {text("Privacy Policy ")}
               </Link>{" "}
-              to the extent they apply to the processing of this request.
+              {text(
+                "to the extent they apply to the processing of this request. ",
+              )}
             </span>
           </label>
           <p role="alert" className="mt-4 text-sm text-red-800">
-            {error}
+            {text(error)}
           </p>
           <Button
             type="submit"
             className="gold-button mx-auto mt-6 flex h-12 w-full max-w-sm"
           >
-            Submit
+            {text("Submit ")}
           </Button>
         </form>
       </section>

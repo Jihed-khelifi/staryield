@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Moon, Zap, Sun } from "lucide-react";
 import { useI18n } from "@/i18n/i18n-provider";
+import { formatCalendarDate } from "@/lib/format";
 import { useAccountPreferences } from "@/lib/account-preferences";
 import { SiteHeader, MobileNavigation } from "@/components/layout/site-header";
 import { AstrologicalChart } from "@/components/astrology/AstrologicalChart";
@@ -110,6 +111,7 @@ function PlanetControl({
   planet: (typeof planets)[number];
   onSelect: () => void;
 }) {
+  const { text } = useI18n();
   return (
     <button className="planet-control" onClick={onSelect}>
       <img
@@ -118,17 +120,17 @@ function PlanetControl({
         alt=""
       />
       <span className="font-display text-[9px] tracking-[1.5px] uppercase">
-        {planet.name}
+        {text(planet.name)}
       </span>
-      <span className="text-[9px] tracking-wider">{planet.position}</span>
+      <span className="text-[9px] tracking-wider">{text(planet.position)}</span>
       <strong className="text-[9px] tracking-wider uppercase">
-        {planet.house}
+        {text(planet.house)}
       </strong>
     </button>
   );
 }
 export function Account({ view }: { view: AccountView }) {
-  const { locale } = useI18n();
+  const { text, locale } = useI18n();
   const { preferences } = useAccountPreferences();
   const [planet, setPlanet] = useState<(typeof planets)[number] | null>(null);
   return (
@@ -140,19 +142,23 @@ export function Account({ view }: { view: AccountView }) {
         {view === "overview" && (
           <div className="affirmation">
             <div>
-              <strong>Affirmation of the day</strong>
+              <strong>{text("Affirmation of the day")}</strong>
               <p>
-                I grow spiritually when I accept responsibility for my life.
+                {text(
+                  "I grow spiritually when I accept responsibility for my life. ",
+                )}
               </p>
             </div>
             <div className="hidden items-center gap-4 md:flex">
               <p className="text-xs">
-                balance:
+                {text("balance: ")}
                 <br />
-                <strong>150 credits</strong>
+                <strong>{text("150 credits")}</strong>
               </p>
               <Button asChild className="gold-button">
-                <Link href={`/${locale}/credits`}>Top up credits</Link>
+                <Link href={`/${locale}/credits`}>
+                  {text("Top up credits")}
+                </Link>
               </Button>
             </div>
           </div>
@@ -160,13 +166,15 @@ export function Account({ view }: { view: AccountView }) {
         {view !== "overview" && (
           <div className="affirmation account-affirmation-secondary">
             <div>
-              <strong>Affirmation of the day</strong>
+              <strong>{text("Affirmation of the day")}</strong>
               <p>
-                I grow spiritually when I accept responsibility for my life.
+                {text(
+                  "I grow spiritually when I accept responsibility for my life. ",
+                )}
               </p>
             </div>
             <Button asChild className="gold-button">
-              <Link href={`/${locale}/credits`}>Top up credits</Link>
+              <Link href={`/${locale}/credits`}>{text("Top up credits")}</Link>
             </Button>
           </div>
         )}
@@ -174,10 +182,12 @@ export function Account({ view }: { view: AccountView }) {
           <aside className="account-sidebar">
             <div className="py-6 text-center">
               <div className="mx-auto flex size-10 items-center justify-center overflow-hidden rounded-full bg-gold text-white">
-                {preferences.avatar ? (
-                  <img src={preferences.avatar} alt="Your avatar" />
-                ) : (
-                  preferences.name.charAt(0)
+                {text(
+                  preferences.avatar ? (
+                    <img src={preferences.avatar} alt={text("Your avatar")} />
+                  ) : (
+                    preferences.name.charAt(0)
+                  ),
                 )}
               </div>
               <p className="mt-2 text-sm">{preferences.name}</p>
@@ -192,7 +202,7 @@ export function Account({ view }: { view: AccountView }) {
                 className={view === id ? "active" : ""}
                 href={`/${locale}${href}`}
               >
-                {label}
+                {text(label)}
               </Link>
             ))}
           </aside>
@@ -208,13 +218,14 @@ export function Account({ view }: { view: AccountView }) {
               <>
                 <ProfileTabs view={view} />
                 <div className="chart-mobile-intro">
-                  <p className="eyebrow">Cassandra Moon</p>
+                  <p className="eyebrow">{text("Cassandra Moon")}</p>
                   <h2 className="mt-3 text-[28px]">
-                    Aries sun · Cancer rising
+                    {text("Aries sun · Cancer rising ")}
                   </h2>
                   <p className="mt-2 text-sm font-light">
-                    Your natal chart is a map of the sky at the precise moment
-                    you arrived.
+                    {text(
+                      "Your natal chart is a map of the sky at the precise moment you arrived. ",
+                    )}
                   </p>
                 </div>
                 <div className="account-chart-grid">
@@ -241,8 +252,9 @@ export function Account({ view }: { view: AccountView }) {
                   </div>
                 </div>
                 <p className="mt-4 text-center text-xs text-sage">
-                  Sample birth chart. Your personalized chart will appear when
-                  the astrology service is connected.
+                  {text(
+                    "Sample birth chart. Your personalized chart will appear when the astrology service is connected. ",
+                  )}
                 </p>
               </>
             )}
@@ -262,32 +274,35 @@ export function Account({ view }: { view: AccountView }) {
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <span className="text-[22px]" aria-hidden="true">
-                  {planet?.symbol}
+                  {text(planet?.symbol)}
                 </span>
                 <div>
                   <Dialog.Title className="font-display text-[9px] tracking-[1.5px] uppercase">
-                    {planet?.name}
+                    {text(planet?.name)}
                   </Dialog.Title>
                   <p className="mt-0.5 text-[9px] tracking-wider uppercase">
-                    {planet?.position}
+                    {text(planet?.position)}
                   </p>
                 </div>
               </div>
               <Dialog.Close asChild>
-                <button type="button" aria-label="Close planetary insight">
+                <button
+                  type="button"
+                  aria-label={text("Close planetary insight")}
+                >
                   <CircleX size={20} />
                 </button>
               </Dialog.Close>
             </div>
             <Dialog.Description className="min-h-[156px] text-[13px] leading-5">
-              {planet?.description}
+              {text(planet?.description)}
             </Dialog.Description>
             <Button
               asChild
               className="h-11 w-full rounded-none bg-amber font-display text-xs leading-tight whitespace-normal"
             >
               <Link href={`/${locale}/psychics`}>
-                Get more insight from one of our advisors
+                {text("Get more insight from one of our advisors ")}
               </Link>
             </Button>
           </Dialog.Content>
@@ -297,37 +312,41 @@ export function Account({ view }: { view: AccountView }) {
   );
 }
 function ProfileTabs({ view }: { view: AccountView }) {
-  const { locale } = useI18n();
+  const { text, locale } = useI18n();
   return (
     <div className="profile-tabs">
-      <h1>Your cosmic profile</h1>
+      <h1>{text("Your cosmic profile")}</h1>
       <nav>
         <Link
           href={`/${locale}/profile/settings`}
           className={view === "settings" ? "active" : ""}
         >
-          Settings
+          {text("Settings ")}
         </Link>
         <Link
           href={`/${locale}/profile/chart`}
           className={view === "chart" ? "active" : ""}
         >
-          Astrological chart
+          {text("Astrological chart ")}
         </Link>
       </nav>
     </div>
   );
 }
 function Overview() {
+  const { text, locale } = useI18n();
   const { preferences } = useAccountPreferences();
   return (
     <>
       <div className="overview-top">
         <div>
           <h1 className="text-[28px] font-semibold">
-            Good morning, {preferences.nickname || preferences.name}
+            {text("Good morning, ")}
+            {preferences.nickname || preferences.name}
           </h1>
-          <p className="text-sm font-light">Today is October 1, 2026</p>
+          <p className="text-sm font-light">
+            {text("Today is October 1, 2026")}
+          </p>
         </div>
         <div className="overview-stats">
           {[
@@ -336,9 +355,9 @@ function Overview() {
             ["Mood", preferences.mood, ""],
           ].map(([label, value, note]) => (
             <div className="stat-tile" key={label}>
-              <p className="text-[10px] uppercase">{label}</p>
-              <p className="mt-2 text-2xl">{value}</p>
-              {note && <span className="text-xs">{note}</span>}
+              <p className="text-[10px] uppercase">{text(label)}</p>
+              <p className="mt-2 text-2xl">{text(value)}</p>
+              {note && <span className="text-xs">{text(note)}</span>}
             </div>
           ))}
         </div>
@@ -346,23 +365,18 @@ function Overview() {
       </div>
       <div className="horoscope">
         <div>
-          <h2 className="text-xl font-semibold">Your horoscope</h2>
-          <p className="text-xs">July 30, 2026</p>
+          <h2 className="text-xl font-semibold">{text("Your horoscope")}</h2>
+          <p className="text-xs">{text("July 30, 2026")}</p>
         </div>
         <p className="font-light leading-relaxed">
-          Today, Aries, the energy of the Aquarius moon ignites your adventurous
-          spirit. You may feel an irresistible urge to break free from routine
-          and explore new ideas or experiences. Embrace this innovative energy
-          and let your creative juices flow. This day is perfect for
-          brainstorming, collaborating with others, or engaging in activities
-          that spark your curiosity. The Aquarius moon encourages you to think
-          outside the box, making it an ideal time for group projects or
-          community involvement.
+          {text(
+            "Today, Aries, the energy of the Aquarius moon ignites your adventurous spirit. You may feel an irresistible urge to break free from routine and explore new ideas or experiences. Embrace this innovative energy and let your creative juices flow. This day is perfect for brainstorming, collaborating with others, or engaging in activities that spark your curiosity. The Aquarius moon encourages you to think outside the box, making it an ideal time for group projects or community involvement. ",
+          )}
         </p>
       </div>
-      <p className="eyebrow mb-2 md:hidden">Celestial calendar</p>
+      <p className="eyebrow mb-2 md:hidden">{text("Celestial calendar")}</p>
       <h2 className="mb-4 text-xl font-semibold max-md:text-[32px]">
-        Upcoming Cosmic Events
+        {text("Upcoming Cosmic Events ")}
       </h2>
       <div className="cosmic-events">
         <div className="space-y-3">
@@ -370,13 +384,13 @@ function Overview() {
             [
               Moon,
               "Full Moon in Aquarius",
-              "August 1, 2026 · 02:30 AM",
+              formatCalendarDate("2026-08-01T02:30:00Z", locale),
               "2 days left",
             ],
             [
               Zap,
               "Mercury Retrograde",
-              "August 10, 2026 · 09:00 AM",
+              formatCalendarDate("2026-08-10T09:00:00Z", locale),
               "11 days left",
             ],
           ].map(([Icon, title, date, remaining]) => {
@@ -387,34 +401,37 @@ function Overview() {
                   <EventIcon size={23} strokeWidth={1.5} />
                 </span>
                 <div>
-                  <h3 className="font-semibold">{String(title)}</h3>
-                  <p className="text-xs">{String(date)}</p>
+                  <h3 className="font-semibold">{text(String(title))}</h3>
+                  <p className="text-xs">{text(String(date))}</p>
                 </div>
                 <span className="ml-auto text-[10px] font-light">
-                  {String(remaining)}
+                  {text(String(remaining))}
                 </span>
               </div>
             );
           })}
         </div>
         <div className="focus-card">
-          <h3 className="text-sm font-semibold">✦ What to focus on today</h3>
+          <h3 className="text-sm font-semibold">
+            {text("✦ What to focus on today")}
+          </h3>
           <p className="mt-4 text-lg font-light">
-            &quot;The stars are aligning in your favor today. Take a moment to
-            reflect on your intentions and visualize your success. The universe
-            is listening.&quot;
+            {text(
+              '"The stars are aligning in your favor today. Take a moment to reflect on your intentions and visualize your success. The universe is listening." ',
+            )}
           </p>
         </div>
       </div>
       <p className="mt-4 text-xs text-sage">
-        Horoscope and celestial calendar shown with sample content from the
-        design.
+        {text(
+          "Horoscope and celestial calendar shown with sample content from the design. ",
+        )}
       </p>
     </>
   );
 }
 function Settings() {
-  const { locale } = useI18n();
+  const { text, locale } = useI18n();
   const { preferences, save } = useAccountPreferences();
   const [notice, setNotice] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -448,7 +465,7 @@ function Settings() {
       className="settings-form"
       key={preferences.name + preferences.email}
     >
-      <h2 className="mb-4 text-xl font-semibold">Account Settings</h2>
+      <h2 className="mb-4 text-xl font-semibold">{text("Account Settings")}</h2>
       <div className="settings-fields">
         {[
           ["Full Name", "name", "text", preferences.name],
@@ -456,7 +473,7 @@ function Settings() {
           ["Email Address", "email", "email", preferences.email],
         ].map(([label, name, type, value]) => (
           <label className="field" key={name}>
-            {label}
+            {text(label)}
             <input
               type={type}
               name={name}
@@ -466,7 +483,7 @@ function Settings() {
           </label>
         ))}
         <label className="field">
-          Profile Picture
+          {text("Profile Picture ")}
           <input
             type="file"
             accept="image/png,image/jpeg,image/webp"
@@ -484,21 +501,21 @@ function Settings() {
           />
         </label>
         <div className="field">
-          Password
+          {text("Password ")}
           <p className="rounded-lg border border-gold bg-cream px-3 py-2 text-sm">
             ••••••••••{" "}
             <Link
               href={`/${locale}/forgot-password`}
               className="float-right underline"
             >
-              Change
+              {text("Change ")}
             </Link>
           </p>
         </div>
         <label className="field">
-          Location
+          {text("Location ")}
           <select name="location" defaultValue={preferences.location}>
-            <option value="">Select Location</option>
+            <option value="">{text("Select Location")}</option>
             {[
               "Brazil",
               "France",
@@ -506,24 +523,28 @@ function Settings() {
               "United States",
               "Other",
             ].map((country) => (
-              <option key={country}>{country}</option>
+              <option key={country} value={country}>
+                {text(country)}
+              </option>
             ))}
           </select>
         </label>
         <label className="field">
-          Nickname
+          {text("Nickname ")}
           <input
             name="nickname"
-            placeholder="Nickname"
+            placeholder={text("Nickname")}
             defaultValue={preferences.nickname}
           />
         </label>
         <label className="field">
-          Set mood
+          {text("Set mood ")}
           <select name="mood" defaultValue={preferences.mood}>
             {["Empowered", "Hopeful", "Reflective", "Calm", "Curious"].map(
               (mood) => (
-                <option key={mood}>{mood}</option>
+                <option key={mood} value={mood}>
+                  {text(mood)}
+                </option>
               ),
             )}
           </select>
@@ -532,7 +553,7 @@ function Settings() {
       <div className="settings-preferences">
         <div>
           <h2 className="mb-4 text-xl font-semibold">
-            Notification Preferences
+            {text("Notification Preferences ")}
           </h2>
           <div className="preference-card">
             {[
@@ -541,7 +562,7 @@ function Settings() {
               ["Changes in your chart", "chart", preferences.chart],
             ].map(([label, name, value]) => (
               <label className="notification-row" key={String(name)}>
-                <span>{String(label)}</span>
+                <span>{text(String(label))}</span>
                 <input
                   className="notification-switch"
                   type="checkbox"
@@ -553,28 +574,30 @@ function Settings() {
           </div>
         </div>
         <div>
-          <h2 className="mb-4 text-xl font-semibold">Display Settings</h2>
+          <h2 className="mb-4 text-xl font-semibold">
+            {text("Display Settings")}
+          </h2>
           <div className="preference-card flex gap-6">
             <label className="field flex-1">
-              Theme Preference
+              {text("Theme Preference ")}
               <select name="theme" defaultValue={preferences.theme}>
-                <option>Warm Beige</option>
-                <option>Light Cream</option>
+                <option value="Warm Beige">{text("Warm Beige")}</option>
+                <option value="Light Cream">{text("Light Cream")}</option>
               </select>
             </label>
             <div className="field flex-1">
-              Language
+              {text("Language ")}
               <LocaleSwitcher />
             </div>
           </div>
         </div>
       </div>
       <p role="status" className="mt-6 text-sm">
-        {notice}
+        {text(notice)}
       </p>
       <div className="mt-6 text-right">
         <Button type="submit" className="gold-button h-11 px-8">
-          Save changes
+          {text("Save changes ")}
         </Button>
       </div>
     </form>

@@ -16,7 +16,8 @@
     "cf:typegen": "wrangler types",
     "assets:upload": "node scripts/upload-r2-images.mjs",
     "test:r2": "node scripts/check-r2-images.mjs",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "test:i18n": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "@formatjs/intl-localematcher": "^0.8.13",

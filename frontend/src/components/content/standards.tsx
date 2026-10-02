@@ -1,3 +1,5 @@
+"use client";
+import { useI18n } from "@/i18n/i18n-provider";
 /* Figma 599:1885 — reusable responsive content regions. */
 /* eslint-disable @next/next/no-img-element */
 const assetPathPrefix = "https://assets.staryield.net/assets/figma";
@@ -36,6 +38,7 @@ function Star({ className }: { className?: string }) {
   );
 }
 export default function ScreenDesktopAdvisorIntegrityStandards() {
+  const { text } = useI18n();
   return (
     <div
       className="figma-content flex w-full flex-col items-center bg-cream"
@@ -76,24 +79,36 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#c29a3d] text-[14px] uppercase whitespace-nowrap"
               data-node-id="599:1921"
             >
-              PLATFORM INTEGRITY PROTOCOL
+              {text("PLATFORM INTEGRITY PROTOCOL ")}
             </p>
           </div>
           <h1
             className="[word-break:break-word] font-display leading-[0] min-w-full not-italic relative shrink-0 text-[#1a1612] text-[48px] w-[min-content]"
             data-node-id="599:1922"
           >
-            <span className="leading-[1.2] mb-0">About Spiritual</span>
-            <span className="leading-[1.2]">Advisors on Staryield</span>
+            <span className="leading-[1.2] mb-0">
+              {text("About Spiritual")}
+            </span>
+            <span className="leading-[1.2]">
+              {text("Advisors on Staryield")}
+            </span>
           </h1>
           <p
             className="[word-break:break-word] font-serif font-light leading-[1.6] min-w-full relative shrink-0 text-[#1a1612] text-[18px] w-[min-content]"
             data-node-id="599:1923"
-          >{`At Staryield, we recognize that spiritual guidance is deeply personal and carries real significance. That's why we take advisor selection seriously — with care, accountability, and transparent standards.`}</p>
+          >
+            {text(
+              `At Staryield, we recognize that spiritual guidance is deeply personal and carries real significance. That's why we take advisor selection seriously — with care, accountability, and transparent standards.`,
+            )}
+          </p>
           <p
             className="[word-break:break-word] font-serif font-light leading-[1.6] min-w-full relative shrink-0 text-[#1a1612] text-[18px] w-[min-content]"
             data-node-id="599:1924"
-          >{`Each advisor on our platform undergoes a thorough application and review process. Beyond that, we're committed to fostering a supportive space that centers ethical behavior, mindful communication, and emotional well-being.`}</p>
+          >
+            {text(
+              `Each advisor on our platform undergoes a thorough application and review process. Beyond that, we're committed to fostering a supportive space that centers ethical behavior, mindful communication, and emotional well-being.`,
+            )}
+          </p>
         </div>
         <div
           className="content-stretch flex flex-col h-[460px] items-center justify-center p-[20px] relative shrink-0 w-[520px]"
@@ -186,16 +201,16 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
           <p
             className="font-serif font-semibold leading-[normal] relative shrink-0 text-[28px] text-white w-full"
             data-node-id="599:1941"
-          >{`Preliminary Assessment & Background Review`}</p>
+          >
+            {text(`Preliminary Assessment & Background Review`)}
+          </p>
           <p
             className="font-serif font-light leading-[1.6] relative shrink-0 text-[#e0d5c3] text-[18px] w-full"
             data-node-id="599:1942"
           >
-            All prospective advisors start by completing a comprehensive
-            application that covers their training, specializations, and areas
-            of practice. Our team evaluates each profile to confirm they offer
-            guidance rooted in genuine experience and a sincere dedication to
-            supporting others.
+            {text(
+              "All prospective advisors start by completing a comprehensive application that covers their training, specializations, and areas of practice. Our team evaluates each profile to confirm they offer guidance rooted in genuine experience and a sincere dedication to supporting others. ",
+            )}
           </p>
         </div>
       </section>
@@ -241,22 +256,24 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
           <p
             className="font-serif font-semibold leading-[normal] relative shrink-0 text-[28px] w-full"
             data-node-id="599:1948"
-          >{`Ethics & Communication Approach`}</p>
+          >
+            {text(`Ethics & Communication Approach`)}
+          </p>
           <p
             className="font-serif font-light leading-[1.6] relative shrink-0 text-[18px] w-full"
             data-node-id="599:1953"
           >
-            Beyond qualifications, we place great emphasis on how advisors
-            engage and create safe space for clients.
+            {text(
+              "Beyond qualifications, we place great emphasis on how advisors engage and create safe space for clients. ",
+            )}
           </p>
           <p
             className="font-serif font-light leading-[1.6] relative shrink-0 text-[18px] w-full"
             data-node-id="599:1954"
           >
-            We stress to all advisors the critical importance of adhering to our
-            platform and brand guidelines - maintaining clear, empathetic, and
-            adaptive communication, with a deep commitment to compassion and
-            principled conduct.
+            {text(
+              "We stress to all advisors the critical importance of adhering to our platform and brand guidelines - maintaining clear, empathetic, and adaptive communication, with a deep commitment to compassion and principled conduct. ",
+            )}
           </p>
         </div>
       </section>
@@ -303,22 +320,23 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
             className="font-serif font-semibold leading-[normal] relative shrink-0 text-[28px] text-white w-full"
             data-node-id="599:1961"
           >
-            Practical Session Evaluation
+            {text("Practical Session Evaluation ")}
           </p>
           <p
             className="font-serif font-light leading-[1.6] relative shrink-0 text-[#e0d5c3] text-[18px] w-full"
             data-node-id="599:1962"
           >
-            We may carry out a hands-on trial session with the candidate that
-            reflects authentic Staryield sessions.
+            {text(
+              "We may carry out a hands-on trial session with the candidate that reflects authentic Staryield sessions. ",
+            )}
           </p>
           <p
             className="font-serif font-light leading-[1.6] relative shrink-0 text-[#e0d5c3] text-[18px] w-full"
             data-node-id="599:1963"
           >
-            The purpose is to demonstrate how the candidate implements our
-            platform, brand, and communication principles during actual client
-            interactions.
+            {text(
+              "The purpose is to demonstrate how the candidate implements our platform, brand, and communication principles during actual client interactions. ",
+            )}
           </p>
         </div>
       </section>
@@ -346,7 +364,7 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
               className="[word-break:break-word] font-display leading-[1.2] min-w-full not-italic relative shrink-0 text-[36px] text-white w-[min-content]"
               data-node-id="599:1969"
             >
-              The Importance of This Process
+              {text("The Importance of This Process ")}
             </p>
           </div>
           <div
@@ -358,15 +376,18 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
               className="font-serif font-normal relative shrink-0 text-[20px] w-full"
               data-node-id="599:1971"
             >
-              We hold that users are entitled to guidance that is considerate,
-              dignified, and emotionally safe. The benchmarks established during
-              the initial advisor review are maintained through our ongoing
-              dedication to platform integrity.
+              {text(
+                "We hold that users are entitled to guidance that is considerate, dignified, and emotionally safe. The benchmarks established during the initial advisor review are maintained through our ongoing dedication to platform integrity. ",
+              )}
             </p>
             <p
               className="font-serif font-light relative shrink-0 text-[18px] w-full"
               data-node-id="599:1972"
-            >{`For us, spiritual guidance extends beyond being just a platform feature — it's a core responsibility. We pursue it with openness, accountability, and conscientiousness, striving to cultivate a space where users can participate with assurance and peace of mind.`}</p>
+            >
+              {text(
+                `For us, spiritual guidance extends beyond being just a platform feature — it's a core responsibility. We pursue it with openness, accountability, and conscientiousness, striving to cultivate a space where users can participate with assurance and peace of mind.`,
+              )}
+            </p>
           </div>
         </div>
         <div
@@ -432,7 +453,9 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
             <p
               className="[word-break:break-word] font-display leading-[1.2] min-w-full not-italic relative shrink-0 text-[36px] text-white w-[min-content]"
               data-node-id="599:1980"
-            >{`Defining Ethical & Platform Guidelines`}</p>
+            >
+              {text(`Defining Ethical & Platform Guidelines`)}
+            </p>
           </div>
           <div
             className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[24px] items-start leading-[1.6] min-w-px relative text-white"
@@ -443,18 +466,17 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
               className="font-serif font-normal relative shrink-0 text-[20px] w-full"
               data-node-id="599:1982"
             >
-              At Staryield, our commitment to safety is an ongoing journey. We
-              acknowledge that spiritual guidance can be deeply sensitive and
-              intimate, which is precisely why we handle quality, ethics, and
-              user protection with persistent diligence and care.
+              {text(
+                "At Staryield, our commitment to safety is an ongoing journey. We acknowledge that spiritual guidance can be deeply sensitive and intimate, which is precisely why we handle quality, ethics, and user protection with persistent diligence and care. ",
+              )}
             </p>
             <p
               className="font-serif font-light relative shrink-0 text-[18px] w-full"
               data-node-id="599:1983"
             >
-              We have established a comprehensive framework built to uphold
-              honesty, ethical practice, and a secure, respectful experience
-              throughout the platform.
+              {text(
+                "We have established a comprehensive framework built to uphold honesty, ethical practice, and a secure, respectful experience throughout the platform. ",
+              )}
             </p>
           </div>
         </section>
@@ -508,7 +530,7 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
                   className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[#1a1612] text-[28px] whitespace-nowrap"
                   data-node-id="599:1990"
                 >
-                  Advisor Code of Conduct
+                  {text("Advisor Code of Conduct ")}
                 </p>
               </div>
               <div
@@ -546,10 +568,9 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
               className="[word-break:break-word] font-serif font-light leading-[1.6] relative shrink-0 text-[#1a1612] text-[18px] w-full"
               data-node-id="599:1994"
             >
-              Every advisor acknowledges and accepts our foundational ethical
-              and platform principles. This guarantees that advisors are
-              completely aligned with our commitment to safety, integrity, and
-              professional behavior.
+              {text(
+                "Every advisor acknowledges and accepts our foundational ethical and platform principles. This guarantees that advisors are completely aligned with our commitment to safety, integrity, and professional behavior. ",
+              )}
             </p>
           </div>
         </section>
@@ -588,12 +609,18 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
               <p
                 className="[word-break:break-word] flex-[1_0_0] font-display leading-[normal] min-w-px not-italic relative text-[32px] text-white"
                 data-node-id="599:2001"
-              >{`Continuous Growth & Development`}</p>
+              >
+                {text(`Continuous Growth & Development`)}
+              </p>
             </div>
             <p
               className="[word-break:break-word] font-serif font-light leading-[1.6] min-w-full relative shrink-0 text-[18px] text-white w-[min-content]"
               data-node-id="599:2002"
-            >{`Advisors on Staryield have access to resources designed to support their professional advancement and keep them aligned with our platform expectations. We are convinced that continuous learning benefits everyone — and we're dedicated to sustaining an environment where advisors can perform at their highest level.`}</p>
+            >
+              {text(
+                `Advisors on Staryield have access to resources designed to support their professional advancement and keep them aligned with our platform expectations. We are convinced that continuous learning benefits everyone — and we're dedicated to sustaining an environment where advisors can perform at their highest level.`,
+              )}
+            </p>
           </div>
         </section>
         <section
@@ -631,7 +658,7 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
                   className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[#1a1612] text-[28px] whitespace-nowrap"
                   data-node-id="599:2009"
                 >
-                  Recognizing Advisor Autonomy
+                  {text("Recognizing Advisor Autonomy ")}
                 </p>
               </div>
             </div>
@@ -657,26 +684,26 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
                 className="font-serif font-light relative shrink-0 text-[#1a1612] text-[18px] w-full"
                 data-node-id="599:2014"
               >
-                Advisors on Staryield operate as independent practitioners, not
-                as Staryield employees. They contribute their unique
-                backgrounds, expertise, methods of spiritual guidance, and may
-                adopt professional names or representative imagery as part of
-                their practice.
+                {text(
+                  "Advisors on Staryield operate as independent practitioners, not as Staryield employees. They contribute their unique backgrounds, expertise, methods of spiritual guidance, and may adopt professional names or representative imagery as part of their practice. ",
+                )}
               </p>
               <p
                 className="font-serif font-light relative shrink-0 text-[#1a1612] text-[18px] w-full"
                 data-node-id="599:2015"
               >
-                Although we establish firm standards and vet every advisor prior
-                to platform access, the decision of which advisor to consult
-                remains entirely yours. We encourage you to browse advisor
-                profiles, review feedback, and rely on your own intuition when
-                selecting an advisor for your spiritual path.
+                {text(
+                  "Although we establish firm standards and vet every advisor prior to platform access, the decision of which advisor to consult remains entirely yours. We encourage you to browse advisor profiles, review feedback, and rely on your own intuition when selecting an advisor for your spiritual path. ",
+                )}
               </p>
               <p
                 className="font-serif font-semibold relative shrink-0 text-[#c29a3d] text-[20px] w-full"
                 data-node-id="599:2016"
-              >{`Finding the right match is a deeply personal choice — and it's yours to make.`}</p>
+              >
+                {text(
+                  `Finding the right match is a deeply personal choice — and it's yours to make.`,
+                )}
+              </p>
             </div>
           </div>
         </section>

@@ -8,6 +8,7 @@ import { isLocale, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { I18nProvider } from "@/i18n/i18n-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { createTranslateCopy } from "@/i18n/translate-copy";
 
 /** Stand-in for Castellar, which is not available as a webfont. */
 const cinzel = Cinzel({
@@ -42,15 +43,17 @@ export async function generateMetadata({
   if (!isLocale(lang)) return {};
 
   const dictionary = await getDictionary(lang);
+  const text = createTranslateCopy(dictionary.copy);
 
   return {
     title: {
-      default: `${dictionary.nav.brand} — Grounded wisdom. Personalized guidance.`,
+      default: `${dictionary.nav.brand} — ${text("Grounded wisdom. Personalized guidance.")}`,
       template: `%s — ${dictionary.nav.brand}`,
     },
     icons: { icon: "https://assets.staryield.net/favicon.ico" },
-    description:
+    description: text(
       "Explore free astrology and numerology calculators, connect with psychics, and discover your cosmic profile.",
+    ),
   };
 }
 

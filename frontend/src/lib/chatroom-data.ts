@@ -3,43 +3,45 @@
  * lives in the dictionaries — this file only holds the keys and the numbers.
  */
 
-export type ReaderStatus = "online" | "away" | "busy"
+export type ReaderStatus = "online" | "away" | "busy";
 
 export type Conversation = {
-  id: string
-  name: string
+  id: string;
+  name: string;
   /** Letter shown in the square avatar, matching the Figma design. */
-  initial: string
-  status: ReaderStatus
+  initial: string;
+  status: ReaderStatus;
   /** Dictionary path for the last-message preview. */
-  previewKey: string
-  unread: number
-}
+  previewKey: string;
+  unread: number;
+};
 
 export type Reader = {
-  id: string
-  name: string
-  initial: string
-  status: ReaderStatus
-  rating: number
-  years: number
-  bioKey: string
-  freeMinutes: number
-  creditsPerMinute: number
-}
+  id: string;
+  name: string;
+  initial: string;
+  status: ReaderStatus;
+  rating: number;
+  years: number;
+  bioKey: string;
+  freeMinutes: number;
+  creditsPerMinute: number;
+};
 
 export type ChatMessage = {
-  id: string
-  author: "reader" | "visitor"
+  id: string;
+  author: "reader" | "visitor";
   /** Dictionary path for the message body. */
-  bodyKey?: string
+  bodyKey?: string;
   /** Literal body, used for messages typed in the composer. */
-  body?: string
+  body?: string;
+  /** English source copy for bundled demo messages; user-written bodies stay literal. */
+  fixtureKey?: string;
   /** Fixed UTC instant so server and client format identically. */
-  sentAt: string
+  sentAt: string;
   /** Blurred paid answer with a "See the answer" call to action. */
-  locked?: boolean
-}
+  locked?: boolean;
+};
 
 export const conversations: Conversation[] = [
   {
@@ -66,7 +68,7 @@ export const conversations: Conversation[] = [
     previewKey: "readers.solomon.preview",
     unread: 0,
   },
-]
+];
 
 export const readers: Record<string, Reader> = {
   ramone: {
@@ -102,7 +104,7 @@ export const readers: Record<string, Reader> = {
     freeMinutes: 3,
     creditsPerMinute: 40,
   },
-}
+};
 
 export const conversationThread: ChatMessage[] = [
   {
@@ -148,7 +150,7 @@ export const conversationThread: ChatMessage[] = [
     sentAt: "2026-07-30T01:17:00Z",
     locked: true,
   },
-]
+];
 
 /** Session length shown in the chat header (00:32:53 in the design). */
-export const initialSessionSeconds = 32 * 60 + 53
+export const initialSessionSeconds = 32 * 60 + 53;

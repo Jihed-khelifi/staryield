@@ -12,14 +12,9 @@ import { Button } from "@/components/ui/button";
 import { minimumAdultDate } from "@/lib/calculators";
 
 export type AuthStep =
-  | "email"
-  | "password"
-  | "birth"
-  | "offer"
-  | "login"
-  | "reset";
+  "email" | "password" | "birth" | "offer" | "login" | "reset";
 export function AuthFlow({ step }: { step: AuthStep }) {
-  const { locale } = useI18n();
+  const { text, locale } = useI18n();
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState("");
@@ -84,34 +79,34 @@ export function AuthFlow({ step }: { step: AuthStep }) {
         >
           <div className="auth-card-body">
             <h1 className="text-center text-[32px] font-medium leading-tight">
-              {title}
+              {text(title)}
             </h1>
             {step === "email" && (
               <>
                 <label className="sr-only" htmlFor="email">
-                  Email
+                  {text("Email ")}
                 </label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="example@email.com"
+                  placeholder={text("example@email.com")}
                   required
                   className="auth-input mt-6"
                 />
                 <label className="mt-5 flex items-start gap-2 text-xs font-light">
                   <input type="checkbox" required className="mt-0.5" />
                   <span>
-                    I have read, understand and agree to the{" "}
+                    {text("I have read, understand and agree to the")}{" "}
                     <Link className="underline" href={`/${locale}/terms`}>
-                      Terms of Service
+                      {text("Terms of Service ")}
                     </Link>{" "}
-                    and{" "}
+                    {text("and")}{" "}
                     <Link className="underline" href={`/${locale}/privacy`}>
-                      Privacy Policy
+                      {text("Privacy Policy ")}
                     </Link>{" "}
-                    about the service.
+                    {text("about the service. ")}
                   </span>
                 </label>
               </>
@@ -129,7 +124,7 @@ export function AuthFlow({ step }: { step: AuthStep }) {
                     className="block text-sm font-semibold tracking-wide"
                     key={name}
                   >
-                    {label}
+                    {text(label)}
                     <span className="relative mt-2 block">
                       <Input
                         className="auth-input pr-12"
@@ -138,7 +133,7 @@ export function AuthFlow({ step }: { step: AuthStep }) {
                         autoComplete={
                           step === "login" ? "current-password" : "new-password"
                         }
-                        placeholder="Enter your password"
+                        placeholder={text("Enter your password")}
                         minLength={8}
                         required
                       />
@@ -146,15 +141,18 @@ export function AuthFlow({ step }: { step: AuthStep }) {
                         type="button"
                         className="absolute top-1/2 right-3 -translate-y-1/2"
                         onClick={() => setVisible(!visible)}
-                        aria-label={visible ? "Hide password" : "Show password"}
+                        aria-label={text(
+                          visible ? "Hide password" : "Show password",
+                        )}
                       >
                         {visible ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
                     </span>
                     {step === "password" && name === "password" && (
                       <span className="mt-2 block text-center text-xs font-extralight tracking-normal">
-                        8+ characters, 1 uppercase, 1 number, 1 special
-                        character
+                        {text(
+                          "8+ characters, 1 uppercase, 1 number, 1 special character ",
+                        )}
                       </span>
                     )}
                   </label>
@@ -164,7 +162,7 @@ export function AuthFlow({ step }: { step: AuthStep }) {
                     className="block text-right text-xs underline"
                     href={`/${locale}/forgot-password`}
                   >
-                    Forgot password?
+                    {text("Forgot password? ")}
                   </Link>
                 )}
               </div>
@@ -172,11 +170,12 @@ export function AuthFlow({ step }: { step: AuthStep }) {
             {step === "birth" && (
               <>
                 <p className="mt-4 text-center text-sm font-light">
-                  We use this to generate your horoscope and detailed
-                  astrological compass.
+                  {text(
+                    "We use this to generate your horoscope and detailed astrological compass. ",
+                  )}
                 </p>
                 <label className="mt-8 block">
-                  <span className="sr-only">Date of birth</span>
+                  <span className="sr-only">{text("Date of birth")}</span>
                   <Input
                     className="auth-input h-14"
                     name="birth"
@@ -190,12 +189,12 @@ export function AuthFlow({ step }: { step: AuthStep }) {
             )}
             {step === "offer" && (
               <p className="mt-2 text-center font-light">
-                First 3 minutes are on us!
+                {text("First 3 minutes are on us! ")}
               </p>
             )}
             {step === "reset" && (
               <label className="field mt-6">
-                Email
+                {text("Email ")}
                 <Input
                   type="email"
                   name="email"
@@ -205,7 +204,7 @@ export function AuthFlow({ step }: { step: AuthStep }) {
               </label>
             )}
             <p className="mt-4 text-sm text-red-800" role="alert">
-              {error}
+              {text(error)}
             </p>
           </div>
           <Button
@@ -213,19 +212,19 @@ export function AuthFlow({ step }: { step: AuthStep }) {
             disabled={pending}
             className="auth-continue gold-button w-full"
           >
-            {pending ? "Continuing…" : "Continue"}
+            {text(pending ? "Continuing…" : "Continue")}
           </Button>
           {step !== "offer" && (
             <div className="auth-legal">
-              <Link href={`/${locale}/terms`}>Terms of Use</Link> ·{" "}
-              <Link href={`/${locale}/contact`}>Contact Us</Link> ·{" "}
-              <Link href={`/${locale}/privacy`}>Privacy Policy</Link>
+              <Link href={`/${locale}/terms`}>{text("Terms of Use")}</Link> ·{" "}
+              <Link href={`/${locale}/contact`}>{text("Contact Us")}</Link> ·{" "}
+              <Link href={`/${locale}/privacy`}>{text("Privacy Policy")}</Link>
             </div>
           )}
         </form>
         {step === "email" && (
           <div className="mt-5 w-full max-w-[354px] text-center">
-            <p className="mb-4 text-sm text-cream-light">or</p>
+            <p className="mb-4 text-sm text-cream-light">{text("or")}</p>
             <Button
               variant="outline"
               className="w-full border-ink bg-cream"
@@ -235,7 +234,7 @@ export function AuthFlow({ step }: { step: AuthStep }) {
                 )
               }
             >
-              Sign up with Google
+              {text("Sign up with Google ")}
             </Button>
           </div>
         )}

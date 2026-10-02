@@ -1,24 +1,45 @@
+"use client";
+import { useI18n } from "@/i18n/i18n-provider";
 /* eslint-disable @next/next/no-img-element */
-const imgShapeEllipseAstronomicalChart = "https://assets.staryield.net/assets/figma/e2d75.png";
-const imgShapeEllipseAstronomicalChart02 = "https://assets.staryield.net/assets/figma/41c0a.png";
-const imgDecorationStaryieldLogo1 = "https://assets.staryield.net/assets/figma/f90ea.png";
-const imgGroupStaryieldLogo = "https://assets.staryield.net/assets/figma/3e3d0.svg";
-const imgShapeEllipseAstronomicalChart03 = "https://assets.staryield.net/assets/figma/c6d6d.svg";
-const imgShapeEllipseAstronomicalChart04 = "https://assets.staryield.net/assets/figma/088fe.svg";
-const imgShapeEllipseAstronomicalChart05 = "https://assets.staryield.net/assets/figma/ee9a5.svg";
+const imgShapeEllipseAstronomicalChart =
+  "https://assets.staryield.net/assets/figma/e2d75.png";
+const imgShapeEllipseAstronomicalChart02 =
+  "https://assets.staryield.net/assets/figma/41c0a.png";
+const imgDecorationStaryieldLogo1 =
+  "https://assets.staryield.net/assets/figma/f90ea.png";
+const imgGroupStaryieldLogo =
+  "https://assets.staryield.net/assets/figma/3e3d0.svg";
+const imgShapeEllipseAstronomicalChart03 =
+  "https://assets.staryield.net/assets/figma/c6d6d.svg";
+const imgShapeEllipseAstronomicalChart04 =
+  "https://assets.staryield.net/assets/figma/088fe.svg";
+const imgShapeEllipseAstronomicalChart05 =
+  "https://assets.staryield.net/assets/figma/ee9a5.svg";
 const imgIndicatorDot = "https://assets.staryield.net/assets/figma/8108a.svg";
-const imgDividerHorizontal = "https://assets.staryield.net/assets/figma/e80ef.svg";
-const imgDividerHorizontal02 = "https://assets.staryield.net/assets/figma/733d7.svg";
-const imgDividerHorizontal03 = "https://assets.staryield.net/assets/figma/107bd.svg";
-const imgDividerHorizontal04 = "https://assets.staryield.net/assets/figma/90991.svg";
-const imgDividerHorizontal05 = "https://assets.staryield.net/assets/figma/00e44.svg";
-const imgDividerHorizontal06 = "https://assets.staryield.net/assets/figma/bf4e8.svg";
-const imgDividerHorizontal07 = "https://assets.staryield.net/assets/figma/ea8b1.svg";
-const imgDividerHorizontal08 = "https://assets.staryield.net/assets/figma/3ac07.svg";
-const imgDividerHorizontal09 = "https://assets.staryield.net/assets/figma/12e3a.svg";
-const imgDividerHorizontal10 = "https://assets.staryield.net/assets/figma/29171.svg";
-const imgDividerHorizontal11 = "https://assets.staryield.net/assets/figma/f6692.svg";
-const imgDividerHorizontal12 = "https://assets.staryield.net/assets/figma/bbdfd.svg";
+const imgDividerHorizontal =
+  "https://assets.staryield.net/assets/figma/e80ef.svg";
+const imgDividerHorizontal02 =
+  "https://assets.staryield.net/assets/figma/733d7.svg";
+const imgDividerHorizontal03 =
+  "https://assets.staryield.net/assets/figma/107bd.svg";
+const imgDividerHorizontal04 =
+  "https://assets.staryield.net/assets/figma/90991.svg";
+const imgDividerHorizontal05 =
+  "https://assets.staryield.net/assets/figma/00e44.svg";
+const imgDividerHorizontal06 =
+  "https://assets.staryield.net/assets/figma/bf4e8.svg";
+const imgDividerHorizontal07 =
+  "https://assets.staryield.net/assets/figma/ea8b1.svg";
+const imgDividerHorizontal08 =
+  "https://assets.staryield.net/assets/figma/3ac07.svg";
+const imgDividerHorizontal09 =
+  "https://assets.staryield.net/assets/figma/12e3a.svg";
+const imgDividerHorizontal10 =
+  "https://assets.staryield.net/assets/figma/29171.svg";
+const imgDividerHorizontal11 =
+  "https://assets.staryield.net/assets/figma/f6692.svg";
+const imgDividerHorizontal12 =
+  "https://assets.staryield.net/assets/figma/bbdfd.svg";
 const imgInstanceAries = "https://assets.staryield.net/assets/figma/9a293.svg";
 const imgInstanceTaurus = "https://assets.staryield.net/assets/figma/1e525.svg";
 const imgInstanceGemini = "https://assets.staryield.net/assets/figma/dd3fa.svg";
@@ -26,12 +47,17 @@ const imgInstanceCancer = "https://assets.staryield.net/assets/figma/6e31f.svg";
 const imgInstanceLeo = "https://assets.staryield.net/assets/figma/c6980.svg";
 const imgInstanceVirgo = "https://assets.staryield.net/assets/figma/341a8.svg";
 const imgInstanceLibra = "https://assets.staryield.net/assets/figma/66a4a.svg";
-const imgInstanceScorpio = "https://assets.staryield.net/assets/figma/7f87b.svg";
-const imgInstanceSagittarius = "https://assets.staryield.net/assets/figma/87e4b.svg";
-const imgInstanceCapricorn = "https://assets.staryield.net/assets/figma/12acb.svg";
-const imgInstanceAquarius = "https://assets.staryield.net/assets/figma/98d0a.svg";
+const imgInstanceScorpio =
+  "https://assets.staryield.net/assets/figma/7f87b.svg";
+const imgInstanceSagittarius =
+  "https://assets.staryield.net/assets/figma/87e4b.svg";
+const imgInstanceCapricorn =
+  "https://assets.staryield.net/assets/figma/12acb.svg";
+const imgInstanceAquarius =
+  "https://assets.staryield.net/assets/figma/98d0a.svg";
 const imgInstancePisces = "https://assets.staryield.net/assets/figma/2f624.svg";
 export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
+  const { text } = useI18n();
   const names = [
     "Aries",
     "Taurus",
@@ -385,7 +411,7 @@ export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
           >
             <div className="flex-none rotate-15">
               <p className="[word-break:break-word] font-display leading-[normal] not-italic relative text-[14px] text-black text-center tracking-[0.42px] whitespace-nowrap">
-                ARIES
+                {text("ARIES ")}
               </p>
             </div>
           </div>
@@ -424,7 +450,7 @@ export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
           >
             <div className="flex-none rotate-45">
               <p className="[word-break:break-word] font-display leading-[normal] not-italic relative text-[14px] text-black text-center tracking-[0.42px] whitespace-nowrap">
-                TAURUS
+                {text("TAURUS ")}
               </p>
             </div>
           </div>
@@ -480,7 +506,7 @@ export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
           >
             <div className="flex-none rotate-75">
               <p className="[word-break:break-word] font-display leading-[normal] not-italic relative text-[14px] text-black text-center tracking-[0.42px] whitespace-nowrap">
-                GEMINI
+                {text("GEMINI ")}
               </p>
             </div>
           </div>
@@ -519,7 +545,7 @@ export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
           >
             <div className="flex-none rotate-105">
               <p className="[word-break:break-word] font-display leading-[normal] not-italic relative text-[14px] text-black text-center tracking-[0.42px] whitespace-nowrap">
-                CANCER
+                {text("CANCER ")}
               </p>
             </div>
           </div>
@@ -558,7 +584,7 @@ export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
           >
             <div className="flex-none rotate-135">
               <p className="[word-break:break-word] font-display leading-[normal] not-italic relative text-[14px] text-black text-center tracking-[0.42px] whitespace-nowrap">
-                LEO
+                {text("LEO ")}
               </p>
             </div>
           </div>
@@ -597,7 +623,7 @@ export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
           >
             <div className="flex-none rotate-165">
               <p className="[word-break:break-word] font-display leading-[normal] not-italic relative text-[14px] text-black text-center tracking-[0.42px] whitespace-nowrap">
-                VIRGO
+                {text("VIRGO ")}
               </p>
             </div>
           </div>
@@ -636,7 +662,7 @@ export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
           >
             <div className="flex-none rotate-[-165.07deg]">
               <p className="[word-break:break-word] font-display leading-[normal] not-italic relative text-[14px] text-black text-center tracking-[0.42px] whitespace-nowrap">
-                LIBRA
+                {text("LIBRA ")}
               </p>
             </div>
           </div>
@@ -675,7 +701,7 @@ export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
           >
             <div className="-rotate-135 flex-none">
               <p className="[word-break:break-word] font-display leading-[normal] not-italic relative text-[14px] text-black text-center tracking-[0.42px] whitespace-nowrap">
-                SCORPIO
+                {text("SCORPIO ")}
               </p>
             </div>
           </div>
@@ -714,7 +740,7 @@ export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
           >
             <div className="flex-none rotate-[-104.93deg]">
               <p className="[word-break:break-word] font-display leading-[normal] not-italic relative text-[14px] text-black text-center tracking-[0.42px] whitespace-nowrap">
-                SAGITTARIUS
+                {text("SAGITTARIUS ")}
               </p>
             </div>
           </div>
@@ -753,7 +779,7 @@ export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
           >
             <div className="flex-none rotate-[-75.07deg]">
               <p className="[word-break:break-word] font-display leading-[normal] not-italic relative text-[14px] text-black text-center tracking-[0.42px] whitespace-nowrap">
-                CAPRICORN
+                {text("CAPRICORN ")}
               </p>
             </div>
           </div>
@@ -775,7 +801,7 @@ export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
           >
             <div className="-rotate-45 flex-none">
               <p className="[word-break:break-word] font-display leading-[normal] not-italic relative text-[14px] text-black text-center tracking-[0.42px] whitespace-nowrap">
-                AQUARIUS
+                {text("AQUARIUS ")}
               </p>
             </div>
           </div>
@@ -814,7 +840,7 @@ export function ZodiacWheel({ sign = "Gemini" }: { sign?: string }) {
           >
             <div className="flex-none rotate-[-14.93deg]">
               <p className="[word-break:break-word] font-display leading-[normal] not-italic relative text-[14px] text-black text-center tracking-[0.42px] whitespace-nowrap">
-                PISCES
+                {text("PISCES ")}
               </p>
             </div>
           </div>

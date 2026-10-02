@@ -540,6 +540,19 @@ input[type="checkbox"] {
 .figma-content > section {
   max-width: 100%;
 }
+/* Translated copy can run longer than the fixed-width design labels. */
+html:not([lang="en"]) .figma-content [class*="whitespace-nowrap"] {
+  white-space: normal;
+}
+html:not([lang="en"]) .figma-content > .figma-section {
+  height: auto;
+  min-height: min-content;
+}
+@media (max-width: 1023px) {
+  .desktop-nav.public-nav {
+    display: none;
+  }
+}
 .figma-content > [data-name*="Promo Banner"] {
   display: none;
 }

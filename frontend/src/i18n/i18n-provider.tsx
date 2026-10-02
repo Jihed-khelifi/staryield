@@ -4,6 +4,7 @@ import * as React from "react"
 
 import type { Locale } from "@/i18n/config"
 import type { Dictionary, TranslationValues } from "@/i18n/types"
+import { createTranslateCopy, type TranslateCopy } from "@/i18n/translate-copy"
 
 type Translate = (path: string, values?: TranslationValues) => string
 
@@ -11,6 +12,7 @@ type I18nContextValue = {
   locale: Locale
   dictionary: Dictionary
   t: Translate
+  text: TranslateCopy
 }
 
 const I18nContext = React.createContext<I18nContextValue | null>(null)
@@ -66,7 +68,7 @@ export function I18nProvider({
   children: React.ReactNode
 }) {
   const value = React.useMemo<I18nContextValue>(
-    () => ({ locale, dictionary, t: createTranslate(dictionary, locale) }),
+    () => ({ locale, dictionary, t: createTranslate(dictionary, locale), text: createTranslateCopy(dictionary.copy) }),
     [dictionary, locale]
   )
 

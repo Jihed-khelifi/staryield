@@ -1,35 +1,68 @@
+"use client";
+import { useI18n } from "@/i18n/i18n-provider";
 /* eslint-disable @next/next/no-img-element */
-const imgShapeEllipseAstronomicalChart = "https://assets.staryield.net/assets/figma/bed2d.svg";
-const imgShapeEllipseAstronomicalChart02 = "https://assets.staryield.net/assets/figma/c9789.svg";
-const imgShapeEllipseAstronomicalChart03 = "https://assets.staryield.net/assets/figma/a7bbb.svg";
-const imgShapeEllipseAstronomicalChart04 = "https://assets.staryield.net/assets/figma/de2f9.svg";
-const imgShapeEllipseAstronomicalChart05 = "https://assets.staryield.net/assets/figma/f3a45.svg";
-const imgDividerHorizontal1 = "https://assets.staryield.net/assets/figma/2d305.svg";
-const imgDividerHorizontal02 = "https://assets.staryield.net/assets/figma/c4bf9.svg";
-const imgDividerHorizontal03 = "https://assets.staryield.net/assets/figma/d42c1.svg";
-const imgDividerHorizontal04 = "https://assets.staryield.net/assets/figma/16866.svg";
-const imgDividerHorizontal05 = "https://assets.staryield.net/assets/figma/cdf03.svg";
-const imgDividerHorizontal06 = "https://assets.staryield.net/assets/figma/ce360.svg";
-const imgDividerHorizontal07 = "https://assets.staryield.net/assets/figma/8757d.svg";
-const imgDividerHorizontal08 = "https://assets.staryield.net/assets/figma/2bd47.svg";
-const imgDividerHorizontal09 = "https://assets.staryield.net/assets/figma/32d82.svg";
-const imgDividerHorizontal10 = "https://assets.staryield.net/assets/figma/3543e.svg";
-const imgDividerHorizontal11 = "https://assets.staryield.net/assets/figma/836d2.svg";
-const imgDividerHorizontal12 = "https://assets.staryield.net/assets/figma/44f22.svg";
-const imgDividerHorizontal13 = "https://assets.staryield.net/assets/figma/3df5d.svg";
-const imgDividerHorizontal2 = "https://assets.staryield.net/assets/figma/25e36.svg";
-const imgDividerHorizontal3 = "https://assets.staryield.net/assets/figma/1849b.svg";
-const imgDividerHorizontal4 = "https://assets.staryield.net/assets/figma/37661.svg";
-const imgDividerHorizontal5 = "https://assets.staryield.net/assets/figma/6da8f.svg";
-const imgDividerHorizontal6 = "https://assets.staryield.net/assets/figma/12d3c.svg";
-const imgDividerHorizontal7 = "https://assets.staryield.net/assets/figma/c32b2.svg";
-const imgDividerHorizontal8 = "https://assets.staryield.net/assets/figma/9bc38.svg";
-const imgDividerHorizontal9 = "https://assets.staryield.net/assets/figma/392dc.svg";
-const imgDividerHorizontal14 = "https://assets.staryield.net/assets/figma/0c079.svg";
-const imgDividerHorizontal15 = "https://assets.staryield.net/assets/figma/3c61f.svg";
-const imgDividerHorizontal16 = "https://assets.staryield.net/assets/figma/b370b.svg";
-const imgDividerHorizontal17 = "https://assets.staryield.net/assets/figma/46d54.svg";
+const imgShapeEllipseAstronomicalChart =
+  "https://assets.staryield.net/assets/figma/bed2d.svg";
+const imgShapeEllipseAstronomicalChart02 =
+  "https://assets.staryield.net/assets/figma/c9789.svg";
+const imgShapeEllipseAstronomicalChart03 =
+  "https://assets.staryield.net/assets/figma/a7bbb.svg";
+const imgShapeEllipseAstronomicalChart04 =
+  "https://assets.staryield.net/assets/figma/de2f9.svg";
+const imgShapeEllipseAstronomicalChart05 =
+  "https://assets.staryield.net/assets/figma/f3a45.svg";
+const imgDividerHorizontal1 =
+  "https://assets.staryield.net/assets/figma/2d305.svg";
+const imgDividerHorizontal02 =
+  "https://assets.staryield.net/assets/figma/c4bf9.svg";
+const imgDividerHorizontal03 =
+  "https://assets.staryield.net/assets/figma/d42c1.svg";
+const imgDividerHorizontal04 =
+  "https://assets.staryield.net/assets/figma/16866.svg";
+const imgDividerHorizontal05 =
+  "https://assets.staryield.net/assets/figma/cdf03.svg";
+const imgDividerHorizontal06 =
+  "https://assets.staryield.net/assets/figma/ce360.svg";
+const imgDividerHorizontal07 =
+  "https://assets.staryield.net/assets/figma/8757d.svg";
+const imgDividerHorizontal08 =
+  "https://assets.staryield.net/assets/figma/2bd47.svg";
+const imgDividerHorizontal09 =
+  "https://assets.staryield.net/assets/figma/32d82.svg";
+const imgDividerHorizontal10 =
+  "https://assets.staryield.net/assets/figma/3543e.svg";
+const imgDividerHorizontal11 =
+  "https://assets.staryield.net/assets/figma/836d2.svg";
+const imgDividerHorizontal12 =
+  "https://assets.staryield.net/assets/figma/44f22.svg";
+const imgDividerHorizontal13 =
+  "https://assets.staryield.net/assets/figma/3df5d.svg";
+const imgDividerHorizontal2 =
+  "https://assets.staryield.net/assets/figma/25e36.svg";
+const imgDividerHorizontal3 =
+  "https://assets.staryield.net/assets/figma/1849b.svg";
+const imgDividerHorizontal4 =
+  "https://assets.staryield.net/assets/figma/37661.svg";
+const imgDividerHorizontal5 =
+  "https://assets.staryield.net/assets/figma/6da8f.svg";
+const imgDividerHorizontal6 =
+  "https://assets.staryield.net/assets/figma/12d3c.svg";
+const imgDividerHorizontal7 =
+  "https://assets.staryield.net/assets/figma/c32b2.svg";
+const imgDividerHorizontal8 =
+  "https://assets.staryield.net/assets/figma/9bc38.svg";
+const imgDividerHorizontal9 =
+  "https://assets.staryield.net/assets/figma/392dc.svg";
+const imgDividerHorizontal14 =
+  "https://assets.staryield.net/assets/figma/0c079.svg";
+const imgDividerHorizontal15 =
+  "https://assets.staryield.net/assets/figma/3c61f.svg";
+const imgDividerHorizontal16 =
+  "https://assets.staryield.net/assets/figma/b370b.svg";
+const imgDividerHorizontal17 =
+  "https://assets.staryield.net/assets/figma/46d54.svg";
 export function AstrologicalChart() {
+  const { text } = useI18n();
   return (
     <div
       className="h-[395px] overflow-clip relative shrink-0 w-full"
@@ -413,7 +446,7 @@ export function AstrologicalChart() {
       >
         <div className="flex-none h-[hypot(3.35209cqw,61.8572cqh)] rotate-[-7.1deg] skew-x-[2.65deg] w-[hypot(96.6479cqw,-38.1428cqh)]">
           <div className="[word-break:break-word] flex flex-col font-display justify-center leading-[0] not-italic relative size-full text-[#f6f4f0] text-[8px] text-center tracking-[0.8px]">
-            <p className="leading-[14px]">ARIES</p>
+            <p className="leading-[14px]">{text("ARIES")}</p>
           </div>
         </div>
       </div>
@@ -424,7 +457,7 @@ export function AstrologicalChart() {
       >
         <div className="flex-none h-[hypot(-11.4415cqw,29.0144cqh)] rotate-[25.86deg] skew-x-[-7.25deg] w-[hypot(88.5585cqw,70.9856cqh)]">
           <div className="[word-break:break-word] flex flex-col font-display justify-center leading-[0] not-italic relative size-full text-[#f6f4f0] text-[8px] text-center tracking-[0.8px]">
-            <p className="leading-[14px]">PISCES</p>
+            <p className="leading-[14px]">{text("PISCES")}</p>
           </div>
         </div>
       </div>
@@ -435,7 +468,7 @@ export function AstrologicalChart() {
       >
         <div className="flex-none h-[hypot(-27.8361cqw,11.8085cqh)] rotate-[53.03deg] skew-x-[-12.21deg] w-[hypot(72.1639cqw,88.1915cqh)]">
           <div className="[word-break:break-word] flex flex-col font-display justify-center leading-[0] not-italic relative size-full text-[#f6f4f0] text-[8px] text-center tracking-[0.8px]">
-            <p className="leading-[14px]">AQUARIUS</p>
+            <p className="leading-[14px]">{text("AQUARIUS")}</p>
           </div>
         </div>
       </div>
@@ -446,7 +479,7 @@ export function AstrologicalChart() {
       >
         <div className="flex-none h-[hypot(-72.8788cqw,0.253808cqh)] rotate-[83.25deg] skew-x-[-6.29deg] w-[hypot(27.1212cqw,99.7462cqh)]">
           <div className="[word-break:break-word] flex flex-col font-display justify-center leading-[0] not-italic relative size-full text-[#f6f4f0] text-[8px] text-center tracking-[0.8px]">
-            <p className="leading-[14px]">CAPRICORN</p>
+            <p className="leading-[14px]">{text("CAPRICORN")}</p>
           </div>
         </div>
       </div>
@@ -457,7 +490,7 @@ export function AstrologicalChart() {
       >
         <div className="flex-none h-[hypot(-34.6728cqw,-5.72213cqh)] rotate-[114.24deg] skew-x-10 w-[hypot(-65.3272cqw,94.2779cqh)]">
           <div className="[word-break:break-word] flex flex-col font-display justify-center leading-[0] not-italic relative size-full text-[#f6f4f0] text-[8px] text-center tracking-[0.8px]">
-            <p className="leading-[14px]">SAGITTARIUS</p>
+            <p className="leading-[14px]">{text("SAGITTARIUS")}</p>
           </div>
         </div>
       </div>
@@ -468,7 +501,7 @@ export function AstrologicalChart() {
       >
         <div className="flex-none h-[hypot(-17.8974cqw,-19.8771cqh)] rotate-[142.11deg] skew-x-[10.57deg] w-[hypot(-82.1026cqw,80.1229cqh)]">
           <div className="[word-break:break-word] flex flex-col font-display justify-center leading-[0] not-italic relative size-full text-[#f6f4f0] text-[8px] text-center tracking-[0.8px]">
-            <p className="leading-[14px]">SCORPIO</p>
+            <p className="leading-[14px]">{text("SCORPIO")}</p>
           </div>
         </div>
       </div>
@@ -479,7 +512,7 @@ export function AstrologicalChart() {
       >
         <div className="flex-none h-[hypot(-3.73696cqw,-58.2012cqh)] rotate-[171.76deg] skew-x-[2.65deg] w-[hypot(-96.263cqw,41.7988cqh)]">
           <div className="[word-break:break-word] flex flex-col font-display justify-center leading-[0] not-italic relative size-full text-[#f6f4f0] text-[8px] text-center tracking-[0.8px]">
-            <p className="leading-[14px]">LIBRA</p>
+            <p className="leading-[14px]">{text("LIBRA")}</p>
           </div>
         </div>
       </div>
@@ -490,7 +523,7 @@ export function AstrologicalChart() {
       >
         <div className="flex-none h-[hypot(9.91826cqw,-33.7151cqh)] rotate-[-158.48deg] skew-x-[-7.25deg] w-[hypot(-90.0817cqw,-66.2849cqh)]">
           <div className="[word-break:break-word] flex flex-col font-display justify-center leading-[0] not-italic relative size-full text-[#f6f4f0] text-[8px] text-center tracking-[0.8px]">
-            <p className="leading-[14px]">VIRGO</p>
+            <p className="leading-[14px]">{text("VIRGO")}</p>
           </div>
         </div>
       </div>
@@ -501,7 +534,7 @@ export function AstrologicalChart() {
       >
         <div className="flex-none h-[hypot(26.0808cqw,-13.3891cqh)] rotate-[-129.88deg] skew-x-[-12.21deg] w-[hypot(-73.9192cqw,-86.6109cqh)]">
           <div className="[word-break:break-word] flex flex-col font-display justify-center leading-[0] not-italic relative size-full text-[#f6f4f0] text-[8px] text-center tracking-[0.8px]">
-            <p className="leading-[14px]">LEO</p>
+            <p className="leading-[14px]">{text("LEO")}</p>
           </div>
         </div>
       </div>
@@ -512,7 +545,7 @@ export function AstrologicalChart() {
       >
         <div className="flex-none h-[hypot(71.6898cqw,-1.10366cqh)] rotate-[-98.29deg] skew-x-[-6.56deg] w-[hypot(-28.3102cqw,-98.8963cqh)]">
           <div className="[word-break:break-word] flex flex-col font-display justify-center leading-[0] not-italic relative size-full text-[#f6f4f0] text-[8px] text-center tracking-[0.8px]">
-            <p className="leading-[14px]">CANCER</p>
+            <p className="leading-[14px]">{text("CANCER")}</p>
           </div>
         </div>
       </div>
@@ -523,7 +556,7 @@ export function AstrologicalChart() {
       >
         <div className="flex-none h-[hypot(40.4306cqw,7.01256cqh)] rotate-[-65.05deg] skew-x-[11.51deg] w-[hypot(59.5694cqw,-92.9874cqh)]">
           <div className="[word-break:break-word] flex flex-col font-display justify-center leading-[0] not-italic relative size-full text-[#f6f4f0] text-[8px] text-center tracking-[0.8px]">
-            <p className="leading-[14px]">GEMINI</p>
+            <p className="leading-[14px]">{text("GEMINI")}</p>
           </div>
         </div>
       </div>
@@ -534,7 +567,7 @@ export function AstrologicalChart() {
       >
         <div className="flex-none h-[hypot(17.84cqw,19.9677cqh)] rotate-[-37.76deg] skew-x-[10.57deg] w-[hypot(82.16cqw,-80.0323cqh)]">
           <div className="[word-break:break-word] flex flex-col font-display justify-center leading-[0] not-italic relative size-full text-[#f6f4f0] text-[8px] text-center tracking-[0.8px]">
-            <p className="leading-[14px]">TAURUS</p>
+            <p className="leading-[14px]">{text("TAURUS")}</p>
           </div>
         </div>
       </div>

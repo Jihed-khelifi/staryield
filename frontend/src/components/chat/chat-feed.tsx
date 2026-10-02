@@ -21,7 +21,7 @@ export function ChatFeed({
   savedIds?: string[];
   onBookmark?: (message: ChatMessage) => void;
 }) {
-  const { t } = useI18n();
+  const { text, t } = useI18n();
   const endRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -31,7 +31,8 @@ export function ChatFeed({
   return (
     <ScrollArea className="min-h-0 flex-1">
       <p className="chat-session-notice">
-        ✦ Private session with {authorName} · bookmarks save insights
+        {text("✦ Private session with ")}
+        {text(authorName)} {text("· bookmarks save insights ")}
       </p>
       <ol
         aria-label={t("chatroom.feed.label", { name: authorName })}

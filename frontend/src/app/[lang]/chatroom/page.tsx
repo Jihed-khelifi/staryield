@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { isLocale } from "@/i18n/config";
+import { isLocale, localePath, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { AppFrame } from "@/components/layout/app-frame";
 import { ChatroomShell } from "@/components/chat/chatroom-shell";
@@ -18,6 +18,11 @@ export async function generateMetadata({
   return {
     title: dictionary.meta.chatroomTitle,
     description: dictionary.meta.chatroomDescription,
+    alternates: {
+      languages: Object.fromEntries(
+        locales.map((locale) => [locale, localePath("/chatroom", locale)]),
+      ),
+    },
   };
 }
 

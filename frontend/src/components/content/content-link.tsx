@@ -38,7 +38,7 @@ export function ContentLink({
   href: suppliedHref,
   ...props
 }: ComponentProps<"a"> & { label: string }) {
-  const { locale } = useI18n();
+  const { text, locale } = useI18n();
   const pathname = usePathname();
   const legalSection =
     /\/(terms|privacy)$/.test(pathname) &&
@@ -63,9 +63,9 @@ export function ContentLink({
       <details className={`faq-item ${props.className ?? ""}`}>
         <summary>{children}</summary>
         <p className="mt-4 text-sm font-serif normal-case tracking-normal">
-          For help with this question,{" "}
+          {text("For help with this question,")}{" "}
           <Link href={`/${locale}/contact`} className="underline">
-            contact our support team
+            {text("contact our support team ")}
           </Link>
           .
         </p>

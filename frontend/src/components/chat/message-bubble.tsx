@@ -20,7 +20,7 @@ export function MessageBubble({
   saved?: boolean;
   onBookmark?: () => void;
 }) {
-  const { locale, t } = useI18n();
+  const { text, locale, t } = useI18n();
   const [revealed, setRevealed] = React.useState(false);
 
   const isVisitor = message.author === "visitor";
@@ -41,7 +41,9 @@ export function MessageBubble({
         )}
         aria-hidden={isHidden}
       >
-        {message.body ?? (message.bodyKey ? t(message.bodyKey) : "")}
+        {message.fixtureKey
+          ? text(message.fixtureKey)
+          : (message.body ?? (message.bodyKey ? t(message.bodyKey) : ""))}
       </p>
 
       {isHidden ? (
@@ -61,7 +63,7 @@ export function MessageBubble({
         dateTime={message.sentAt}
         className="w-full text-right font-ui text-[10px] opacity-60"
       >
-        {time}
+        {text(time)}
       </time>
     </div>
   );
@@ -74,7 +76,7 @@ export function MessageBubble({
       )}
     >
       <span className="sr-only">
-        {isVisitor ? t("chatroom.feed.you") : authorName}
+        {text(isVisitor ? t("chatroom.feed.you") : authorName)}
       </span>
       {isVisitor ? (
         <>

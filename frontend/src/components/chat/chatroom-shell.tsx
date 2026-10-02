@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/sheet";
 
 export function ChatroomShell({ initialReader }: { initialReader?: string }) {
-  const { t } = useI18n();
+  const { text, t } = useI18n();
   const [activeId, setActiveId] = React.useState(
     initialReader && readers[initialReader]
       ? initialReader
@@ -47,8 +47,16 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [notice, setNotice] = React.useState("");
   const [saved, setSaved] = React.useState<SavedMessage[]>([
-    { id: "sample-1", body: '"Your path is lit by the stars."' },
-    { id: "sample-2", body: '"Trust your intuition."' },
+    {
+      id: "sample-1",
+      body: '"Your path is lit by the stars."',
+      fixtureKey: '"Your path is lit by the stars."',
+    },
+    {
+      id: "sample-2",
+      body: '"Trust your intuition."',
+      fixtureKey: '"Trust your intuition."',
+    },
   ]);
   const reader = readers[activeId];
   const messages = messagesByReader[activeId];
@@ -88,11 +96,22 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
     );
   }
   function bookmark(message: ChatMessage) {
-    const body = message.body ?? (message.bodyKey ? t(message.bodyKey) : "");
+    const body =
+      message.body ??
+      message.fixtureKey ??
+      (message.bodyKey ? t(message.bodyKey) : "");
     setSaved((current) =>
       current.some((item) => item.id === message.id)
         ? current.filter((item) => item.id !== message.id)
-        : [...current, { id: message.id, body }],
+        : [
+            ...current,
+            {
+              id: message.id,
+              body,
+              fixtureKey: message.fixtureKey,
+              bodyKey: message.bodyKey,
+            },
+          ],
     );
   }
   const inbox = (
@@ -113,7 +132,7 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
   );
   return (
     <main
-      aria-label="Chatroom"
+      aria-label={text("Chatroom")}
       className="chat-workspace grid min-h-0 flex-1 gap-4 px-8 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_280px]"
     >
       <aside className="hidden min-h-0 overflow-hidden rounded-xl border border-border bg-[#d3cbb9] lg:block">
@@ -136,7 +155,7 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
           onBookmark={bookmark}
         />
         <p className="px-4 text-xs" role="status">
-          {ended ? "Session ended. Resume to continue." : notice}
+          {text(ended ? "Session ended. Resume to continue." : notice)}
         </p>
         <MessageComposer
           onSend={handleSend}
@@ -161,7 +180,7 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
           className="w-[300px] gap-0 overflow-y-auto bg-sage p-0"
         >
           <SheetHeader className="pb-0">
-            <SheetTitle className="sr-only">{reader.name}</SheetTitle>
+            <SheetTitle className="sr-only">{text(reader.name)}</SheetTitle>
           </SheetHeader>
           {panel}
         </SheetContent>

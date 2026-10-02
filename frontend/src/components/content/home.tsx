@@ -1,3 +1,5 @@
+"use client";
+import { useI18n } from "@/i18n/i18n-provider";
 /* Figma 461:1616 — reusable responsive content regions. */
 /* eslint-disable @next/next/no-img-element */
 import { ContentLink } from "@/components/content/content-link";
@@ -16,6 +18,7 @@ const imgContainerCheck = `${assetPathPrefix}/9faa9.svg`;
 const imgContainerCheck1 = `${assetPathPrefix}/4cf6a.svg`;
 const imgDividerHorizontal2 = `${assetPathPrefix}/90584.svg`;
 export default function ScreenDesktopHome() {
+  const { text } = useI18n();
   return (
     <div
       className="figma-content flex w-full flex-col items-center bg-cream"
@@ -46,24 +49,32 @@ export default function ScreenDesktopHome() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[14px] text-[color:var(--amber)] uppercase whitespace-nowrap"
               data-node-id="461:1643"
             >
-              Live Advisors Available 24/7
+              {text("Live Advisors Available 24/7 ")}
             </p>
           </div>
           <h1
             className="[word-break:break-word] font-display leading-[0] min-w-full not-italic relative shrink-0 text-[56px] text-black w-[min-content]"
             data-node-id="461:1644"
           >
-            <span className="leading-[1.15] mb-0">Grounded wisdom.</span>
-            <span className="leading-[1.15]">Personalized guidance.</span>
+            <span className="leading-[1.15] mb-0">
+              {text("Grounded wisdom.")}
+            </span>
+            <span className="leading-[1.15]">
+              {text("Personalized guidance.")}
+            </span>
           </h1>
           <p
             className="[word-break:break-word] font-serif font-normal leading-[0] relative shrink-0 text-[18px] text-black tracking-[0.9px] w-[580px]"
             data-node-id="461:1645"
           >
             <span className="font-serif font-semibold leading-[normal]">
-              STARYIELD
+              {text("STARYIELD ")}
             </span>
-            <span className="leading-[normal]">{` is a spiritual guidance space where you'll find personalized tools designed to support your self-discovery and nurture your spiritual well-being. When life feels uncertain or overwhelming, our psychics are always here to offer clarity, heartfelt insight, and a genuine sense of connection.`}</span>
+            <span className="leading-[normal]">
+              {text(
+                ` is a spiritual guidance space where you'll find personalized tools designed to support your self-discovery and nurture your spiritual well-being. When life feels uncertain or overwhelming, our psychics are always here to offer clarity, heartfelt insight, and a genuine sense of connection.`,
+              )}
+            </span>
           </p>
           <div
             className="content-stretch cursor-pointer flex gap-[16px] items-start relative shrink-0"
@@ -91,7 +102,7 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-black leading-[normal] relative shrink-0 text-[16px] text-left text-white whitespace-nowrap"
                 data-node-id="461:1648"
               >
-                Explore Advisors
+                {text("Explore Advisors ")}
               </p>
             </ContentLink>
             <ContentLink
@@ -104,7 +115,7 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[16px] text-black text-left whitespace-nowrap"
                 data-node-id="461:1650"
               >
-                get your astrological calculation
+                {text("get your astrological calculation ")}
               </p>
             </ContentLink>
           </div>
@@ -184,19 +195,23 @@ export default function ScreenDesktopHome() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#e0d5c3] text-[12px] uppercase whitespace-nowrap"
               data-node-id="461:1672"
             >
-              Vetted Specialists
+              {text("Vetted Specialists ")}
             </p>
           </div>
           <p
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[32px] text-center text-white tracking-[1.6px] whitespace-nowrap"
             data-node-id="461:1673"
           >
-            Psychic readings built around your journey
+            {text("Psychic readings built around your journey ")}
           </p>
           <p
             className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[16px] text-center text-white w-[620px]"
             data-node-id="461:1674"
-          >{`We've replaced mystical abstractions with transparent, methodical advice. Select from our top-rated specialists for real-time 1-on-1 consultations.`}</p>
+          >
+            {text(
+              `We've replaced mystical abstractions with transparent, methodical advice. Select from our top-rated specialists for real-time 1-on-1 consultations.`,
+            )}
+          </p>
         </div>
         <div
           className="content-stretch flex gap-[105px] items-start relative shrink-0"
@@ -233,7 +248,7 @@ export default function ScreenDesktopHome() {
                   className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#aa8e62] text-[12px] whitespace-nowrap"
                   data-node-id="461:1681"
                 >
-                  Active Now
+                  {text("Active Now ")}
                 </p>
               </div>
             </div>
@@ -246,12 +261,14 @@ export default function ScreenDesktopHome() {
                 className="font-serif font-semibold relative shrink-0 text-[22px]"
                 data-node-id="461:1683"
               >
-                Ramone
+                {text("Ramone ")}
               </p>
               <p
                 className="font-serif font-light relative shrink-0 text-[14px]"
                 data-node-id="461:1684"
-              >{`Spiritual Strategy & Intuitive Insights`}</p>
+              >
+                {text(`Spiritual Strategy & Intuitive Insights`)}
+              </p>
             </div>
             <div
               className="h-0 relative shrink-0 w-full"
@@ -280,13 +297,13 @@ export default function ScreenDesktopHome() {
                   className="font-serif font-light relative shrink-0"
                   data-node-id="461:1688"
                 >
-                  Consultation Rate
+                  {text("Consultation Rate ")}
                 </p>
                 <p
                   className="font-serif font-semibold relative shrink-0"
                   data-node-id="461:1689"
                 >
-                  $2.99 / min
+                  {text("$2.99 / min ")}
                 </p>
               </div>
               <div
@@ -298,7 +315,7 @@ export default function ScreenDesktopHome() {
                   className="[word-break:break-word] font-serif font-light leading-[normal] relative shrink-0 text-[13px] text-black whitespace-nowrap"
                   data-node-id="461:1691"
                 >
-                  Rating
+                  {text("Rating ")}
                 </p>
                 <div
                   className="content-stretch flex gap-[4px] items-center relative shrink-0"
@@ -320,7 +337,7 @@ export default function ScreenDesktopHome() {
                     className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[13px] text-black whitespace-nowrap"
                     data-node-id="461:1694"
                   >
-                    4.9 (420+ reviews)
+                    {text("4.9 (420+ reviews) ")}
                   </p>
                 </div>
               </div>
@@ -346,7 +363,7 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[14px] text-black text-left whitespace-nowrap"
                 data-node-id="461:1696"
               >
-                Start 1-on-1 Chat
+                {text("Start 1-on-1 Chat ")}
               </p>
             </ContentLink>
           </div>
@@ -380,7 +397,7 @@ export default function ScreenDesktopHome() {
                   className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#aa8e62] text-[12px] whitespace-nowrap"
                   data-node-id="461:1702"
                 >
-                  Active Now
+                  {text("Active Now ")}
                 </p>
               </div>
             </div>
@@ -393,12 +410,14 @@ export default function ScreenDesktopHome() {
                 className="font-serif font-semibold relative shrink-0 text-[22px]"
                 data-node-id="461:1704"
               >
-                Theo
+                {text("Theo ")}
               </p>
               <p
                 className="font-serif font-light relative shrink-0 text-[14px]"
                 data-node-id="461:1705"
-              >{`Relational Alignment & Path Clarification`}</p>
+              >
+                {text(`Relational Alignment & Path Clarification`)}
+              </p>
             </div>
             <div
               className="h-0 relative shrink-0 w-full"
@@ -427,13 +446,13 @@ export default function ScreenDesktopHome() {
                   className="font-serif font-light relative shrink-0"
                   data-node-id="461:1709"
                 >
-                  Consultation Rate
+                  {text("Consultation Rate ")}
                 </p>
                 <p
                   className="font-serif font-semibold relative shrink-0"
                   data-node-id="461:1710"
                 >
-                  $3.49 / min
+                  {text("$3.49 / min ")}
                 </p>
               </div>
               <div
@@ -445,7 +464,7 @@ export default function ScreenDesktopHome() {
                   className="[word-break:break-word] font-serif font-light leading-[normal] relative shrink-0 text-[13px] text-black whitespace-nowrap"
                   data-node-id="461:1712"
                 >
-                  Rating
+                  {text("Rating ")}
                 </p>
                 <div
                   className="content-stretch flex gap-[4px] items-center relative shrink-0"
@@ -467,7 +486,7 @@ export default function ScreenDesktopHome() {
                     className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[13px] text-black whitespace-nowrap"
                     data-node-id="461:1715"
                   >
-                    4.8 (380+ reviews)
+                    {text("4.8 (380+ reviews) ")}
                   </p>
                 </div>
               </div>
@@ -493,7 +512,7 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[14px] text-black text-left whitespace-nowrap"
                 data-node-id="461:1717"
               >
-                Start 1-on-1 Chat
+                {text("Start 1-on-1 Chat ")}
               </p>
             </ContentLink>
           </div>
@@ -527,7 +546,7 @@ export default function ScreenDesktopHome() {
                   className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#978f6e] text-[12px] whitespace-nowrap"
                   data-node-id="461:1723"
                 >
-                  Busy
+                  {text("Busy ")}
                 </p>
               </div>
             </div>
@@ -540,12 +559,14 @@ export default function ScreenDesktopHome() {
                 className="font-serif font-semibold relative shrink-0 text-[22px]"
                 data-node-id="461:1725"
               >
-                Solomon
+                {text("Solomon ")}
               </p>
               <p
                 className="font-serif font-light relative shrink-0 text-[14px]"
                 data-node-id="461:1726"
-              >{`Astrological Architecture & Chronology`}</p>
+              >
+                {text(`Astrological Architecture & Chronology`)}
+              </p>
             </div>
             <div
               className="h-0 relative shrink-0 w-full"
@@ -574,13 +595,13 @@ export default function ScreenDesktopHome() {
                   className="font-serif font-light relative shrink-0"
                   data-node-id="461:1730"
                 >
-                  Consultation Rate
+                  {text("Consultation Rate ")}
                 </p>
                 <p
                   className="font-serif font-semibold relative shrink-0"
                   data-node-id="461:1731"
                 >
-                  $3.99 / min
+                  {text("$3.99 / min ")}
                 </p>
               </div>
               <div
@@ -592,7 +613,7 @@ export default function ScreenDesktopHome() {
                   className="[word-break:break-word] font-serif font-light leading-[normal] relative shrink-0 text-[13px] text-black whitespace-nowrap"
                   data-node-id="461:1733"
                 >
-                  Rating
+                  {text("Rating ")}
                 </p>
                 <div
                   className="content-stretch flex gap-[4px] items-center relative shrink-0"
@@ -614,7 +635,7 @@ export default function ScreenDesktopHome() {
                     className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[13px] text-black whitespace-nowrap"
                     data-node-id="461:1736"
                   >
-                    5.0 (510+ reviews)
+                    {text("5.0 (510+ reviews) ")}
                   </p>
                 </div>
               </div>
@@ -629,7 +650,7 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[14px] text-black text-left whitespace-nowrap"
                 data-node-id="461:1738"
               >
-                Join Waiting List
+                {text("Join Waiting List ")}
               </p>
             </ContentLink>
           </div>
@@ -657,7 +678,7 @@ export default function ScreenDesktopHome() {
             className="[word-break:break-word] font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black whitespace-nowrap"
             data-node-id="461:1741"
           >
-            Operational Journey Path
+            {text("Operational Journey Path ")}
           </p>
           <div
             className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full"
@@ -685,7 +706,7 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[14px] text-black whitespace-nowrap"
                 data-node-id="461:1746"
               >
-                Identify Existential Bottlenecks
+                {text("Identify Existential Bottlenecks ")}
               </p>
             </div>
             <div
@@ -722,7 +743,7 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[14px] text-black whitespace-nowrap"
                 data-node-id="461:1751"
               >
-                Execute Alignment Consultation
+                {text("Execute Alignment Consultation ")}
               </p>
             </div>
             <div
@@ -759,7 +780,7 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[14px] text-black whitespace-nowrap"
                 data-node-id="461:1756"
               >
-                Iterate with Bi-weekly Syntheses
+                {text("Iterate with Bi-weekly Syntheses ")}
               </p>
             </div>
           </div>
@@ -778,19 +799,23 @@ export default function ScreenDesktopHome() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[12px] text-[color:var(--amber)] uppercase whitespace-nowrap"
               data-node-id="461:1759"
             >
-              Alignment Framework
+              {text("Alignment Framework ")}
             </p>
           </div>
           <p
             className="[word-break:break-word] font-display leading-[normal] min-w-full not-italic relative shrink-0 text-[36px] text-black w-[min-content]"
             data-node-id="461:1760"
           >
-            Methodical insights built around your personal trajectory
+            {text("Methodical insights built around your personal trajectory ")}
           </p>
           <p
             className="[word-break:break-word] font-serif font-extralight leading-[1.6] min-w-full relative shrink-0 text-[16px] text-black w-[min-content]"
             data-node-id="461:1761"
-          >{`Everyone's path to self-discovery is unique. Our platform removes the speculative guesswork and introduces a card-based alignment structure designed for modern execution.`}</p>
+          >
+            {text(
+              `Everyone's path to self-discovery is unique. Our platform removes the speculative guesswork and introduces a card-based alignment structure designed for modern execution.`,
+            )}
+          </p>
           <div
             className="content-stretch flex flex-col gap-[16px] items-start pt-[16px] relative shrink-0 w-full"
             data-node-id="461:1762"
@@ -816,7 +841,9 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[15px] text-black whitespace-nowrap"
                 data-node-id="461:1765"
               >
-                Convert life challenges into clear, actionable strategies.
+                {text(
+                  "Convert life challenges into clear, actionable strategies. ",
+                )}
               </p>
             </div>
             <div
@@ -839,8 +866,9 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[15px] text-black whitespace-nowrap"
                 data-node-id="461:1768"
               >
-                Understand structural relational patterns with complete
-                confidence.
+                {text(
+                  "Understand structural relational patterns with complete confidence. ",
+                )}
               </p>
             </div>
             <div
@@ -863,7 +891,9 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[15px] text-black whitespace-nowrap"
                 data-node-id="461:1771"
               >
-                Locate emotional balance using objective chronologies.
+                {text(
+                  "Locate emotional balance using objective chronologies. ",
+                )}
               </p>
             </div>
           </div>
@@ -887,19 +917,23 @@ export default function ScreenDesktopHome() {
             <p
               className="font-display h-[40px] leading-[normal] not-italic relative shrink-0 text-[36px] w-[36px]"
               data-node-id="461:1774"
-            >{`"`}</p>
+            >
+              {text(`"`)}
+            </p>
             <p
               className="flex-[1_0_0] font-serif font-light leading-[1.5] min-w-px relative text-[24px] text-center"
               data-node-id="461:1775"
             >
-              Absolutely precise. I was looking for structural clarity without
-              the typical metaphysical clutter. My advisor mapped out my
-              transition timelines perfectly. This is the exact tool I needed.
+              {text(
+                "Absolutely precise. I was looking for structural clarity without the typical metaphysical clutter. My advisor mapped out my transition timelines perfectly. This is the exact tool I needed. ",
+              )}
             </p>
             <p
               className="font-display h-[40px] leading-[normal] not-italic relative shrink-0 text-[36px] w-[36px]"
               data-node-id="450:1575"
-            >{`"`}</p>
+            >
+              {text(`"`)}
+            </p>
           </div>
           <div
             className="content-stretch flex gap-[12px] items-center relative shrink-0"
@@ -915,7 +949,7 @@ export default function ScreenDesktopHome() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[15px] text-black whitespace-nowrap"
               data-node-id="461:1778"
             >
-              H. Reynolds
+              {text("H. Reynolds ")}
             </p>
           </div>
         </div>
@@ -950,7 +984,7 @@ export default function ScreenDesktopHome() {
               className="font-serif font-normal relative shrink-0 text-[14px] uppercase"
               data-node-id="461:1783"
             >
-              Average Platform Rating
+              {text("Average Platform Rating ")}
             </p>
           </div>
           <div
@@ -987,7 +1021,7 @@ export default function ScreenDesktopHome() {
               className="font-serif font-normal relative shrink-0 text-[14px] uppercase"
               data-node-id="461:1787"
             >
-              Countries Serviced
+              {text("Countries Serviced ")}
             </p>
           </div>
           <div
@@ -1018,13 +1052,13 @@ export default function ScreenDesktopHome() {
               className="font-display not-italic relative shrink-0 text-[48px]"
               data-node-id="461:1790"
             >
-              10K+
+              {text("10K+ ")}
             </p>
             <p
               className="font-serif font-normal relative shrink-0 text-[14px] uppercase"
               data-node-id="461:1791"
             >
-              Completed Consultations
+              {text("Completed Consultations ")}
             </p>
           </div>
         </div>
@@ -1048,14 +1082,14 @@ export default function ScreenDesktopHome() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[12px] text-white uppercase whitespace-nowrap"
               data-node-id="461:1795"
             >
-              Execution Path
+              {text("Execution Path ")}
             </p>
           </div>
           <p
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[36px] text-white whitespace-nowrap"
             data-node-id="461:1796"
           >
-            Onboarding Protocol
+            {text("Onboarding Protocol ")}
           </p>
         </div>
         <div
@@ -1078,14 +1112,15 @@ export default function ScreenDesktopHome() {
               className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black whitespace-nowrap"
               data-node-id="461:1800"
             >
-              Diagnostic Intake
+              {text("Diagnostic Intake ")}
             </p>
             <p
               className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black w-[min-content]"
               data-node-id="461:1801"
             >
-              Complete a brief diagnostic matrix to help us match structural
-              advisors to your career or personal journey.
+              {text(
+                "Complete a brief diagnostic matrix to help us match structural advisors to your career or personal journey. ",
+              )}
             </p>
           </div>
           <div
@@ -1103,14 +1138,15 @@ export default function ScreenDesktopHome() {
               className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black whitespace-nowrap"
               data-node-id="461:1804"
             >
-              Select Advisor
+              {text("Select Advisor ")}
             </p>
             <p
               className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black w-[min-content]"
               data-node-id="461:1805"
             >
-              Browse certified specialists, review credentials and analytical
-              ratings, and choose the ideal consultant.
+              {text(
+                "Browse certified specialists, review credentials and analytical ratings, and choose the ideal consultant. ",
+              )}
             </p>
           </div>
           <div
@@ -1128,14 +1164,15 @@ export default function ScreenDesktopHome() {
               className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black whitespace-nowrap"
               data-node-id="461:1808"
             >
-              Initiate Session
+              {text("Initiate Session ")}
             </p>
             <p
               className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black w-[min-content]"
               data-node-id="461:1809"
             >
-              Connect through a secure 1-on-1 virtual workstation for a direct,
-              real-time consultation experience.
+              {text(
+                "Connect through a secure 1-on-1 virtual workstation for a direct, real-time consultation experience. ",
+              )}
             </p>
           </div>
           <div
@@ -1153,14 +1190,15 @@ export default function ScreenDesktopHome() {
               className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black whitespace-nowrap"
               data-node-id="461:1812"
             >
-              Continuous Audit
+              {text("Continuous Audit ")}
             </p>
             <p
               className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black w-[min-content]"
               data-node-id="461:1813"
             >
-              Log alignment tracking data to audit your trajectory over
-              consecutive monthly cycles.
+              {text(
+                "Log alignment tracking data to audit your trajectory over consecutive monthly cycles. ",
+              )}
             </p>
           </div>
         </div>
@@ -1190,7 +1228,7 @@ export default function ScreenDesktopHome() {
               className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[16px] text-black text-left whitespace-nowrap"
               data-node-id="461:1816"
             >
-              Get started
+              {text("Get started ")}
             </p>
           </span>
         </ContentLink>

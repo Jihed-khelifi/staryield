@@ -22,7 +22,7 @@ export function SiteHeader({
   publicSite?: boolean;
   promo?: boolean;
 }) {
-  const { locale, t } = useI18n();
+  const { text, locale, t } = useI18n();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const items = publicSite
@@ -42,8 +42,10 @@ export function SiteHeader({
     <>
       {promo && (
         <Link href={`/${locale}/signup`} className="promo-bar paper-page">
-          <span>3 MINUTES FREE + 80% OFF FOR NEW CUSTOMERS</span>
-          <span className="hidden sm:inline">CLAIM INTRO OFFER →</span>
+          <span>{text("3 MINUTES FREE + 80% OFF FOR NEW CUSTOMERS")}</span>
+          <span className="hidden sm:inline">
+            {text("CLAIM INTRO OFFER →")}
+          </span>
         </Link>
       )}
       <header className="site-header">
@@ -52,14 +54,17 @@ export function SiteHeader({
           href={`/${locale}`}
         >
           <SunLogo />
-          <span>Staryield</span>
+          <span>{text("Staryield")}</span>
         </Link>
         {pathname.endsWith("/chatroom") && (
           <Link className="chat-mobile-heading" href={`/${locale}/psychics`}>
-            <span aria-hidden="true">‹</span> Chatroom
+            <span aria-hidden="true">‹</span> {text("Chatroom ")}
           </Link>
         )}
-        <nav aria-label={t("nav.menuTitle")} className="desktop-nav">
+        <nav
+          aria-label={t("nav.menuTitle")}
+          className={`desktop-nav ${publicSite ? "public-nav" : ""}`}
+        >
           {items.map(([label, href]) => (
             <Link
               key={href}
@@ -67,28 +72,31 @@ export function SiteHeader({
               aria-current={active(href) ? "page" : undefined}
               href={`/${locale}${href}`}
             >
-              {label}
+              {text(label)}
             </Link>
           ))}
         </nav>
         <div className="flex items-center gap-3">
+          <LocaleSwitcher className="rounded-full border border-gold/40 bg-cream/60 px-2 sm:px-3" />
           {publicSite ? (
-            <div className="hidden items-center gap-4 md:flex">
-              <Link href={`/${locale}/login`}>Log In</Link>
+            <div className="hidden items-center gap-4 lg:flex">
+              <Link href={`/${locale}/login`}>{text("Log In")}</Link>
               <Button asChild className="gold-button w-40">
-                <Link href={`/${locale}/signup`}>Sign In</Link>
+                <Link href={`/${locale}/signup`}>{text("Sign Up")}</Link>
               </Button>
             </div>
           ) : (
             <>
               <Link href={`/${locale}/credits`} className="balance-pill">
                 <span className="md:hidden">✦ </span>
-                <span className="hidden md:inline">Balance: </span>320{" "}
-                <span className="md:capitalize">credits</span>
+                <span className="hidden md:inline">
+                  {text("Balance: ")}
+                </span>320{" "}
+                <span className="md:capitalize">{text("credits")}</span>
               </Link>
               <Link
                 href={`/${locale}/profile/settings`}
-                aria-label="Account settings"
+                aria-label={text("Account settings")}
                 className="hidden size-10 items-center justify-center rounded-full bg-gold text-cream-light md:flex"
               >
                 <UserRound size={20} />
@@ -101,14 +109,14 @@ export function SiteHeader({
                 variant="ghost"
                 size="icon"
                 aria-label={t("nav.openMenu")}
-                className={publicSite ? "md:hidden" : "hidden"}
+                className={publicSite ? "lg:hidden" : "hidden"}
               >
                 <Menu />
               </Button>
             </SheetTrigger>
             <SheetContent>
               <SheetHeader>
-                <SheetTitle>Staryield</SheetTitle>
+                <SheetTitle>{text("Staryield")}</SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-6 px-6">
                 {items.map(([label, href]) => (
@@ -117,14 +125,14 @@ export function SiteHeader({
                     onClick={() => setOpen(false)}
                     href={`/${locale}${href}`}
                   >
-                    {label}
+                    {text(label)}
                   </Link>
                 ))}
                 <Link onClick={() => setOpen(false)} href={`/${locale}/login`}>
-                  Log In
+                  {text("Log In ")}
                 </Link>
                 <Link onClick={() => setOpen(false)} href={`/${locale}/signup`}>
-                  Sign Up
+                  {text("Sign Up ")}
                 </Link>
                 <LocaleSwitcher />
               </nav>
@@ -136,7 +144,7 @@ export function SiteHeader({
   );
 }
 export function MobileNavigation() {
-  const { locale } = useI18n();
+  const { text, locale } = useI18n();
   const path = usePathname();
   const links = [
     ["Today", "/profile", Sun],
@@ -145,7 +153,7 @@ export function MobileNavigation() {
     ["Profile", "/profile/chart", UserRound],
   ] as const;
   return (
-    <nav className="mobile-navigation" aria-label="Main navigation">
+    <nav className="mobile-navigation" aria-label={text("Main navigation")}>
       {links.map(([label, href, Icon]) => (
         <Link
           key={label}
@@ -158,7 +166,7 @@ export function MobileNavigation() {
           }
         >
           <Icon size={19} strokeWidth={1} />
-          <span>{label}</span>
+          <span>{text(label)}</span>
         </Link>
       ))}
     </nav>

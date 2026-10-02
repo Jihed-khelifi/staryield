@@ -1,3 +1,5 @@
+"use client";
+import { useI18n } from "@/i18n/i18n-provider";
 /* Figma 478:1638 — reusable responsive content regions. */
 /* eslint-disable @next/next/no-img-element */
 import { ContentLink } from "@/components/content/content-link";
@@ -10,6 +12,7 @@ const imgInstanceStar3 = `${assetPathPrefix}/ef883.png`;
 const imgDividerHorizontal = `${assetPathPrefix}/a0e30.svg`;
 const imgDividerHorizontal1 = `${assetPathPrefix}/96fb1.svg`;
 export default function ScreenDesktopAbout() {
+  const { text } = useI18n();
   return (
     <div
       className="figma-content flex w-full flex-col items-center bg-cream"
@@ -45,7 +48,7 @@ export default function ScreenDesktopAbout() {
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[14px] text-black tracking-[0.42px] whitespace-nowrap"
             data-node-id="478:1673"
           >
-            ESTABLISHED IN WISDOM
+            {text("ESTABLISHED IN WISDOM ")}
           </p>
           <div
             className="relative shrink-0 size-[18px]"
@@ -67,9 +70,9 @@ export default function ScreenDesktopAbout() {
           className="[word-break:break-word] font-serif font-light leading-[48px] relative shrink-0 text-[34px] text-black text-center w-[1000px]"
           data-node-id="478:1676"
         >
-          Staryield is your space for spiritual self-discovery, offering
-          personalized tools and guidance to help you feel seen, connected, and
-          confident along the way.
+          {text(
+            "Staryield is your space for spiritual self-discovery, offering personalized tools and guidance to help you feel seen, connected, and confident along the way. ",
+          )}
         </h1>
       </section>
       <section
@@ -100,7 +103,9 @@ export default function ScreenDesktopAbout() {
           <h2
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[32px] text-black tracking-[1.6px] whitespace-nowrap"
             data-node-id="478:1681"
-          >{`OUR MISSION & VISION`}</h2>
+          >
+            {text(`OUR MISSION & VISION`)}
+          </h2>
           <div
             className="relative shrink-0 size-[34.07px]"
             data-node-id="478:1682"
@@ -136,21 +141,24 @@ export default function ScreenDesktopAbout() {
                 className="font-serif font-semibold leading-[normal] relative shrink-0 text-[18px] tracking-[0.72px] whitespace-nowrap"
                 data-node-id="478:1687"
               >
-                The Heart of Staryield
+                {text("The Heart of Staryield ")}
               </p>
               <p
                 className="font-serif font-light leading-[1.4] min-w-full relative shrink-0 text-[24px] text-center w-[min-content]"
                 data-node-id="478:1688"
-              >{`"Our mission is to foster self-discovery, spiritual wellness, and genuine connection — in life, love, and within."`}</p>
+              >
+                {text(
+                  `"Our mission is to foster self-discovery, spiritual wellness, and genuine connection — in life, love, and within."`,
+                )}
+              </p>
             </div>
             <p
               className="font-serif font-normal leading-[1.6] relative shrink-0 text-[18px] w-full"
               data-node-id="478:1689"
             >
-              Staryield creates a welcoming space for your spiritual journey,
-              offering tools built around you. We strip away the intimidating
-              barriers of traditional esoteric studies, delivering elegant
-              resources that feel intimate and relevant to your modern life.
+              {text(
+                "Staryield creates a welcoming space for your spiritual journey, offering tools built around you. We strip away the intimidating barriers of traditional esoteric studies, delivering elegant resources that feel intimate and relevant to your modern life. ",
+              )}
             </p>
           </div>
           <div
@@ -161,7 +169,11 @@ export default function ScreenDesktopAbout() {
             <p
               className="[word-break:break-word] font-serif font-normal leading-[1.5] relative shrink-0 text-[20px] text-black w-full"
               data-node-id="478:1691"
-            >{`We're with you every step of the way, offering insight and guidance whenever you need it — whether you're seeking clarity in life, curious about your future, or simply reflecting.`}</p>
+            >
+              {text(
+                `We're with you every step of the way, offering insight and guidance whenever you need it — whether you're seeking clarity in life, curious about your future, or simply reflecting.`,
+              )}
+            </p>
             <div
               className="h-0 relative shrink-0 w-full"
               data-node-id="478:1692"
@@ -179,10 +191,9 @@ export default function ScreenDesktopAbout() {
               className="[word-break:break-word] font-serif font-normal leading-[1.6] relative shrink-0 text-[16px] text-black w-full"
               data-node-id="478:1693"
             >
-              Every card pulled, natal chart rendered, and chat session started
-              is backed by advisors who prioritize compassionate listening and
-              absolute spiritual integrity. We do not provide cookie-cutter
-              outputs; we honor your personal truth.
+              {text(
+                "Every card pulled, natal chart rendered, and chat session started is backed by advisors who prioritize compassionate listening and absolute spiritual integrity. We do not provide cookie-cutter outputs; we honor your personal truth. ",
+              )}
             </p>
           </div>
         </div>
@@ -214,21 +225,22 @@ export default function ScreenDesktopAbout() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#c29a3d] text-[12px] uppercase whitespace-nowrap"
               data-node-id="478:1697"
             >
-              OUR ADVISORY BOARD
+              {text("OUR ADVISORY BOARD ")}
             </p>
           </div>
           <p
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[36px] text-black text-center whitespace-nowrap"
             data-node-id="478:1698"
-          >{`Compassionate Listening & Spiritual Integrity`}</p>
+          >
+            {text(`Compassionate Listening & Spiritual Integrity`)}
+          </p>
           <p
             className="[word-break:break-word] font-serif font-normal leading-[1.6] relative shrink-0 text-[16px] text-black text-center w-[720px]"
             data-node-id="478:1699"
           >
-            Our advisors represent the highest standard of esoteric rigor. Every
-            specialist undergoes strict vetting to ensure your personal readings
-            are treated with absolute discretion, empathy, and professional
-            integrity.
+            {text(
+              "Our advisors represent the highest standard of esoteric rigor. Every specialist undergoes strict vetting to ensure your personal readings are treated with absolute discretion, empathy, and professional integrity. ",
+            )}
           </p>
         </div>
         <div
@@ -260,12 +272,16 @@ export default function ScreenDesktopAbout() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#c29a3d] text-[20px] whitespace-nowrap"
               data-node-id="478:1704"
             >
-              Empathetic Guidance
+              {text("Empathetic Guidance ")}
             </p>
             <p
               className="[word-break:break-word] font-serif font-normal leading-[1.6] min-w-full relative shrink-0 text-[15px] text-black w-[min-content]"
               data-node-id="478:1705"
-            >{`No judgment or cookie-cutter scripts. Direct answers to life's most complex equations.`}</p>
+            >
+              {text(
+                `No judgment or cookie-cutter scripts. Direct answers to life's most complex equations.`,
+              )}
+            </p>
           </div>
           <div
             className="bg-[rgba(170,144,99,0.17)] border border-[rgba(194,154,61,0.15)] border-solid content-stretch flex flex-[1_0_0] flex-col gap-[16px] items-start min-w-px p-[32px] relative rounded-[16px]"
@@ -291,14 +307,15 @@ export default function ScreenDesktopAbout() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#c29a3d] text-[20px] whitespace-nowrap"
               data-node-id="478:1709"
             >
-              Rigorous Standards
+              {text("Rigorous Standards ")}
             </p>
             <p
               className="[word-break:break-word] font-serif font-normal leading-[1.6] min-w-full relative shrink-0 text-[15px] text-black w-[min-content]"
               data-node-id="478:1710"
             >
-              Every advisor undergoes continuous audit and feedback to guarantee
-              absolute professional focus.
+              {text(
+                "Every advisor undergoes continuous audit and feedback to guarantee absolute professional focus. ",
+              )}
             </p>
           </div>
           <div
@@ -325,14 +342,15 @@ export default function ScreenDesktopAbout() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#c29a3d] text-[20px] whitespace-nowrap"
               data-node-id="478:1714"
             >
-              Total Confidentiality
+              {text("Total Confidentiality ")}
             </p>
             <p
               className="[word-break:break-word] font-serif font-normal leading-[1.6] min-w-full relative shrink-0 text-[15px] text-black w-[min-content]"
               data-node-id="478:1715"
             >
-              Your dates, cards, and transits are shielded with end-to-end
-              security protocols.
+              {text(
+                "Your dates, cards, and transits are shielded with end-to-end security protocols. ",
+              )}
             </p>
           </div>
         </div>
@@ -367,7 +385,7 @@ export default function ScreenDesktopAbout() {
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[40px] text-black tracking-[2px] whitespace-nowrap"
             data-node-id="478:1720"
           >
-            SEEK YOUR ALIGNMENT
+            {text("SEEK YOUR ALIGNMENT ")}
           </p>
           <div
             className="relative shrink-0 size-[34.07px]"
@@ -399,17 +417,17 @@ export default function ScreenDesktopAbout() {
               className="font-serif font-semibold leading-[1.4] relative shrink-0 text-[24px] w-full"
               data-node-id="478:1725"
             >
-              Curious to know more? Find us on social media. Or explore our FAQ
-              for answers to your questions. Feel free to get in touch with us
-              if you need any help.
+              {text(
+                "Curious to know more? Find us on social media. Or explore our FAQ for answers to your questions. Feel free to get in touch with us if you need any help. ",
+              )}
             </p>
             <p
               className="font-serif font-normal leading-[1.6] relative shrink-0 text-[16px] w-full"
               data-node-id="478:1726"
             >
-              Our support team and master astrologers are always within reach.
-              Follow our channels for daily transits, zodiac insight, and custom
-              spiritual rituals.
+              {text(
+                "Our support team and master astrologers are always within reach. Follow our channels for daily transits, zodiac insight, and custom spiritual rituals. ",
+              )}
             </p>
           </div>
           <div
@@ -432,14 +450,15 @@ export default function ScreenDesktopAbout() {
               className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[#171717] text-[18px] text-center tracking-[0.54px] w-full"
               data-node-id="478:1728"
             >
-              Interactive Guidance
+              {text("Interactive Guidance ")}
             </p>
             <p
               className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#171717] text-[13px] text-center w-full"
               data-node-id="478:1729"
             >
-              Get live chats with psychics, order rituals, and schedule
-              personalized sessions.
+              {text(
+                "Get live chats with psychics, order rituals, and schedule personalized sessions. ",
+              )}
             </p>
             <div
               className="h-0 relative shrink-0 w-full"
@@ -474,7 +493,7 @@ export default function ScreenDesktopAbout() {
                 className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[24px] text-black text-center tracking-[1.2px] whitespace-nowrap"
                 data-node-id="I478:1731;113:303"
               >
-                START TODAY
+                {text("START TODAY ")}
               </p>
             </span>
           </div>

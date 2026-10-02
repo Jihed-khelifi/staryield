@@ -1,3 +1,5 @@
+"use client";
+import { useI18n } from "@/i18n/i18n-provider";
 /* Figma 342:1455 — reusable responsive content regions. */
 /* eslint-disable @next/next/no-img-element */
 import { ContentLink } from "@/components/content/content-link";
@@ -9,6 +11,7 @@ const imgDividerHorizontal = `${assetPathPrefix}/2e925.svg`;
 const imgContainerCheck = `${assetPathPrefix}/ceeda.svg`;
 const imgDividerHorizontal1 = `${assetPathPrefix}/5455a.svg`;
 export default function ScreenDesktopReviews() {
+  const { text } = useI18n();
   return (
     <div
       className="figma-content flex w-full flex-col items-center bg-cream"
@@ -29,7 +32,7 @@ export default function ScreenDesktopReviews() {
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[40px] text-black tracking-[1.6px] whitespace-nowrap"
             data-node-id="342:1479"
           >
-            Trustpilot
+            {text("Trustpilot ")}
           </h1>
         </div>
         <div
@@ -46,7 +49,7 @@ export default function ScreenDesktopReviews() {
               className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[20px] text-black whitespace-nowrap"
               data-node-id="342:1482"
             >
-              17,419 reviews
+              {text("17,419 reviews ")}
             </p>
             <div
               className="content-stretch flex gap-[12px] items-center relative shrink-0"
@@ -128,7 +131,7 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[22px] text-black whitespace-nowrap"
                 data-node-id="342:1495"
               >
-                | 4.4 rating
+                {text("| 4.4 rating ")}
               </p>
             </div>
           </div>
@@ -136,7 +139,7 @@ export default function ScreenDesktopReviews() {
             className="[word-break:break-word] font-serif font-light leading-[normal] relative shrink-0 text-[24px] text-black text-center tracking-[0.72px] whitespace-nowrap"
             data-node-id="342:1496"
           >
-            Reviews from our customers
+            {text("Reviews from our customers ")}
           </p>
         </div>
       </div>
@@ -180,13 +183,13 @@ export default function ScreenDesktopReviews() {
                   className="font-serif font-semibold relative shrink-0 text-[20px]"
                   data-node-id="342:1502"
                 >
-                  Thayna
+                  {text("Thayna ")}
                 </p>
                 <p
                   className="font-serif font-extralight relative shrink-0 text-[14px]"
                   data-node-id="342:1503"
                 >
-                  24 Aug, 2026
+                  {text("24 Aug, 2026 ")}
                 </p>
               </div>
               <div
@@ -265,8 +268,9 @@ export default function ScreenDesktopReviews() {
               className="[word-break:break-word] font-serif font-normal leading-[1.5] relative shrink-0 text-[16px] text-black w-full"
               data-node-id="342:1515"
             >
-              She was on point from the beginning! Could translate exactly how I
-              felt! Fast reply and lots of details!! Thank you!
+              {text(
+                "She was on point from the beginning! Could translate exactly how I felt! Fast reply and lots of details!! Thank you! ",
+              )}
             </p>
           </div>
           <div
@@ -299,13 +303,13 @@ export default function ScreenDesktopReviews() {
                   className="font-serif font-semibold relative shrink-0 text-[20px]"
                   data-node-id="342:1519"
                 >
-                  Surinder
+                  {text("Surinder ")}
                 </p>
                 <p
                   className="font-serif font-extralight relative shrink-0 text-[14px]"
                   data-node-id="342:1520"
                 >
-                  24 Aug, 2026
+                  {text("24 Aug, 2026 ")}
                 </p>
               </div>
               <div
@@ -384,8 +388,9 @@ export default function ScreenDesktopReviews() {
               className="[word-break:break-word] font-serif font-normal leading-[1.5] relative shrink-0 text-[16px] text-black w-full"
               data-node-id="342:1532"
             >
-              Can u pls unhide my answer the reading is great and accurate thank
-              alot for your reading
+              {text(
+                "Can u pls unhide my answer the reading is great and accurate thank alot for your reading ",
+              )}
             </p>
           </div>
           <div
@@ -418,13 +423,13 @@ export default function ScreenDesktopReviews() {
                   className="font-serif font-semibold relative shrink-0 text-[20px]"
                   data-node-id="342:1536"
                 >
-                  Mariana
+                  {text("Mariana ")}
                 </p>
                 <p
                   className="font-serif font-extralight relative shrink-0 text-[14px]"
                   data-node-id="342:1537"
                 >
-                  23 Aug, 2026
+                  {text("23 Aug, 2026 ")}
                 </p>
               </div>
               <div
@@ -503,8 +508,9 @@ export default function ScreenDesktopReviews() {
               className="[word-break:break-word] font-serif font-normal leading-[1.5] relative shrink-0 text-[16px] text-black w-full"
               data-node-id="342:1549"
             >
-              Incredible session, felt truly seen and understood. The guidance
-              was specific and immediately helpful.
+              {text(
+                "Incredible session, felt truly seen and understood. The guidance was specific and immediately helpful. ",
+              )}
             </p>
           </div>
         </div>
@@ -523,7 +529,7 @@ export default function ScreenDesktopReviews() {
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[40px] text-center text-white tracking-[1.6px] whitespace-nowrap"
             data-node-id="342:1554"
           >
-            Staryield Review
+            {text("Staryield Review ")}
           </p>
           <div
             className="relative shrink-0 size-[34.07px]"
@@ -534,7 +540,7 @@ export default function ScreenDesktopReviews() {
             className="[word-break:break-word] font-serif font-extralight leading-[normal] relative shrink-0 text-[20px] text-center text-white tracking-[0.8px] whitespace-nowrap"
             data-node-id="464:21684"
           >
-            Everything You Need to Know
+            {text("Everything You Need to Know ")}
           </p>
         </section>
         <div
@@ -546,42 +552,41 @@ export default function ScreenDesktopReviews() {
             className="font-serif font-medium leading-[1.45] relative shrink-0 text-[28px] w-full"
             data-node-id="342:1559"
           >
-            Are you seeking clarity on a relationship, or wondering what
-            direction your life is heading? Maybe you are looking for comfort
-            during a difficult transition.
+            {text(
+              "Are you seeking clarity on a relationship, or wondering what direction your life is heading? Maybe you are looking for comfort during a difficult transition. ",
+            )}
           </p>
           <p
             className="font-serif font-normal leading-[1.6] relative shrink-0 text-[20px] w-full"
             data-node-id="342:1560"
           >
-            What if there was a trusted space where you could explore fresh
-            perspectives on your past, present, and future?
+            {text(
+              "What if there was a trusted space where you could explore fresh perspectives on your past, present, and future? ",
+            )}
           </p>
           <p
             className="font-serif font-normal leading-[1.6] relative shrink-0 text-[20px] w-full"
             data-node-id="342:1561"
           >
-            That space is - a platform devoted to helping people reflect on
-            their relationships, purpose, and path through personalized psychic
-            and astrology sessions.
+            {text(
+              "That space is - a platform devoted to helping people reflect on their relationships, purpose, and path through personalized psychic and astrology sessions. ",
+            )}
           </p>
           <p
             className="font-serif font-normal leading-[1.6] relative shrink-0 text-[20px] w-full"
             data-node-id="342:1562"
           >
-            With over 1000 gifted psychics, our users receive guidance 24/7,
-            helping them better understand themselves and the people around
-            them.
+            {text(
+              "With over 1000 gifted psychics, our users receive guidance 24/7, helping them better understand themselves and the people around them. ",
+            )}
           </p>
           <p
             className="font-serif font-normal leading-[1.6] relative shrink-0 text-[20px] w-full"
             data-node-id="342:1563"
           >
-            If you are looking for compassionate, nonjudgmental advice and want
-            to learn more about yourself and others, Staryield is the place to
-            be. Our platform connects you with trusted advisors. Use our search
-            filters or take the matching quiz to find the perfect guide for your
-            journey.
+            {text(
+              "If you are looking for compassionate, nonjudgmental advice and want to learn more about yourself and others, Staryield is the place to be. Our platform connects you with trusted advisors. Use our search filters or take the matching quiz to find the perfect guide for your journey. ",
+            )}
           </p>
         </div>
       </div>
@@ -617,7 +622,7 @@ export default function ScreenDesktopReviews() {
               className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[32px] text-black text-center tracking-[1.28px] whitespace-nowrap"
               data-node-id="342:1570"
             >
-              Facts About Staryield
+              {text("Facts About Staryield ")}
             </p>
             <div
               className="relative shrink-0 size-[34.07px]"
@@ -642,8 +647,9 @@ export default function ScreenDesktopReviews() {
               className="font-serif font-normal leading-[1.6] min-w-full relative shrink-0 text-[24px] w-[min-content]"
               data-node-id="342:1575"
             >
-              If you are wondering whether Staryield is the right choice for
-              you, here are some interesting facts about our website:
+              {text(
+                "If you are wondering whether Staryield is the right choice for you, here are some interesting facts about our website: ",
+              )}
             </p>
             <div
               className="font-serif font-light grid-cols-[max-content] grid-rows-[max-content] inline-grid leading-[0] place-items-start relative shrink-0 text-[18px]"
@@ -653,18 +659,26 @@ export default function ScreenDesktopReviews() {
               <p
                 className="col-1 leading-[1.6] ml-0 mt-0 relative row-1 w-[1120px]"
                 data-node-id="342:1576"
-              >{`• Many of our reviews don't just focus on the psychics' work; some highlight our customer service. Our platform features a prompt and responsive support team, and clients are consistently satisfied.`}</p>
+              >
+                {text(
+                  `• Many of our reviews don't just focus on the psychics' work; some highlight our customer service. Our platform features a prompt and responsive support team, and clients are consistently satisfied.`,
+                )}
+              </p>
               <p
                 className="col-1 leading-[1.6] ml-0 mt-[70px] relative row-1 w-[1120px]"
                 data-node-id="342:1577"
-              >{`• If you check the app reviews, you'll see that the mobile version includes a compatibility tool, so you can explore questions about your future and your relationships.`}</p>
+              >
+                {text(
+                  `• If you check the app reviews, you'll see that the mobile version includes a compatibility tool, so you can explore questions about your future and your relationships.`,
+                )}
+              </p>
               <p
                 className="col-1 leading-[1.6] ml-0 mt-[140px] relative row-1 w-[1120px]"
                 data-node-id="342:1578"
               >
-                • Staryield psychics have helped millions of people, building
-                the reputation of both our website and app. Check out Staryield
-                reviews to see for yourself.
+                {text(
+                  "• Staryield psychics have helped millions of people, building the reputation of both our website and app. Check out Staryield reviews to see for yourself. ",
+                )}
               </p>
             </div>
           </div>
@@ -688,8 +702,12 @@ export default function ScreenDesktopReviews() {
               className="[word-break:break-word] font-display leading-[0] not-italic relative shrink-0 text-[40px] text-black text-center tracking-[1.6px] whitespace-nowrap"
               data-node-id="342:1583"
             >
-              <p className="leading-[normal] mb-0 whitespace-pre">{`Why Choose `}</p>
-              <p className="leading-[normal] whitespace-pre">Staryield</p>
+              <p className="leading-[normal] mb-0 whitespace-pre">
+                {text(`Why Choose `)}
+              </p>
+              <p className="leading-[normal] whitespace-pre">
+                {text("Staryield")}
+              </p>
             </div>
             <div
               className="relative shrink-0 size-[34.07px]"
@@ -710,7 +728,9 @@ export default function ScreenDesktopReviews() {
               <p
                 className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[24px] text-black whitespace-nowrap"
                 data-node-id="342:1602"
-              >{`Staryield's Pros`}</p>
+              >
+                {text(`Staryield's Pros`)}
+              </p>
               <div
                 className="h-0 relative shrink-0 w-full"
                 data-node-id="342:1603"
@@ -750,7 +770,7 @@ export default function ScreenDesktopReviews() {
                   className="[word-break:break-word] flex-[1_0_0] font-serif font-normal leading-[normal] min-w-px relative text-[18px] text-black"
                   data-node-id="342:1607"
                 >
-                  Convenient 1:1 chat readings available 24/7
+                  {text("Convenient 1:1 chat readings available 24/7 ")}
                 </p>
               </div>
               <div
@@ -779,7 +799,7 @@ export default function ScreenDesktopReviews() {
                   className="[word-break:break-word] flex-[1_0_0] font-serif font-normal leading-[normal] min-w-px relative text-[18px] text-black"
                   data-node-id="342:1611"
                 >
-                  Expert guidance for your romantic relationships
+                  {text("Expert guidance for your romantic relationships ")}
                 </p>
               </div>
               <div
@@ -808,7 +828,7 @@ export default function ScreenDesktopReviews() {
                   className="[word-break:break-word] flex-[1_0_0] font-serif font-normal leading-[normal] min-w-px relative text-[18px] text-black"
                   data-node-id="342:1615"
                 >
-                  Free horoscopes and personalized astrology advice
+                  {text("Free horoscopes and personalized astrology advice ")}
                 </p>
               </div>
               <div
@@ -837,7 +857,7 @@ export default function ScreenDesktopReviews() {
                   className="[word-break:break-word] flex-[1_0_0] font-serif font-normal leading-[normal] min-w-px relative text-[18px] text-black"
                   data-node-id="342:1619"
                 >
-                  Free credits for your first reading
+                  {text("Free credits for your first reading ")}
                 </p>
               </div>
               <div
@@ -866,7 +886,7 @@ export default function ScreenDesktopReviews() {
                   className="[word-break:break-word] flex-[1_0_0] font-serif font-normal leading-[normal] min-w-px relative text-[18px] text-black"
                   data-node-id="342:1623"
                 >
-                  An effective psychic-client matching tool
+                  {text("An effective psychic-client matching tool ")}
                 </p>
               </div>
             </div>
@@ -892,9 +912,11 @@ export default function ScreenDesktopReviews() {
           data-node-id="342:1625"
         >
           <p className="leading-[normal] mb-0">
-            STILL HESITATING WHETHER STARYIELD
+            {text("STILL HESITATING WHETHER STARYIELD ")}
           </p>
-          <p className="leading-[normal]">IS BETTER THAN COMPETITORS?</p>
+          <p className="leading-[normal]">
+            {text("IS BETTER THAN COMPETITORS?")}
+          </p>
         </div>
         <div
           className="content-stretch flex flex-col h-[77px] items-center justify-between relative shrink-0 w-[852px]"
@@ -921,18 +943,20 @@ export default function ScreenDesktopReviews() {
               className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[24px] text-black text-center tracking-[1.2px] whitespace-nowrap"
               data-node-id="I342:1627;113:303"
             >
-              Start First Reading
+              {text("Start First Reading ")}
             </p>
           </span>
           <p
             className="[word-break:break-word] font-serif font-normal leading-[0] relative shrink-0 text-[#2f241c] text-[22px] text-center w-[540.545px]"
             data-node-id="342:1626"
           >
-            <span className="leading-[normal]">{`Try `}</span>
+            <span className="leading-[normal]">{text(`Try `)}</span>
             <span className="font-serif font-bold leading-[normal] text-[#c29a3d]">
-              free minutes
+              {text("free minutes ")}
             </span>
-            <span className="leading-[normal]">{` of chat and see for yourself`}</span>
+            <span className="leading-[normal]">
+              {text(` of chat and see for yourself`)}
+            </span>
           </p>
         </div>
       </ContentLink>
@@ -960,7 +984,7 @@ export default function ScreenDesktopReviews() {
               className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[#2f241c] text-[32px] text-center tracking-[1.28px] whitespace-nowrap"
               data-node-id="342:1633"
             >
-              Free Celestial Services
+              {text("Free Celestial Services ")}
             </p>
             <div
               className="relative shrink-0 size-[34.07px]"
@@ -982,7 +1006,7 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-medium leading-[normal] relative shrink-0 text-[#2f241c] text-[22px] whitespace-nowrap"
                 data-node-id="342:1638"
               >
-                Staryield offers a range of free services:
+                {text("Staryield offers a range of free services: ")}
               </p>
               <div
                 className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0"
@@ -1011,7 +1035,7 @@ export default function ScreenDesktopReviews() {
                     className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[18px] whitespace-nowrap"
                     data-node-id="342:1643"
                   >
-                    Personal daily horoscopes
+                    {text("Personal daily horoscopes ")}
                   </p>
                 </div>
                 <div
@@ -1036,7 +1060,7 @@ export default function ScreenDesktopReviews() {
                     className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[18px] whitespace-nowrap"
                     data-node-id="342:1647"
                   >
-                    The focus of the day
+                    {text("The focus of the day ")}
                   </p>
                 </div>
                 <div
@@ -1061,7 +1085,7 @@ export default function ScreenDesktopReviews() {
                     className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[18px] whitespace-nowrap"
                     data-node-id="342:1651"
                   >
-                    Compatibility tool
+                    {text("Compatibility tool ")}
                   </p>
                 </div>
                 <div
@@ -1086,7 +1110,7 @@ export default function ScreenDesktopReviews() {
                     className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[18px] whitespace-nowrap"
                     data-node-id="342:1655"
                   >
-                    Tarot of the day (Staryield App)
+                    {text("Tarot of the day (Staryield App) ")}
                   </p>
                 </div>
               </div>
@@ -1097,14 +1121,14 @@ export default function ScreenDesktopReviews() {
               data-name="Layout / Free Services / 02"
             >
               <p className="relative shrink-0 w-full" data-node-id="342:1657">
-                Our platform also provides users with highly informative
-                articles on topics ranging from the history of astrology to
-                instructions for deep spiritual meditations.
+                {text(
+                  "Our platform also provides users with highly informative articles on topics ranging from the history of astrology to instructions for deep spiritual meditations. ",
+                )}
               </p>
               <p className="relative shrink-0 w-full" data-node-id="342:1658">
-                Both our app and website are fully optimized for convenience.
-                Discover unmatched psychic talent, absolute transparency, and
-                genuine guidance crafted precisely for your astrological path.
+                {text(
+                  "Both our app and website are fully optimized for convenience. Discover unmatched psychic talent, absolute transparency, and genuine guidance crafted precisely for your astrological path. ",
+                )}
               </p>
             </div>
           </div>
@@ -1128,14 +1152,15 @@ export default function ScreenDesktopReviews() {
                 className="font-serif font-normal leading-[normal] relative shrink-0 text-[20px]"
                 data-node-id="342:1662"
               >
-                Gifted Staryield Psychics
+                {text("Gifted Staryield Psychics ")}
               </p>
               <p
                 className="font-serif font-light leading-[1.5] relative shrink-0 text-[16px]"
                 data-node-id="342:1663"
               >
-                Over 1000 vetted advisors. Every single client review tells a
-                true story of growth and heartfelt celestial guidance.
+                {text(
+                  "Over 1000 vetted advisors. Every single client review tells a true story of growth and heartfelt celestial guidance. ",
+                )}
               </p>
             </div>
             <div
@@ -1147,15 +1172,15 @@ export default function ScreenDesktopReviews() {
                 className="font-serif font-normal leading-[normal] relative shrink-0 text-[20px]"
                 data-node-id="342:1665"
               >
-                Smooth User Interface
+                {text("Smooth User Interface ")}
               </p>
               <p
                 className="font-serif font-light leading-[1.5] relative shrink-0 text-[16px]"
                 data-node-id="342:1666"
               >
-                Exceptional operational functions tailored for fluid
-                interactions. Enjoy a completely secure, risk-free experience
-                with zero glitches.
+                {text(
+                  "Exceptional operational functions tailored for fluid interactions. Enjoy a completely secure, risk-free experience with zero glitches. ",
+                )}
               </p>
             </div>
             <div
@@ -1167,14 +1192,15 @@ export default function ScreenDesktopReviews() {
                 className="font-serif font-normal leading-[normal] relative shrink-0 text-[20px]"
                 data-node-id="342:1668"
               >
-                Wide Range of Reading Themes
+                {text("Wide Range of Reading Themes ")}
               </p>
               <p
                 className="font-serif font-light leading-[1.5] relative shrink-0 text-[16px]"
                 data-node-id="342:1669"
               >
-                Deep focus on love, career, finances, and life choices. Includes
-                comprehensive tarot, aura scanning, astrology, and numerology.
+                {text(
+                  "Deep focus on love, career, finances, and life choices. Includes comprehensive tarot, aura scanning, astrology, and numerology. ",
+                )}
               </p>
             </div>
             <div
@@ -1185,14 +1211,16 @@ export default function ScreenDesktopReviews() {
               <p
                 className="font-serif font-normal leading-[normal] relative shrink-0 text-[20px]"
                 data-node-id="342:1671"
-              >{`Trial Features & Offers`}</p>
+              >
+                {text(`Trial Features & Offers`)}
+              </p>
               <p
                 className="font-serif font-light leading-[1.5] relative shrink-0 text-[16px]"
                 data-node-id="342:1672"
               >
-                Get introduced to Staryield with a generous welcome package.
-                Instantly receive $14 in free credits after taking our sign-up
-                matching quiz.
+                {text(
+                  "Get introduced to Staryield with a generous welcome package. Instantly receive $14 in free credits after taking our sign-up matching quiz. ",
+                )}
               </p>
             </div>
             <div
@@ -1204,15 +1232,15 @@ export default function ScreenDesktopReviews() {
                 className="font-serif font-normal leading-[normal] relative shrink-0 text-[20px]"
                 data-node-id="342:1674"
               >
-                Instant Live Chat Feature
+                {text("Instant Live Chat Feature ")}
               </p>
               <p
                 className="font-serif font-light leading-[1.5] relative shrink-0 text-[16px]"
                 data-node-id="342:1675"
               >
-                Connect instantly on the go with real-time text readings. For
-                slower pacing, detailed and comprehensive email readings are
-                also available.
+                {text(
+                  "Connect instantly on the go with real-time text readings. For slower pacing, detailed and comprehensive email readings are also available. ",
+                )}
               </p>
             </div>
             <div
@@ -1224,15 +1252,15 @@ export default function ScreenDesktopReviews() {
                 className="font-serif font-normal leading-[normal] relative shrink-0 text-[20px]"
                 data-node-id="342:1677"
               >
-                Get Matched Feature
+                {text("Get Matched Feature ")}
               </p>
               <p
                 className="font-serif font-light leading-[1.5] relative shrink-0 text-[16px]"
                 data-node-id="342:1678"
               >
-                Answer a few light questions about your current life situation
-                and let us match you with the top readers suited to your
-                personality.
+                {text(
+                  "Answer a few light questions about your current life situation and let us match you with the top readers suited to your personality. ",
+                )}
               </p>
             </div>
           </div>
@@ -1257,7 +1285,7 @@ export default function ScreenDesktopReviews() {
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[#2f241c] text-[48px] text-center tracking-[1.92px] whitespace-nowrap"
             data-node-id="342:1683"
           >
-            Staryield - Legit or Scam?
+            {text("Staryield - Legit or Scam? ")}
           </p>
           <div
             className="relative shrink-0 size-[34.07px]"
@@ -1274,18 +1302,17 @@ export default function ScreenDesktopReviews() {
             className="font-serif font-normal relative shrink-0 text-[32px] w-full"
             data-node-id="342:1688"
           >
-            Is Staryield a secure platform? Yes. Our meticulous hiring processes
-            ensure that only authentic, certified psychics are admitted to guide
-            our users.
+            {text(
+              "Is Staryield a secure platform? Yes. Our meticulous hiring processes ensure that only authentic, certified psychics are admitted to guide our users. ",
+            )}
           </p>
           <p
             className="font-serif font-light relative shrink-0 text-[18px] w-full"
             data-node-id="342:1689"
           >
-            Unlike competitor applications, we prioritize continuous user
-            feedback to maintain absolute spiritual integrity. Favorable reviews
-            across global forums corroborate our legitimacy in daily horoscope
-            and customized psychic readings.
+            {text(
+              "Unlike competitor applications, we prioritize continuous user feedback to maintain absolute spiritual integrity. Favorable reviews across global forums corroborate our legitimacy in daily horoscope and customized psychic readings. ",
+            )}
           </p>
         </div>
       </section>
@@ -1316,7 +1343,7 @@ export default function ScreenDesktopReviews() {
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[32px] text-center text-white tracking-[1.28px] whitespace-nowrap"
             data-node-id="342:1720"
           >
-            Spiritual Modalities
+            {text("Spiritual Modalities ")}
           </p>
           <div
             className="relative shrink-0 size-[34.07px]"
@@ -1345,24 +1372,31 @@ export default function ScreenDesktopReviews() {
             <p
               className="font-serif font-medium leading-[1.6] relative shrink-0"
               data-node-id="342:1725"
-            >{`Explore customized cosmic paths tailored specifically to you. Staryield's top practitioners offer specialized guidance through:`}</p>
+            >
+              {text(
+                `Explore customized cosmic paths tailored specifically to you. Staryield's top practitioners offer specialized guidance through:`,
+              )}
+            </p>
             <div
               className="content-stretch flex flex-col font-serif font-light gap-[16px] items-start leading-[normal] relative shrink-0"
               data-node-id="342:1726"
               data-name="Layout / Types Of Readings"
             >
-              <p
-                className="relative shrink-0"
-                data-node-id="342:1727"
-              >{` . Gain concrete perspective on immediate romantic and life transitions.`}</p>
-              <p
-                className="relative shrink-0"
-                data-node-id="342:1728"
-              >{` . Genuine, deep emotional and spiritual connection with certified practitioners.`}</p>
-              <p
-                className="relative shrink-0"
-                data-node-id="342:1729"
-              >{` . Harmonizing natural remedies with your overall astrological transits.`}</p>
+              <p className="relative shrink-0" data-node-id="342:1727">
+                {text(
+                  ` . Gain concrete perspective on immediate romantic and life transitions.`,
+                )}
+              </p>
+              <p className="relative shrink-0" data-node-id="342:1728">
+                {text(
+                  ` . Genuine, deep emotional and spiritual connection with certified practitioners.`,
+                )}
+              </p>
+              <p className="relative shrink-0" data-node-id="342:1729">
+                {text(
+                  ` . Harmonizing natural remedies with your overall astrological transits.`,
+                )}
+              </p>
             </div>
           </div>
         </div>
@@ -1388,7 +1422,7 @@ export default function ScreenDesktopReviews() {
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[32px] text-white whitespace-nowrap"
             data-node-id="342:1732"
           >
-            Other Available Modalities:
+            {text("Other Available Modalities: ")}
           </p>
           <div
             className="content-start flex flex-wrap gap-[12px] items-start justify-center relative shrink-0 w-full"
@@ -1404,7 +1438,7 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[14px] whitespace-nowrap"
                 data-node-id="342:1735"
               >
-                Numerology
+                {text("Numerology ")}
               </p>
             </div>
             <div
@@ -1416,7 +1450,7 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[14px] whitespace-nowrap"
                 data-node-id="342:1737"
               >
-                Clairvoyance
+                {text("Clairvoyance ")}
               </p>
             </div>
             <div
@@ -1428,7 +1462,7 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[14px] whitespace-nowrap"
                 data-node-id="342:1739"
               >
-                Occult Reading
+                {text("Occult Reading ")}
               </p>
             </div>
             <div
@@ -1440,7 +1474,7 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[14px] whitespace-nowrap"
                 data-node-id="342:1741"
               >
-                Angel Reading
+                {text("Angel Reading ")}
               </p>
             </div>
             <div
@@ -1452,7 +1486,7 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[14px] whitespace-nowrap"
                 data-node-id="342:1743"
               >
-                Spirituality
+                {text("Spirituality ")}
               </p>
             </div>
             <div
@@ -1464,7 +1498,7 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[14px] whitespace-nowrap"
                 data-node-id="342:1745"
               >
-                Mediumship
+                {text("Mediumship ")}
               </p>
             </div>
             <div
@@ -1476,7 +1510,7 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[14px] whitespace-nowrap"
                 data-node-id="342:1747"
               >
-                Runes
+                {text("Runes ")}
               </p>
             </div>
             <div
@@ -1488,7 +1522,7 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[14px] whitespace-nowrap"
                 data-node-id="342:1749"
               >
-                Pendulum
+                {text("Pendulum ")}
               </p>
             </div>
             <div
@@ -1500,7 +1534,7 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[14px] whitespace-nowrap"
                 data-node-id="342:1751"
               >
-                Past Life
+                {text("Past Life ")}
               </p>
             </div>
             <div
@@ -1512,7 +1546,7 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[14px] whitespace-nowrap"
                 data-node-id="342:1753"
               >
-                Aura
+                {text("Aura ")}
               </p>
             </div>
           </div>

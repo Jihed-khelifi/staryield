@@ -26,7 +26,7 @@ export function ChatHeader({
   onEnd,
   ended,
 }: ChatHeaderProps) {
-  const { t } = useI18n();
+  const { text, t } = useI18n();
 
   return (
     <div className="chat-header flex items-center justify-between gap-3 bg-sage p-4">
@@ -45,11 +45,11 @@ export function ChatHeader({
           type="button"
           className="md:hidden"
           onClick={onOpenDetails}
-          aria-label={`View ${reader.name}'s details`}
+          aria-label={text("View {value0}'s details", { value0: reader.name })}
         >
           <img
             className="chat-reader-portrait"
-            alt={reader.name}
+            alt={text(reader.name)}
             src={
               reader.id === "ramone"
                 ? "https://assets.staryield.net/assets/figma/47a9f.png"
@@ -63,7 +63,7 @@ export function ChatHeader({
 
         <div className="flex min-w-0 flex-col gap-0.5 text-ink">
           <span className="truncate font-serif text-[18px] font-bold">
-            {reader.name}
+            {text(reader.name)}
           </span>
           <span className="chat-reader-status font-ui text-xs opacity-80">
             {t(`chatroom.status.${reader.status}`)}
@@ -74,7 +74,7 @@ export function ChatHeader({
                 : reader.id === "theo"
                   ? 55
                   : 45}{" "}
-              credits/min
+              {text("credits/min ")}
             </span>
           </span>
         </div>
@@ -85,20 +85,20 @@ export function ChatHeader({
           <button
             type="button"
             onClick={onEnd}
-            aria-label={
+            aria-label={text(
               ended
-                ? `Resume chat with ${reader.name}`
-                : t("chatroom.header.endChatLabel", { name: reader.name })
-            }
+                ? text("Resume chat with {name}", { name: reader.name })
+                : t("chatroom.header.endChatLabel", { name: reader.name }),
+            )}
             className="cursor-pointer rounded-sm font-serif text-base font-medium whitespace-nowrap transition-colors hover:text-cream-light focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
-            {ended ? "Resume chat" : t("chatroom.header.endChat")}
+            {text(ended ? "Resume chat" : t("chatroom.header.endChat"))}
           </button>
           <span
             aria-label={t("chatroom.header.elapsed")}
             className="font-ui text-xs tabular-nums opacity-80"
           >
-            {formatDuration(elapsedSeconds)}
+            {text(formatDuration(elapsedSeconds))}
           </span>
         </div>
 

@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { FiCheck, FiChevronDown, FiGlobe } from "react-icons/fi";
 
-import { localeLabels, locales, type Locale } from "@/i18n/config";
+import { localeLabels, localePath, locales, type Locale } from "@/i18n/config";
 import { useI18n } from "@/i18n/i18n-provider";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,10 +27,13 @@ export function LocaleSwitcher({ className }: { className?: string }) {
     // eslint-disable-next-line react-hooks/immutability
     document.cookie = `STARYIELD_LOCALE=${next}; path=/; max-age=31536000; samesite=lax`;
 
-    const segments = pathname.split("/");
-    segments[1] = next;
-    router.replace(segments.join("/") || `/${next}`);
-    router.refresh();
+    router.replace(
+      localePath(
+        `${pathname}${window.location.search}${window.location.hash}`,
+        next,
+      ),
+      { scroll: false },
+    );
   }
 
   return (
@@ -50,12 +53,16 @@ export function LocaleSwitcher({ className }: { className?: string }) {
           <FiChevronDown aria-hidden className="opacity-60" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-40 font-serif">
+      <DropdownMenuContent
+        align="end"
+        className="min-w-40 rounded-xl border-gold/40 bg-cream-light p-1.5 font-serif text-ink shadow-lg"
+      >
         {locales.map((option) => (
           <DropdownMenuItem
             key={option}
             onSelect={() => switchTo(option)}
-            className="justify-between"
+            className="justify-between rounded-lg focus:bg-gold/15 focus:text-ink"
+            lang={option}
           >
             <span>{localeLabels[option].name}</span>
             {option === locale ? (

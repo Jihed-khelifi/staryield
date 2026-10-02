@@ -19,6 +19,9 @@ import { Account, type AccountView } from "@/components/account/account";
 import { CreditCheckout } from "@/components/account/credit-checkout";
 import { isLocale } from "@/i18n/config";
 import advisors from "@/data/advisors.json";
+import { getDictionary } from "@/i18n/dictionaries";
+import { createTranslateCopy } from "@/i18n/translate-copy";
+import { localePath, locales } from "@/i18n/config";
 
 const content = {
   about: About,
@@ -52,13 +55,48 @@ type RouteProps = { params: Promise<{ lang: string; screen: string[] }> };
 export async function generateMetadata({
   params,
 }: RouteProps): Promise<Metadata> {
-  const { screen } = await params;
+  const { lang, screen } = await params;
+  if (!isLocale(lang)) return {};
+  const text = createTranslateCopy((await getDictionary(lang)).copy);
+  const route = screen.join("/");
+  const titles: Record<string, string> = {
+    about: "About",
+    reviews: "Reviews",
+    standards: "Standards",
+    faq: "FAQ",
+    disclaimer: "Disclaimer",
+    terms: "Terms of Use",
+    privacy: "Privacy Policy",
+    contact: "Contact",
+    psychics: "Psychics",
+    profile: "Profile",
+    "profile/chart": "Natal Chart",
+    "profile/settings": "Settings",
+    credits: "Credits",
+    signup: "Sign up",
+    "signup/password": "Create password",
+    "signup/birth": "Date of birth",
+    "signup/offer": "Sign up",
+    login: "Log in",
+    "forgot-password": "Forgot password",
+    "calculators/natal-chart": "Natal Chart",
+    "calculators/path-of-life": "Life Path",
+    "calculators/astrology": "Astrology",
+  };
+  const advisor =
+    screen[0] === "psychics"
+      ? advisors.find((item) => item.slug === screen[1])
+      : undefined;
+  const title =
+    advisor?.name ?? text(titles[route.replace(/\/results$/, "")] ?? "Home");
   return {
-    title: screen
-      .at(-1)!
-      .split("-")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" "),
+    title:
+      screen.at(-1) === "results" ? `${title} — ${text("Results")}` : title,
+    alternates: {
+      languages: Object.fromEntries(
+        locales.map((locale) => [locale, localePath(`/${route}`, locale)]),
+      ),
+    },
   };
 }
 export default async function ScreenPage({ params }: RouteProps) {
