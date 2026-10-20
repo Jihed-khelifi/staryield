@@ -8,6 +8,8 @@ import (
 	"io"
 	"mime/multipart"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func multipartFile(t *testing.T, field, name string, data []byte) (io.Reader, string) {
@@ -41,3 +43,5 @@ func pngBytes(t *testing.T, w, h int) []byte {
 	}
 	return buf.Bytes()
 }
+
+func uuidString() string { return uuid.NewString() }

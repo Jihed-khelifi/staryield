@@ -369,7 +369,7 @@ func (c *ChatService) tryActivate(ctx context.Context, sessionID uuid.UUID) {
 		}
 		snap := *s
 		// "started" must reach clients before the billing/ended events.
-		post = append(afterCommit{func() {
+		post = append(afterCommit{func(ctx context.Context) {
 			c.publishSession(ctx, realtime.EventSessionStarted, &snap, nil)
 			c.track(ctx, "chat.started", &snap, nil)
 		}}, post...)
@@ -379,7 +379,7 @@ func (c *ChatService) tryActivate(ctx context.Context, sessionID uuid.UUID) {
 		logger.FromContext(ctx).Error("chat: activation failed", zap.Error(err), zap.String("session_id", sessionID.String()))
 		return
 	}
-	post.run()
+	post.run(ctx)
 }
 
 // handlePresenceLoss moves Active→Disconnected when a participant has no
@@ -422,7 +422,7 @@ func (c *ChatService) handlePresenceLoss(ctx context.Context, sessionID, leaver 
 		if err := c.chat.SaveSession(ctx, s); err != nil {
 			return err
 		}
-		post.add(func() {
+		post.add(func(ctx context.Context) {
 			c.publishSession(ctx, realtime.EventSessionDisconnected, s, map[string]any{"party": party, "grace_expires_at": grace})
 			c.track(ctx, "chat.disconnected", s, map[string]any{"party": party})
 		})
@@ -432,7 +432,7 @@ func (c *ChatService) handlePresenceLoss(ctx context.Context, sessionID, leaver 
 		logger.FromContext(ctx).Error("chat: disconnect transition failed", zap.Error(err), zap.String("session_id", sessionID.String()))
 		return
 	}
-	post.run()
+	post.run(ctx)
 }
 
 // tryResume moves Disconnected→Active when both parties are back within the
@@ -466,7 +466,7 @@ func (c *ChatService) tryResume(ctx context.Context, sessionID uuid.UUID) {
 			return err
 		}
 		snap := *s
-		post = append(afterCommit{func() {
+		post = append(afterCommit{func(ctx context.Context) {
 			c.publishSession(ctx, realtime.EventSessionResumed, &snap, nil)
 			c.track(ctx, "chat.reconnected", &snap, map[string]any{"reconnects": snap.Reconnects})
 		}}, post...)
@@ -476,7 +476,7 @@ func (c *ChatService) tryResume(ctx context.Context, sessionID uuid.UUID) {
 		logger.FromContext(ctx).Error("chat: resume failed", zap.Error(err), zap.String("session_id", sessionID.String()))
 		return
 	}
-	post.run()
+	post.run(ctx)
 }
 
 // accrueActive adds the current active stretch to ActiveSeconds.
@@ -531,7 +531,7 @@ func (c *ChatService) billMinuteLocked(ctx context.Context, s *domain.Session, d
 	}
 	snapshot := *s
 	wallet := walletView(w)
-	post.add(func() {
+	post.add(func(ctx context.Context) {
 		remaining := int64(wallet.FreeMinutes) + wallet.Balance/max(snapshot.RatePerMinute, 1)
 		billed := map[string]any{"session_id": snapshot.ID, "minute": minute, "free": free, "charged": charged,
 			"next_billing_at": next, "active_seconds": int64(snapshot.ElapsedActive(c.clock.Now()) / time.Second)}
@@ -582,7 +582,7 @@ func (c *ChatService) BillDue(ctx context.Context, batch int) (int, error) {
 			break
 		}
 		processed++
-		post.run()
+		post.run(ctx)
 	}
 	return processed, nil
 }
@@ -605,7 +605,7 @@ func (c *ChatService) endLocked(ctx context.Context, s *domain.Session, reason d
 		}
 	}
 	snapshot := *s
-	post.add(func() {
+	post.add(func(ctx context.Context) {
 		c.track(ctx, "chat.ended", &snapshot, map[string]any{"reason": string(reason), "duration_s": snapshot.ActiveSeconds,
 			"billed_minutes": snapshot.BilledMinutes, "free_minutes": snapshot.FreeMinutesUsed, "credits": snapshot.CreditsCharged})
 		c.settleAndAnnounce(ctx, snapshot.ID, reason)
@@ -734,7 +734,7 @@ func (c *ChatService) end(ctx context.Context, sessionID uuid.UUID, reason domai
 	if err != nil {
 		return nil, mapRepoErr(err, "Session")
 	}
-	post.run()
+	post.run(ctx)
 	s, err := c.chat.GetSession(ctx, sessionID)
 	if err != nil {
 		return nil, mapRepoErr(err, "Session")
@@ -827,7 +827,7 @@ func (c *ChatService) EndExpiredGrace(ctx context.Context, batch int) (int, erro
 			break
 		}
 		count++
-		post.run()
+		post.run(ctx)
 	}
 	return count, nil
 }
@@ -889,7 +889,7 @@ func (c *ChatService) addSystemMessage(ctx context.Context, s *domain.Session, b
 	}
 	view := messageView(m)
 	client, psychic := s.ClientID, s.PsychicID
-	post.add(func() {
+	post.add(func(ctx context.Context) {
 		warnErr(ctx, "chat: publish system message", c.events.Publish(ctx, realtime.EventMessageCreated, map[string]any{"message": view}, client, psychic))
 	})
 	return nil

@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -75,8 +76,8 @@ func TestLiveChatFullLifecycle(t *testing.T) {
 	if sent.Message.ID.String() == "" || sent.Message.Body != "Hello, will my project go well?" {
 		t.Fatalf("ack message: %s", ack)
 	}
-	got := pws.waitFor(realtime.EventMessageCreated, 5*time.Second)
-	if !strings.Contains(string(got.Data), "will my project") {
+	got := pws.waitMatch(realtime.EventMessageCreated, "will my project", 5*time.Second)
+	if strings.Contains(string(got.Data), `"kind":"system"`) {
 		t.Fatalf("psychic did not receive message: %s", got.Data)
 	}
 	// Retrying with the same client id is idempotent.
@@ -111,7 +112,7 @@ func TestLiveChatFullLifecycle(t *testing.T) {
 	// Minutes 2 and 3 use the remaining free minutes; minute 4 is paid (BR-02).
 	for minute := 2; minute <= 4; minute++ {
 		e.tick(time.Minute)
-		billed := cws.waitFor(realtime.EventSessionBilled, 5*time.Second)
+		billed := cws.waitMatch(realtime.EventSessionBilled, fmt.Sprintf(`"minute":%d,`, minute), 5*time.Second)
 		var b struct {
 			Minute int                `json:"minute"`
 			Free   bool               `json:"free"`
@@ -121,7 +122,7 @@ func TestLiveChatFullLifecycle(t *testing.T) {
 		if b.Minute != minute || b.Free != (minute <= 3) {
 			t.Fatalf("minute %d billing: %s", minute, billed.Data)
 		}
-		pws.waitFor(realtime.EventSessionBilled, 5*time.Second)
+		pws.waitMatch(realtime.EventSessionBilled, fmt.Sprintf(`"minute":%d,`, minute), 5*time.Second)
 	}
 	if w := client.wallet(); w.Balance != 250-rate || w.FreeMinutes != 0 {
 		t.Fatalf("wallet after paid minute: %+v", w)
@@ -219,20 +220,12 @@ func TestCreditsExhaustedEndsSession(t *testing.T) {
 	client, _, cws, pws, s := startedSession(t, e, rate, 250)
 	// 3 free minutes, then 2 paid minutes (250 credits / 100), then the
 	// next started minute cannot be paid → session ends (BR-03).
-	lowWarned := false
 	for i := 0; i < 5; i++ {
 		e.tick(time.Minute)
 	}
-	deadline := time.After(5 * time.Second)
-	for !lowWarned {
-		select {
-		case ev := <-cws.events:
-			if ev.Type == realtime.EventSessionLowBalance {
-				lowWarned = true
-			}
-		case <-deadline:
-			t.Fatal("no low-balance warning")
-		}
+	low := cws.waitFor(realtime.EventSessionLowBalance, 5*time.Second)
+	if !strings.Contains(string(low.Data), "minutes_remaining") {
+		t.Fatalf("low balance: %s", low.Data)
 	}
 	ended := cws.waitFor(realtime.EventSessionEnded, 5*time.Second)
 	if !strings.Contains(string(ended.Data), `"reason":"credits_exhausted"`) {
@@ -361,6 +354,7 @@ func TestDisconnectGraceAndResume(t *testing.T) {
 		t.Fatalf("disconnected: %s", ev.Data)
 	}
 	// While disconnected, billing pauses and the psychic cannot send.
+	pws.drain()
 	e.tick(30 * time.Second)
 	if e := pws.request(realtime.FrameMessageSend, map[string]any{"session_id": s.ID, "body": "are you there?"}); e.Err == nil || e.Err.Code != "invalid_state" {
 		t.Fatalf("send during disconnect: %+v", e)
@@ -381,7 +375,7 @@ func TestDisconnectGraceAndResume(t *testing.T) {
 	// Paid coverage continues where it stopped: minute 2 bills 60s after start
 	// minus nothing elapsed while disconnected.
 	e.tick(60 * time.Second)
-	cws2.waitFor(realtime.EventSessionBilled, 5*time.Second)
+	cws2.waitMatch(realtime.EventSessionBilled, `"minute":2,`, 5*time.Second)
 
 	// Disconnect again and let the grace period lapse → Ended (grace expired).
 	_ = cws2.conn.Close()
@@ -405,11 +399,11 @@ func TestWebSocketSecurity(t *testing.T) {
 	c := e.registerClient()
 
 	// Foreign origin is refused (CSWSH protection).
-	c.origin = "https://evil.example"
+	c.wsOrigin = "https://evil.example"
 	if _, res, err := c.dial(""); err == nil || res == nil || res.StatusCode != http.StatusForbidden {
 		t.Fatalf("foreign origin websocket: %v %v", err, res)
 	}
-	c.origin = origin
+	c.wsOrigin = ""
 
 	// Tickets are single use.
 	ticket := c.ticket()
@@ -510,9 +504,7 @@ func TestSSEFallback(t *testing.T) {
 		t.Fatal("SSE durable events must carry ids for Last-Event-ID resume")
 	}
 	client.must(http.StatusCreated, http.MethodPost, "/api/v1/chat/sessions/"+s.ID.String()+"/messages", map[string]any{"body": "via REST", "client_msg_id": "rest-0001"}, nil)
-	if ev := pws.waitFor(realtime.EventMessageCreated, 5*time.Second); !strings.Contains(string(ev.Data), "via REST") {
-		t.Fatalf("psychic message: %s", ev.Data)
-	}
+	pws.waitMatch(realtime.EventMessageCreated, "via REST", 5*time.Second)
 	stream.next(t, realtime.EventMessageCreated)
 }
 

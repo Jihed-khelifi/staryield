@@ -7,9 +7,21 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/config"
 )
+
+// zapRedisLogger routes go-redis internal logs into zap at debug level
+// (they are reconnect/pool notices, not application errors).
+type zapRedisLogger struct{ log *zap.Logger }
+
+func (l zapRedisLogger) Printf(_ context.Context, format string, v ...any) {
+	l.log.Debug(fmt.Sprintf(format, v...), zap.String("component", "redis"))
+}
+
+// SetLogger installs log as the go-redis internal logger.
+func SetLogger(log *zap.Logger) { redis.SetLogger(zapRedisLogger{log: log}) }
 
 // New parses the URL, applies pool settings and verifies connectivity.
 func New(ctx context.Context, cfg config.RedisConfig) (*redis.Client, error) {

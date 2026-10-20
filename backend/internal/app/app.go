@@ -84,6 +84,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 			return nil, fmt.Errorf("migrate: %w", err)
 		}
 	}
+	redisx.SetLogger(log)
 	rdb, err := redisx.New(ctx, cfg.Redis)
 	if err != nil {
 		return nil, err

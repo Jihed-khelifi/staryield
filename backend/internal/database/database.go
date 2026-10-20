@@ -67,7 +67,7 @@ func NewTxManager(db *gorm.DB) *GormTxManager { return &GormTxManager{db: db} }
 
 // WithinTx implements TxManager.
 func (m *GormTxManager) WithinTx(ctx context.Context, fn func(ctx context.Context) error) error {
-	if _, ok := ctx.Value(txKey{}).(*gorm.DB); ok {
+	if InTx(ctx) {
 		return fn(ctx)
 	}
 	return m.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -79,7 +79,7 @@ func (m *GormTxManager) WithinTx(ctx context.Context, fn func(ctx context.Contex
 // repository query goes through Conn so cancellations and deadlines reach the
 // driver and queries participate in the caller's transaction.
 func Conn(ctx context.Context, base *gorm.DB) *gorm.DB {
-	if tx, ok := ctx.Value(txKey{}).(*gorm.DB); ok {
+	if tx, ok := ctx.Value(txKey{}).(*gorm.DB); ok && tx != nil {
 		return tx.WithContext(ctx)
 	}
 	return base.WithContext(ctx)
@@ -87,8 +87,17 @@ func Conn(ctx context.Context, base *gorm.DB) *gorm.DB {
 
 // InTx reports whether ctx carries a transaction.
 func InTx(ctx context.Context) bool {
-	_, ok := ctx.Value(txKey{}).(*gorm.DB)
-	return ok
+	tx, ok := ctx.Value(txKey{}).(*gorm.DB)
+	return ok && tx != nil
+}
+
+// Detach returns ctx without its transaction, for work that must run after
+// the transaction finished (events, follow-up transactions).
+func Detach(ctx context.Context) context.Context {
+	if !InTx(ctx) {
+		return ctx
+	}
+	return context.WithValue(ctx, txKey{}, (*gorm.DB)(nil))
 }
 
 // PostgreSQL error codes used for translation.

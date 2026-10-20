@@ -180,6 +180,8 @@ type client struct {
 	origin string
 	user   *service.UserView
 	pw     string
+	// wsOrigin overrides the Origin header for WebSocket handshakes only.
+	wsOrigin string
 }
 
 func (e *env) client() *client {
@@ -419,6 +421,40 @@ type ws struct {
 	mu     sync.Mutex
 	refN   int
 	lastID string
+	// backlog keeps events received while waiting for something else, so
+	// no event is lost between helper calls.
+	backlog []realtime.Envelope
+}
+
+// next returns the next event (backlog first) or false on timeout/close.
+func (w *ws) next(deadline <-chan time.Time) (realtime.Envelope, bool) {
+	w.mu.Lock()
+	if len(w.backlog) > 0 {
+		e := w.backlog[0]
+		w.backlog = w.backlog[1:]
+		w.mu.Unlock()
+		return e, true
+	}
+	w.mu.Unlock()
+	select {
+	case e := <-w.events:
+		return e, true
+	case <-deadline:
+		return realtime.Envelope{}, false
+	case <-w.closed:
+		select {
+		case e := <-w.events:
+			return e, true
+		default:
+			return realtime.Envelope{}, false
+		}
+	}
+}
+
+func (w *ws) stash(events []realtime.Envelope) {
+	w.mu.Lock()
+	w.backlog = append(events, w.backlog...)
+	w.mu.Unlock()
 }
 
 // connect opens a WebSocket using a fresh single-use ticket.
@@ -451,6 +487,9 @@ func (c *client) dial(resume string) (*websocket.Conn, *http.Response, error) {
 	}
 	h := http.Header{}
 	h.Set("Origin", c.origin)
+	if c.wsOrigin != "" {
+		h.Set("Origin", c.wsOrigin)
+	}
 	d := websocket.Dialer{Subprotocols: []string{realtime.Subprotocol}, HandshakeTimeout: 5 * time.Second}
 	return d.Dial(u, h)
 }
@@ -478,30 +517,52 @@ func (w *ws) read() {
 	}
 }
 
-// waitFor returns the next event of type typ, discarding others.
+// waitFor returns the next event of type typ; other events stay queued.
 func (w *ws) waitFor(typ string, timeout time.Duration) realtime.Envelope {
 	w.t.Helper()
 	deadline := time.After(timeout)
+	var skipped []realtime.Envelope
+	defer func() { w.stash(skipped) }()
+	for {
+		e, ok := w.next(deadline)
+		if !ok {
+			w.t.Fatalf("timed out (or closed, code %d) waiting for %q; saw %d other events", w.code, typ, len(skipped))
+		}
+		if e.Type == typ {
+			return e
+		}
+		skipped = append(skipped, e)
+	}
+}
+
+// waitMatch returns the next event of type typ whose payload contains sub.
+func (w *ws) waitMatch(typ, sub string, timeout time.Duration) realtime.Envelope {
+	w.t.Helper()
+	deadline := time.After(timeout)
+	var skipped []realtime.Envelope
+	defer func() { w.stash(skipped) }()
+	for {
+		e, ok := w.next(deadline)
+		if !ok {
+			w.t.Fatalf("timed out waiting for %q containing %q", typ, sub)
+		}
+		if e.Type == typ && strings.Contains(string(e.Data), sub) {
+			return e
+		}
+		skipped = append(skipped, e)
+	}
+}
+
+// drain discards every queued event.
+func (w *ws) drain() {
+	w.mu.Lock()
+	w.backlog = nil
+	w.mu.Unlock()
 	for {
 		select {
-		case e := <-w.events:
-			if e.Type == typ {
-				return e
-			}
-		case <-deadline:
-			w.t.Fatalf("timed out waiting for %q", typ)
-		case <-w.closed:
-			// Drain buffered events before failing.
-			for {
-				select {
-				case e := <-w.events:
-					if e.Type == typ {
-						return e
-					}
-				default:
-					w.t.Fatalf("connection closed (code %d) while waiting for %q", w.code, typ)
-				}
-			}
+		case <-w.events:
+		case <-time.After(150 * time.Millisecond):
+			return
 		}
 	}
 }
@@ -510,17 +571,17 @@ func (w *ws) waitFor(typ string, timeout time.Duration) realtime.Envelope {
 func (w *ws) expectNone(typ string, d time.Duration) {
 	w.t.Helper()
 	deadline := time.After(d)
+	var skipped []realtime.Envelope
+	defer func() { w.stash(skipped) }()
 	for {
-		select {
-		case e := <-w.events:
-			if e.Type == typ {
-				w.t.Fatalf("unexpected %q event: %s", typ, e.Data)
-			}
-		case <-deadline:
-			return
-		case <-w.closed:
+		e, ok := w.next(deadline)
+		if !ok {
 			return
 		}
+		if e.Type == typ {
+			w.t.Fatalf("unexpected %q event: %s", typ, e.Data)
+		}
+		skipped = append(skipped, e)
 	}
 }
 
@@ -536,17 +597,17 @@ func (w *ws) request(typ string, data any) realtime.Envelope {
 		w.t.Fatalf("write frame: %v", err)
 	}
 	deadline := time.After(5 * time.Second)
+	var skipped []realtime.Envelope
+	defer func() { w.stash(skipped) }()
 	for {
-		select {
-		case e := <-w.events:
-			if e.Ref == ref && (e.Type == realtime.EventAck || e.Type == realtime.EventError) {
-				return e
-			}
-		case <-deadline:
+		e, ok := w.next(deadline)
+		if !ok {
 			w.t.Fatalf("no ack for %s", typ)
-		case <-w.closed:
-			w.t.Fatalf("connection closed waiting for ack of %s", typ)
 		}
+		if e.Ref == ref && (e.Type == realtime.EventAck || e.Type == realtime.EventError) {
+			return e
+		}
+		skipped = append(skipped, e)
 	}
 }
 

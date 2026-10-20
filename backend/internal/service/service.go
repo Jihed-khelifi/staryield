@@ -17,6 +17,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/apperror"
+	"github.com/Jihed-khelifi/staryield/backend/internal/database"
 	"github.com/Jihed-khelifi/staryield/backend/internal/logger"
 	"github.com/Jihed-khelifi/staryield/backend/internal/repository"
 )
@@ -45,13 +46,16 @@ type Page[T any] struct {
 
 // afterCommit collects side effects (events, analytics) that must only run
 // once the surrounding transaction has committed.
-type afterCommit []func()
+// Hooks receive a context detached from the (committed) transaction, so they
+// can never query through a finished tx by capturing the closure's context.
+type afterCommit []func(ctx context.Context)
 
-func (a *afterCommit) add(fn func()) { *a = append(*a, fn) }
+func (a *afterCommit) add(fn func(ctx context.Context)) { *a = append(*a, fn) }
 
-func (a afterCommit) run() {
+func (a afterCommit) run(ctx context.Context) {
+	ctx = database.Detach(ctx)
 	for _, fn := range a {
-		fn()
+		fn(ctx)
 	}
 }
 
