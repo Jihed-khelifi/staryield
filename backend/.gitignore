@@ -1,5 +1,6 @@
 /bin/
 config.yaml
+config.yml
 .env
 .env.*
 !.env.example

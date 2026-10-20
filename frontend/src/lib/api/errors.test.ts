@@ -16,6 +16,7 @@ describe("ApiError", () => {
     expect(e.fields.email).toBe("Enter a valid email address.");
     expect(e.retryable).toBe(false);
     expect(new ApiError({ code: "service_unavailable", message: "", status: 503 }).retryable).toBe(true);
+    expect(new ApiError({ code: "feature_unavailable", message: "", status: 503 }).retryable).toBe(false);
     expect(new ApiError({ code: "rate_limited", message: "", status: 429 }).retryable).toBe(true);
   });
 

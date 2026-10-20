@@ -39,9 +39,14 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	log.Info("starting", zap.String("addr", cfg.HTTP.Addr), zap.Bool("railway", config.OnRailway()),
+		zap.String("storage", cfg.Storage.Driver), zap.String("payments", cfg.Payments.Provider), zap.String("mail", cfg.Mail.Driver))
 	a, err := app.New(ctx, cfg, log, app.Overrides{})
 	if err != nil {
-		log.Fatal("startup failed", zap.Error(err))
+		// Error level (not Fatal) so log platforms classify the line correctly.
+		log.Error("startup failed", zap.Error(err))
+		_ = log.Sync()
+		os.Exit(1)
 	}
 	a.Start(ctx)
 

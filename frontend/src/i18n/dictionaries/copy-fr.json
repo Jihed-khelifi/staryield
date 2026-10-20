@@ -1522,6 +1522,7 @@
   "The request was cancelled.": "La demande a été annulée.",
   "The requested endpoint does not exist.": "Le point d'accès demandé n'existe pas.",
   "The service is temporarily unavailable. Please try again.": "Le service est temporairement indisponible. Veuillez réessayer.",
+  "This feature is not available yet. Please check back soon.": "Cette fonctionnalité n'est pas encore disponible. Revenez bientôt.",
   "This account has been deactivated. Please contact support.": "Ce compte a été désactivé. Veuillez contacter l'assistance.",
   "This action is not possible right now.": "Cette action n'est pas possible pour le moment.",
   "This advisor could not be found.": "Ce conseiller est introuvable.",

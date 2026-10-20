@@ -300,6 +300,9 @@ var avatarTypes = map[string]bool{"image/png": true, "image/jpeg": true, "image/
 // is decoded and re-encoded as a square JPEG, which strips EXIF/GPS metadata
 // and any payload smuggled in the original file.
 func (s *UserService) UploadAvatar(ctx context.Context, userID uuid.UUID, data []byte) (*UserView, error) {
+	if _, off := s.store.(storage.Disabled); off {
+		return nil, apperror.FeatureUnavailable("Photo uploads are not available yet.")
+	}
 	if int64(len(data)) > s.avatar.MaxBytes {
 		return nil, apperror.PayloadTooLarge("Choose an image smaller than 1 MB.")
 	}

@@ -1,11 +1,12 @@
 // Package storage stores user-uploaded objects (avatars) in Cloudflare R2
 // through its S3-compatible API, with an in-memory driver for development
-// and tests.
+// and tests and a disabled driver for deployments without object storage.
 package storage
 
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -30,9 +31,25 @@ func New(cfg config.StorageConfig) (ObjectStore, error) {
 		return NewR2(cfg)
 	case "memory":
 		return NewMemory(cfg.PublicBaseURL), nil
+	case "disabled":
+		return Disabled{}, nil
 	}
 	return nil, fmt.Errorf("storage: unknown driver %q", cfg.Driver)
 }
+
+// ErrDisabled is returned by uploads when object storage is not configured.
+var ErrDisabled = errors.New("storage: uploads are disabled")
+
+// Disabled rejects uploads. Deletes succeed because nothing was ever stored.
+type Disabled struct{}
+
+// Put implements ObjectStore.
+func (Disabled) Put(context.Context, string, string, []byte, string) (string, error) {
+	return "", ErrDisabled
+}
+
+// Delete implements ObjectStore.
+func (Disabled) Delete(context.Context, string) error { return nil }
 
 // R2 is a Cloudflare R2 bucket accessed with scoped API-token credentials.
 type R2 struct {

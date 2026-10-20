@@ -70,6 +70,27 @@ var (
 	ErrStale        = errors.New("payment: webhook timestamp outside tolerance")
 )
 
+// ErrDisabled is returned by checkouts when no payment provider is configured.
+var ErrDisabled = errors.New("payment: purchases are disabled")
+
+// Disabled refuses every checkout and webhook. It lets a deployment run
+// without a payment provider instead of falling back to the sandbox, which
+// would grant credits for free.
+type Disabled struct{}
+
+// Name implements Provider.
+func (Disabled) Name() string { return "disabled" }
+
+// Checkout implements Provider.
+func (Disabled) Checkout(context.Context, CheckoutRequest) (CheckoutResult, error) {
+	return CheckoutResult{}, ErrDisabled
+}
+
+// VerifyWebhook implements Provider.
+func (Disabled) VerifyWebhook(string, []byte, time.Time) (*WebhookEvent, error) {
+	return nil, ErrBadSignature
+}
+
 // Sandbox approves every checkout immediately. It exists for development
 // and automated tests; configuration refuses it in production unless
 // explicitly allowed.

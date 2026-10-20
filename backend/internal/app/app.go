@@ -81,12 +81,14 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	}
 	if cfg.Database.AutoMigrate {
 		if _, err := migrations.Up(ctx, db, log); err != nil {
+			closeDB(db)
 			return nil, fmt.Errorf("migrate: %w", err)
 		}
 	}
 	redisx.SetLogger(log)
-	rdb, err := redisx.New(ctx, cfg.Redis)
+	rdb, err := redisx.New(ctx, cfg.Redis, log)
 	if err != nil {
+		closeDB(db)
 		return nil, err
 	}
 	prefix := cfg.Redis.KeyPrefix
@@ -151,6 +153,13 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		}
 	}
 	var provider payment.Provider = payment.NewSandbox(cfg.Payments.WebhookSecret, cfg.Payments.WebhookTolerance)
+	if cfg.Payments.Provider == "disabled" {
+		provider = payment.Disabled{}
+		log.Warn("payments disabled: credit purchases are refused until a provider is configured")
+	}
+	if _, off := store.(storage.Disabled); off {
+		log.Warn("object storage disabled: avatar uploads are refused until storage.driver is r2")
+	}
 
 	// Business layer.
 	share := cfg.Billing.PsychicSharePercent
@@ -270,8 +279,12 @@ func (a *App) Shutdown(ctx context.Context) {
 	a.wg.Wait()
 	a.Tracker.Stop(ctx)
 	_ = a.Redis.Close()
-	if sqlDB, err := a.DB.DB(); err == nil {
+	closeDB(a.DB)
+	a.Log.Info("shutdown complete")
+}
+
+func closeDB(db *gorm.DB) {
+	if sqlDB, err := db.DB(); err == nil {
 		_ = sqlDB.Close()
 	}
-	a.Log.Info("shutdown complete")
 }

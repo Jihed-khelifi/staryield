@@ -30,6 +30,7 @@ export type ErrorCode =
   | "refresh_conflict"
   | "timeout"
   | "service_unavailable"
+  | "feature_unavailable"
   | "internal_error"
   | "network_error"
   | "aborted"
@@ -71,6 +72,8 @@ export class ApiError extends Error {
 
   /** True when retrying the same request may succeed. */
   get retryable(): boolean {
+    // Switched off by server configuration: retrying cannot succeed.
+    if (this.code === "feature_unavailable") return false;
     return (
       this.code === "network_error" ||
       this.code === "timeout" ||
@@ -128,6 +131,7 @@ export const errorCopy: Record<string, string> = {
   refresh_conflict: "Your session was refreshed in another tab. Please retry.",
   timeout: "The request took too long. Please try again.",
   service_unavailable: "The service is temporarily unavailable. Please try again.",
+  feature_unavailable: "This feature is not available yet. Please check back soon.",
   internal_error: "Something went wrong on our side. Please try again.",
   network_error: "You appear to be offline. Check your connection and try again.",
   aborted: "The request was cancelled.",

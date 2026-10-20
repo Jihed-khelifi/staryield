@@ -39,6 +39,7 @@ const (
 	CodePaymentFailed       Code = "payment_failed"
 	CodeTimeout             Code = "timeout"
 	CodeUnavailable         Code = "service_unavailable"
+	CodeFeatureUnavailable  Code = "feature_unavailable"
 	CodeInternal            Code = "internal_error"
 )
 
@@ -184,6 +185,12 @@ func InvalidToken(message string) *Error {
 
 func Unavailable(cause error) *Error {
 	return &Error{Code: CodeUnavailable, Status: http.StatusServiceUnavailable, Message: "The service is temporarily unavailable. Please try again.", Err: cause, RetryAfter: 5 * time.Second}
+}
+
+// FeatureUnavailable reports a capability switched off by configuration (for
+// example uploads without object storage). Retrying will not help.
+func FeatureUnavailable(message string) *Error {
+	return New(CodeFeatureUnavailable, http.StatusServiceUnavailable, message)
 }
 
 func Timeout(cause error) *Error {

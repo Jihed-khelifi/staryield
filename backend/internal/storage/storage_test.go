@@ -2,7 +2,10 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"testing"
+
+	"github.com/Jihed-khelifi/staryield/backend/internal/config"
 )
 
 func TestValidateKey(t *testing.T) {
@@ -30,5 +33,18 @@ func TestMemoryStore(t *testing.T) {
 	}
 	if _, err := m.Put(context.Background(), "../x", "", nil, ""); err == nil {
 		t.Fatal("traversal key accepted")
+	}
+}
+
+func TestDisabledStore(t *testing.T) {
+	store, err := New(config.StorageConfig{Driver: "disabled"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Put(context.Background(), "avatars/u/a.jpg", "image/jpeg", []byte("x"), ""); !errors.Is(err, ErrDisabled) {
+		t.Fatalf("put: %v", err)
+	}
+	if err := store.Delete(context.Background(), "avatars/u/a.jpg"); err != nil {
+		t.Fatalf("delete must be a no-op: %v", err)
 	}
 }

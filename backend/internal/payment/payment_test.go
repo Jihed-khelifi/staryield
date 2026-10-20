@@ -45,3 +45,14 @@ func TestSandboxCheckout(t *testing.T) {
 		t.Fatalf("sandbox: %+v %+v", ok, fail)
 	}
 }
+
+func TestDisabledProviderRefusesEverything(t *testing.T) {
+	var p Provider = Disabled{}
+	if _, err := p.Checkout(context.Background(), CheckoutRequest{AmountCents: 999}); !errors.Is(err, ErrDisabled) {
+		t.Fatalf("checkout: %v", err)
+	}
+	body := []byte(`{"type":"payment.succeeded","provider_ref":"x"}`)
+	if _, err := p.VerifyWebhook(Sign([]byte("any-secret-0123456789"), body, time.Now()), body, time.Now()); !errors.Is(err, ErrBadSignature) {
+		t.Fatalf("webhook must be rejected: %v", err)
+	}
+}

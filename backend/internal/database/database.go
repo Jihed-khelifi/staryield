@@ -17,11 +17,23 @@ import (
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/config"
 	"github.com/Jihed-khelifi/staryield/backend/internal/logger"
+	"github.com/Jihed-khelifi/staryield/backend/internal/retry"
 )
 
-// Open connects to PostgreSQL and verifies connectivity within ctx.
+// Open connects to PostgreSQL and verifies connectivity, retrying with
+// backoff for up to cfg.ConnectTimeout (bounded by ctx).
 func Open(ctx context.Context, cfg config.DatabaseConfig, log *zap.Logger) (*gorm.DB, error) {
+	// Log where we connect (never the credentials) so a misconfigured DSN is
+	// obvious from the first line of the deploy logs.
+	pc, err := pgconn.ParseConfig(cfg.DSN)
+	if err != nil {
+		return nil, fmt.Errorf("database: invalid dsn: %w", err)
+	}
+	log.Info("database: connecting", zap.String("host", pc.Host), zap.Uint16("port", pc.Port),
+		zap.String("database", pc.Database), zap.Bool("tls", pc.TLSConfig != nil))
+
 	db, err := gorm.Open(postgres.New(postgres.Config{DSN: cfg.DSN}), &gorm.Config{
+		DisableAutomaticPing:                     true,
 		Logger:                                   NewGormLogger(log, cfg.SlowQuery),
 		NowFunc:                                  func() time.Time { return time.Now().UTC().Truncate(time.Microsecond) },
 		SkipDefaultTransaction:                   true,
@@ -41,11 +53,14 @@ func Open(ctx context.Context, cfg config.DatabaseConfig, log *zap.Logger) (*gor
 	sqlDB.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 	sqlDB.SetConnMaxIdleTime(cfg.ConnMaxIdleTime)
 
-	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if err := sqlDB.PingContext(pingCtx); err != nil {
+	err = retry.Until(ctx, cfg.ConnectTimeout, log, "database", func(ctx context.Context) error {
+		pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		return sqlDB.PingContext(pingCtx)
+	})
+	if err != nil {
 		_ = sqlDB.Close()
-		return nil, fmt.Errorf("database: ping: %w", err)
+		return nil, fmt.Errorf("database: ping %s:%d: %w", pc.Host, pc.Port, err)
 	}
 	return db, nil
 }

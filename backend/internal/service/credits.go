@@ -99,6 +99,9 @@ func (s *CreditService) Packs(ctx context.Context) ([]PackView, error) {
 // Purchase charges the provider and credits the wallet on success. Replays
 // with the same idempotency key return the original purchase.
 func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in PurchaseInput) (*PurchaseView, error) {
+	if _, off := s.provider.(payment.Disabled); off {
+		return nil, apperror.FeatureUnavailable("Credit purchases are not available yet.")
+	}
 	if !ValidIdempotencyKey(in.IdempotencyKey) {
 		return nil, apperror.Validation(map[string]string{"idempotency_key": "A valid idempotency key is required."})
 	}

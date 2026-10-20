@@ -235,20 +235,29 @@ func ipExtractor(cfg config.HTTPConfig) echo.IPExtractor {
 			nets = append(nets, n)
 		}
 	}
-	direct := echo.ExtractIPDirect()
 	switch cfg.IPSource {
 	case "xff":
 		return echo.ExtractIPFromXFFHeader(append(opts, echo.TrustLoopback(false), echo.TrustLinkLocal(false), echo.TrustPrivateNet(false))...)
+	case "x-real-ip":
+		return headerFromTrusted("X-Real-IP", nets) // Railway's edge
 	case "cloudflare":
-		return func(r *http.Request) string {
-			peer := direct(r)
-			if ip := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); ip != "" && net.ParseIP(ip) != nil && inNets(peer, nets) {
-				return ip
-			}
-			return peer
-		}
+		return headerFromTrusted("CF-Connecting-IP", nets)
 	}
-	return direct
+	return echo.ExtractIPDirect()
+}
+
+// headerFromTrusted reads the client IP from a single-value header set by a
+// reverse proxy, honoured only when the TCP peer is one of the trusted
+// proxies so clients cannot spoof it.
+func headerFromTrusted(header string, nets []*net.IPNet) echo.IPExtractor {
+	direct := echo.ExtractIPDirect()
+	return func(r *http.Request) string {
+		peer := direct(r)
+		if ip := strings.TrimSpace(r.Header.Get(header)); ip != "" && net.ParseIP(ip) != nil && inNets(peer, nets) {
+			return ip
+		}
+		return peer
+	}
 }
 
 func inNets(ip string, nets []*net.IPNet) bool {

@@ -1,8 +1,11 @@
 // Package config loads and validates runtime configuration with Viper.
 //
-// Values come from (lowest to highest precedence): built-in defaults, an
-// optional YAML file, and STARYIELD_* environment variables, where nested keys
-// use underscores (e.g. DATABASE_URL, STARYIELD_AUTH_JWT_SECRET).
+// Values come from (lowest to highest precedence): built-in defaults, platform
+// defaults (Railway), an optional YAML file, and STARYIELD_* environment
+// variables, where nested keys use underscores (e.g.
+// STARYIELD_AUTH_JWT_SECRET). The platform conventions DATABASE_URL,
+// REDIS_URL, APP_ENV and PORT are honoured when the STARYIELD_* equivalent is
+// unset.
 package config
 
 import (
@@ -10,6 +13,8 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -63,8 +68,9 @@ type HTTPConfig struct {
 	ShutdownTimeout   time.Duration `mapstructure:"shutdown_timeout"`
 	BodyLimit         string        `mapstructure:"body_limit"`
 	// IPSource selects how the client IP is resolved: "direct", "xff"
-	// (X-Forwarded-For from trusted proxies) or "cloudflare" (CF-Connecting-IP
-	// from trusted proxies).
+	// (X-Forwarded-For from trusted proxies), "x-real-ip" (X-Real-IP from
+	// trusted proxies, set by Railway's edge) or "cloudflare"
+	// (CF-Connecting-IP from trusted proxies).
 	IPSource       string   `mapstructure:"ip_source"`
 	TrustedProxies []string `mapstructure:"trusted_proxies"`
 }
@@ -78,6 +84,9 @@ type DatabaseConfig struct {
 	ConnMaxIdleTime time.Duration `mapstructure:"conn_max_idle_time"`
 	SlowQuery       time.Duration `mapstructure:"slow_query"`
 	AutoMigrate     bool          `mapstructure:"auto_migrate"`
+	// ConnectTimeout bounds the startup connection retries (the database may
+	// still be booting or the private network warming up).
+	ConnectTimeout time.Duration `mapstructure:"connect_timeout"`
 }
 
 // RedisConfig controls the Redis client.
@@ -88,6 +97,8 @@ type RedisConfig struct {
 	WriteTimeout time.Duration `mapstructure:"write_timeout"`
 	PoolSize     int           `mapstructure:"pool_size"`
 	KeyPrefix    string        `mapstructure:"key_prefix"`
+	// ConnectTimeout bounds the startup connection retries.
+	ConnectTimeout time.Duration `mapstructure:"connect_timeout"`
 }
 
 // AuthConfig controls credentials, tokens and password hashing.
@@ -185,7 +196,7 @@ type Rule struct {
 
 // StorageConfig controls object storage (Cloudflare R2).
 type StorageConfig struct {
-	Driver          string `mapstructure:"driver"` // r2 | memory
+	Driver          string `mapstructure:"driver"` // r2 | memory | disabled
 	R2AccountID     string `mapstructure:"r2_account_id"`
 	R2AccessKeyID   string `mapstructure:"r2_access_key_id"`
 	R2SecretKey     string `mapstructure:"r2_secret_access_key"`
@@ -199,7 +210,7 @@ type StorageConfig struct {
 
 // PaymentsConfig controls the payment provider integration.
 type PaymentsConfig struct {
-	Provider                 string        `mapstructure:"provider"` // sandbox
+	Provider                 string        `mapstructure:"provider"` // sandbox | disabled
 	WebhookSecret            string        `mapstructure:"webhook_secret"`
 	WebhookTolerance         time.Duration `mapstructure:"webhook_tolerance"`
 	AllowSandboxInProduction bool          `mapstructure:"allow_sandbox_in_production"`
@@ -245,10 +256,18 @@ func (c *Config) IsProduction() bool { return c.App.Env == EnvProduction }
 func Load(path string) (*Config, error) {
 	v := viper.New()
 	setDefaults(v)
+	if OnRailway() {
+		setRailwayDefaults(v)
+	}
 
 	v.SetEnvPrefix("STARYIELD")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
+	for key, names := range platformEnv {
+		if err := v.BindEnv(append([]string{key}, names...)...); err != nil {
+			return nil, fmt.Errorf("config: bind %s: %w", key, err)
+		}
+	}
 
 	if path != "" {
 		v.SetConfigFile(path)
@@ -264,6 +283,15 @@ func Load(path string) (*Config, error) {
 		}
 	}
 
+	// PORT is the platform-assigned listen port; an explicit
+	// STARYIELD_HTTP_ADDR still wins.
+	if port := strings.TrimSpace(os.Getenv("PORT")); port != "" && os.Getenv("STARYIELD_HTTP_ADDR") == "" {
+		if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+			return nil, fmt.Errorf("config: PORT must be a TCP port (got %q)", port)
+		}
+		v.Set("http.addr", ":"+port)
+	}
+
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("config: decode: %w", err)
@@ -273,6 +301,37 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+// platformEnv maps config keys to the environment variables consulted, in
+// order: the STARYIELD_* name first, then the conventional variable hosting
+// platforms inject (Railway, Heroku, Render, Fly…).
+var platformEnv = map[string][]string{
+	"database.dsn":    {"STARYIELD_DATABASE_DSN", "DATABASE_URL"},
+	"redis.url":       {"STARYIELD_REDIS_URL", "REDIS_URL"},
+	"app.env":         {"STARYIELD_APP_ENV", "APP_ENV"},
+	"app.instance_id": {"STARYIELD_APP_INSTANCE_ID", "RAILWAY_REPLICA_ID"},
+}
+
+// OnRailway reports whether the process runs on Railway.
+func OnRailway() bool { return os.Getenv("RAILWAY_ENVIRONMENT_ID") != "" }
+
+// railwayTrustedProxies are the private ranges Railway's edge proxy connects
+// from. Containers are only reachable through the edge or the project's
+// private network, so headers from these peers are trusted.
+var railwayTrustedProxies = []string{"10.0.0.0/8", "100.64.0.0/10", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"}
+
+// setRailwayDefaults makes a Railway deployment secure by default: it runs in
+// production mode (so development secrets are never derived), behind TLS,
+// and resolves client IPs from the edge's X-Real-IP header. Every value can
+// still be overridden explicitly.
+func setRailwayDefaults(v *viper.Viper) {
+	v.SetDefault("app.env", EnvProduction)
+	v.SetDefault("http.ip_source", "x-real-ip")
+	v.SetDefault("http.trusted_proxies", railwayTrustedProxies)
+	v.SetDefault("security.cookie_secure", true)
+	v.SetDefault("security.hsts", true)
+	v.SetDefault("log.format", "json")
 }
 
 func setDefaults(v *viper.Viper) {
@@ -300,13 +359,15 @@ func setDefaults(v *viper.Viper) {
 		"database.conn_max_idle_time": "5m",
 		"database.slow_query":         "250ms",
 		"database.auto_migrate":       true,
+		"database.connect_timeout":    "60s",
 
-		"redis.url":           "redis://127.0.0.1:6379/0",
-		"redis.dial_timeout":  "3s",
-		"redis.read_timeout":  "3s",
-		"redis.write_timeout": "3s",
-		"redis.pool_size":     50,
-		"redis.key_prefix":    "sy:",
+		"redis.url":             "redis://127.0.0.1:6379/0",
+		"redis.dial_timeout":    "3s",
+		"redis.read_timeout":    "3s",
+		"redis.write_timeout":   "3s",
+		"redis.pool_size":       50,
+		"redis.key_prefix":      "sy:",
+		"redis.connect_timeout": "60s",
 
 		"auth.jwt_secret":            "",
 		"auth.jwt_issuer":            "staryield-api",
@@ -537,20 +598,27 @@ func (c *Config) Validate() error {
 		}
 	}
 	switch c.HTTP.IPSource {
-	case "direct", "xff", "cloudflare":
+	case "direct", "xff", "x-real-ip", "cloudflare":
 	default:
-		add("http.ip_source must be direct, xff or cloudflare")
+		add("http.ip_source must be direct, xff, x-real-ip or cloudflare")
+	}
+	if (c.HTTP.IPSource == "x-real-ip" || c.HTTP.IPSource == "cloudflare") && len(c.HTTP.TrustedProxies) == 0 {
+		add("http.ip_source %s requires http.trusted_proxies", c.HTTP.IPSource)
+	}
+	if c.Database.ConnectTimeout < 0 || c.Redis.ConnectTimeout < 0 {
+		add("database.connect_timeout and redis.connect_timeout must not be negative")
 	}
 	switch c.Storage.Driver {
-	case "memory":
+	case "memory", "disabled":
 	case "r2":
 		if c.Storage.R2AccessKeyID == "" || c.Storage.R2SecretKey == "" || c.Storage.R2Bucket == "" || c.Storage.R2Endpoint == "" {
 			add("storage driver r2 requires r2_access_key_id, r2_secret_access_key, r2_bucket and r2_account_id/r2_endpoint")
 		}
 	default:
-		add("storage.driver must be r2 or memory")
+		add("storage.driver must be r2, memory or disabled")
 	}
 	switch c.Payments.Provider {
+	case "disabled":
 	case "sandbox":
 		if c.IsProduction() && !c.Payments.AllowSandboxInProduction {
 			add("payments.provider sandbox is not allowed in production")
@@ -586,10 +654,10 @@ func (c *Config) Validate() error {
 			add("payments.webhook_secret must be at least 16 bytes in production")
 		}
 		if c.Storage.Driver == "memory" {
-			add("storage.driver memory is not allowed in production")
+			add("storage.driver memory is not allowed in production (use r2, or disabled to turn uploads off)")
 		}
 		if c.Mail.Driver == "log" {
-			add("mail.driver log is not allowed in production")
+			add("mail.driver log is not allowed in production (use noop)")
 		}
 	}
 	return errors.Join(errs...)

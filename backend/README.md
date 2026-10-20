@@ -107,7 +107,7 @@ Admin endpoints for the future dashboard:
 
 ### Payments
 
-`payment.Provider` abstracts the provider (spec: "Buy Credits → Payment Provider"). Card data never reaches this API. A `sandbox` provider approves checkouts for development; amounts ending in `13` cents decline, for tests. Purchases are idempotent, and wallets are credited exactly once through the ledger. Signed webhooks (`t=…,v1=hmac`, with a replay window) handle async confirmation, failure and refund at `POST /api/v1/webhooks/payments`. Production deployments must plug in a real provider adapter; the config refuses `sandbox` there.
+`payment.Provider` abstracts the provider (spec: "Buy Credits → Payment Provider"). Card data never reaches this API. A `sandbox` provider approves checkouts for development; amounts ending in `13` cents decline, for tests. Purchases are idempotent, and wallets are credited exactly once through the ledger. Signed webhooks (`t=…,v1=hmac`, with a replay window) handle async confirmation, failure and refund at `POST /api/v1/webhooks/payments`. Production deployments must plug in a real provider adapter; the config refuses `sandbox` there. Until then, `PAYMENTS_PROVIDER=disabled` refuses purchases (and webhooks) with a non-retryable `feature_unavailable` error instead of granting free credits.
 
 ## API overview (`/api/v1`)
 
@@ -128,12 +128,31 @@ Health: `GET /healthz` (liveness), `GET /readyz` (PostgreSQL + Redis).
 
 ## Configuration
 
-Defaults live in `internal/config/config.go`; `config.example.yaml` documents the important keys. Any key can be set as `STARYIELD_<SECTION>_<KEY>`. Production requires `STARYIELD_APP_ENV=production` and the following:
+Defaults live in `internal/config/config.go`; `config.example.yaml` documents the important keys. Any key can be set as `STARYIELD_<SECTION>_<KEY>`. The platform variables `DATABASE_URL`, `REDIS_URL`, `APP_ENV` and `PORT` are used when the `STARYIELD_*` equivalent is unset. On startup the API retries PostgreSQL and Redis with backoff for `DATABASE_CONNECT_TIMEOUT` / `REDIS_CONNECT_TIMEOUT` (default 60s), and logs the host it connects to (never credentials).
+
+Production requires `STARYIELD_APP_ENV=production` and the following:
 
 * `AUTH_JWT_SECRET`, `SECURITY_CSRF_SECRET`, `ANALYTICS_IP_HASH_SECRET`, `PAYMENTS_WEBHOOK_SECRET`
 * `SECURITY_ALLOWED_ORIGINS` (https only) and `SECURITY_COOKIE_SECURE=true`
-* R2 credentials (`STORAGE_DRIVER=r2`, `STORAGE_R2_*`)
-* a real payment provider and mailer adapter
+* R2 credentials (`STORAGE_DRIVER=r2`, `STORAGE_R2_*`), or `STORAGE_DRIVER=disabled` to refuse uploads
+* a real payment provider (or `PAYMENTS_PROVIDER=disabled`), and `MAIL_DRIVER=noop` until a mailer adapter exists
+
+### Deploying on Railway
+
+The `server` service builds `backend/Dockerfile` (root directory `/backend`, watch pattern `/backend/**`) next to the Postgres and Redis services, in the same region.
+
+* **Detection:** when `RAILWAY_ENVIRONMENT_ID` is present, the defaults become production, secure cookies, HSTS, JSON logs, and client IPs from the edge's `X-Real-IP` header (trusted only from private-range peers). The instance ID becomes `RAILWAY_REPLICA_ID`. A Railway deployment therefore never falls back to development secrets.
+* **Variables:**
+  * `DATABASE_URL=${{Postgres.DATABASE_URL}}` and `REDIS_URL=${{Redis.REDIS_URL}}`, which point at the private `*.railway.internal` network.
+  * The four secrets above, each generated with `openssl rand -hex 48`.
+  * `STARYIELD_SECURITY_ALLOWED_ORIGINS=https://staryield.net` and `STARYIELD_APP_FRONTEND_URL=https://staryield.net`.
+  * The storage, payment and mail drivers.
+* **Service settings:**
+  * healthcheck `/readyz`
+  * restart policy `ON_FAILURE` (10 retries)
+  * draining 30s, so in-flight requests finish and WebSockets get a `1001` close before `SIGKILL`; clients resume from the Redis stream on the new deployment
+  * migrations run at startup under an advisory lock, so several replicas are safe
+* **Domain:** serve the API from `api.staryield.net`. Add it as a Railway custom domain and point a DNS-only CNAME at it; with Cloudflare's proxy on, `X-Real-IP` would be a Cloudflare address. Then build the frontend with `NEXT_PUBLIC_API_URL=https://api.staryield.net`. The session cookies are `SameSite=Lax/Strict`, so browsers only send them when the frontend and API share a registrable domain. `*.up.railway.app` is on the Public Suffix List, so sign-in cannot work from `staryield.net` against the default Railway domain.
 
 ## Tests
 

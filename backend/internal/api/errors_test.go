@@ -83,4 +83,20 @@ func TestIPExtractor(t *testing.T) {
 	if ip := ipExtractor(config.HTTPConfig{IPSource: "cloudflare", TrustedProxies: []string{"192.168.0.0/16"}})(r); ip != "10.0.0.5" {
 		t.Fatalf("untrusted proxy header must be ignored: %s", ip)
 	}
+
+	// Railway's edge sets X-Real-IP; a client-supplied value from an
+	// untrusted peer is ignored, as is garbage.
+	r.Header.Set("X-Real-IP", "198.51.100.9")
+	if ip := ipExtractor(config.HTTPConfig{IPSource: "x-real-ip", TrustedProxies: []string{"10.0.0.0/8"}})(r); ip != "198.51.100.9" {
+		t.Fatalf("trusted x-real-ip: %s", ip)
+	}
+	r.RemoteAddr = "203.0.113.50:4321"
+	if ip := ipExtractor(config.HTTPConfig{IPSource: "x-real-ip", TrustedProxies: []string{"10.0.0.0/8"}})(r); ip != "203.0.113.50" {
+		t.Fatalf("x-real-ip from an untrusted peer must be ignored: %s", ip)
+	}
+	r.RemoteAddr = "10.0.0.5:1234"
+	r.Header.Set("X-Real-IP", "not-an-ip")
+	if ip := ipExtractor(config.HTTPConfig{IPSource: "x-real-ip", TrustedProxies: []string{"10.0.0.0/8"}})(r); ip != "10.0.0.5" {
+		t.Fatalf("invalid x-real-ip must be ignored: %s", ip)
+	}
 }
