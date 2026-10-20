@@ -60,6 +60,7 @@ func envOr(k, def string) string {
 }
 
 func TestMain(m *testing.M) {
+	time.Local = time.UTC
 	if err := resetDatabase(); err != nil {
 		if os.Getenv("STARYIELD_E2E") == "1" {
 			fmt.Fprintln(os.Stderr, "e2e: infrastructure unavailable:", err)

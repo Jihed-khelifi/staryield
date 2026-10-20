@@ -102,7 +102,8 @@ const files = (dir) =>
 const known = new Set(Object.keys(copies.en).map((key) => key.toLowerCase()));
 let checked = 0;
 for (const file of files(new URL("../src", import.meta.url).pathname).filter(
-  (file) => /\.tsx?$/.test(file),
+  // Unit tests use synthetic dictionaries; only app source is checked.
+  (file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file),
 )) {
   const source = ts.createSourceFile(
     file,

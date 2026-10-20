@@ -34,6 +34,7 @@ type SessionContextValue = {
 };
 
 const SessionContext = React.createContext<SessionContextValue | null>(null);
+const IDLE = { state: "idle", transport: "ws" } as const;
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const { text } = useI18n();
@@ -43,7 +44,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = React.useState<User | null>(null);
   const [wallet, setWallet] = React.useState<Wallet | null>(null);
   const [error, setError] = React.useState<ApiError | null>(null);
-  const [realtime, setRealtime] = React.useState<RealtimeClient | null>(null);
+
   const [connection, setConnection] = React.useState<{ state: ConnectionState; transport: TransportKind }>({ state: "idle", transport: "ws" });
 
   const setUser = React.useCallback((u: User) => {
@@ -81,8 +82,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [clear, setUser, text, toast]);
 
   React.useEffect(() => {
-    void reload();
-  }, [reload]);
+    const ctrl = new AbortController();
+    meApi.get(ctrl.signal).then(
+      (me) => setUser(me),
+      (raw) => {
+        const err = toApiError(raw);
+        if (err.code === "aborted") return;
+        if (err.code === "unauthenticated" || err.code === "session_expired" || err.code === "account_disabled") {
+          setAuthHint(false);
+          clear();
+          return;
+        }
+        logger.warn("could not load the session", err, { code: String(err.code), requestId: err.requestId });
+        setError(err);
+        setStatus("anonymous");
+      },
+    );
+    return () => ctrl.abort();
+  }, [clear, setUser]);
 
   // Refresh failed somewhere in the app: the session is gone.
   React.useEffect(
@@ -94,11 +111,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [clear, status, text, toast],
   );
 
-  // One realtime connection per signed-in user.
+  // One realtime connection per signed-in user. The client object is inert
+  // until start(); the effect owns its lifecycle.
   const userId = user?.id;
+  const realtime = React.useMemo(() => (userId ? new RealtimeClient(userId) : null), [userId]);
   React.useEffect(() => {
-    if (!userId) return;
-    const client = new RealtimeClient(userId);
+    if (!realtime) return;
+    const client = realtime;
     const offState = client.onState((state, transport) => {
       setConnection({ state, transport });
       if (transport === "sse" && state === "open") track("realtime_fallback");
@@ -116,7 +135,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       void meApi.get().then((me) => setWallet(me.wallet ?? null)).catch(() => undefined);
     });
     client.start();
-    setRealtime(client);
     return () => {
       offState();
       offWallet();
@@ -124,10 +142,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       offRevoked();
       offResync();
       client.stop();
-      setRealtime(null);
-      setConnection({ state: "idle", transport: "ws" });
     };
-  }, [userId, clear, text, toast]);
+  }, [realtime, clear, text, toast]);
 
   // Page-view analytics.
   React.useEffect(() => {
@@ -145,7 +161,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [clear]);
 
   const value = React.useMemo<SessionContextValue>(
-    () => ({ status, user, wallet, error, realtime, connection, setUser, setWallet, reload, signOut }),
+    () => ({ status, user, wallet, error, realtime, connection: realtime ? connection : IDLE, setUser, setWallet, reload, signOut }),
     [status, user, wallet, error, realtime, connection, setUser, reload, signOut],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

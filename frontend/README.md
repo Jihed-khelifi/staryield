@@ -10,6 +10,7 @@ npm run dev
 npm run lint
 npm run typecheck
 npm run test:calculators
+npm test                 # Vitest unit tests (API client, realtime client, chat model, i18n, redirects)
 npm run build
 ```
 
@@ -62,14 +63,31 @@ Keep original images outside the repository. Image binaries are ignored by Git, 
 
 Source Serif 4 and Inter are loaded by `next/font`. Castellar is preferred when installed; Cinzel is the web fallback because no licensed Castellar webfont was supplied. To match display typography exactly, add a licensed local Castellar webfont using `next/font/local` in `src/app/[lang]/layout.tsx` and update `--font-display` in `globals.css`.
 
-## Implemented interactions and service boundaries
+## Backend integration
 
-Birth dates are validated as actual calendar dates. Sun signs and numerology are calculated locally; master life-path numbers 11, 22, and 33 are retained. Numerology year/month cycles follow the current date. Account preferences, avatar, and booking preferences persist on the device. Chat supports separate conversations, composing preview messages, bookmarking/removing saved insights, revealing the sample locked answer, and ending/resuming a preview session.
+The app talks to the Go API in `../backend` (see its README). Set the API origin at build time:
 
-No account, OAuth, payment, support, booking, chat delivery, ephemeris, or horoscope API is connected in this integration. Forms validate and explicitly report unavailable submission services; payment and authentication credentials are never persisted or transmitted. Signup steps demonstrate navigation without creating an account. Notification settings persist preferences without registering notifications. Static advisor statistics, horoscope, calendar, and chart content are design fixtures.
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8080 npm run dev     # local API
+NEXT_PUBLIC_API_URL=https://api.staryield.net npm run build:vinext
+```
 
-The source contains inconsistencies: the Orion profile frame visibly says Solomon; calculator reference dates and their displayed signs/numbers disagree; natal-chart results show a tarot spread; sample planet popup metadata conflicts with chart labels. The visible Solomon identity is used in routing, calculators return values computed from the entered date, and planet dialogs use their chart control's position while retaining the original interpretation copy. The tarot layout remains an explicitly illustrative spread until a real chart service is available. FAQ answer copy is not supplied in collapsed source components; expansion provides the support link.
+The API must list the web origin in `STARYIELD_SECURITY_ALLOWED_ORIGINS`. In production, serve the API from a sub-domain of the site (for example `api.staryield.net`) so cookies stay same-site.
+
+* **Transport** (`src/lib/api`): typed endpoints and a fetch client with cookies, CSRF double-submit, single-flight token refresh, per-request timeouts, idempotent retries with backoff and `Retry-After`, and `X-Request-ID` correlation. Every failure becomes an `ApiError` with a stable code, and `errorCopy` maps each code to localized copy.
+* **Realtime** (`src/lib/realtime/client.ts`): WebSocket with single-use tickets, heartbeats, jittered reconnects, resume from the last event ID, queued intents with acknowledgements, online/offline and visibility handling, and an automatic SSE + REST fallback. `useRealtimeEvent` subscribes components to server events.
+* **Session** (`src/lib/auth/session-provider.tsx`): the signed-in user and live wallet always come from the server; the realtime connection's lifecycle follows the session.
+* **Screens**:
+  * Sign-up, login and password reset (`/reset-password?token=`) are live.
+  * Advisors, statuses and services come from the API, with live presence.
+  * Credits use real packs and idempotent purchases. Card details never touch Staryield servers; the sandbox provider is used in development.
+  * Profile shows the computed natal chart, the daily horoscope, cosmic events and orders.
+  * Settings persist through the API, including avatar upload, birth time and birth-place search.
+  * The chatroom implements the full live-chat lifecycle: request, accept or decline, the server-clocked timer, per-minute billing, low-balance warnings, disconnect and resume, the summary, message retry, read receipts, typing and bookmarks.
+  * Advisors get availability controls, earnings and order fulfilment on their profile page, and handle chat requests in the chatroom.
+* **Errors and telemetry**: route and global error boundaries (`error.tsx`, `global-error.tsx`), uncaught error and rejection reporting, toasts, and inline field errors. Warnings and errors are reported to the API (`/client-logs`) with request IDs. Product analytics (`src/lib/analytics.ts`) are batched, honour Do Not Track and Global Privacy Control, and never include message content.
+* **Remaining fixtures**: the static home, about, review and legal content, the illustrative chart wheel artwork, and the tarot spread on calculator results.
 
 ## Validation
 
-Production build, TypeScript, ESLint, and calculator assertions pass. Browser checks cover the canonical routes, public R2 image loading, legal anchors, calculator errors/results, FAQ expansion, and planetary dialogs. Responsive checks include 320px, 390px, 768px, and desktop layouts.
+Production builds (Next.js and vinext), TypeScript, ESLint, i18n, calculator assertions and Vitest unit tests pass. Browser checks cover the canonical routes, public R2 image loading, legal anchors, calculator errors/results, FAQ expansion, and planetary dialogs. Responsive checks include 320px, 390px, 768px, and desktop layouts.

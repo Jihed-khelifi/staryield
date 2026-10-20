@@ -2,6 +2,12 @@ import type { TranslationValues } from "@/i18n/types";
 
 export type TranslateCopy = <T>(value: T, values?: TranslationValues) => T;
 
+function interpolate(template: string, values: TranslationValues): string {
+  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
+    name in values ? String(values[name]) : match,
+  );
+}
+
 /** Translate display copy without changing route IDs, form values, or data keys. */
 export function createTranslateCopy(
   copy: Record<string, string>,
@@ -14,14 +20,13 @@ export function createTranslateCopy(
     const key = value.trim().replace(/\s+/g, " ");
     const sourceKey =
       copy[key] !== undefined ? key : caseInsensitive.get(key.toLowerCase());
-    if (!sourceKey) return value;
+    // Unknown copy still gets its placeholders filled, so a missing
+    // dictionary entry degrades to English instead of showing "{value0}".
+    if (!sourceKey) return (values ? interpolate(value, values) : value) as T;
     let translated = copy[sourceKey];
     if (key === key.toUpperCase() && /[A-Z]/.test(key))
       translated = translated.toUpperCase();
-    if (values)
-      translated = translated.replace(/\{(\w+)\}/g, (match, name: string) =>
-        name in values ? String(values[name]) : match,
-      );
+    if (values) translated = interpolate(translated, values);
     return (value.match(/^\s*/)?.[0] +
       translated +
       value.match(/\s*$/)?.[0]) as T;

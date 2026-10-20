@@ -1888,3 +1888,122 @@ html:not([lang="en"]) .figma-content > .figma-section {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Live-service UI: notifications, chat session states, connection status.
+   Brand palette only (identity manual §III.6); black ink for small copy.
+   --------------------------------------------------------------------------- */
+.toast-region {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 100;
+  display: flex;
+  width: min(380px, calc(100vw - 32px));
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-md);
+  background: var(--cream-light);
+  padding: 12px 14px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+  box-shadow: 0 8px 24px rgb(21 16 11 / 0.12);
+  animation: toast-in 180ms ease-out;
+}
+.toast p {
+  flex: 1;
+}
+.toast-error {
+  border-color: #7a2e1d;
+}
+.toast-success {
+  border-color: var(--amber);
+}
+.toast-action {
+  font-weight: 600;
+  text-decoration: underline;
+}
+.toast-close {
+  opacity: 0.6;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+.chat-connection-banner {
+  background: var(--warm-gray);
+  padding: 8px 16px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--ink);
+  text-align: center;
+}
+.chat-session-card {
+  margin: 0 16px 16px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-md);
+  background: var(--cream-light);
+  padding: 16px;
+  color: var(--ink);
+  font-size: 14px;
+}
+.chat-session-card .gold-button {
+  height: 44px;
+  padding: 0 24px;
+}
+.chat-system-message {
+  align-self: center;
+  max-width: 80%;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgb(224 213 195 / 0.6);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--ink);
+  text-align: center;
+}
+.place-options {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: 20;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-md);
+  background: var(--cream-light);
+}
+.place-options button {
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 14px;
+}
+.place-options button:hover,
+.place-options button:focus-visible {
+  background: rgb(170 142 98 / 0.15);
+}
+.error-page {
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}

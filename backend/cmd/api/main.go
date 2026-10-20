@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -17,6 +18,8 @@ import (
 )
 
 func main() {
+	// All timestamps are handled in UTC (database scans included).
+	time.Local = time.UTC
 	configPath := flag.String("config", "", "path to a YAML config file (default ./config.yaml if present)")
 	flag.Parse()
 

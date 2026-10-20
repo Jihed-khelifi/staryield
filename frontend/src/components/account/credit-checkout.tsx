@@ -41,11 +41,11 @@ export function CreditCheckout() {
 
   useEffect(() => {
     const ctrl = new AbortController();
-    setLoadError("");
     if (reload === 0) track("checkout_opened");
     walletApi
       .packs(ctrl.signal)
       .then((list) => {
+        setLoadError("");
         setPacks(list);
         setSelected((list.find((p) => p.featured) ?? list[0])?.id ?? "");
       })
@@ -116,7 +116,10 @@ export function CreditCheckout() {
               {loadError ? (
                 <div className="mt-6 text-sm" role="alert">
                   <p className="text-red-800">{loadError}</p>
-                  <button type="button" className="mt-2 underline" onClick={() => setReload((n) => n + 1)}>
+                  <button type="button" className="mt-2 underline" onClick={() => {
+                      setLoadError("");
+                      setReload((n) => n + 1);
+                    }}>
                     {text("Try again")}
                   </button>
                 </div>

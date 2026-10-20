@@ -85,95 +85,108 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
   }, [status, locale, router]);
 
   // --- loading ---------------------------------------------------------------
-  const loadInbox = React.useCallback(async () => {
-    try {
-      setConversations(await chatApi.conversations());
-      setInboxError(null);
-    } catch (err) {
-      setInboxError(toApiError(err));
-    }
+  // Effects only start requests; state changes happen in their callbacks.
+  const [inboxNonce, setInboxNonce] = React.useState(0);
+  const [threadNonce, setThreadNonce] = React.useState(0);
+  const loadInbox = React.useCallback(() => setInboxNonce((n) => n + 1), []);
+  const activeConvRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    activeConvRef.current = activeConvId;
+  });
+
+  const fetchMessages = React.useCallback((convId: string, signal?: AbortSignal) => {
+    Promise.all([chatApi.messages(convId, undefined, signal), chatApi.saved(convId)]).then(
+      ([page, savedItems]) => {
+        if (signal?.aborted) return;
+        setMessages(page.items);
+        setCursor(page.next_cursor);
+        setSaved(savedItems);
+        setThreadError(null);
+      },
+      (err) => {
+        const e = toApiError(err);
+        if (!signal?.aborted && e.code !== "aborted") setThreadError(e);
+      },
+    );
   }, []);
 
-  const loadMessages = React.useCallback(async (convId: string) => {
-    const [page, savedItems] = await Promise.all([chatApi.messages(convId), chatApi.saved(convId)]);
-    setMessages(page.items);
-    setCursor(page.next_cursor);
-    setSaved(savedItems);
-  }, []);
+  // Inbox (and the default conversation when none is selected).
+  React.useEffect(() => {
+    if (status !== "authenticated") return;
+    const ctrl = new AbortController();
+    chatApi.conversations(ctrl.signal).then(
+      (list) => {
+        setConversations(list);
+        setInboxError(null);
+        if (role === "client") {
+          setSlug((cur) => cur ?? list[0]?.counterpart.slug);
+        } else if (list.length > 0 && !activeConvRef.current) {
+          const live = list.find((c) => isOpen(c.open_session)) ?? list[0];
+          setActiveConvId(live.id);
+          setCounterpart(live.counterpart);
+          setSnap(live.open_session ? snapshot(live.open_session) : null);
+        }
+      },
+      (err) => {
+        const e = toApiError(err);
+        if (!ctrl.signal.aborted && e.code !== "aborted") setInboxError(e);
+      },
+    );
+    return () => ctrl.abort();
+  }, [status, role, inboxNonce]);
 
-  const loadClientThread = React.useCallback(
-    async (advisorSlug: string) => {
-      setThreadError(null);
-      try {
-        const thread = await chatApi.thread(advisorSlug);
+  // Client: the conversation with the selected advisor (may not exist yet).
+  React.useEffect(() => {
+    if (status !== "authenticated" || role !== "client" || !slug) return;
+    const ctrl = new AbortController();
+    chatApi.thread(slug, ctrl.signal).then(
+      (thread) => {
+        setThreadError(null);
         setPsychic(thread.psychic);
         setCounterpart({ id: thread.psychic.id, role: "psychic", name: thread.psychic.name, avatar_url: thread.psychic.image_url, slug: thread.psychic.slug, status: thread.psychic.status });
         setActiveConvId(thread.conversation?.id ?? null);
         setSnap(thread.open_session ? snapshot(thread.open_session) : null);
         setOtherSession(thread.client_open_session ?? null);
-        if (thread.conversation) await loadMessages(thread.conversation.id);
+        if (thread.conversation) fetchMessages(thread.conversation.id, ctrl.signal);
         else {
           setMessages([]);
           setSaved([]);
           setCursor(undefined);
         }
-        track("chat_opened", { slug: advisorSlug });
-      } catch (err) {
-        setThreadError(toApiError(err));
+        track("chat_opened", { slug });
+      },
+      (err) => {
+        const e = toApiError(err);
+        if (!ctrl.signal.aborted && e.code !== "aborted") setThreadError(e);
+      },
+    );
+    return () => ctrl.abort();
+  }, [status, role, slug, threadNonce, fetchMessages]);
+
+  // Psychic: messages of the selected conversation.
+  React.useEffect(() => {
+    if (role !== "psychic" || !activeConvId) return;
+    const ctrl = new AbortController();
+    fetchMessages(activeConvId, ctrl.signal);
+    return () => ctrl.abort();
+  }, [role, activeConvId, threadNonce, fetchMessages]);
+
+  const openConversation = (conv: Conversation) => {
+    setInboxOpen(false);
+    setSummary(null);
+    setActionError(null);
+    setTyping(false);
+    if (role === "client") {
+      if (conv.counterpart.slug && conv.counterpart.slug !== slug) {
+        setSlug(conv.counterpart.slug);
+        router.replace(`/${locale}/chatroom?reader=${conv.counterpart.slug}`, { scroll: false });
       }
-    },
-    [loadMessages],
-  );
-
-  const openConversation = React.useCallback(
-    async (conv: Conversation) => {
-      setInboxOpen(false);
-      setSummary(null);
-      setActionError(null);
-      setTyping(false);
-      if (role === "client") {
-        if (conv.counterpart.slug) {
-          setSlug(conv.counterpart.slug);
-          router.replace(`/${locale}/chatroom?reader=${conv.counterpart.slug}`, { scroll: false });
-        }
-        return;
-      }
-      setActiveConvId(conv.id);
-      setCounterpart(conv.counterpart);
-      setSnap(conv.open_session ? snapshot(conv.open_session) : null);
-      setThreadError(null);
-      try {
-        await loadMessages(conv.id);
-      } catch (err) {
-        setThreadError(toApiError(err));
-      }
-    },
-    [loadMessages, locale, role, router],
-  );
-
-  React.useEffect(() => {
-    if (status !== "authenticated") return;
-    void loadInbox();
-  }, [status, loadInbox]);
-
-  // Client: open the requested advisor (or the most recent conversation).
-  React.useEffect(() => {
-    if (status !== "authenticated" || role !== "client") return;
-    if (slug) void loadClientThread(slug);
-  }, [status, role, slug, loadClientThread]);
-
-  React.useEffect(() => {
-    if (role !== "client" || slug || conversations.length === 0) return;
-    const first = conversations[0].counterpart.slug;
-    if (first) setSlug(first);
-  }, [role, slug, conversations]);
-
-  // Psychic: open the conversation with a live session or request first.
-  React.useEffect(() => {
-    if (role !== "psychic" || activeConvId || conversations.length === 0) return;
-    const live = conversations.find((c) => isOpen(c.open_session)) ?? conversations[0];
-    void openConversation(live);
-  }, [role, activeConvId, conversations, openConversation]);
+      return;
+    }
+    setActiveConvId(conv.id);
+    setCounterpart(conv.counterpart);
+    setSnap(conv.open_session ? snapshot(conv.open_session) : null);
+  };
 
   // --- presence: join the open session while this view is mounted ----------
   const openSessionId = isOpen(session) ? session!.id : null;
@@ -208,7 +221,7 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
     setConversations((list) => {
       const found = list.some((c) => c.id === s.conversation_id);
       if (!found) {
-        void loadInbox();
+        loadInbox();
         return list;
       }
       return list.map((c) => (c.id === s.conversation_id ? { ...c, open_session: isOpen(s) ? s : undefined } : c));
@@ -220,20 +233,14 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
     if (role === "psychic" && type === "session.requested" && (!session || !isOpen(session))) {
       toast.show({ tone: "info", message: text("{value0} would like to start a live chat.", { value0: s.client.name }) });
       const conv = conversations.find((c) => c.id === s.conversation_id);
-      if (conv) void openConversation({ ...conv, open_session: s });
-      else {
-        setActiveConvId(s.conversation_id);
-        setCounterpart(s.client);
-        setSnap(snapshot(s));
-        void loadMessages(s.conversation_id).catch(() => undefined);
-      }
+      openConversation(conv ? { ...conv, open_session: s } : { id: s.conversation_id, counterpart: s.client, unread: 0, open_session: s, created_at: s.requested_at });
       return;
     }
     const sameConversation = s.conversation_id === activeConvId || (!activeConvId && role === "client" && s.psychic.slug === slug);
     if (!sameConversation) return;
     if (!activeConvId) {
       setActiveConvId(s.conversation_id);
-      void loadMessages(s.conversation_id).catch(() => undefined);
+      fetchMessages(s.conversation_id);
     }
     setSnap(snapshot(s));
     if (data.summary) setSummary(data.summary);
@@ -270,7 +277,7 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
     }
     setConversations((list) => {
       if (!list.some((c) => c.id === message.conversation_id)) {
-        void loadInbox();
+        loadInbox();
         return list;
       }
       return list
@@ -307,23 +314,13 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
   });
 
   // After a reconnect without replay, refetch the authoritative state.
-  const resync = React.useCallback(async () => {
-    void loadInbox();
-    if (role === "client" && slug) {
-      await loadClientThread(slug);
-      return;
-    }
-    if (activeConvId) {
-      try {
-        await loadMessages(activeConvId);
-      } catch (err) {
-        logger.warn("resync failed", err);
-      }
-    }
-  }, [activeConvId, loadClientThread, loadInbox, loadMessages, role, slug]);
-  useRealtimeEvent("resync_required", () => void resync());
+  const resync = React.useCallback(() => {
+    loadInbox();
+    setThreadNonce((n) => n + 1);
+  }, [loadInbox]);
+  useRealtimeEvent("resync_required", resync);
   useRealtimeEvent<{ reconnected?: boolean; resumed?: boolean }>("hello", (d) => {
-    if (d.reconnected && !d.resumed) void resync();
+    if (d.reconnected && !d.resumed) resync();
   });
 
   // --- read receipts ---------------------------------------------------------
@@ -371,7 +368,7 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
       setSnap(snapshot(s));
       if (!activeConvId) {
         setActiveConvId(s.conversation_id);
-        void loadInbox();
+        loadInbox();
       }
     }
   }
@@ -452,12 +449,12 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
   const inbox = inboxError ? (
     <div className="p-4 text-sm" role="alert">
       <p>{text(errorMessage(inboxError))}</p>
-      <button type="button" className="mt-2 underline" onClick={() => void loadInbox()}>
+      <button type="button" className="mt-2 underline" onClick={loadInbox}>
         {text("Try again")}
       </button>
     </div>
   ) : (
-    <ConversationList conversations={conversations} activeId={activeConvId} onSelect={(c) => void openConversation(c)} />
+    <ConversationList conversations={conversations} activeId={activeConvId} onSelect={openConversation} />
   );
   const panel = counterpart ? (
     <ReaderPanel
@@ -527,7 +524,7 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
             {threadError ? (
               <div className="p-6 text-sm" role="alert">
                 <p>{text(errorMessage(threadError))}</p>
-                <button type="button" className="mt-2 underline" onClick={() => void resync()}>
+                <button type="button" className="mt-2 underline" onClick={resync}>
                   {text("Try again")}
                 </button>
               </div>

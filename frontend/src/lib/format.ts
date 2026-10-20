@@ -1,8 +1,8 @@
 import type { Locale } from "@/i18n/config";
 
 /**
- * "07/30, 1:13 AM" in the design — rendered per locale but pinned to UTC so
- * the server and the client always agree.
+ * "07/30, 1:13 AM" in the design, in the viewer's time zone. Chat messages
+ * are rendered client-side from server timestamps, so no SSR mismatch.
  */
 export function formatMessageTime(iso: string, locale: Locale) {
   return new Intl.DateTimeFormat(locale, {
@@ -10,7 +10,6 @@ export function formatMessageTime(iso: string, locale: Locale) {
     day: "2-digit",
     hour: "numeric",
     minute: "2-digit",
-    timeZone: "UTC",
   }).format(new Date(iso));
 }
 

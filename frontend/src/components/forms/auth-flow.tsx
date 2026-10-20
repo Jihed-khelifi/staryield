@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
@@ -45,7 +45,7 @@ export function AuthFlow({ step }: { step: AuthStep }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
-  const [emailDefault, setEmailDefault] = useState("");
+  const emailRef = useRef<HTMLInputElement>(null);
 
   const title = {
     email: "Enter your email:",
@@ -60,7 +60,9 @@ export function AuthFlow({ step }: { step: AuthStep }) {
   useEffect(() => {
     track("signup_step_viewed", { step });
     if (step === "password" && !readSignupEmail()) router.replace(`/${locale}/signup`);
-    if (step === "email" || step === "login") setEmailDefault(readSignupEmail());
+    // Prefill from the signup step (DOM write; keeps SSR markup stable).
+    if ((step === "email" || step === "login") && emailRef.current && !emailRef.current.value)
+      emailRef.current.value = readSignupEmail();
   }, [step, locale, router]);
 
   // Steps after account creation need a session.
@@ -199,8 +201,7 @@ export function AuthFlow({ step }: { step: AuthStep }) {
                   type="email"
                   autoComplete={step === "login" ? "username" : "email"}
                   placeholder={text("example@email.com")}
-                  defaultValue={emailDefault}
-                  key={emailDefault}
+                  ref={emailRef}
                   maxLength={254}
                   required
                   className="auth-input mt-6"

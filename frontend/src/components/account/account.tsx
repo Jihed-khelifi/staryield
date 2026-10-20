@@ -381,11 +381,9 @@ function Settings() {
   const [placeId, setPlaceId] = useState(user?.profile.birth_place_id ?? "");
   const [places, setPlaces] = useState<Place[]>([]);
 
+  const searchable = placeQuery.trim().length >= 2 && placeQuery !== user?.profile.birth_place && !placeId;
   useEffect(() => {
-    if (placeQuery.trim().length < 2 || placeQuery === user?.profile.birth_place) {
-      setPlaces([]);
-      return;
-    }
+    if (!searchable) return;
     const ctrl = new AbortController();
     const t = window.setTimeout(() => {
       astrologyApi
@@ -397,7 +395,8 @@ function Settings() {
       window.clearTimeout(t);
       ctrl.abort();
     };
-  }, [placeQuery, user?.profile.birth_place]);
+  }, [placeQuery, searchable]);
+  const visiblePlaces = searchable ? places : [];
 
   if (!user) return null;
   const p = user.profile;
@@ -491,9 +490,9 @@ function Settings() {
             aria-autocomplete="list"
             aria-controls="birth-place-options"
           />
-          {places.length > 0 ? (
+          {visiblePlaces.length > 0 ? (
             <ul id="birth-place-options" role="listbox" className="place-options">
-              {places.map((pl) => (
+              {visiblePlaces.map((pl) => (
                 <li key={pl.id} role="option" aria-selected={pl.id === placeId}>
                   <button
                     type="button"

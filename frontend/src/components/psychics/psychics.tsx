@@ -62,10 +62,12 @@ export function PsychicsBrowse() {
   const [error, setError] = useState<ApiError | null>(null);
 
   const load = useCallback(() => {
-    setError(null);
     psychicsApi
       .list()
-      .then(setAdvisors)
+      .then((list) => {
+        setAdvisors(list);
+        setError(null);
+      })
       .catch((err) => setError(toApiError(err)));
   }, []);
 
@@ -101,7 +103,13 @@ export function PsychicsBrowse() {
           </p>
         </div>
         {advisors === null ? (
-          <LoadState error={error} onRetry={load} />
+          <LoadState
+            error={error}
+            onRetry={() => {
+              setError(null);
+              load();
+            }}
+          />
         ) : advisors.length === 0 ? (
           <p className="py-16 text-center text-sm">{text("No advisors are listed right now.")}</p>
         ) : (
@@ -162,11 +170,11 @@ export function PsychicProfile({ slug }: { slug: string }) {
   const orderKey = useRef(newId());
 
   const load = useCallback(() => {
-    setError(null);
     psychicsApi
       .get(slug)
       .then((p) => {
         setAdvisor(p);
+        setError(null);
         track("psychic_profile_viewed", { slug });
       })
       .catch((err) => setError(toApiError(err)));
@@ -220,7 +228,13 @@ export function PsychicProfile({ slug }: { slug: string }) {
               </Link>
             </div>
           ) : (
-            <LoadState error={error} onRetry={load} />
+            <LoadState
+              error={error}
+              onRetry={() => {
+                setError(null);
+                load();
+              }}
+            />
           )}
         </main>
         <MobileNavigation />

@@ -20,6 +20,7 @@ import (
 )
 
 func main() {
+	time.Local = time.UTC
 	configPath := flag.String("config", "", "path to a YAML config file")
 	flag.Parse()
 	cmd := flag.Arg(0)

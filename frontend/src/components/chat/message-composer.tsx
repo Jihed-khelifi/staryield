@@ -49,7 +49,7 @@ export function MessageComposer({
 
   React.useEffect(() => stopTyping, [stopTyping]);
 
-  function typed() {
+  const typed = React.useCallback(() => {
     if (!onTyping || disabled) return;
     const now = Date.now();
     if (now - lastTyping.current > TYPING_EVERY_MS) {
@@ -58,7 +58,7 @@ export function MessageComposer({
     }
     if (idleTimer.current) clearTimeout(idleTimer.current);
     idleTimer.current = setTimeout(stopTyping, TYPING_IDLE_MS);
-  }
+  }, [onTyping, disabled, stopTyping]);
 
   function handleSubmit(values: MessageFormValues) {
     stopTyping();
@@ -68,7 +68,7 @@ export function MessageComposer({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-1.5 border-t border-border p-3">
+      <form onSubmit={(e) => void form.handleSubmit(handleSubmit)(e)} className="flex flex-col gap-1.5 border-t border-border p-3">
         <FormField
           control={form.control}
           name="message"

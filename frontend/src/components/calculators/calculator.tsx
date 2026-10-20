@@ -1,6 +1,6 @@
 "use client";
 import { TarotSpread } from "./tarot-spread";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LockKeyhole } from "lucide-react";
 import { useI18n } from "@/i18n/i18n-provider";
@@ -15,6 +15,7 @@ import {
   validBirthDate,
   zodiacForDate,
 } from "@/lib/calculators";
+import { track } from "@/lib/analytics";
 
 export type CalculatorKind = "natal-chart" | "path-of-life" | "astrology";
 const descriptions = {
@@ -42,6 +43,9 @@ export function Calculator({
     : [0, 0, 0];
   const { personalYear, personalMonth } = personalCycles(birth);
   const zodiac = birth ? zodiacForDate(month, day) : "Gemini";
+  useEffect(() => {
+    if (!showResults) track("calculator_started", { kind });
+  }, [kind, showResults]);
   function calculate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -57,6 +61,7 @@ export function Calculator({
     );
     setSubmitted(true);
     setError("");
+    track("calculator_completed", { kind });
     window.scrollTo({ top: 0, behavior: "instant" });
   }
   return (
