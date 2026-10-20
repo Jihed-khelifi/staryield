@@ -30,8 +30,8 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
     environment:
-      STARYIELD_DATABASE_DSN: postgres://postgres:postgres@postgres:5432/staryield?sslmode=disable
-      STARYIELD_REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/staryield?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
       STARYIELD_LOG_FORMAT: json
     ports: ["8080:8080"]
 

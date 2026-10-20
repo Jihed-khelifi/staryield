@@ -5,8 +5,8 @@ TEST_DB_DSN ?= postgres://postgres:postgres@127.0.0.1:5432/staryield_test?sslmod
 REDIS_URL ?= redis://127.0.0.1:6379/0
 TEST_REDIS_URL ?= redis://127.0.0.1:6379/15
 
-export STARYIELD_DATABASE_DSN ?= $(DB_DSN)
-export STARYIELD_REDIS_URL ?= $(REDIS_URL)
+export DATABASE_URL ?= $(DB_DSN)
+export REDIS_URL ?= $(REDIS_URL)
 
 help: ## Show targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'

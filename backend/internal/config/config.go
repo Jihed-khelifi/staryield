@@ -2,7 +2,7 @@
 //
 // Values come from (lowest to highest precedence): built-in defaults, an
 // optional YAML file, and STARYIELD_* environment variables, where nested keys
-// use underscores (e.g. STARYIELD_DATABASE_DSN, STARYIELD_AUTH_JWT_SECRET).
+// use underscores (e.g. DATABASE_URL, STARYIELD_AUTH_JWT_SECRET).
 package config
 
 import (
