@@ -9,6 +9,9 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { I18nProvider } from "@/i18n/i18n-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { createTranslateCopy } from "@/i18n/translate-copy";
+import { ToastProvider } from "@/components/feedback/toast-provider";
+import { ErrorReporter } from "@/components/feedback/error-reporter";
+import { SessionProvider } from "@/lib/auth/session-provider";
 
 /** Stand-in for Castellar, which is not available as a webfont. */
 const cinzel = Cinzel({
@@ -72,7 +75,12 @@ export default async function LangLayout({
         className={`${cinzel.variable} ${sourceSerif.variable} ${inter.variable} paper-page min-h-dvh`}
       >
         <I18nProvider locale={lang} dictionary={dictionary}>
-          <TooltipProvider>{children}</TooltipProvider>
+          <ErrorReporter />
+          <ToastProvider>
+            <SessionProvider>
+              <TooltipProvider>{children}</TooltipProvider>
+            </SessionProvider>
+          </ToastProvider>
         </I18nProvider>
       </body>
     </html>

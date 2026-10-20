@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 
 /**
@@ -8,9 +8,11 @@ import { cn } from "@/lib/utils"
  */
 export function ReaderAvatar({
   initial,
+  image,
   className,
 }: {
   initial: string
+  image?: string
   className?: string
 }) {
   return (
@@ -18,6 +20,7 @@ export function ReaderAvatar({
       size="lg"
       className={cn("size-10 rounded-lg after:rounded-lg after:border-0", className)}
     >
+      {image ? <AvatarImage src={image} alt="" className="rounded-lg object-cover" /> : null}
       <AvatarFallback className="rounded-lg bg-cream font-serif text-[18px] font-bold text-ink">
         {initial}
       </AvatarFallback>

@@ -39,6 +39,7 @@ const auth: Record<string, AuthStep> = {
   "signup/offer": "offer",
   login: "login",
   "forgot-password": "reset",
+  "reset-password": "newPassword",
 };
 const accounts: Record<string, AccountView> = {
   profile: "overview",
@@ -79,6 +80,7 @@ export async function generateMetadata({
     "signup/offer": "Sign up",
     login: "Log in",
     "forgot-password": "Forgot password",
+    "reset-password": "Choose a new password",
     "calculators/natal-chart": "Natal Chart",
     "calculators/path-of-life": "Life Path",
     "calculators/astrology": "Astrology",
@@ -115,10 +117,13 @@ export default async function ScreenPage({ params }: RouteProps) {
   if (route in accounts) return <Account key={route} view={accounts[route]} />;
   if (route === "contact") return <ContactForm />;
   if (route === "psychics") return <PsychicsBrowse />;
+  // Advisors come from the API; any well-formed slug is resolved client-side
+  // (unknown slugs render the not-found state).
   if (
     screen[0] === "psychics" &&
     screen.length === 2 &&
-    advisors.some((advisor) => advisor.slug === screen[1])
+    /^[a-z0-9]+(-[a-z0-9]+)*$/.test(screen[1]) &&
+    screen[1].length <= 64
   )
     return <PsychicProfile key={route} slug={screen[1]} />;
   if (route === "credits")

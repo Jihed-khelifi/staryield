@@ -1,0 +1,75 @@
+# Staryield API configuration. Copy to config.yaml for local overrides.
+# Every key can also be set as an environment variable: STARYIELD_<SECTION>_<KEY>
+# (e.g. STARYIELD_DATABASE_DSN, STARYIELD_AUTH_JWT_SECRET). Environment wins.
+app:
+  env: development            # development | test | production
+  frontend_url: http://localhost:3000
+
+http:
+  addr: ":8080"
+  request_timeout: 15s        # deadline cascaded to every DB/Redis call
+  body_limit: 64KB
+  ip_source: direct           # direct | xff | cloudflare (headers trusted only from trusted_proxies)
+  trusted_proxies: []
+
+database:
+  dsn: postgres://postgres@127.0.0.1:5432/staryield?sslmode=disable
+  auto_migrate: true
+
+redis:
+  url: redis://127.0.0.1:6379/0
+  key_prefix: "sy:"
+
+auth:
+  # Required in production (>= 32 random bytes): openssl rand -base64 48
+  jwt_secret: ""
+  access_token_ttl: 15m
+  refresh_token_ttl: 720h
+  login_max_failures: 5
+  login_lockout: 15m
+
+security:
+  allowed_origins: [http://localhost:3000, http://localhost:3001]
+  cookie_domain: ""           # e.g. .staryield.net when the API lives on api.staryield.net
+  cookie_secure: false        # must be true in production (HTTPS)
+  csrf_secret: ""             # required in production (>= 32 bytes)
+  hsts: false
+
+chat:
+  request_timeout: 90s        # BR-04: unanswered requests expire
+  accepted_timeout: 120s      # accepted but both parties never connected
+  grace_period: 90s           # BR-05: reconnection window
+  billing_interval: 60s       # BR-01/BR-02: one billed (started) minute
+  max_message_length: 1000
+
+billing:
+  psychic_share_percent: 60   # BR-08: psychic share of gross credits
+  signup_free_minutes: 3      # "First 3 minutes are on us"
+  signup_bonus_credits: 0
+
+storage:
+  driver: memory              # memory | r2
+  r2_account_id: ""
+  r2_access_key_id: ""
+  r2_secret_access_key: ""
+  r2_bucket: staryield-app-assets
+  public_base_url: https://assets.staryield.net
+
+payments:
+  provider: sandbox           # refused in production unless allow_sandbox_in_production
+  webhook_secret: ""
+
+analytics:
+  enabled: true
+  ip_hash_secret: ""          # required in production
+
+log:
+  level: info                 # debug | info | warn | error
+  format: console             # json | console
+
+mail:
+  driver: log                 # log (dev only) | noop
+
+worker:
+  enabled: true
+  tick_interval: 1s

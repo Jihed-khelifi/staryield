@@ -294,8 +294,9 @@ func (s *Server) readWS(ctx context.Context, conn *websocket.Conn, c *Client) {
 			case websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseNoStatusReceived):
 				c.Log.Debug("realtime: client closed", zap.Error(err))
 			case errors.Is(err, websocket.ErrReadLimit):
+				// gorilla already sent close 1009 (message too big).
 				c.Log.Warn("realtime: frame too large")
-				c.Close(ClosePolicyViolation, "frame too large")
+				c.Close(CloseMessageTooBig, "frame too large")
 			default:
 				c.Log.Debug("realtime: read ended", zap.Error(err))
 			}

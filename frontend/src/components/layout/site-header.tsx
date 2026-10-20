@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, UserRound, Sun, Sparkles, MessageCircle } from "lucide-react";
 import { useI18n } from "@/i18n/i18n-provider";
+import { useSession } from "@/lib/auth/session-provider";
 import { SunLogo } from "@/components/brand/sun-logo";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 import { Button } from "@/components/ui/button";
@@ -23,8 +24,10 @@ export function SiteHeader({
   promo?: boolean;
 }) {
   const { text, locale, t } = useI18n();
+  const { status, user, wallet, signOut } = useSession();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const signedIn = status === "authenticated" && Boolean(user);
   const items = publicSite
     ? [
         ["Psychics", "/psychics"],
@@ -78,28 +81,38 @@ export function SiteHeader({
         </nav>
         <div className="flex items-center gap-3">
           <LocaleSwitcher className="rounded-full border border-gold/40 bg-cream/60 px-2 sm:px-3" />
-          {publicSite ? (
-            <div className="hidden items-center gap-4 lg:flex">
+          {!signedIn ? (
+            <div className={publicSite ? "hidden items-center gap-4 lg:flex" : "flex items-center gap-4"}>
               <Link href={`/${locale}/login`}>{text("Log In")}</Link>
-              <Button asChild className="gold-button w-40">
+              <Button asChild className={publicSite ? "gold-button w-40" : "gold-button max-md:hidden"}>
                 <Link href={`/${locale}/signup`}>{text("Sign Up")}</Link>
               </Button>
             </div>
           ) : (
             <>
-              <Link href={`/${locale}/credits`} className="balance-pill">
-                <span className="md:hidden">✦ </span>
-                <span className="hidden md:inline">
-                  {text("Balance: ")}
-                </span>320{" "}
-                <span className="md:capitalize">{text("credits")}</span>
-              </Link>
+              {user?.role === "client" ? (
+                <Link
+                  href={`/${locale}/credits`}
+                  className="balance-pill"
+                  aria-label={text("Balance: {value0} credits", { value0: wallet?.balance ?? 0 })}
+                >
+                  <span className="md:hidden">✦ </span>
+                  <span className="hidden md:inline">{text("Balance: ")}</span>
+                  {(wallet?.balance ?? 0).toLocaleString(locale)}{" "}
+                  <span className="md:capitalize">{text("credits")}</span>
+                </Link>
+              ) : null}
               <Link
                 href={`/${locale}/profile/settings`}
                 aria-label={text("Account settings")}
-                className="hidden size-10 items-center justify-center rounded-full bg-gold text-cream-light md:flex"
+                className="hidden size-10 items-center justify-center overflow-hidden rounded-full bg-gold text-cream-light md:flex"
               >
-                <UserRound size={20} />
+                {user?.profile.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.profile.avatar_url} alt="" className="size-full object-cover" />
+                ) : (
+                  <UserRound size={20} />
+                )}
               </Link>
             </>
           )}
@@ -128,12 +141,32 @@ export function SiteHeader({
                     {text(label)}
                   </Link>
                 ))}
-                <Link onClick={() => setOpen(false)} href={`/${locale}/login`}>
-                  {text("Log In ")}
-                </Link>
-                <Link onClick={() => setOpen(false)} href={`/${locale}/signup`}>
-                  {text("Sign Up ")}
-                </Link>
+                {signedIn ? (
+                  <>
+                    <Link onClick={() => setOpen(false)} href={`/${locale}/profile`}>
+                      {text("Profile")}
+                    </Link>
+                    <button
+                      type="button"
+                      className="text-left"
+                      onClick={() => {
+                        setOpen(false);
+                        void signOut();
+                      }}
+                    >
+                      {text("Sign out")}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link onClick={() => setOpen(false)} href={`/${locale}/login`}>
+                      {text("Log In ")}
+                    </Link>
+                    <Link onClick={() => setOpen(false)} href={`/${locale}/signup`}>
+                      {text("Sign Up ")}
+                    </Link>
+                  </>
+                )}
                 <LocaleSwitcher />
               </nav>
             </SheetContent>

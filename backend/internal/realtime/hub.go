@@ -20,6 +20,7 @@ const (
 	CloseNormal          = 1000
 	CloseGoingAway       = 1001
 	CloseUnsupported     = 1003
+	CloseMessageTooBig   = 1009
 	CloseSlowConsumer    = 4000
 	CloseUnauthorized    = 4001
 	ClosePolicyViolation = 4008

@@ -587,8 +587,8 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, curr
 
 // statusEntry is the cached authorization state of a user.
 type statusEntry struct {
-	Status           domain.UserStatus
-	Role             domain.Role
+	Status       domain.UserStatus
+	Role         domain.Role
 	TokenVersion int
 }
 

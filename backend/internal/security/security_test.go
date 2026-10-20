@@ -42,13 +42,13 @@ func TestPasswordHashVerify(t *testing.T) {
 
 func TestValidatePassword(t *testing.T) {
 	for pw, ok := range map[string]bool{
-		"Str0ng!Passw0rd": true,
-		"short1!A":        true,
-		"Sh0rt!":          false,
-		"alllowercase1!":  false,
-		"NoDigits!!":      false,
-		"NoSpecial123":    false,
-		"Password1!":      false, // common
+		"Str0ng!Passw0rd":         true,
+		"short1!A":                true,
+		"Sh0rt!":                  false,
+		"alllowercase1!":          false,
+		"NoDigits!!":              false,
+		"NoSpecial123":            false,
+		"Password1!":              false, // common
 		strings.Repeat("A1!", 50): false,
 	} {
 		if got := ValidatePassword(pw, "someone@example.com") == ""; got != ok {

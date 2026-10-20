@@ -36,21 +36,21 @@ const (
 
 // User is an authenticated principal.
 type User struct {
-	ID               uuid.UUID  `gorm:"type:uuid;primaryKey"`
-	Email            string     `gorm:"not null"`
-	PasswordHash     string     `gorm:"not null"`
-	Role             Role       `gorm:"not null"`
-	Status           UserStatus `gorm:"not null"`
-	DisplayName      string     `gorm:"not null"`
-	Locale           string     `gorm:"not null"`
-	EmailVerifiedAt  *time.Time
-	TermsAcceptedAt  time.Time `gorm:"not null"`
+	ID              uuid.UUID  `gorm:"type:uuid;primaryKey"`
+	Email           string     `gorm:"not null"`
+	PasswordHash    string     `gorm:"not null"`
+	Role            Role       `gorm:"not null"`
+	Status          UserStatus `gorm:"not null"`
+	DisplayName     string     `gorm:"not null"`
+	Locale          string     `gorm:"not null"`
+	EmailVerifiedAt *time.Time
+	TermsAcceptedAt time.Time `gorm:"not null"`
 	// TokenVersion is embedded in access tokens; incrementing it revokes
 	// every outstanding access token of the user immediately.
 	TokenVersion int `gorm:"not null"`
-	LastLoginAt      *time.Time
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	LastLoginAt  *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 func (User) TableName() string { return "users" }
