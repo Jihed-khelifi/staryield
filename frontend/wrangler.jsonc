@@ -22,6 +22,5 @@
     "head_sampling_rate": 1,
   },
   "vars": {
-    "NEXT_PUBLIC_API_URL": "https://server-production-ed38.up.railway.app",
   },
 }
