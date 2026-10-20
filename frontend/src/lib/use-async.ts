@@ -12,47 +12,46 @@ export type AsyncState<T> = {
   setData: (value: T | null) => void;
 };
 
+type Result<T> = { key: string; data: T | null; error: ApiError | null };
+
 /**
  * Load data with cancellation, error capture and manual reload. Aborted
- * requests (unmount, dependency change) never update state.
+ * requests (unmount, dependency change) never update state. `loading` is
+ * derived (the latest result belongs to an older key), so the effect only
+ * sets state from async callbacks.
  */
 export function useAsync<T>(load: (signal: AbortSignal) => Promise<T>, deps: unknown[], enabled = true): AsyncState<T> {
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState<ApiError | null>(null);
-  const [loading, setLoading] = useState(enabled);
   const [nonce, setNonce] = useState(0);
+  const [result, setResult] = useState<Result<T>>({ key: "", data: null, error: null });
   const loader = useRef(load);
   useEffect(() => {
     loader.current = load;
   });
+  const key = `${deps.map(String).join("\u0001")}|${nonce}`;
 
   useEffect(() => {
-    if (!enabled) {
-      setLoading(false);
-      return;
-    }
+    if (!enabled) return;
     const ctrl = new AbortController();
-    setLoading(true);
-    setError(null);
     loader.current(ctrl.signal).then(
-      (value) => {
-        if (!ctrl.signal.aborted) {
-          setData(value);
-          setLoading(false);
-        }
+      (data) => {
+        if (!ctrl.signal.aborted) setResult({ key, data, error: null });
       },
       (err) => {
         const e = toApiError(err);
-        if (!ctrl.signal.aborted && e.code !== "aborted") {
-          setError(e);
-          setLoading(false);
-        }
+        if (!ctrl.signal.aborted && e.code !== "aborted") setResult((r) => ({ key, data: r.data, error: e }));
       },
     );
     return () => ctrl.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...deps, nonce, enabled]);
+  }, [key, enabled]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
-  return { data, error, loading, reload, setData };
+  const setData = useCallback((data: T | null) => setResult((r) => ({ ...r, data })), []);
+  const current = result.key === key;
+  return {
+    data: result.data,
+    error: current ? result.error : null,
+    loading: enabled && !current,
+    reload,
+    setData,
+  };
 }

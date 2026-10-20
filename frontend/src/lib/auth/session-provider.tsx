@@ -169,3 +169,18 @@ export function useRealtimeEvent<T = unknown>(type: string, handler: (data: T, i
     return realtime.on(type, (e) => ref.current(e.data as T, e.id));
   }, [realtime, type]);
 }
+
+/** Subscribe one handler to several realtime event types. */
+export function useRealtimeEvents<T = unknown>(types: readonly string[], handler: (type: string, data: T, id?: string) => void) {
+  const { realtime } = useSession();
+  const ref = React.useRef(handler);
+  React.useEffect(() => {
+    ref.current = handler;
+  });
+  const key = types.join(",");
+  React.useEffect(() => {
+    if (!realtime) return;
+    const offs = key.split(",").map((type) => realtime.on(type, (e) => ref.current(e.type, e.data as T, e.id)));
+    return () => offs.forEach((off) => off());
+  }, [realtime, key]);
+}

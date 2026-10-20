@@ -36,7 +36,7 @@ export default async function ChatroomPage({
 
   return (
     <AppFrame fill>
-      <ChatroomShell key={reader ?? "ramone"} initialReader={reader} />
+      <ChatroomShell key={reader ?? "inbox"} initialReader={reader && /^[a-z0-9-]{1,64}$/.test(reader) ? reader : undefined} />
     </AppFrame>
   );
 }
