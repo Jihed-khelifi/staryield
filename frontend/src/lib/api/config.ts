@@ -1,4 +1,4 @@
-/** API location. Set NEXT_PUBLIC_API_URL at build time (e.g. https://api.staryield.net). */
+/** API location. Set NEXT_PUBLIC_API_URL at build time (e.g. https://api.staryield.net). DONE */
 export const API_URL = (
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
 ).replace(/\/+$/, "");
