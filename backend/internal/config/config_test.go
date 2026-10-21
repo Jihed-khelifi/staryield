@@ -246,3 +246,40 @@ func TestEncryptionKeyFormatsAndAdminPolicy(t *testing.T) {
 		}
 	}
 }
+
+// The production deployment must say whether the key is missing or has the
+// wrong length, without echoing the key.
+func TestEncryptionKeyErrorsExplainTheFix(t *testing.T) {
+	clearPlatformEnv(t)
+	t.Setenv("STARYIELD_APP_ENV", "production")
+	setProductionSecrets(t)
+	t.Setenv("STARYIELD_SECURITY_COOKIE_SECURE", "true")
+	cases := map[string]struct{ key, want string }{
+		"missing":       {"", "STARYIELD_SECURITY_DATA_ENCRYPTION_KEY is required: 32 random bytes as 64 hex characters (openssl rand -hex 32)"},
+		"48-byte hex":   {strings.Repeat("ab", 48), "got 48 bytes (96 hex characters)"},
+		"16-byte b64":   {"MDEyMzQ1Njc4OWFiY2RlZg==", "got 16 bytes of base64"},
+		"not encoded":   {"correct horse battery staple!", "must be 32 bytes as 64 hex characters or base64 (29 characters given)"},
+		"valid hex key": {strings.Repeat("0f", 32), ""},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("STARYIELD_SECURITY_DATA_ENCRYPTION_KEY", c.key)
+			if c.key == "" {
+				os.Unsetenv("STARYIELD_SECURITY_DATA_ENCRYPTION_KEY")
+			}
+			_, err := Load("")
+			if c.want == "" {
+				if err != nil {
+					t.Fatalf("valid key rejected: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("want %q, got %v", c.want, err)
+			}
+			if c.key != "" && strings.Contains(err.Error(), c.key) {
+				t.Fatalf("error echoes the key: %v", err)
+			}
+		})
+	}
+}

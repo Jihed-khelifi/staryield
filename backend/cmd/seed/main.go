@@ -8,6 +8,11 @@
 //	STARYIELD_SEED_PSYCHIC_PASSWORD   (logins <slug>@advisors.staryield.net)
 //	STARYIELD_SEED_CLIENT_EMAIL / STARYIELD_SEED_CLIENT_PASSWORD
 //	STARYIELD_SEED_CLIENT_CREDITS     (default 500)
+//
+// With -admin-only it bootstraps the administrator alone (for production):
+// it creates the account, or resets the password of an existing
+// administrator, and seeds nothing else. Its credentials must come from the
+// shell environment; the .env file is ignored for them.
 package main
 
 import (
@@ -16,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -31,7 +37,19 @@ import (
 func main() {
 	time.Local = time.UTC
 	envFile := flag.String("env-file", "", "path to a .env file (default ./.env if present); real environment variables win")
+	adminOnly := flag.Bool("admin-only", false, "only create the administrator from STARYIELD_SEED_ADMIN_EMAIL/STARYIELD_SEED_ADMIN_PASSWORD, or reset its password; seed nothing else")
 	flag.Parse()
+	// -admin-only takes its credentials from the shell environment only, read
+	// before the .env file is loaded, so the example credentials committed in
+	// .env.example can never reach a production database by accident.
+	var admin seed.Account
+	if *adminOnly {
+		var err error
+		if admin, err = adminFromEnv(os.Getenv); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+	}
 	cfg, err := config.Load(*envFile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "configuration error:", err)
@@ -51,6 +69,13 @@ func main() {
 	if _, err := migrations.Up(ctx, db, log); err != nil {
 		log.Fatal("migrate", zap.Error(err))
 	}
+	hasher := security.NewPasswordHasher(cfg.Auth.Argon2Memory, cfg.Auth.Argon2Iterations, cfg.Auth.Argon2Parallelism)
+	if *adminOnly {
+		if _, err := seed.EnsureAdmin(ctx, db, hasher, admin, log); err != nil {
+			log.Fatal("admin bootstrap failed", zap.Error(err))
+		}
+		return
+	}
 	opts := seed.Options{PsychicPassword: os.Getenv("STARYIELD_SEED_PSYCHIC_PASSWORD"), DemoCredits: 500}
 	if e := os.Getenv("STARYIELD_SEED_ADMIN_EMAIL"); e != "" {
 		opts.Admin = &seed.Account{Email: e, Password: os.Getenv("STARYIELD_SEED_ADMIN_PASSWORD")}
@@ -63,9 +88,24 @@ func main() {
 			opts.DemoCredits = n
 		}
 	}
-	hasher := security.NewPasswordHasher(cfg.Auth.Argon2Memory, cfg.Auth.Argon2Iterations, cfg.Auth.Argon2Parallelism)
 	if err := seed.Run(ctx, db, hasher, opts, log); err != nil {
 		log.Fatal("seed failed", zap.Error(err))
 	}
 	log.Info("seed complete")
+}
+
+// adminFromEnv reads the administrator credentials for -admin-only.
+func adminFromEnv(getenv func(string) string) (seed.Account, error) {
+	acct := seed.Account{Email: strings.TrimSpace(getenv("STARYIELD_SEED_ADMIN_EMAIL")), Password: getenv("STARYIELD_SEED_ADMIN_PASSWORD")}
+	var missing []string
+	if acct.Email == "" {
+		missing = append(missing, "STARYIELD_SEED_ADMIN_EMAIL")
+	}
+	if acct.Password == "" {
+		missing = append(missing, "STARYIELD_SEED_ADMIN_PASSWORD")
+	}
+	if len(missing) > 0 {
+		return seed.Account{}, fmt.Errorf("-admin-only needs %s set in the shell environment (the .env file is not used for these)", strings.Join(missing, " and "))
+	}
+	return acct, nil
 }

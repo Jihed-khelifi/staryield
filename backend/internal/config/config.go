@@ -87,7 +87,6 @@ type DatabaseConfig struct {
 	ConnMaxLifetime time.Duration `env:"conn_max_lifetime"`
 	ConnMaxIdleTime time.Duration `env:"conn_max_idle_time"`
 	SlowQuery       time.Duration `env:"slow_query"`
-	AutoMigrate     bool          `env:"auto_migrate"`
 	// ConnectTimeout bounds the startup connection retries (the database may
 	// still be booting or the private network warming up).
 	ConnectTimeout time.Duration `env:"connect_timeout"`
@@ -352,7 +351,6 @@ func defaults() Config {
 			ConnMaxLifetime: 30 * time.Minute,
 			ConnMaxIdleTime: 5 * time.Minute,
 			SlowQuery:       250 * time.Millisecond,
-			AutoMigrate:     true,
 			ConnectTimeout:  60 * time.Second,
 		},
 		Redis: RedisConfig{
@@ -505,19 +503,30 @@ func (c *Config) normalize() {
 	}
 }
 
-// EncryptionKey decodes STARYIELD_SECURITY_DATA_ENCRYPTION_KEY (64 hex characters or
-// base64 of 32 bytes; development keys carry a "dev-only:" prefix).
+// EncryptionKey decodes STARYIELD_SECURITY_DATA_ENCRYPTION_KEY: 32 bytes as
+// 64 hex characters or base64 (development keys carry a "dev-only:" prefix).
+// Errors describe the problem without echoing the key.
 func (c *Config) EncryptionKey() ([]byte, error) {
+	name := EnvVar("security.data_encryption_key")
 	raw := strings.TrimPrefix(strings.TrimSpace(c.Security.DataEncryptionKey), "dev-only:")
-	if b, err := hex.DecodeString(raw); err == nil && len(b) == 32 {
-		return b, nil
+	if raw == "" {
+		return nil, fmt.Errorf("%s is required: 32 random bytes as 64 hex characters (openssl rand -hex 32)", name)
 	}
-	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
-		if b, err := enc.DecodeString(raw); err == nil && len(b) == 32 {
+	if b, err := hex.DecodeString(raw); err == nil {
+		if len(b) == 32 {
 			return b, nil
 		}
+		return nil, fmt.Errorf("%s must be 32 bytes (64 hex characters), got %d bytes (%d hex characters); generate one with openssl rand -hex 32", name, len(b), len(raw))
 	}
-	return nil, fmt.Errorf("%s must be 32 bytes (64 hex characters or base64)", EnvVar("security.data_encryption_key"))
+	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+		if b, err := enc.DecodeString(raw); err == nil {
+			if len(b) == 32 {
+				return b, nil
+			}
+			return nil, fmt.Errorf("%s must be 32 bytes, got %d bytes of base64; generate one with openssl rand -hex 32", name, len(b))
+		}
+	}
+	return nil, fmt.Errorf("%s must be 32 bytes as 64 hex characters or base64 (%d characters given); generate one with openssl rand -hex 32", name, len(raw))
 }
 
 func splitList(in []string) []string {

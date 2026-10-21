@@ -133,15 +133,8 @@ func Run(ctx context.Context, db *gorm.DB, hasher *security.PasswordHasher, opts
 		if err != nil {
 			return nil, false, err
 		}
-		u := &domain.User{ID: domain.NewID(), Email: email, PasswordHash: hash, Role: role, Status: domain.UserActive,
-			DisplayName: name, Locale: "en", TermsAcceptedAt: now, CreatedAt: now, UpdatedAt: now}
-		if err := users.Create(ctx, u); err != nil {
-			return nil, false, err
-		}
-		if err := users.CreateProfile(ctx, &domain.Profile{UserID: u.ID, Mood: "Empowered", Theme: "Warm Beige", NotifyHoroscope: true, UpdatedAt: now}); err != nil {
-			return nil, false, err
-		}
-		if err := wallets.Create(ctx, &domain.Wallet{UserID: u.ID, FreeMinutes: freeMinutes, UpdatedAt: now}); err != nil {
+		u, err := createAccount(ctx, users, wallets, email, hash, role, name, freeMinutes, now)
+		if err != nil {
 			return nil, false, err
 		}
 		return u, true, nil
@@ -224,4 +217,21 @@ func Run(ctx context.Context, db *gorm.DB, hasher *security.PasswordHasher, opts
 		}
 	}
 	return nil
+}
+
+// createAccount inserts an active user with its profile and wallet.
+func createAccount(ctx context.Context, users *repository.GormUserRepository, wallets *repository.GormWalletRepository,
+	email, hash string, role domain.Role, name string, freeMinutes int, now time.Time) (*domain.User, error) {
+	u := &domain.User{ID: domain.NewID(), Email: email, PasswordHash: hash, Role: role, Status: domain.UserActive,
+		DisplayName: name, Locale: "en", TermsAcceptedAt: now, CreatedAt: now, UpdatedAt: now}
+	if err := users.Create(ctx, u); err != nil {
+		return nil, err
+	}
+	if err := users.CreateProfile(ctx, &domain.Profile{UserID: u.ID, Mood: "Empowered", Theme: "Warm Beige", NotifyHoroscope: true, UpdatedAt: now}); err != nil {
+		return nil, err
+	}
+	if err := wallets.Create(ctx, &domain.Wallet{UserID: u.ID, FreeMinutes: freeMinutes, UpdatedAt: now}); err != nil {
+		return nil, err
+	}
+	return u, nil
 }

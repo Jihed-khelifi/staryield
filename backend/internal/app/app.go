@@ -67,8 +67,8 @@ type App struct {
 	wg     sync.WaitGroup
 }
 
-// New wires the application. It connects to PostgreSQL and Redis and runs
-// migrations when enabled.
+// New wires the application. It connects to PostgreSQL, applies pending
+// migrations, then connects to Redis.
 func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides) (*App, error) {
 	if cfg.App.InstanceID == "" {
 		host, _ := os.Hostname()
@@ -83,11 +83,11 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Database.AutoMigrate {
-		if _, err := migrations.Up(ctx, db, log); err != nil {
-			closeDB(db)
-			return nil, fmt.Errorf("migrate: %w", err)
-		}
+	// The schema is brought up to date on every start, before anything else
+	// touches the database; an advisory lock serialises concurrent replicas.
+	if _, err := migrations.Up(ctx, db, log); err != nil {
+		closeDB(db)
+		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	redisx.SetLogger(log)
 	rdb, err := redisx.New(ctx, cfg.Redis, log)

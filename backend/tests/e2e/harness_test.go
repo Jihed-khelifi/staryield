@@ -122,7 +122,6 @@ func newEnv(t *testing.T, opts ...option) *env {
 	}
 	cfg.App.Env = config.EnvTest
 	cfg.Database.DSN = testDSN
-	cfg.Database.AutoMigrate = false
 	cfg.Redis.URL = testRedis
 	cfg.Redis.KeyPrefix = "e2e:" + uuid.NewString()[:8] + ":"
 	cfg.Auth.Argon2Memory, cfg.Auth.Argon2Iterations, cfg.Auth.Argon2Parallelism = 1024, 1, 1
@@ -366,9 +365,16 @@ func (e *env) insertAdmin() (uuid.UUID, string) {
 func (e *env) createAdmin() *client {
 	e.t.Helper()
 	id, email := e.insertAdmin()
+	return e.enrollAdmin(id, email, strongPassword)
+}
+
+// enrollAdmin performs an administrator's first console sign-in: password,
+// TOTP enrolment and first code.
+func (e *env) enrollAdmin(id uuid.UUID, email, password string) *client {
+	e.t.Helper()
 	c := e.adminClient()
 	var ch service.LoginChallenge
-	c.must(http.StatusOK, http.MethodPost, "/api/v1/admin/auth/login", map[string]any{"email": email, "password": strongPassword}, &ch)
+	c.must(http.StatusOK, http.MethodPost, "/api/v1/admin/auth/login", map[string]any{"email": email, "password": password}, &ch)
 	if ch.Status != "enrollment_required" {
 		e.t.Fatalf("expected enrolment, got %+v", ch)
 	}
@@ -380,7 +386,7 @@ func (e *env) createAdmin() *client {
 	if len(sess.RecoveryCodes) != 10 {
 		e.t.Fatalf("recovery codes: %d", len(sess.RecoveryCodes))
 	}
-	c.totp, c.adminID, c.pw = enr.Secret, id, strongPassword
+	c.totp, c.adminID, c.pw = enr.Secret, id, password
 	c.user = &service.UserView{ID: id, Email: email, Role: string(domain.RoleAdmin)}
 	return c
 }

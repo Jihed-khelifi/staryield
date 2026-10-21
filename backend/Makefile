@@ -1,4 +1,4 @@
-.PHONY: help up down run migrate seed test test-unit test-e2e test-race lint build
+.PHONY: help up down run migrate seed seed-admin test test-unit test-e2e test-race lint build
 
 # The api, migrate and seed commands read their settings from ./.env (copy
 # .env.example) and the environment; nothing is exported here so .env applies.
@@ -22,6 +22,9 @@ migrate: ## Apply migrations
 
 seed: ## Seed advisors, packs (and accounts from STARYIELD_SEED_* env)
 	go run ./cmd/seed
+
+seed-admin: ## Create the admin, or reset its password, and nothing else (STARYIELD_SEED_ADMIN_* from the shell)
+	go run ./cmd/seed -admin-only
 
 test: test-unit test-e2e ## Run all tests
 

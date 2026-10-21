@@ -100,7 +100,13 @@ func Up(ctx context.Context, db *gorm.DB, log *zap.Logger) ([]string, error) {
 		}
 		return nil
 	})
-	return applied, err
+	if err != nil {
+		return applied, err
+	}
+	if len(migrations) > 0 {
+		log.Info("database schema up to date", zap.String("version", migrations[len(migrations)-1].Version), zap.Strings("applied", applied))
+	}
+	return applied, nil
 }
 
 // Status returns applied and pending versions.

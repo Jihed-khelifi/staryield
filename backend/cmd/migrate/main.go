@@ -44,11 +44,9 @@ func main() {
 	}
 	switch cmd {
 	case "up":
-		applied, err := migrations.Up(ctx, db, log)
-		if err != nil {
+		if _, err := migrations.Up(ctx, db, log); err != nil {
 			log.Fatal("migrate up", zap.Error(err))
 		}
-		log.Info("migrations complete", zap.Strings("applied", applied))
 	case "status":
 		applied, pending, err := migrations.Status(ctx, db)
 		if err != nil {

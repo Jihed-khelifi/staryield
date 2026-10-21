@@ -188,8 +188,24 @@ The `server` service builds `backend/Dockerfile` (root directory `/backend`, wat
   * healthcheck `/readyz`
   * restart policy `ON_FAILURE` (10 retries)
   * draining 30s, so in-flight requests finish and WebSockets get a `1001` close before `SIGKILL`; clients resume from the Redis stream on the new deployment
-  * migrations run at startup under an advisory lock, so several replicas are safe
+  * pending migrations always run at startup, before the API serves traffic, under an advisory lock, so several replicas are safe. The log shows `database schema up to date` with the current version
 * **Domain:** serve the API from `api.staryield.net`. Add it as a Railway custom domain and point a DNS-only CNAME at it; with Cloudflare's proxy on, `X-Real-IP` would be a Cloudflare address. Then build the frontend with `NEXT_PUBLIC_API_URL=https://api.staryield.net`. The session cookies are `SameSite=Lax/Strict`, so browsers only send them when the frontend and API share a registrable domain. `*.up.railway.app` is on the Public Suffix List, so sign-in cannot work from `staryield.net` against the default Railway domain.
+
+#### First administrator
+
+The API never creates accounts on its own. `seed -admin-only` creates the administrator, or resets the password of an existing administrator, and seeds nothing else: no demo advisors, credit packs or demo client. The image has no shell, so run it from your machine against the Postgres service's public URL (Postgres → Variables → `DATABASE_PUBLIC_URL`):
+
+```bash
+cd backend
+read -rs STARYIELD_SEED_ADMIN_PASSWORD && export STARYIELD_SEED_ADMIN_PASSWORD   # keeps it out of shell history
+DATABASE_URL='<DATABASE_PUBLIC_URL>' STARYIELD_SEED_ADMIN_EMAIL=you@staryield.net make seed-admin
+```
+
+* **Credentials:** they must come from the shell. The `.env` file is ignored for them, so the example credentials in `.env.example` can never reach production.
+* **Checks:** the password policy applies, and the command never promotes an existing client or advisor or reactivates a banned administrator.
+* **Re-running:** with a new password, it signs the administrator out everywhere. TOTP enrolment is kept.
+* **Audit:** every run is recorded as `admin.bootstrap_created` or `admin.bootstrap_password_reset`, with actor "System".
+* **First sign-in** at https://admin.staryield.net enrols TOTP; store the recovery codes.
 
 ## Tests
 
