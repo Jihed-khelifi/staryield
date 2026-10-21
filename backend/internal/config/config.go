@@ -439,7 +439,7 @@ func defaults() Config {
 			MaxAvatarBytes:       1 << 20,
 			MaxAvatarPixels:      4096 * 4096,
 			AvatarSize:           256,
-			AdvisorPublicBaseURL: "https://advisors.staryield.net",
+			AdvisorPublicBaseURL: "https://advisorsassets.staryield.net",
 			MaxAdvisorImageBytes: 5 << 20,
 			AdvisorImageMaxSide:  1200,
 			MaxChatImageBytes:    8 << 20,

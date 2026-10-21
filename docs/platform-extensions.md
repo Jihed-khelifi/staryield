@@ -529,7 +529,7 @@ development); `backend/.env.example` lists every variable with its default.
 | Environment variable | Default | Purpose |
 | --- | --- | --- |
 | **`R2_ADVISOR_IMAGE`** (or `STARYIELD_STORAGE_ADVISOR_BUCKET`) | "" | Public R2 bucket for advisor images (uploads disabled when empty with `STARYIELD_STORAGE_DRIVER=r2`). |
-| `R2_ADVISOR_IMAGE_PUBLIC_URL` (or `STARYIELD_STORAGE_ADVISOR_PUBLIC_BASE_URL`) | `https://advisors.staryield.net` | Public URL of that bucket. |
+| `R2_ADVISOR_IMAGE_PUBLIC_URL` (or `STARYIELD_STORAGE_ADVISOR_PUBLIC_BASE_URL`) | `https://advisorsassets.staryield.net` | Public URL of that bucket. |
 | **`R2_CHAT_IMAGES_PRIVATE`** (or `STARYIELD_STORAGE_CHAT_BUCKET`) | "" | Private R2 bucket for chat images (never public). |
 | `STARYIELD_SECURITY_ADMIN_ORIGINS` | `http://localhost:3002` | Origins allowed to call `/api/v1/admin/**`. |
 | `STARYIELD_SECURITY_ADMIN_IP_ALLOWLIST` | "" | Optional comma-separated CIDRs for admin routes. |
