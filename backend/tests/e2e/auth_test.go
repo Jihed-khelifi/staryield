@@ -280,7 +280,7 @@ func TestProfileUpdateAndAvatar(t *testing.T) {
 		t.Fatalf("avatar url: %s", me.Profile.AvatarURL)
 	}
 	key := strings.TrimPrefix(me.Profile.AvatarURL, "https://assets.test/")
-	if data, ok := e.store.Get(key); !ok || len(data) == 0 {
+	if data, ok := e.store.Lookup(key); !ok || len(data) == 0 {
 		t.Fatal("avatar not stored")
 	}
 	// Oversized uploads are refused.

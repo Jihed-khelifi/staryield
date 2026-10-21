@@ -43,6 +43,7 @@ type PsychicView struct {
 	RatePerMinute   int64         `json:"rate_per_minute"`
 	Status          string        `json:"status"`
 	Listed          bool          `json:"listed"`
+	Featured        bool          `json:"featured"`
 	Services        []ServiceView `json:"services"`
 }
 
@@ -131,7 +132,7 @@ func psychicView(p *domain.Psychic, status domain.PresenceStatus) PsychicView {
 		ID: p.UserID, Slug: p.Slug, Name: p.Name, Headline: p.Headline, About: about, Philosophy: p.Philosophy,
 		ImageURL: p.ImageURL, Zodiac: p.Zodiac, Skills: skills, Rating: p.Rating, ReviewsCount: p.ReviewsCount,
 		ReadingsCount: p.ReadingsCount, YearsExperience: p.YearsExperience, RatePerMinute: p.RatePerMinute,
-		Status: string(status), Listed: p.Listed, Services: servicesView(p.Services),
+		Status: string(status), Listed: p.Listed, Featured: p.Featured, Services: servicesView(p.Services),
 	}
 }
 
@@ -184,7 +185,10 @@ func (s *PsychicService) Get(ctx context.Context, slug string) (*PsychicView, er
 	if err != nil {
 		return nil, mapRepoErr(err, "Advisor")
 	}
-	if !p.Listed {
+	if public, err := s.psychics.IsPublic(ctx, p.UserID); err != nil {
+		return nil, apperror.Internal(err)
+	} else if !public {
+		// Hidden, banned and deleted advisors are not publicly visible.
 		return nil, apperror.NotFound("Advisor")
 	}
 	st, err := s.statuses(ctx, []domain.Psychic{*p})

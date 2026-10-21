@@ -44,7 +44,10 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/storage"
 )
 
-const origin = "http://localhost:3000"
+const (
+	origin      = "http://localhost:3000"
+	adminOrigin = "http://localhost:3002"
+)
 
 var (
 	testDSN   = envOr("STARYIELD_TEST_DATABASE_DSN", "postgres://postgres@127.0.0.1:55432/staryield_test?sslmode=disable")
@@ -98,13 +101,15 @@ func resetDatabase() error {
 
 // env is one isolated application instance (own Redis key prefix).
 type env struct {
-	t       *testing.T
-	app     *app.App
-	srv     *httptest.Server
-	clock   *clock.Fake
-	mail    *mail.Recorder
-	store   *storage.Memory
-	tracker *analytics.Recorder
+	t        *testing.T
+	app      *app.App
+	srv      *httptest.Server
+	clock    *clock.Fake
+	mail     *mail.Recorder
+	store    *storage.Memory
+	advisors *storage.Memory
+	chat     *storage.Memory
+	tracker  *analytics.Recorder
 }
 
 type option func(*config.Config)
@@ -124,6 +129,7 @@ func newEnv(t *testing.T, opts ...option) *env {
 	cfg.Worker.Enabled = false // tests drive the scheduler explicitly
 	cfg.RateLimit.Scale = 1000
 	cfg.Security.AllowedOrigins = []string{origin}
+	cfg.Security.AdminOrigins = []string{adminOrigin}
 	cfg.Log.Level = envOr("STARYIELD_TEST_LOG_LEVEL", "error")
 	cfg.Analytics.FlushInterval = 50 * time.Millisecond
 	for _, o := range opts {
@@ -139,14 +145,16 @@ func newEnv(t *testing.T, opts ...option) *env {
 	fake := clock.NewFake(time.Now())
 	rec := &mail.Recorder{}
 	store := storage.NewMemory("https://assets.test")
+	advisors := storage.NewMemory("https://advisors.test")
+	chatImages := storage.NewMemory("")
 	ctx := context.Background()
-	a, err := app.New(ctx, cfg, log, app.Overrides{Clock: fake, Mailer: rec, Storage: store})
+	a, err := app.New(ctx, cfg, log, app.Overrides{Clock: fake, Mailer: rec, Storage: store, AdvisorStorage: advisors, ChatStorage: chatImages})
 	if err != nil {
 		t.Fatalf("app: %v", err)
 	}
 	a.Start(ctx)
 	srv := httptest.NewServer(a.Router)
-	e := &env{t: t, app: a, srv: srv, clock: fake, mail: rec, store: store}
+	e := &env{t: t, app: a, srv: srv, clock: fake, mail: rec, store: store, advisors: advisors, chat: chatImages}
 	t.Cleanup(func() {
 		srv.CloseClientConnections()
 		srv.Close()
@@ -183,6 +191,12 @@ type client struct {
 	pw     string
 	// wsOrigin overrides the Origin header for WebSocket handshakes only.
 	wsOrigin string
+	// totp is the admin's authenticator secret (admin clients only).
+	totp string
+	// adminID is set for admin console clients.
+	adminID uuid.UUID
+	// locale is sent as X-Locale (and ?locale= on WebSocket connects).
+	locale string
 }
 
 func (e *env) client() *client {
@@ -234,6 +248,9 @@ func (c *client) raw(method, path string, body io.Reader, headers map[string]str
 	}
 	if c.origin != "" {
 		req.Header.Set("Origin", c.origin)
+	}
+	if c.locale != "" {
+		req.Header.Set("X-Locale", c.locale)
 	}
 	for k, v := range headers {
 		req.Header.Set(k, v)
@@ -323,8 +340,8 @@ func (e *env) createPsychic(rate int64) *client {
 	return e.login(email, strongPassword)
 }
 
-// createAdmin inserts an admin account directly and signs in.
-func (e *env) createAdmin() *client {
+// insertAdmin inserts an administrator account directly.
+func (e *env) insertAdmin() (uuid.UUID, string) {
 	e.t.Helper()
 	email := uniq("admin") + "@example.com"
 	hasher := security.NewPasswordHasher(1024, 1, 1)
@@ -341,7 +358,57 @@ func (e *env) createAdmin() *client {
 	if err := e.app.DB.Create(&domain.Wallet{UserID: u.ID, UpdatedAt: now}).Error; err != nil {
 		e.t.Fatalf("admin wallet: %v", err)
 	}
-	return e.login(email, strongPassword)
+	return u.ID, email
+}
+
+// createAdmin inserts an administrator and signs in to the admin console
+// exactly like the admin app: password, TOTP enrolment, first code.
+func (e *env) createAdmin() *client {
+	e.t.Helper()
+	id, email := e.insertAdmin()
+	c := e.adminClient()
+	var ch service.LoginChallenge
+	c.must(http.StatusOK, http.MethodPost, "/api/v1/admin/auth/login", map[string]any{"email": email, "password": strongPassword}, &ch)
+	if ch.Status != "enrollment_required" {
+		e.t.Fatalf("expected enrolment, got %+v", ch)
+	}
+	var enr service.Enrollment
+	c.must(http.StatusOK, http.MethodPost, "/api/v1/admin/auth/enroll", map[string]any{"challenge": ch.Challenge}, &enr)
+	var sess service.AdminSessionView
+	c.must(http.StatusOK, http.MethodPost, "/api/v1/admin/auth/enroll/confirm", map[string]any{"challenge": ch.Challenge,
+		"code": totpNow(e, enr.Secret)}, &sess)
+	if len(sess.RecoveryCodes) != 10 {
+		e.t.Fatalf("recovery codes: %d", len(sess.RecoveryCodes))
+	}
+	c.totp, c.adminID, c.pw = enr.Secret, id, strongPassword
+	c.user = &service.UserView{ID: id, Email: email, Role: string(domain.RoleAdmin)}
+	return c
+}
+
+// adminClient is a browser on the admin console origin.
+func (e *env) adminClient() *client {
+	c := e.client()
+	c.origin = adminOrigin
+	return c
+}
+
+// totpNow returns the current code for a secret on the fake clock. Codes
+// are single-use, so callers that need another code advance the clock.
+func totpNow(e *env, secret string) string {
+	e.t.Helper()
+	code, err := security.TOTPCode(secret, security.TOTPStep(e.clock.Now()))
+	if err != nil {
+		e.t.Fatalf("totp: %v", err)
+	}
+	return code
+}
+
+// stepUp confirms a sensitive action with a fresh code (advancing the clock
+// past the step of the previous code).
+func (c *client) stepUp() {
+	c.e.t.Helper()
+	c.e.clock.Advance(security.TOTPPeriod)
+	c.must(http.StatusOK, http.MethodPost, "/api/v1/admin/auth/step-up", map[string]any{"code": totpNow(c.e, c.totp)}, nil)
 }
 
 func (e *env) login(email, password string) *client {
@@ -485,6 +552,9 @@ func (c *client) dial(resume string) (*websocket.Conn, *http.Response, error) {
 	u := "ws" + strings.TrimPrefix(c.e.srv.URL, "http") + "/api/v1/realtime/ws?ticket=" + url.QueryEscape(c.ticket())
 	if resume != "" {
 		u += "&resume=" + url.QueryEscape(resume)
+	}
+	if c.locale != "" {
+		u += "&locale=" + url.QueryEscape(c.locale)
 	}
 	h := http.Header{}
 	h.Set("Origin", c.origin)
@@ -660,3 +730,10 @@ func (p *client) goOnline() *ws {
 }
 
 func (p *client) slug() string { return p.user.Psychic.Slug }
+
+// refresh rotates the session like the browser does after the access token
+// expires (tests that advance the clock past the access TTL).
+func (c *client) refresh() {
+	c.e.t.Helper()
+	c.must(http.StatusOK, http.MethodPost, "/api/v1/auth/refresh", nil, nil)
+}

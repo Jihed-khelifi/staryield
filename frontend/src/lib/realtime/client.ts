@@ -19,7 +19,7 @@
  * The server is authoritative: the client only sends intents and renders the
  * state the server publishes.
  */
-import { API_URL, WS_URL } from "@/lib/api/config";
+import { API_URL, WS_URL, currentLocale } from "@/lib/api/config";
 import { refreshSession } from "@/lib/api/client";
 import { chatApi, realtimeApi } from "@/lib/api/endpoints";
 import { ApiError, toApiError } from "@/lib/api/errors";
@@ -205,6 +205,8 @@ export class RealtimeClient {
     if (this.stopped) return;
     const url = new URL(`${WS_URL}${ticket.path}`);
     url.searchParams.set("ticket", ticket.ticket);
+    // Realtime error frames are localized server-side (§10).
+    url.searchParams.set("locale", currentLocale());
     if (this.lastEventId) url.searchParams.set("resume", this.lastEventId);
 
     let opened = false;
@@ -250,6 +252,7 @@ export class RealtimeClient {
 
   private connectSSE() {
     const url = new URL(`${API_URL}/api/v1/realtime/stream`);
+    url.searchParams.set("locale", currentLocale());
     if (this.lastEventId) url.searchParams.set("resume", this.lastEventId);
     const es = new EventSource(url.toString(), { withCredentials: true });
     this.es = es;

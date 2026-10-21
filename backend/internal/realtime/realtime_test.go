@@ -266,6 +266,38 @@ func TestPresenceImplementations(t *testing.T) {
 	}
 }
 
+func TestOnlineUsersIndex(t *testing.T) {
+	mr := miniredis.RunT(t)
+	rp := NewRedisPresence(redis.NewClient(&redis.Options{Addr: mr.Addr()}), "t:", time.Minute)
+	for name, p := range map[string]Presence{"memory": NewMemoryPresence(time.Minute, nil), "redis": rp} {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			a, b := uuid.New(), uuid.New()
+			_ = p.Connect(ctx, "a1", a)
+			_ = p.Connect(ctx, "a2", a)
+			_ = p.Connect(ctx, "b1", b)
+			users, err := p.OnlineUsers(ctx, 10)
+			if err != nil || len(users) != 2 {
+				t.Fatalf("online users: %v %v", users, err)
+			}
+			if limited, _ := p.OnlineUsers(ctx, 1); len(limited) != 1 {
+				t.Fatalf("limit: %v", limited)
+			}
+			// a stays online while one of their connections remains.
+			_, _ = p.Disconnect(ctx, "a1", a)
+			_, _ = p.Disconnect(ctx, "b1", b)
+			users, _ = p.OnlineUsers(ctx, 10)
+			if len(users) != 1 || users[0] != a {
+				t.Fatalf("after disconnects: %v", users)
+			}
+			_, _ = p.Disconnect(ctx, "a2", a)
+			if users, _ = p.OnlineUsers(ctx, 10); len(users) != 0 {
+				t.Fatalf("all gone: %v", users)
+			}
+		})
+	}
+}
+
 func TestTickets(t *testing.T) {
 	mr := miniredis.RunT(t)
 	for name, ts := range map[string]TicketStore{"memory": NewMemoryTickets(nil), "redis": NewRedisTickets(redis.NewClient(&redis.Options{Addr: mr.Addr()}), "t:")} {

@@ -9,6 +9,8 @@ import type { ChatMessage, ChatSession } from "@/lib/api/types";
 export type UiMessage = ChatMessage & {
   /** Local delivery state for messages typed in this tab. */
   pending?: "sending" | "failed";
+  /** The picked image of an optimistic image message (kept for retries). */
+  localFile?: File;
 };
 
 /** Insert or replace messages (by id, or by client id for optimistic ones), keeping chronological order. */
@@ -18,7 +20,7 @@ export function mergeMessages(current: UiMessage[], incoming: UiMessage[]): UiMe
     const byId = out.findIndex((x) => x.id === m.id);
     const byClient = m.client_msg_id ? out.findIndex((x) => x.client_msg_id === m.client_msg_id && x.sender_id === m.sender_id) : -1;
     const idx = byId >= 0 ? byId : byClient;
-    if (idx >= 0) out[idx] = { ...out[idx], ...m, pending: m.pending };
+    if (idx >= 0) out[idx] = { ...out[idx], ...m, pending: m.pending, localFile: m.pending ? (m.localFile ?? out[idx].localFile) : undefined };
     else out.push(m);
   }
   return out.sort((a, b) => (a.created_at === b.created_at ? a.id.localeCompare(b.id) : a.created_at.localeCompare(b.created_at)));

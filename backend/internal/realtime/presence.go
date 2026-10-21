@@ -36,6 +36,8 @@ type Presence interface {
 	InSession(ctx context.Context, sessionID, userID uuid.UUID) (bool, error)
 	// Online reports which users have at least one live connection.
 	Online(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]bool, error)
+	// OnlineUsers lists users with a live connection (at most limit).
+	OnlineUsers(ctx context.Context, limit int) ([]uuid.UUID, error)
 }
 
 // RedisPresence implements Presence with sorted sets scored by expiry time.
@@ -54,6 +56,7 @@ func NewRedisPresence(client *redis.Client, prefix string, ttl time.Duration) *R
 func (p *RedisPresence) userKey(u uuid.UUID) string      { return p.prefix + "rt:up:" + u.String() }
 func (p *RedisPresence) connKey(c string) string         { return p.prefix + "rt:c:" + c }
 func (p *RedisPresence) connSessionsKey(c string) string { return p.prefix + "rt:cs:" + c }
+func (p *RedisPresence) onlineKey() string               { return p.prefix + "rt:online" }
 func (p *RedisPresence) sessionKey(s, u uuid.UUID) string {
 	return p.prefix + "rt:sp:" + s.String() + ":" + u.String()
 }
@@ -66,6 +69,7 @@ func (p *RedisPresence) Connect(ctx context.Context, connID string, userID uuid.
 	pipe.Set(ctx, p.connKey(connID), userID.String(), p.ttl)
 	pipe.ZAdd(ctx, p.userKey(userID), redis.Z{Score: p.expiry(), Member: connID})
 	pipe.PExpire(ctx, p.userKey(userID), 2*p.ttl)
+	pipe.ZAdd(ctx, p.onlineKey(), redis.Z{Score: p.expiry(), Member: userID.String()})
 	_, err := pipe.Exec(ctx)
 	return err
 }
@@ -81,6 +85,7 @@ func (p *RedisPresence) Heartbeat(ctx context.Context, connID string, userID uui
 	pipe.Set(ctx, p.connKey(connID), userID.String(), p.ttl)
 	pipe.ZAdd(ctx, p.userKey(userID), redis.Z{Score: exp, Member: connID})
 	pipe.PExpire(ctx, p.userKey(userID), 2*p.ttl)
+	pipe.ZAdd(ctx, p.onlineKey(), redis.Z{Score: exp, Member: userID.String()})
 	if len(sessions) > 0 {
 		pipe.PExpire(ctx, p.connSessionsKey(connID), 2*p.ttl)
 	}
@@ -114,8 +119,33 @@ func (p *RedisPresence) Disconnect(ctx context.Context, connID string, userID uu
 		pipe.ZRem(ctx, p.sessionKey(sid, userID), connID)
 		out = append(out, sid)
 	}
-	_, err = pipe.Exec(ctx)
-	return out, err
+	if _, err = pipe.Exec(ctx); err != nil {
+		return out, err
+	}
+	// Drop the user from the online index once their last connection ends.
+	if n, err := p.client.ZCount(ctx, p.userKey(userID), strconv.FormatInt(p.now().UnixMilli(), 10), "+inf").Result(); err == nil && n == 0 {
+		p.client.ZRem(ctx, p.onlineKey(), userID.String())
+	}
+	return out, nil
+}
+
+// OnlineUsers implements Presence.
+func (p *RedisPresence) OnlineUsers(ctx context.Context, limit int) ([]uuid.UUID, error) {
+	now := strconv.FormatInt(p.now().UnixMilli(), 10)
+	if err := p.client.ZRemRangeByScore(ctx, p.onlineKey(), "-inf", "("+now).Err(); err != nil {
+		return nil, err
+	}
+	members, err := p.client.ZRangeByScore(ctx, p.onlineKey(), &redis.ZRangeBy{Min: now, Max: "+inf", Count: int64(limit)}).Result()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]uuid.UUID, 0, len(members))
+	for _, m := range members {
+		if id, err := uuid.Parse(m); err == nil {
+			out = append(out, id)
+		}
+	}
+	return out, nil
 }
 
 // ConnectionOwner implements Presence.
@@ -317,6 +347,22 @@ func (m *MemoryPresence) Online(_ context.Context, userIDs []uuid.UUID) (map[uui
 	for _, c := range m.conns {
 		if want[c.user] && c.expires.After(now) {
 			out[c.user] = true
+		}
+	}
+	return out, nil
+}
+
+// OnlineUsers implements Presence.
+func (m *MemoryPresence) OnlineUsers(_ context.Context, limit int) ([]uuid.UUID, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := m.now()
+	seen := map[uuid.UUID]bool{}
+	out := []uuid.UUID{}
+	for _, c := range m.conns {
+		if c.expires.After(now) && !seen[c.user] && (limit <= 0 || len(out) < limit) {
+			seen[c.user] = true
+			out = append(out, c.user)
 		}
 	}
 	return out, nil

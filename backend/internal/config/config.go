@@ -1,24 +1,24 @@
-// Package config loads and validates runtime configuration with Viper.
+// Package config loads and validates runtime configuration from the
+// environment.
 //
-// Values come from (lowest to highest precedence): built-in defaults, platform
-// defaults (Railway), an optional YAML file, and STARYIELD_* environment
-// variables, where nested keys use underscores (e.g.
-// STARYIELD_AUTH_JWT_SECRET). The platform conventions DATABASE_URL,
-// REDIS_URL, APP_ENV and PORT are honoured when the STARYIELD_* equivalent is
-// unset.
+// Every setting is an environment variable named STARYIELD_<SECTION>_<KEY>
+// (e.g. STARYIELD_AUTH_JWT_SECRET; see .env.example for the full list).
+// Values come from, lowest to highest precedence: built-in defaults, platform
+// defaults (Railway), a local .env file and the process environment. The
+// platform conventions DATABASE_URL, REDIS_URL, APP_ENV and PORT are honoured
+// when the STARYIELD_* equivalent is unset.
 package config
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
 	"net/url"
-	"os"
-	"strconv"
 	"strings"
 	"time"
-
-	"github.com/spf13/viper"
 )
 
 // Environment names.
@@ -30,458 +30,433 @@ const (
 
 // Config is the fully-resolved application configuration.
 type Config struct {
-	App            AppConfig            `mapstructure:"app"`
-	HTTP           HTTPConfig           `mapstructure:"http"`
-	Database       DatabaseConfig       `mapstructure:"database"`
-	Redis          RedisConfig          `mapstructure:"redis"`
-	Auth           AuthConfig           `mapstructure:"auth"`
-	Security       SecurityConfig       `mapstructure:"security"`
-	Chat           ChatConfig           `mapstructure:"chat"`
-	Billing        BillingConfig        `mapstructure:"billing"`
-	CustomRequests CustomRequestsConfig `mapstructure:"custom_requests"`
-	Realtime       RealtimeConfig       `mapstructure:"realtime"`
-	RateLimit      RateLimitConfig      `mapstructure:"rate_limit"`
-	Storage        StorageConfig        `mapstructure:"storage"`
-	Payments       PaymentsConfig       `mapstructure:"payments"`
-	Analytics      AnalyticsConfig      `mapstructure:"analytics"`
-	Log            LogConfig            `mapstructure:"log"`
-	Mail           MailConfig           `mapstructure:"mail"`
-	Worker         WorkerConfig         `mapstructure:"worker"`
+	App            AppConfig            `env:"app"`
+	HTTP           HTTPConfig           `env:"http"`
+	Database       DatabaseConfig       `env:"database"`
+	Redis          RedisConfig          `env:"redis"`
+	Auth           AuthConfig           `env:"auth"`
+	Security       SecurityConfig       `env:"security"`
+	Chat           ChatConfig           `env:"chat"`
+	Billing        BillingConfig        `env:"billing"`
+	CustomRequests CustomRequestsConfig `env:"custom_requests"`
+	Realtime       RealtimeConfig       `env:"realtime"`
+	RateLimit      RateLimitConfig      `env:"rate_limit"`
+	Storage        StorageConfig        `env:"storage"`
+	Payments       PaymentsConfig       `env:"payments"`
+	Analytics      AnalyticsConfig      `env:"analytics"`
+	Log            LogConfig            `env:"log"`
+	Mail           MailConfig           `env:"mail"`
+	Worker         WorkerConfig         `env:"worker"`
+	Admin          AdminConfig          `env:"admin"`
+	Links          LinksConfig          `env:"links"`
+	Reviews        ReviewsConfig        `env:"reviews"`
+	Notifications  NotificationsConfig  `env:"notifications"`
 }
 
 // AppConfig holds process-wide identity settings.
 type AppConfig struct {
-	Name        string `mapstructure:"name"`
-	Env         string `mapstructure:"env"`
-	FrontendURL string `mapstructure:"frontend_url"`
-	InstanceID  string `mapstructure:"instance_id"`
+	Name        string `env:"name"`
+	Env         string `env:"env"`
+	FrontendURL string `env:"frontend_url"`
+	InstanceID  string `env:"instance_id"`
 }
 
 // HTTPConfig controls the HTTP listener.
 type HTTPConfig struct {
-	Addr              string        `mapstructure:"addr"`
-	ReadHeaderTimeout time.Duration `mapstructure:"read_header_timeout"`
-	ReadTimeout       time.Duration `mapstructure:"read_timeout"`
-	WriteTimeout      time.Duration `mapstructure:"write_timeout"`
-	IdleTimeout       time.Duration `mapstructure:"idle_timeout"`
-	RequestTimeout    time.Duration `mapstructure:"request_timeout"`
-	ShutdownTimeout   time.Duration `mapstructure:"shutdown_timeout"`
-	BodyLimit         string        `mapstructure:"body_limit"`
+	Addr              string        `env:"addr"`
+	ReadHeaderTimeout time.Duration `env:"read_header_timeout"`
+	ReadTimeout       time.Duration `env:"read_timeout"`
+	WriteTimeout      time.Duration `env:"write_timeout"`
+	IdleTimeout       time.Duration `env:"idle_timeout"`
+	RequestTimeout    time.Duration `env:"request_timeout"`
+	ShutdownTimeout   time.Duration `env:"shutdown_timeout"`
+	BodyLimit         string        `env:"body_limit"`
 	// IPSource selects how the client IP is resolved: "direct", "xff"
 	// (X-Forwarded-For from trusted proxies), "x-real-ip" (X-Real-IP from
 	// trusted proxies, set by Railway's edge) or "cloudflare"
 	// (CF-Connecting-IP from trusted proxies).
-	IPSource       string   `mapstructure:"ip_source"`
-	TrustedProxies []string `mapstructure:"trusted_proxies"`
+	IPSource       string   `env:"ip_source"`
+	TrustedProxies []string `env:"trusted_proxies"`
 }
 
 // DatabaseConfig controls the PostgreSQL pool.
 type DatabaseConfig struct {
-	DSN             string        `mapstructure:"dsn"`
-	MaxOpenConns    int           `mapstructure:"max_open_conns"`
-	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
-	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
-	ConnMaxIdleTime time.Duration `mapstructure:"conn_max_idle_time"`
-	SlowQuery       time.Duration `mapstructure:"slow_query"`
-	AutoMigrate     bool          `mapstructure:"auto_migrate"`
+	DSN             string        `env:"dsn"`
+	MaxOpenConns    int           `env:"max_open_conns"`
+	MaxIdleConns    int           `env:"max_idle_conns"`
+	ConnMaxLifetime time.Duration `env:"conn_max_lifetime"`
+	ConnMaxIdleTime time.Duration `env:"conn_max_idle_time"`
+	SlowQuery       time.Duration `env:"slow_query"`
+	AutoMigrate     bool          `env:"auto_migrate"`
 	// ConnectTimeout bounds the startup connection retries (the database may
 	// still be booting or the private network warming up).
-	ConnectTimeout time.Duration `mapstructure:"connect_timeout"`
+	ConnectTimeout time.Duration `env:"connect_timeout"`
 }
 
 // RedisConfig controls the Redis client.
 type RedisConfig struct {
-	URL          string        `mapstructure:"url"`
-	DialTimeout  time.Duration `mapstructure:"dial_timeout"`
-	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
-	WriteTimeout time.Duration `mapstructure:"write_timeout"`
-	PoolSize     int           `mapstructure:"pool_size"`
-	KeyPrefix    string        `mapstructure:"key_prefix"`
+	URL          string        `env:"url"`
+	DialTimeout  time.Duration `env:"dial_timeout"`
+	ReadTimeout  time.Duration `env:"read_timeout"`
+	WriteTimeout time.Duration `env:"write_timeout"`
+	PoolSize     int           `env:"pool_size"`
+	KeyPrefix    string        `env:"key_prefix"`
 	// ConnectTimeout bounds the startup connection retries.
-	ConnectTimeout time.Duration `mapstructure:"connect_timeout"`
+	ConnectTimeout time.Duration `env:"connect_timeout"`
 }
 
 // AuthConfig controls credentials, tokens and password hashing.
 type AuthConfig struct {
-	JWTSecret          string        `mapstructure:"jwt_secret"`
-	JWTIssuer          string        `mapstructure:"jwt_issuer"`
-	JWTAudience        string        `mapstructure:"jwt_audience"`
-	AccessTokenTTL     time.Duration `mapstructure:"access_token_ttl"`
-	RefreshTokenTTL    time.Duration `mapstructure:"refresh_token_ttl"`
-	PasswordResetTTL   time.Duration `mapstructure:"password_reset_ttl"`
-	Argon2Memory       uint32        `mapstructure:"argon2_memory_kib"`
-	Argon2Iterations   uint32        `mapstructure:"argon2_iterations"`
-	Argon2Parallelism  uint8         `mapstructure:"argon2_parallelism"`
-	LoginMaxFailures   int           `mapstructure:"login_max_failures"`
-	LoginLockout       time.Duration `mapstructure:"login_lockout"`
-	MinimumAge         int           `mapstructure:"minimum_age"`
-	UserStatusCacheTTL time.Duration `mapstructure:"user_status_cache_ttl"`
+	JWTSecret          string        `env:"jwt_secret"`
+	JWTIssuer          string        `env:"jwt_issuer"`
+	JWTAudience        string        `env:"jwt_audience"`
+	AccessTokenTTL     time.Duration `env:"access_token_ttl"`
+	RefreshTokenTTL    time.Duration `env:"refresh_token_ttl"`
+	PasswordResetTTL   time.Duration `env:"password_reset_ttl"`
+	Argon2Memory       uint32        `env:"argon2_memory_kib"`
+	Argon2Iterations   uint32        `env:"argon2_iterations"`
+	Argon2Parallelism  uint8         `env:"argon2_parallelism"`
+	LoginMaxFailures   int           `env:"login_max_failures"`
+	LoginLockout       time.Duration `env:"login_lockout"`
+	MinimumAge         int           `env:"minimum_age"`
+	UserStatusCacheTTL time.Duration `env:"user_status_cache_ttl"`
 }
 
 // SecurityConfig controls browser-facing protections.
 type SecurityConfig struct {
-	AllowedOrigins []string `mapstructure:"allowed_origins"`
-	CookieDomain   string   `mapstructure:"cookie_domain"`
-	CookieSecure   bool     `mapstructure:"cookie_secure"`
-	CSRFSecret     string   `mapstructure:"csrf_secret"`
-	HSTS           bool     `mapstructure:"hsts"`
+	AllowedOrigins []string `env:"allowed_origins"`
+	CookieDomain   string   `env:"cookie_domain"`
+	CookieSecure   bool     `env:"cookie_secure"`
+	CSRFSecret     string   `env:"csrf_secret"`
+	HSTS           bool     `env:"hsts"`
+	// AdminOrigins are the only origins allowed to call /api/v1/admin/**
+	// (the admin console, e.g. https://admin.staryield.net).
+	AdminOrigins []string `env:"admin_origins"`
+	// AdminIPAllowlist optionally restricts admin routes to these CIDRs.
+	AdminIPAllowlist []string `env:"admin_ip_allowlist"`
+	// DataEncryptionKey (32 bytes, hex or base64) encrypts secrets at rest:
+	// admin TOTP seeds and advisor payout details.
+	DataEncryptionKey string `env:"data_encryption_key"`
 }
 
 // ChatConfig controls the live chat session lifecycle.
 type ChatConfig struct {
-	RequestTimeout   time.Duration `mapstructure:"request_timeout"`
-	AcceptedTimeout  time.Duration `mapstructure:"accepted_timeout"`
-	GracePeriod      time.Duration `mapstructure:"grace_period"`
-	BillingInterval  time.Duration `mapstructure:"billing_interval"`
-	MaxMessageLength int           `mapstructure:"max_message_length"`
-	HistoryPageSize  int           `mapstructure:"history_page_size"`
-	LowBalanceMinute int           `mapstructure:"low_balance_minutes"`
-	MessageRate      int           `mapstructure:"message_rate"`
-	MessageRateEvery time.Duration `mapstructure:"message_rate_every"`
+	RequestTimeout   time.Duration `env:"request_timeout"`
+	AcceptedTimeout  time.Duration `env:"accepted_timeout"`
+	GracePeriod      time.Duration `env:"grace_period"`
+	BillingInterval  time.Duration `env:"billing_interval"`
+	MaxMessageLength int           `env:"max_message_length"`
+	HistoryPageSize  int           `env:"history_page_size"`
+	LowBalanceMinute int           `env:"low_balance_minutes"`
+	MessageRate      int           `env:"message_rate"`
+	MessageRateEvery time.Duration `env:"message_rate_every"`
 }
 
 // BillingConfig controls credits and earnings.
 type BillingConfig struct {
-	PsychicSharePercent int   `mapstructure:"psychic_share_percent"`
-	SignupFreeMinutes   int   `mapstructure:"signup_free_minutes"`
-	SignupBonusCredits  int64 `mapstructure:"signup_bonus_credits"`
-	MaxAdminAdjustment  int64 `mapstructure:"max_admin_adjustment"`
+	PsychicSharePercent int   `env:"psychic_share_percent"`
+	SignupFreeMinutes   int   `env:"signup_free_minutes"`
+	SignupBonusCredits  int64 `env:"signup_bonus_credits"`
+	MaxAdminAdjustment  int64 `env:"max_admin_adjustment"`
+	// PayoutCentsPerCredit is the money value of one earned credit when an
+	// advisor withdraws (in payments.currency).
+	PayoutCentsPerCredit int64 `env:"payout_cents_per_credit"`
+	MinWithdrawalCredits int64 `env:"min_withdrawal_credits"`
 }
 
 // CustomRequestsConfig controls the custom request (order) lifecycle.
 type CustomRequestsConfig struct {
-	AcceptTimeout   time.Duration `mapstructure:"accept_timeout"`
-	DeliveryTimeout time.Duration `mapstructure:"delivery_timeout"`
-	DisputeWindow   time.Duration `mapstructure:"dispute_window"`
-	MaxNoteLength   int           `mapstructure:"max_note_length"`
-	MaxDelivery     int           `mapstructure:"max_delivery_length"`
+	AcceptTimeout   time.Duration `env:"accept_timeout"`
+	DeliveryTimeout time.Duration `env:"delivery_timeout"`
+	DisputeWindow   time.Duration `env:"dispute_window"`
+	MaxNoteLength   int           `env:"max_note_length"`
+	MaxDelivery     int           `env:"max_delivery_length"`
 }
 
 // RealtimeConfig controls WebSocket/SSE delivery.
 type RealtimeConfig struct {
-	PingInterval      time.Duration `mapstructure:"ping_interval"`
-	PongWait          time.Duration `mapstructure:"pong_wait"`
-	WriteWait         time.Duration `mapstructure:"write_wait"`
-	MaxFrameBytes     int64         `mapstructure:"max_frame_bytes"`
-	SendBuffer        int           `mapstructure:"send_buffer"`
-	TicketTTL         time.Duration `mapstructure:"ticket_ttl"`
-	StreamMaxLen      int64         `mapstructure:"stream_max_len"`
-	StreamTTL         time.Duration `mapstructure:"stream_ttl"`
-	ReplayLimit       int64         `mapstructure:"replay_limit"`
-	MaxConnsPerUser   int           `mapstructure:"max_conns_per_user"`
-	PresenceTTL       time.Duration `mapstructure:"presence_ttl"`
-	FrameRate         float64       `mapstructure:"frame_rate"`
-	FrameBurst        int           `mapstructure:"frame_burst"`
-	TypingMinInterval time.Duration `mapstructure:"typing_min_interval"`
+	PingInterval      time.Duration `env:"ping_interval"`
+	PongWait          time.Duration `env:"pong_wait"`
+	WriteWait         time.Duration `env:"write_wait"`
+	MaxFrameBytes     int64         `env:"max_frame_bytes"`
+	SendBuffer        int           `env:"send_buffer"`
+	TicketTTL         time.Duration `env:"ticket_ttl"`
+	StreamMaxLen      int64         `env:"stream_max_len"`
+	StreamTTL         time.Duration `env:"stream_ttl"`
+	ReplayLimit       int64         `env:"replay_limit"`
+	MaxConnsPerUser   int           `env:"max_conns_per_user"`
+	PresenceTTL       time.Duration `env:"presence_ttl"`
+	FrameRate         float64       `env:"frame_rate"`
+	FrameBurst        int           `env:"frame_burst"`
+	TypingMinInterval time.Duration `env:"typing_min_interval"`
 }
 
 // RateLimitConfig controls request throttling.
 type RateLimitConfig struct {
-	Enabled  bool    `mapstructure:"enabled"`
-	FailOpen bool    `mapstructure:"fail_open"`
-	Global   Rule    `mapstructure:"global"`
-	Auth     Rule    `mapstructure:"auth"`
-	Writes   Rule    `mapstructure:"writes"`
-	Ingest   Rule    `mapstructure:"ingest"`
-	Upload   Rule    `mapstructure:"upload"`
-	Scale    float64 `mapstructure:"scale"`
+	Enabled  bool    `env:"enabled"`
+	FailOpen bool    `env:"fail_open"`
+	Global   Rule    `env:"global"`
+	Auth     Rule    `env:"auth"`
+	Writes   Rule    `env:"writes"`
+	Ingest   Rule    `env:"ingest"`
+	Upload   Rule    `env:"upload"`
+	Scale    float64 `env:"scale"`
 }
 
 // Rule is a token bucket: Rate tokens per Period, up to Burst.
 type Rule struct {
-	Rate   int           `mapstructure:"rate"`
-	Period time.Duration `mapstructure:"period"`
-	Burst  int           `mapstructure:"burst"`
+	Rate   int           `env:"rate"`
+	Period time.Duration `env:"period"`
+	Burst  int           `env:"burst"`
 }
 
 // StorageConfig controls object storage (Cloudflare R2).
 type StorageConfig struct {
-	Driver          string `mapstructure:"driver"` // r2 | memory | disabled
-	R2AccountID     string `mapstructure:"r2_account_id"`
-	R2AccessKeyID   string `mapstructure:"r2_access_key_id"`
-	R2SecretKey     string `mapstructure:"r2_secret_access_key"`
-	R2Bucket        string `mapstructure:"r2_bucket"`
-	R2Endpoint      string `mapstructure:"r2_endpoint"`
-	PublicBaseURL   string `mapstructure:"public_base_url"`
-	MaxAvatarBytes  int64  `mapstructure:"max_avatar_bytes"`
-	MaxAvatarPixels int    `mapstructure:"max_avatar_pixels"`
-	AvatarSize      int    `mapstructure:"avatar_size"`
+	Driver          string `env:"driver"` // r2 | memory | disabled
+	R2AccountID     string `env:"r2_account_id"`
+	R2AccessKeyID   string `env:"r2_access_key_id"`
+	R2SecretKey     string `env:"r2_secret_access_key"`
+	R2Bucket        string `env:"r2_bucket"`
+	R2Endpoint      string `env:"r2_endpoint"`
+	PublicBaseURL   string `env:"public_base_url"`
+	MaxAvatarBytes  int64  `env:"max_avatar_bytes"`
+	MaxAvatarPixels int    `env:"max_avatar_pixels"`
+	AvatarSize      int    `env:"avatar_size"`
+	// AdvisorBucket (env R2_ADVISOR_IMAGE) is the public bucket for advisor
+	// profile images, served from AdvisorPublicBaseURL
+	// (env R2_ADVISOR_IMAGE_PUBLIC_URL).
+	AdvisorBucket        string `env:"advisor_bucket"`
+	AdvisorPublicBaseURL string `env:"advisor_public_base_url"`
+	MaxAdvisorImageBytes int64  `env:"max_advisor_image_bytes"`
+	AdvisorImageMaxSide  int    `env:"advisor_image_max_side"`
+	// ChatBucket (env R2_CHAT_IMAGES_PRIVATE) is the private bucket for chat
+	// images; objects are only ever streamed to conversation participants.
+	ChatBucket        string `env:"chat_bucket"`
+	MaxChatImageBytes int64  `env:"max_chat_image_bytes"`
+	ChatImageMaxSide  int    `env:"chat_image_max_side"`
+	// MaxImagePixels bounds decoded image size (decompression bombs).
+	MaxImagePixels int `env:"max_image_pixels"`
 }
 
 // PaymentsConfig controls the payment provider integration.
 type PaymentsConfig struct {
-	Provider                 string        `mapstructure:"provider"` // sandbox | disabled
-	WebhookSecret            string        `mapstructure:"webhook_secret"`
-	WebhookTolerance         time.Duration `mapstructure:"webhook_tolerance"`
-	AllowSandboxInProduction bool          `mapstructure:"allow_sandbox_in_production"`
-	Currency                 string        `mapstructure:"currency"`
+	Provider                 string        `env:"provider"` // sandbox | disabled
+	WebhookSecret            string        `env:"webhook_secret"`
+	WebhookTolerance         time.Duration `env:"webhook_tolerance"`
+	AllowSandboxInProduction bool          `env:"allow_sandbox_in_production"`
+	Currency                 string        `env:"currency"`
 }
 
 // AnalyticsConfig controls business event tracking.
 type AnalyticsConfig struct {
-	Enabled       bool          `mapstructure:"enabled"`
-	BufferSize    int           `mapstructure:"buffer_size"`
-	BatchSize     int           `mapstructure:"batch_size"`
-	FlushInterval time.Duration `mapstructure:"flush_interval"`
-	IPHashSecret  string        `mapstructure:"ip_hash_secret"`
-	MaxBatch      int           `mapstructure:"max_client_batch"`
+	Enabled       bool          `env:"enabled"`
+	BufferSize    int           `env:"buffer_size"`
+	BatchSize     int           `env:"batch_size"`
+	FlushInterval time.Duration `env:"flush_interval"`
+	IPHashSecret  string        `env:"ip_hash_secret"`
+	MaxBatch      int           `env:"max_client_batch"`
 }
 
 // LogConfig controls structured logging.
 type LogConfig struct {
-	Level  string `mapstructure:"level"`
-	Format string `mapstructure:"format"` // json | console
+	Level  string `env:"level"`
+	Format string `env:"format"` // json | console
 }
 
 // MailConfig controls transactional e-mail.
 type MailConfig struct {
-	Driver string `mapstructure:"driver"` // log | noop
-	From   string `mapstructure:"from"`
+	Driver string `env:"driver"` // log | noop
+	From   string `env:"from"`
 }
 
 // WorkerConfig controls background schedulers.
 type WorkerConfig struct {
-	Enabled         bool          `mapstructure:"enabled"`
-	TickInterval    time.Duration `mapstructure:"tick_interval"`
-	PresenceSweep   time.Duration `mapstructure:"presence_sweep"`
-	MaintenanceTick time.Duration `mapstructure:"maintenance_tick"`
-	BatchSize       int           `mapstructure:"batch_size"`
+	Enabled         bool          `env:"enabled"`
+	TickInterval    time.Duration `env:"tick_interval"`
+	PresenceSweep   time.Duration `env:"presence_sweep"`
+	MaintenanceTick time.Duration `env:"maintenance_tick"`
+	BatchSize       int           `env:"batch_size"`
+}
+
+// AdminConfig controls admin console sessions.
+type AdminConfig struct {
+	SessionTTL   time.Duration `env:"session_ttl"`
+	IdleTimeout  time.Duration `env:"idle_timeout"`
+	StepUpWindow time.Duration `env:"step_up_window"`
+	ChallengeTTL time.Duration `env:"challenge_ttl"`
+	TOTPIssuer   string        `env:"totp_issuer"`
+}
+
+// LinksConfig controls marketing short links.
+type LinksConfig struct {
+	// PublicBaseURL prefixes short codes, e.g. https://staryield.net/go.
+	PublicBaseURL string `env:"public_base_url"`
+	// AllowedHosts may be used as absolute link destinations (the frontend
+	// host is always allowed).
+	AllowedHosts []string `env:"allowed_hosts"`
+}
+
+// ReviewsConfig controls advisor ratings.
+type ReviewsConfig struct {
+	Window time.Duration `env:"window"`
+}
+
+// NotificationsConfig controls the asynchronous notification dispatcher.
+type NotificationsConfig struct {
+	BufferSize    int           `env:"buffer_size"`
+	BatchSize     int           `env:"batch_size"`
+	FlushInterval time.Duration `env:"flush_interval"`
 }
 
 // IsProduction reports whether the app runs in production.
 func (c *Config) IsProduction() bool { return c.App.Env == EnvProduction }
-
-// Load reads configuration from defaults, an optional file and environment.
-// path may be empty; then ./config.yaml is used when present.
-func Load(path string) (*Config, error) {
-	v := viper.New()
-	setDefaults(v)
-	if OnRailway() {
-		setRailwayDefaults(v)
-	}
-
-	v.SetEnvPrefix("STARYIELD")
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	v.AutomaticEnv()
-	for key, names := range platformEnv {
-		if err := v.BindEnv(append([]string{key}, names...)...); err != nil {
-			return nil, fmt.Errorf("config: bind %s: %w", key, err)
-		}
-	}
-
-	if path != "" {
-		v.SetConfigFile(path)
-	} else {
-		v.SetConfigName("config")
-		v.SetConfigType("yaml")
-		v.AddConfigPath(".")
-	}
-	if err := v.ReadInConfig(); err != nil {
-		var notFound viper.ConfigFileNotFoundError
-		if path != "" || !errors.As(err, &notFound) {
-			return nil, fmt.Errorf("config: read: %w", err)
-		}
-	}
-
-	// PORT is the platform-assigned listen port; an explicit
-	// STARYIELD_HTTP_ADDR still wins.
-	if port := strings.TrimSpace(os.Getenv("PORT")); port != "" && os.Getenv("STARYIELD_HTTP_ADDR") == "" {
-		if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
-			return nil, fmt.Errorf("config: PORT must be a TCP port (got %q)", port)
-		}
-		v.Set("http.addr", ":"+port)
-	}
-
-	var cfg Config
-	if err := v.Unmarshal(&cfg); err != nil {
-		return nil, fmt.Errorf("config: decode: %w", err)
-	}
-	cfg.normalize()
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
-}
-
-// platformEnv maps config keys to the environment variables consulted, in
-// order: the STARYIELD_* name first, then the conventional variable hosting
-// platforms inject (Railway, Heroku, Render, Fly…).
-var platformEnv = map[string][]string{
-	"database.dsn":    {"STARYIELD_DATABASE_DSN", "DATABASE_URL"},
-	"redis.url":       {"STARYIELD_REDIS_URL", "REDIS_URL"},
-	"app.env":         {"STARYIELD_APP_ENV", "APP_ENV"},
-	"app.instance_id": {"STARYIELD_APP_INSTANCE_ID", "RAILWAY_REPLICA_ID"},
-}
-
-// OnRailway reports whether the process runs on Railway.
-func OnRailway() bool { return os.Getenv("RAILWAY_ENVIRONMENT_ID") != "" }
 
 // railwayTrustedProxies are the private ranges Railway's edge proxy connects
 // from. Containers are only reachable through the edge or the project's
 // private network, so headers from these peers are trusted.
 var railwayTrustedProxies = []string{"10.0.0.0/8", "100.64.0.0/10", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"}
 
-// setRailwayDefaults makes a Railway deployment secure by default: it runs in
-// production mode (so development secrets are never derived), behind TLS,
+// applyRailwayDefaults makes a Railway deployment secure by default: it runs
+// in production mode (so development secrets are never derived), behind TLS,
 // and resolves client IPs from the edge's X-Real-IP header. Every value can
-// still be overridden explicitly.
-func setRailwayDefaults(v *viper.Viper) {
-	v.SetDefault("app.env", EnvProduction)
-	v.SetDefault("http.ip_source", "x-real-ip")
-	v.SetDefault("http.trusted_proxies", railwayTrustedProxies)
-	v.SetDefault("security.cookie_secure", true)
-	v.SetDefault("security.hsts", true)
-	v.SetDefault("log.format", "json")
+// still be overridden by its environment variable.
+func (c *Config) applyRailwayDefaults() {
+	c.App.Env = EnvProduction
+	c.HTTP.IPSource = "x-real-ip"
+	c.HTTP.TrustedProxies = append([]string(nil), railwayTrustedProxies...)
+	c.Security.CookieSecure = true
+	c.Security.HSTS = true
+	c.Log.Format = "json"
 }
 
-func setDefaults(v *viper.Viper) {
-	d := map[string]any{
-		"app.name":         "staryield-api",
-		"app.env":          EnvDevelopment,
-		"app.frontend_url": "http://localhost:3000",
-		"app.instance_id":  "",
-
-		"http.addr":                ":8080",
-		"http.read_header_timeout": "5s",
-		"http.read_timeout":        "30s",
-		"http.write_timeout":       "0s", // streaming endpoints manage their own deadlines
-		"http.idle_timeout":        "120s",
-		"http.request_timeout":     "15s",
-		"http.shutdown_timeout":    "20s",
-		"http.body_limit":          "64KB",
-		"http.ip_source":           "direct",
-		"http.trusted_proxies":     []string{},
-
-		"database.dsn":                "postgres://postgres@127.0.0.1:5432/staryield?sslmode=disable",
-		"database.max_open_conns":     25,
-		"database.max_idle_conns":     10,
-		"database.conn_max_lifetime":  "30m",
-		"database.conn_max_idle_time": "5m",
-		"database.slow_query":         "250ms",
-		"database.auto_migrate":       true,
-		"database.connect_timeout":    "60s",
-
-		"redis.url":             "redis://127.0.0.1:6379/0",
-		"redis.dial_timeout":    "3s",
-		"redis.read_timeout":    "3s",
-		"redis.write_timeout":   "3s",
-		"redis.pool_size":       50,
-		"redis.key_prefix":      "sy:",
-		"redis.connect_timeout": "60s",
-
-		"auth.jwt_secret":            "",
-		"auth.jwt_issuer":            "staryield-api",
-		"auth.jwt_audience":          "staryield-web",
-		"auth.access_token_ttl":      "15m",
-		"auth.refresh_token_ttl":     "720h",
-		"auth.password_reset_ttl":    "30m",
-		"auth.argon2_memory_kib":     64 * 1024,
-		"auth.argon2_iterations":     3,
-		"auth.argon2_parallelism":    2,
-		"auth.login_max_failures":    5,
-		"auth.login_lockout":         "15m",
-		"auth.minimum_age":           18,
-		"auth.user_status_cache_ttl": "30s",
-
-		"security.allowed_origins": []string{"http://localhost:3000", "http://localhost:3001"},
-		"security.cookie_domain":   "",
-		"security.cookie_secure":   false,
-		"security.csrf_secret":     "",
-		"security.hsts":            false,
-
-		"chat.request_timeout":     "90s",
-		"chat.accepted_timeout":    "120s",
-		"chat.grace_period":        "90s",
-		"chat.billing_interval":    "60s",
-		"chat.max_message_length":  1000,
-		"chat.history_page_size":   50,
-		"chat.low_balance_minutes": 2,
-		"chat.message_rate":        20,
-		"chat.message_rate_every":  "10s",
-
-		"billing.psychic_share_percent": 60,
-		"billing.signup_free_minutes":   3,
-		"billing.signup_bonus_credits":  0,
-		"billing.max_admin_adjustment":  100000,
-
-		"custom_requests.accept_timeout":      "48h",
-		"custom_requests.delivery_timeout":    "168h",
-		"custom_requests.dispute_window":      "336h",
-		"custom_requests.max_note_length":     2000,
-		"custom_requests.max_delivery_length": 10000,
-
-		"realtime.ping_interval":       "25s",
-		"realtime.pong_wait":           "60s",
-		"realtime.write_wait":          "10s",
-		"realtime.max_frame_bytes":     16 * 1024,
-		"realtime.send_buffer":         256,
-		"realtime.ticket_ttl":          "30s",
-		"realtime.stream_max_len":      500,
-		"realtime.stream_ttl":          "24h",
-		"realtime.replay_limit":        500,
-		"realtime.max_conns_per_user":  6,
-		"realtime.presence_ttl":        "45s",
-		"realtime.frame_rate":          10.0,
-		"realtime.frame_burst":         30,
-		"realtime.typing_min_interval": "1500ms",
-
-		"rate_limit.enabled":       true,
-		"rate_limit.fail_open":     true,
-		"rate_limit.scale":         1.0,
-		"rate_limit.global.rate":   300,
-		"rate_limit.global.period": "1m",
-		"rate_limit.global.burst":  120,
-		"rate_limit.auth.rate":     10,
-		"rate_limit.auth.period":   "1m",
-		"rate_limit.auth.burst":    10,
-		"rate_limit.writes.rate":   60,
-		"rate_limit.writes.period": "1m",
-		"rate_limit.writes.burst":  30,
-		"rate_limit.ingest.rate":   120,
-		"rate_limit.ingest.period": "1m",
-		"rate_limit.ingest.burst":  60,
-		"rate_limit.upload.rate":   10,
-		"rate_limit.upload.period": "1h",
-		"rate_limit.upload.burst":  5,
-
-		"storage.driver":               "memory",
-		"storage.r2_account_id":        "",
-		"storage.r2_access_key_id":     "",
-		"storage.r2_secret_access_key": "",
-		"storage.r2_bucket":            "staryield-app-assets",
-		"storage.r2_endpoint":          "",
-		"storage.public_base_url":      "https://assets.staryield.net",
-		"storage.max_avatar_bytes":     1 << 20,
-		"storage.max_avatar_pixels":    4096 * 4096,
-		"storage.avatar_size":          256,
-
-		"payments.provider":                    "sandbox",
-		"payments.webhook_secret":              "",
-		"payments.webhook_tolerance":           "5m",
-		"payments.allow_sandbox_in_production": false,
-		"payments.currency":                    "USD",
-
-		"analytics.enabled":          true,
-		"analytics.buffer_size":      10000,
-		"analytics.batch_size":       200,
-		"analytics.flush_interval":   "2s",
-		"analytics.ip_hash_secret":   "",
-		"analytics.max_client_batch": 50,
-
-		"log.level":  "info",
-		"log.format": "json",
-
-		"mail.driver": "log",
-		"mail.from":   "Staryield <no-reply@staryield.net>",
-
-		"worker.enabled":          true,
-		"worker.tick_interval":    "1s",
-		"worker.presence_sweep":   "5s",
-		"worker.maintenance_tick": "30s",
-		"worker.batch_size":       100,
-	}
-	for k, val := range d {
-		v.SetDefault(k, val)
+// defaults returns the built-in configuration (local development).
+func defaults() Config {
+	return Config{
+		App: AppConfig{Name: "staryield-api", Env: EnvDevelopment, FrontendURL: "http://localhost:3000"},
+		HTTP: HTTPConfig{
+			Addr:              ":8080",
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      0, // streaming endpoints manage their own deadlines
+			IdleTimeout:       120 * time.Second,
+			RequestTimeout:    15 * time.Second,
+			ShutdownTimeout:   20 * time.Second,
+			BodyLimit:         "64KB",
+			IPSource:          "direct",
+			TrustedProxies:    []string{},
+		},
+		Database: DatabaseConfig{
+			DSN:             "postgres://postgres@127.0.0.1:5432/staryield?sslmode=disable",
+			MaxOpenConns:    25,
+			MaxIdleConns:    10,
+			ConnMaxLifetime: 30 * time.Minute,
+			ConnMaxIdleTime: 5 * time.Minute,
+			SlowQuery:       250 * time.Millisecond,
+			AutoMigrate:     true,
+			ConnectTimeout:  60 * time.Second,
+		},
+		Redis: RedisConfig{
+			URL:            "redis://127.0.0.1:6379/0",
+			DialTimeout:    3 * time.Second,
+			ReadTimeout:    3 * time.Second,
+			WriteTimeout:   3 * time.Second,
+			PoolSize:       50,
+			KeyPrefix:      "sy:",
+			ConnectTimeout: 60 * time.Second,
+		},
+		Auth: AuthConfig{
+			JWTIssuer:          "staryield-api",
+			JWTAudience:        "staryield-web",
+			AccessTokenTTL:     15 * time.Minute,
+			RefreshTokenTTL:    720 * time.Hour,
+			PasswordResetTTL:   30 * time.Minute,
+			Argon2Memory:       64 * 1024,
+			Argon2Iterations:   3,
+			Argon2Parallelism:  2,
+			LoginMaxFailures:   5,
+			LoginLockout:       15 * time.Minute,
+			MinimumAge:         18,
+			UserStatusCacheTTL: 30 * time.Second,
+		},
+		Security: SecurityConfig{
+			AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3001"},
+			AdminOrigins:     []string{"http://localhost:3002"},
+			AdminIPAllowlist: []string{},
+		},
+		Chat: ChatConfig{
+			RequestTimeout:   90 * time.Second,
+			AcceptedTimeout:  120 * time.Second,
+			GracePeriod:      90 * time.Second,
+			BillingInterval:  60 * time.Second,
+			MaxMessageLength: 1000,
+			HistoryPageSize:  50,
+			LowBalanceMinute: 2,
+			MessageRate:      20,
+			MessageRateEvery: 10 * time.Second,
+		},
+		Billing: BillingConfig{
+			PsychicSharePercent:  60,
+			SignupFreeMinutes:    3,
+			MaxAdminAdjustment:   100000,
+			PayoutCentsPerCredit: 2,
+			MinWithdrawalCredits: 2500,
+		},
+		CustomRequests: CustomRequestsConfig{
+			AcceptTimeout:   48 * time.Hour,
+			DeliveryTimeout: 168 * time.Hour,
+			DisputeWindow:   336 * time.Hour,
+			MaxNoteLength:   2000,
+			MaxDelivery:     10000,
+		},
+		Realtime: RealtimeConfig{
+			PingInterval:      25 * time.Second,
+			PongWait:          60 * time.Second,
+			WriteWait:         10 * time.Second,
+			MaxFrameBytes:     16 * 1024,
+			SendBuffer:        256,
+			TicketTTL:         30 * time.Second,
+			StreamMaxLen:      500,
+			StreamTTL:         24 * time.Hour,
+			ReplayLimit:       500,
+			MaxConnsPerUser:   6,
+			PresenceTTL:       45 * time.Second,
+			FrameRate:         10,
+			FrameBurst:        30,
+			TypingMinInterval: 1500 * time.Millisecond,
+		},
+		RateLimit: RateLimitConfig{
+			Enabled:  true,
+			FailOpen: true,
+			Global:   Rule{Rate: 300, Period: time.Minute, Burst: 120},
+			Auth:     Rule{Rate: 10, Period: time.Minute, Burst: 10},
+			Writes:   Rule{Rate: 60, Period: time.Minute, Burst: 30},
+			Ingest:   Rule{Rate: 120, Period: time.Minute, Burst: 60},
+			Upload:   Rule{Rate: 10, Period: time.Hour, Burst: 5},
+			Scale:    1,
+		},
+		Storage: StorageConfig{
+			Driver:               "memory",
+			R2Bucket:             "staryield-app-assets",
+			PublicBaseURL:        "https://assets.staryield.net",
+			MaxAvatarBytes:       1 << 20,
+			MaxAvatarPixels:      4096 * 4096,
+			AvatarSize:           256,
+			AdvisorPublicBaseURL: "https://advisors.staryield.net",
+			MaxAdvisorImageBytes: 5 << 20,
+			AdvisorImageMaxSide:  1200,
+			MaxChatImageBytes:    8 << 20,
+			ChatImageMaxSide:     2048,
+			MaxImagePixels:       40_000_000,
+		},
+		Payments:      PaymentsConfig{Provider: "sandbox", WebhookTolerance: 5 * time.Minute, Currency: "USD"},
+		Analytics:     AnalyticsConfig{Enabled: true, BufferSize: 10000, BatchSize: 200, FlushInterval: 2 * time.Second, MaxBatch: 50},
+		Log:           LogConfig{Level: "info", Format: "json"},
+		Mail:          MailConfig{Driver: "log", From: "Staryield <no-reply@staryield.net>"},
+		Worker:        WorkerConfig{Enabled: true, TickInterval: time.Second, PresenceSweep: 5 * time.Second, MaintenanceTick: 30 * time.Second, BatchSize: 100},
+		Admin:         AdminConfig{SessionTTL: 8 * time.Hour, IdleTimeout: 30 * time.Minute, StepUpWindow: 10 * time.Minute, ChallengeTTL: 5 * time.Minute, TOTPIssuer: "Staryield Admin"},
+		Links:         LinksConfig{PublicBaseURL: "http://localhost:3000/go", AllowedHosts: []string{}},
+		Reviews:       ReviewsConfig{Window: 168 * time.Hour},
+		Notifications: NotificationsConfig{BufferSize: 10000, BatchSize: 200, FlushInterval: 250 * time.Millisecond},
 	}
 }
 
@@ -490,6 +465,11 @@ func setDefaults(v *viper.Viper) {
 func (c *Config) normalize() {
 	c.App.Env = strings.ToLower(strings.TrimSpace(c.App.Env))
 	c.Security.AllowedOrigins = splitList(c.Security.AllowedOrigins)
+	c.Security.AdminOrigins = splitList(c.Security.AdminOrigins)
+	c.Security.AdminIPAllowlist = splitList(c.Security.AdminIPAllowlist)
+	c.Links.AllowedHosts = splitList(c.Links.AllowedHosts)
+	c.Links.PublicBaseURL = strings.TrimRight(c.Links.PublicBaseURL, "/")
+	c.Storage.AdvisorPublicBaseURL = strings.TrimRight(c.Storage.AdvisorPublicBaseURL, "/")
 	c.HTTP.TrustedProxies = splitList(c.HTTP.TrustedProxies)
 	c.App.FrontendURL = strings.TrimRight(c.App.FrontendURL, "/")
 	c.Storage.PublicBaseURL = strings.TrimRight(c.Storage.PublicBaseURL, "/")
@@ -518,7 +498,26 @@ func (c *Config) normalize() {
 		if c.Payments.WebhookSecret == "" {
 			c.Payments.WebhookSecret = "dev-only-insecure-webhook-secret"
 		}
+		if c.Security.DataEncryptionKey == "" {
+			sum := sha256.Sum256([]byte("staryield-data-key:" + c.Security.CSRFSecret))
+			c.Security.DataEncryptionKey = "dev-only:" + hex.EncodeToString(sum[:])
+		}
 	}
+}
+
+// EncryptionKey decodes STARYIELD_SECURITY_DATA_ENCRYPTION_KEY (64 hex characters or
+// base64 of 32 bytes; development keys carry a "dev-only:" prefix).
+func (c *Config) EncryptionKey() ([]byte, error) {
+	raw := strings.TrimPrefix(strings.TrimSpace(c.Security.DataEncryptionKey), "dev-only:")
+	if b, err := hex.DecodeString(raw); err == nil && len(b) == 32 {
+		return b, nil
+	}
+	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+		if b, err := enc.DecodeString(raw); err == nil && len(b) == 32 {
+			return b, nil
+		}
+	}
+	return nil, fmt.Errorf("%s must be 32 bytes (64 hex characters or base64)", EnvVar("security.data_encryption_key"))
 }
 
 func splitList(in []string) []string {
@@ -533,131 +532,177 @@ func splitList(in []string) []string {
 	return out
 }
 
-// Validate checks invariants and production hardening requirements.
+// Validate checks invariants and production hardening requirements. Errors
+// name the environment variable to change.
 func (c *Config) Validate() error {
 	var errs []error
 	add := func(format string, args ...any) { errs = append(errs, fmt.Errorf(format, args...)) }
+	e := EnvVar
 
 	switch c.App.Env {
 	case EnvDevelopment, EnvTest, EnvProduction:
 	default:
-		add("app.env must be one of development, test, production (got %q)", c.App.Env)
+		add("%s must be one of development, test, production (got %q)", e("app.env"), c.App.Env)
 	}
 	if c.Database.DSN == "" {
-		add("database.dsn is required")
+		add("%s (or DATABASE_URL) is required", e("database.dsn"))
 	}
 	if c.Redis.URL == "" {
-		add("redis.url is required")
+		add("%s (or REDIS_URL) is required", e("redis.url"))
 	}
 	if len(c.Auth.JWTSecret) < 32 {
-		add("auth.jwt_secret must be at least 32 bytes")
+		add("%s must be at least 32 bytes", e("auth.jwt_secret"))
 	}
 	if len(c.Security.CSRFSecret) < 32 {
-		add("security.csrf_secret must be at least 32 bytes")
+		add("%s must be at least 32 bytes", e("security.csrf_secret"))
 	}
 	if c.Auth.AccessTokenTTL <= 0 || c.Auth.AccessTokenTTL > time.Hour {
-		add("auth.access_token_ttl must be in (0, 1h]")
+		add("%s must be in (0, 1h]", e("auth.access_token_ttl"))
 	}
 	if c.Auth.RefreshTokenTTL < c.Auth.AccessTokenTTL {
-		add("auth.refresh_token_ttl must be >= access_token_ttl")
+		add("%s must be >= %s", e("auth.refresh_token_ttl"), e("auth.access_token_ttl"))
 	}
 	if c.Auth.Argon2Memory < 8*1024 && c.App.Env != EnvTest {
-		add("auth.argon2_memory_kib must be >= 8192 outside tests")
+		add("%s must be >= 8192 outside tests", e("auth.argon2_memory_kib"))
 	}
 	if c.Auth.Argon2Iterations < 1 || c.Auth.Argon2Parallelism < 1 {
-		add("auth.argon2_iterations and argon2_parallelism must be >= 1")
+		add("%s and %s must be >= 1", e("auth.argon2_iterations"), e("auth.argon2_parallelism"))
 	}
 	if c.Billing.PsychicSharePercent < 0 || c.Billing.PsychicSharePercent > 100 {
-		add("billing.psychic_share_percent must be within 0..100")
+		add("%s must be within 0..100", e("billing.psychic_share_percent"))
 	}
 	if c.Chat.BillingInterval <= 0 || c.Chat.RequestTimeout <= 0 || c.Chat.GracePeriod <= 0 || c.Chat.AcceptedTimeout <= 0 {
-		add("chat timeouts and billing_interval must be positive")
+		add("%s, %s, %s and %s must be positive", e("chat.billing_interval"), e("chat.request_timeout"), e("chat.grace_period"), e("chat.accepted_timeout"))
 	}
 	if c.Chat.MaxMessageLength < 1 || c.Chat.MaxMessageLength > 10000 {
-		add("chat.max_message_length must be within 1..10000")
+		add("%s must be within 1..10000", e("chat.max_message_length"))
 	}
 	if c.Realtime.PingInterval >= c.Realtime.PongWait {
-		add("realtime.ping_interval must be shorter than realtime.pong_wait")
+		add("%s must be shorter than %s", e("realtime.ping_interval"), e("realtime.pong_wait"))
 	}
 	if c.Realtime.SendBuffer < 16 {
-		add("realtime.send_buffer must be >= 16")
+		add("%s must be >= 16", e("realtime.send_buffer"))
 	}
 	for _, origin := range c.Security.AllowedOrigins {
 		if origin == "*" {
-			add("security.allowed_origins must not contain '*' (credentials are used)")
+			add("%s must not contain '*' (credentials are used)", e("security.allowed_origins"))
 			continue
 		}
 		u, err := url.Parse(origin)
 		if err != nil || u.Scheme == "" || u.Host == "" || u.Path != "" {
-			add("security.allowed_origins entry %q must be scheme://host[:port]", origin)
+			add("%s entry %q must be scheme://host[:port]", e("security.allowed_origins"), origin)
 		}
 	}
 	for _, cidr := range c.HTTP.TrustedProxies {
 		if _, _, err := net.ParseCIDR(cidr); err != nil {
-			add("http.trusted_proxies entry %q is not a CIDR", cidr)
+			add("%s entry %q is not a CIDR", e("http.trusted_proxies"), cidr)
 		}
+	}
+	for _, cidr := range c.Security.AdminIPAllowlist {
+		if _, _, err := net.ParseCIDR(cidr); err != nil {
+			add("%s entry %q is not a CIDR", e("security.admin_ip_allowlist"), cidr)
+		}
+	}
+	if len(c.Security.AdminOrigins) == 0 {
+		add("%s must list the admin console origin", e("security.admin_origins"))
+	}
+	for _, origin := range c.Security.AdminOrigins {
+		u, err := url.Parse(origin)
+		if origin == "*" || err != nil || u.Scheme == "" || u.Host == "" || u.Path != "" {
+			add("%s entry %q must be scheme://host[:port]", e("security.admin_origins"), origin)
+		}
+	}
+	if _, err := c.EncryptionKey(); err != nil {
+		add("%v", err)
+	}
+	if c.Admin.SessionTTL <= 0 || c.Admin.IdleTimeout <= 0 || c.Admin.IdleTimeout > c.Admin.SessionTTL || c.Admin.StepUpWindow <= 0 || c.Admin.ChallengeTTL <= 0 {
+		add("%s, %s (<= session TTL), %s and %s must be positive", e("admin.session_ttl"), e("admin.idle_timeout"), e("admin.step_up_window"), e("admin.challenge_ttl"))
+	}
+	if c.Admin.SessionTTL > 24*time.Hour {
+		add("%s must be at most 24h", e("admin.session_ttl"))
+	}
+	if u, err := url.Parse(c.Links.PublicBaseURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		add("%s must be an absolute http(s) URL", e("links.public_base_url"))
+	}
+	if c.Billing.PayoutCentsPerCredit < 0 || c.Billing.MinWithdrawalCredits < 1 {
+		add("%s must be >= 0 and %s >= 1", e("billing.payout_cents_per_credit"), e("billing.min_withdrawal_credits"))
+	}
+	if c.Reviews.Window <= 0 {
+		add("%s must be positive", e("reviews.window"))
+	}
+	if c.Notifications.BufferSize < 1 || c.Notifications.BatchSize < 1 {
+		add("%s and %s must be >= 1", e("notifications.buffer_size"), e("notifications.batch_size"))
 	}
 	switch c.HTTP.IPSource {
 	case "direct", "xff", "x-real-ip", "cloudflare":
 	default:
-		add("http.ip_source must be direct, xff, x-real-ip or cloudflare")
+		add("%s must be direct, xff, x-real-ip or cloudflare", e("http.ip_source"))
 	}
 	if (c.HTTP.IPSource == "x-real-ip" || c.HTTP.IPSource == "cloudflare") && len(c.HTTP.TrustedProxies) == 0 {
-		add("http.ip_source %s requires http.trusted_proxies", c.HTTP.IPSource)
+		add("%s=%s requires %s", e("http.ip_source"), c.HTTP.IPSource, e("http.trusted_proxies"))
 	}
 	if c.Database.ConnectTimeout < 0 || c.Redis.ConnectTimeout < 0 {
-		add("database.connect_timeout and redis.connect_timeout must not be negative")
+		add("%s and %s must not be negative", e("database.connect_timeout"), e("redis.connect_timeout"))
 	}
 	switch c.Storage.Driver {
 	case "memory", "disabled":
 	case "r2":
 		if c.Storage.R2AccessKeyID == "" || c.Storage.R2SecretKey == "" || c.Storage.R2Bucket == "" || c.Storage.R2Endpoint == "" {
-			add("storage driver r2 requires r2_access_key_id, r2_secret_access_key, r2_bucket and r2_account_id/r2_endpoint")
+			add("%s=r2 requires %s, %s, %s and %s (or %s)", e("storage.driver"), e("storage.r2_access_key_id"), e("storage.r2_secret_access_key"),
+				e("storage.r2_bucket"), e("storage.r2_account_id"), e("storage.r2_endpoint"))
 		}
 	default:
-		add("storage.driver must be r2, memory or disabled")
+		add("%s must be r2, memory or disabled", e("storage.driver"))
 	}
 	switch c.Payments.Provider {
 	case "disabled":
 	case "sandbox":
 		if c.IsProduction() && !c.Payments.AllowSandboxInProduction {
-			add("payments.provider sandbox is not allowed in production")
+			add("%s=sandbox is not allowed in production", e("payments.provider"))
 		}
 	default:
-		add("payments.provider %q is not supported", c.Payments.Provider)
+		add("%s %q is not supported", e("payments.provider"), c.Payments.Provider)
 	}
 	switch c.Log.Format {
 	case "json", "console":
 	default:
-		add("log.format must be json or console")
+		add("%s must be json or console", e("log.format"))
 	}
 
 	if c.IsProduction() {
 		if !c.Security.CookieSecure {
-			add("security.cookie_secure must be true in production")
+			add("%s must be true in production", e("security.cookie_secure"))
 		}
 		if len(c.Security.AllowedOrigins) == 0 {
-			add("security.allowed_origins must be set in production")
+			add("%s must be set in production", e("security.allowed_origins"))
 		}
 		for _, origin := range c.Security.AllowedOrigins {
 			if strings.HasPrefix(origin, "http://") {
-				add("security.allowed_origins must use https in production (%q)", origin)
+				add("%s must use https in production (%q)", e("security.allowed_origins"), origin)
 			}
 		}
 		if strings.HasPrefix(c.Auth.JWTSecret, "dev-only") || strings.HasPrefix(c.Security.CSRFSecret, "dev-only") {
 			add("development secrets must not be used in production")
 		}
 		if len(c.Analytics.IPHashSecret) < 16 {
-			add("analytics.ip_hash_secret must be at least 16 bytes in production")
+			add("%s must be at least 16 bytes in production", e("analytics.ip_hash_secret"))
 		}
 		if len(c.Payments.WebhookSecret) < 16 {
-			add("payments.webhook_secret must be at least 16 bytes in production")
+			add("%s must be at least 16 bytes in production", e("payments.webhook_secret"))
 		}
 		if c.Storage.Driver == "memory" {
-			add("storage.driver memory is not allowed in production (use r2, or disabled to turn uploads off)")
+			add("%s=memory is not allowed in production (use r2, or disabled to turn uploads off)", e("storage.driver"))
 		}
 		if c.Mail.Driver == "log" {
-			add("mail.driver log is not allowed in production (use noop)")
+			add("%s=log is not allowed in production (use noop)", e("mail.driver"))
+		}
+		if strings.HasPrefix(c.Security.DataEncryptionKey, "dev-only") {
+			add("%s must be set in production", e("security.data_encryption_key"))
+		}
+		for _, origin := range c.Security.AdminOrigins {
+			if !strings.HasPrefix(origin, "https://") {
+				add("%s must use https in production (%q)", e("security.admin_origins"), origin)
+			}
 		}
 	}
 	return errors.Join(errs...)

@@ -29,14 +29,19 @@ export async function generateMetadata({
 export default async function ChatroomPage({
   params,
   searchParams,
-}: PageParams & { searchParams: Promise<{ reader?: string }> }) {
+}: PageParams & { searchParams: Promise<{ reader?: string; review?: string }> }) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
-  const { reader } = await searchParams;
+  const { reader, review } = await searchParams;
 
   return (
     <AppFrame fill>
-      <ChatroomShell key={reader ?? "inbox"} initialReader={reader && /^[a-z0-9-]{1,64}$/.test(reader) ? reader : undefined} />
+      <ChatroomShell
+        key={reader ?? "inbox"}
+        initialReader={reader && /^[a-z0-9-]{1,64}$/.test(reader) ? reader : undefined}
+        // `review` opens the rating dialog (link of the chat.review_prompt notification).
+        initialReview={review && /^[A-Za-z0-9-]{8,64}$/.test(review) ? review : undefined}
+      />
     </AppFrame>
   );
 }

@@ -2,10 +2,33 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "api",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd backend && go run ./cmd/api"
+      ],
+      "port": 8080,
+      "autoPort": false
+    },
+    {
       "name": "web",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd frontend && NEXT_PUBLIC_API_URL=http://localhost:8080 npm run dev -- --port 3001"],
+      "runtimeArgs": [
+        "-c",
+        "cd frontend && NEXT_PUBLIC_API_URL=http://localhost:8080 npm run dev -- --port 3001"
+      ],
       "port": 3001,
+      "autoPort": false
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd ../staryield-admin && NEXT_PUBLIC_API_URL=http://localhost:8080 npm run dev"
+      ],
+      "port": 3002,
       "autoPort": false
     }
   ]

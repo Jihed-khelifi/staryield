@@ -52,7 +52,7 @@ func AstroPlaceLookup(id string) (PlaceInfo, bool) {
 	if !ok {
 		return PlaceInfo{}, false
 	}
-	return PlaceInfo{ID: p.ID, Name: p.Name, Country: p.Country, Latitude: p.Latitude, Longitude: p.Longitude, TimeZone: p.TimeZone}, true
+	return PlaceInfo{ID: p.ID, Name: p.Name, Country: p.Country, CountryCode: p.CountryCode, Latitude: p.Latitude, Longitude: p.Longitude, TimeZone: p.TimeZone}, true
 }
 
 // Places searches the birth-place gazetteer.

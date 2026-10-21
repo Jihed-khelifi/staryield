@@ -4,10 +4,11 @@ import Link from "next/link";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { errorMessage, type ApiError } from "@/lib/api/errors";
-import type { ChatSession, Participant, SessionSummary, Wallet } from "@/lib/api/types";
+import type { ChatSession, Participant, Review, SessionSummary, Wallet } from "@/lib/api/types";
 import { formatDuration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { endReasonCopy } from "@/components/chat/chat-model";
+import { ReviewForm, ReviewThanks } from "@/components/reviews/review-form";
 
 type Props = {
   role: "client" | "psychic";
@@ -25,6 +26,8 @@ type Props = {
   onAccept: () => void;
   onDecline: () => void;
   onDismissSummary: () => void;
+  /** Client: the summary's session was rated. */
+  onReviewed?: (review: Review) => void;
 };
 
 /** The state-dependent card above the composer (spec §5 and §6). */
@@ -95,7 +98,7 @@ export function SessionPanel(p: Props) {
   if (p.summary) {
     const sum = p.summary;
     return (
-      <div className="chat-session-card" role="status">
+      <div className="chat-session-card" data-testid="chat-summary">
         <p className="font-semibold">{text("Chat summary")}</p>
         {sum.session.end_reason && endReasonCopy[sum.session.end_reason] ? <p className="text-xs">{text(endReasonCopy[sum.session.end_reason])}</p> : null}
         <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
@@ -115,6 +118,11 @@ export function SessionPanel(p: Props) {
             <dd className="font-semibold">{(p.role === "client" ? sum.session.credits_charged : sum.session.psychic_earnings) ?? 0}</dd>
           </div>
         </dl>
+        {p.role === "client" && sum.review ? (
+          <ReviewThanks review={sum.review} />
+        ) : p.role === "client" && sum.can_review ? (
+          <ReviewForm sessionId={sum.session.id} advisorName={name} onSubmitted={(r) => p.onReviewed?.(r)} />
+        ) : null}
         <Button variant="outline" className="mt-3" onClick={p.onDismissSummary}>
           {text("Close summary")}
         </Button>

@@ -35,7 +35,9 @@ export type ErrorCode =
   | "network_error"
   | "aborted"
   | "invalid_response"
-  | "realtime_unavailable";
+  | "realtime_unavailable"
+  | "step_up_required"
+  | "invalid_code";
 
 export class ApiError extends Error {
   readonly code: ErrorCode | string;
@@ -137,6 +139,8 @@ export const errorCopy: Record<string, string> = {
   aborted: "The request was cancelled.",
   invalid_response: "We received an unexpected response. Please try again.",
   realtime_unavailable: "Live updates are reconnecting…",
+  step_up_required: "Please confirm your identity with a verification code to continue.",
+  invalid_code: "This verification code is incorrect or has expired.",
 };
 
 /** The English copy for an error (translate with `text()`). */

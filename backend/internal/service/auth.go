@@ -19,6 +19,7 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/clock"
 	"github.com/Jihed-khelifi/staryield/backend/internal/database"
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
+	"github.com/Jihed-khelifi/staryield/backend/internal/i18n"
 	"github.com/Jihed-khelifi/staryield/backend/internal/logger"
 	mailer "github.com/Jihed-khelifi/staryield/backend/internal/mail"
 	"github.com/Jihed-khelifi/staryield/backend/internal/realtime"
@@ -225,6 +226,28 @@ func (s *AuthService) throttleKey(email string) string {
 // repeated failures. Unknown e-mails and wrong passwords are
 // indistinguishable in both response and timing.
 func (s *AuthService) Login(ctx context.Context, rawEmail, password string) (*AuthResult, error) {
+	user, err := s.VerifyCredentials(ctx, rawEmail, password)
+	if err != nil {
+		return nil, err
+	}
+	if !user.Active() {
+		s.tracker.Track(ctx, "user.login_failed", map[string]any{"reason": string(user.Status)})
+		return nil, apperror.AccountDisabled()
+	}
+	result, err := s.issueSession(ctx, user, uuid.Nil)
+	if err != nil {
+		return nil, apperror.Internal(err)
+	}
+	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: user.ID, Role: user.Role})
+	s.tracker.Track(ctx, "user.logged_in", map[string]any{"role": string(user.Role)})
+	return result, nil
+}
+
+// VerifyCredentials checks an e-mail and password with lockout, constant
+// time dummy verification for unknown accounts and transparent rehashing.
+// It records last_login_at; callers decide whether the (possibly inactive)
+// account may proceed.
+func (s *AuthService) VerifyCredentials(ctx context.Context, rawEmail, password string) (*domain.User, error) {
 	email, ok := NormalizeEmail(rawEmail)
 	if !ok || password == "" || len(password) > security.PasswordMaxLength*4 {
 		s.hasher.VerifyDummy(password)
@@ -259,8 +282,7 @@ func (s *AuthService) Login(ctx context.Context, rawEmail, password string) (*Au
 		return nil, apperror.InvalidCredentials()
 	}
 	if !user.Active() {
-		s.tracker.Track(ctx, "user.login_failed", map[string]any{"reason": "deactivated"})
-		return nil, apperror.AccountDisabled()
+		return user, nil
 	}
 	_ = s.kv.Del(ctx, key)
 
@@ -274,13 +296,17 @@ func (s *AuthService) Login(ctx context.Context, rawEmail, password string) (*Au
 	if err := s.users.Updates(ctx, user.ID, fields); err != nil {
 		warnErr(ctx, "auth: update last login", err)
 	}
-	result, err := s.issueSession(ctx, user, uuid.Nil)
-	if err != nil {
-		return nil, apperror.Internal(err)
+	user.LastLoginAt = &now
+	return user, nil
+}
+
+// RecordFailedLogin counts a failed attempt against an account's lockout
+// budget (used when credentials are right but the account may not sign in
+// to a privileged surface).
+func (s *AuthService) RecordFailedLogin(ctx context.Context, rawEmail, reason string) {
+	if email, ok := NormalizeEmail(rawEmail); ok {
+		s.recordFailure(ctx, s.throttleKey(email), reason)
 	}
-	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: user.ID, Role: user.Role})
-	s.tracker.Track(ctx, "user.logged_in", map[string]any{"role": string(user.Role)})
-	return result, nil
 }
 
 func (s *AuthService) recordFailure(ctx context.Context, key, reason string) {
@@ -476,12 +502,20 @@ func (s *AuthService) ForgotPassword(ctx context.Context, rawEmail, locale strin
 	if err != nil {
 		return apperror.Internal(err)
 	}
-	link := fmt.Sprintf("%s/%s/reset-password?token=%s", s.cfg.FrontendURL, normalizeLocale(locale), raw)
+	// The e-mail follows the language chosen on the page (else the
+	// account's language).
+	lang := normalizeLocale(locale)
+	if strings.TrimSpace(locale) == "" {
+		lang = normalizeLocale(user.Locale)
+	}
+	link := fmt.Sprintf("%s/%s/reset-password?token=%s", s.cfg.FrontendURL, lang, raw)
+	minutes := int(s.cfg.ResetTTL / time.Minute)
 	if err := s.mailer.Send(ctx, mailer.Message{
 		To:      user.Email,
-		Subject: "Reset your Staryield password",
-		Text: "We received a request to reset your password.\n\nUse this link within " +
-			s.cfg.ResetTTL.String() + ":\n" + link + "\n\nIf you did not ask for this, you can ignore this email.",
+		Subject: i18n.T(lang, "Reset your Staryield password"),
+		Text: i18n.T(lang, "We received a request to reset your password.") + "\n\n" +
+			i18n.T(lang, fmt.Sprintf("Use this link within %d minutes:", minutes)) + "\n" + link + "\n\n" +
+			i18n.T(lang, "If you did not ask for this, you can ignore this email."),
 	}); err != nil {
 		logger.FromContext(ctx).Error("auth: send reset email failed", zap.Error(err))
 	}

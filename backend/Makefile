@@ -1,12 +1,9 @@
 .PHONY: help up down run migrate seed test test-unit test-e2e test-race lint build
 
-DB_DSN ?= postgres://postgres:postgres@127.0.0.1:5432/staryield?sslmode=disable
+# The api, migrate and seed commands read their settings from ./.env (copy
+# .env.example) and the environment; nothing is exported here so .env applies.
 TEST_DB_DSN ?= postgres://postgres:postgres@127.0.0.1:5432/staryield_test?sslmode=disable
-REDIS_URL ?= redis://127.0.0.1:6379/0
 TEST_REDIS_URL ?= redis://127.0.0.1:6379/15
-
-export DATABASE_URL ?= $(DB_DSN)
-export REDIS_URL ?= $(REDIS_URL)
 
 help: ## Show targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'

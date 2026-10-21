@@ -273,6 +273,9 @@ export default function ScreenDesktopLegalTermsOfUse() {
             >
               {text(`    3.5 Account Security`)}
             </p>
+            <p className="flex-[1_0_0] font-serif font-normal leading-[1.5] min-h-px relative text-[14px] w-[822px] whitespace-pre-wrap">
+              {text(`    3.6 Account Deletion`)}
+            </p>
             <ContentLink
               className="block cursor-pointer font-serif font-semibold leading-[0] min-w-full relative shrink-0 text-[15px] text-left w-[min-content]"
               data-node-id="813:2356"
@@ -341,6 +344,15 @@ export default function ScreenDesktopLegalTermsOfUse() {
               data-node-id="844:885"
             >
               {text(`    4.10 Customer Support`)}
+            </p>
+            <p className="flex-[1_0_0] font-serif font-normal leading-[1.5] min-h-px relative text-[14px] w-[822px] whitespace-pre-wrap">
+              {text(`    4.11 Live Readings, Messages and Images`)}
+            </p>
+            <p className="flex-[1_0_0] font-serif font-normal leading-[1.5] min-h-px relative text-[14px] w-[822px] whitespace-pre-wrap">
+              {text(`    4.12 Ratings of Advisors`)}
+            </p>
+            <p className="flex-[1_0_0] font-serif font-normal leading-[1.5] min-h-px relative text-[14px] w-[822px] whitespace-pre-wrap">
+              {text(`    4.13 Notifications`)}
             </p>
             <ContentLink
               className="block cursor-pointer font-serif font-semibold leading-[0] min-w-full relative shrink-0 text-[15px] text-left w-[min-content]"
@@ -505,6 +517,9 @@ export default function ScreenDesktopLegalTermsOfUse() {
               data-node-id="844:933"
             >
               {text(`       6.3.3 Taxes`)}
+            </p>
+            <p className="flex-[1_0_0] font-serif font-normal leading-[1.5] min-h-px relative text-[14px] w-[822px] whitespace-pre-wrap">
+              {text(`    6.4 Advisor Earnings and Withdrawals`)}
             </p>
             <ContentLink
               className="block cursor-pointer font-serif font-semibold leading-[0] min-w-full relative shrink-0 text-[15px] text-left w-[min-content]"
@@ -911,6 +926,12 @@ export default function ScreenDesktopLegalTermsOfUse() {
                 )}
               </p>
               <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="leading-[1.6] mb-0 text-[15px]">
+                {text(
+                  "Marketing links. When you arrive through one of our marketing links or campaign URLs, we record which campaign and source brought you, so we can measure which campaigns work. See our Privacy Policy for details.",
+                )}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
               <p className="font-serif font-semibold leading-[1.6] mb-[8px] text-[16px]">
                 {text("3.2 Your Responsibilities ")}
               </p>
@@ -941,6 +962,12 @@ export default function ScreenDesktopLegalTermsOfUse() {
                 )}
               </p>
               <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="leading-[1.6] mb-0 text-[15px]">
+                {text(
+                  "Suspension and bans. We may suspend (deactivate) or ban an account that breaches these Terms, our Community Standards or the law, or that puts other users, advisors or Staryield at risk. A ban takes effect immediately: active sessions on all devices are signed out, any live reading in progress is ended and billed only for minutes already started, and a banned advisor is removed from the directory. Where the law allows, we tell you the reason. You can contact support to ask for a review.",
+                )}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
               <p className="font-serif font-semibold leading-[1.6] mb-[8px] text-[16px]">
                 {text("3.5 Account Security ")}
               </p>
@@ -948,6 +975,16 @@ export default function ScreenDesktopLegalTermsOfUse() {
               <p className="leading-[1.6] text-[15px]">
                 {text(
                   "You are responsible for maintaining the confidentiality of your Account credentials, including login details and passwords, and for all activity conducted under your Account. You should not share your login information with anyone, as you assume full responsibility for any actions taken through your Account. If you suspect unauthorized access or a security breach, you must notify us immediately at our Support center. We are not liable for any loss, unauthorized transactions, or damage resulting from access to your Account due to your failure to protect your credentials. It is your responsibility to use secure passwords and take necessary precautions to prevent unauthorized access. ",
+                )}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="font-serif font-semibold leading-[1.6] mb-[8px] text-[16px]">
+                {text("3.6 Account Deletion ")}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="leading-[1.6] mb-0 text-[15px]">
+                {text(
+                  "When an account is deleted, by you or by us under Section 3.4, we erase the personal details that identify you (your email address, name, nickname, birth data, location and profile picture) and end your active sessions. Records we must keep for accounting, fraud prevention and legal compliance — such as purchases, credit movements, advisor earnings and our security audit log — are kept in a pseudonymous form that no longer shows your identity. Ratings you gave stay visible as written by “Client” unless they are removed under Section 4.4.",
                 )}
               </p>
             </div>
@@ -1103,6 +1140,48 @@ export default function ScreenDesktopLegalTermsOfUse() {
               <p className="leading-[1.6] text-[15px]">
                 {text(
                   "Customer support services are provided at the Company’s discretion. While we may assist users, there is no obligation to provide support or respond to inquiries. If you require assistance, contact the Support center, and we will respond as reasonably possible. ",
+                )}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="font-serif font-semibold leading-[1.6] mb-[8px] text-[16px]">
+                {text("4.11 Live Readings, Messages and Images ")}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="leading-[1.6] mb-0 text-[15px]">
+                {text(
+                  "During a live reading you can send text messages, emoji and images. Only image files (PNG, JPEG, WebP or GIF, which is converted to a still image) can be attached; other files are refused. To protect your privacy, we remove hidden information such as location data from every image before storing it.",
+                )}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="leading-[1.6] mb-0 text-[15px]">
+                {text(
+                  "Images shared in a chat are stored privately and can only be opened by the two people in that conversation — you and your advisor. They are never published, and our support tools do not let Staryield staff open them. Do not share images or messages that are illegal, sexually explicit, violent or hateful, that show other people without their consent, or that contain identity documents, payment card details, passwords or contact details intended to move the relationship off Staryield.",
+                )}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="leading-[1.6] mb-0 text-[15px]">
+                {text(
+                  "What your advisor sees. To personalise your reading, the advisor you chat with sees a client card with your first name or nickname, profile picture, online status, country, age, the astrological details derived from your birth data (sun sign, and moon and rising signs when you provided a birth time and place), your daily horoscope and how many readings you have had with them. Advisors never see your email address, credit balance, purchases or your exact birth place and time.",
+                )}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="font-serif font-semibold leading-[1.6] mb-[8px] text-[16px]">
+                {text("4.12 Ratings of Advisors ")}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="leading-[1.6] mb-0 text-[15px]">
+                {text(
+                  "After a live reading ends you may rate your advisor from one to five stars and add a short comment. You can rate each reading once, within 7 days of its end, and only if the reading actually started. Ratings update the advisor's average rating and are shown on their public profile with your first name or nickname only. Ratings must reflect your genuine experience; we may hide ratings that contain personal or contact information, offensive language, spam or content unrelated to the reading, and hidden ratings no longer count towards the average. Advisors cannot rate themselves, and ratings cannot be bought or exchanged for credits.",
+                )}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="font-serif font-semibold leading-[1.6] mb-[8px] text-[16px]">
+                {text("4.13 Notifications ")}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="leading-[1.6] mb-0 text-[15px]">
+                {text(
+                  "We send in-app notifications about your account and activity — for example chat requests, the end of a reading and invitations to rate it, order updates, completed purchases, credit adjustments and, for advisors, new ratings and payout updates — as well as occasional announcements from Staryield. Notifications appear in the bell menu of the website in your chosen language and can be marked as read; we keep them for up to 180 days. In-app notifications are part of the Service; they are not marketing emails.",
                 )}
               </p>
             </div>
@@ -1468,6 +1547,16 @@ export default function ScreenDesktopLegalTermsOfUse() {
               <p className="leading-[1.6] text-[15px]">
                 {text(
                   "You agree to pay all taxes and similar assessments, including sales tax, use tax, value-added tax (VAT), and goods and services tax (GST), imposed by any government on your Services. If we do not collect taxes at the time of original purchase, we reserve the right to collect such taxes later using the same payment method with written notice explaining such charges. We also reserve the right to collect any penalties or interest imposed on your transactions if they are your fault (for example, if you provide us with a false address or tax status at the time of purchase). ",
+                )}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="font-serif font-semibold leading-[1.6] mb-[8px] text-[16px]">
+                {text("6.4 Advisor Earnings and Withdrawals ")}
+              </p>
+              <p className="leading-[1.6] mb-0 text-[15px]">​</p>
+              <p className="leading-[1.6] mb-0 text-[15px]">
+                {text(
+                  "This section applies to advisors. For each completed reading and delivered order, you earn your agreed share of the credits the client spent; earnings are recorded once and cannot be edited. You can request a withdrawal of your available earnings from the analytics page by bank transfer or PayPal once you reach the minimum amount shown there. Earned credits are converted at the payout rate displayed on that page at the time of the request. You can have one withdrawal in progress at a time and may cancel it while it is pending. We review every request and may ask for information to prevent fraud; a rejected request returns the credits to your available balance with an explanation. Your payout details are encrypted and are only revealed to authorised staff, with an audit record, to process your payment. You are responsible for any taxes due on your earnings.",
                 )}
               </p>
             </div>
@@ -2512,7 +2601,7 @@ export default function ScreenDesktopLegalTermsOfUse() {
               className="font-serif font-normal italic leading-[normal] relative shrink-0 text-[#555] text-[14px] w-full"
               data-node-id="813:2422"
             >
-              {text("Last updated: April 2, 2026 ")}
+              {text("Last updated: October 21, 2026 ")}
             </p>
           </section>
           <div

@@ -204,6 +204,14 @@ func ParseRange(fromRaw, toRaw string, now time.Time) (Range, error) {
 
 // Overview returns the headline business report (FR-14).
 func (s *AnalyticsService) Overview(ctx context.Context, r Range) (*repository.Overview, error) {
+	o, err := s.overview(ctx, r)
+	if err == nil && o.TopPsychics == nil {
+		o.TopPsychics = []repository.PsychicEarnings{}
+	}
+	return o, err
+}
+
+func (s *AnalyticsService) overview(ctx context.Context, r Range) (*repository.Overview, error) {
 	o, err := s.reports.Overview(ctx, r.From, r.To)
 	if err != nil {
 		return nil, apperror.Internal(err)
@@ -286,6 +294,9 @@ func (s *AnalyticsService) Events(ctx context.Context, f repository.EventFilter)
 	rows, err := s.events.List(ctx, f)
 	if err != nil {
 		return nil, apperror.Internal(err)
+	}
+	if rows == nil {
+		rows = []domain.AnalyticsEvent{}
 	}
 	page := &EventsPage{Items: rows}
 	if len(rows) > 0 && len(rows) == clampPage(f.Limit, 100, 1000) {

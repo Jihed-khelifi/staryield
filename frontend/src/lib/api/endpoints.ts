@@ -1,7 +1,11 @@
 /** Typed wrappers for every API route used by the web app. */
 import { api, newId, setAuthHint, setCsrfToken } from "@/lib/api/client";
 import type {
+  AnalyticsInterval,
+  AppNotification,
+  AttributionInput,
   Availability,
+  ClientProfile,
   Chart,
   ChatMessage,
   ChatSession,
@@ -19,10 +23,14 @@ import type {
   Psychic,
   PsychicThread,
   Purchase,
+  PsychicAnalytics,
+  Review,
   SessionResponse,
   SessionSummary,
   User,
   Wallet,
+  Withdrawal,
+  WithdrawalMethod,
 } from "@/lib/api/types";
 
 function rememberSession(res: SessionResponse): SessionResponse {
@@ -32,7 +40,15 @@ function rememberSession(res: SessionResponse): SessionResponse {
 }
 
 export const authApi = {
-  register: (input: { email: string; password: string; accept_terms: boolean; birth_date?: string; display_name?: string; locale?: string }) =>
+  register: (input: {
+    email: string;
+    password: string;
+    accept_terms: boolean;
+    birth_date?: string;
+    display_name?: string;
+    locale?: string;
+    attribution?: AttributionInput;
+  }) =>
     api<SessionResponse>("/api/v1/auth/register", { method: "POST", body: input, skipRefresh: true }).then(rememberSession),
   login: (email: string, password: string) =>
     api<SessionResponse>("/api/v1/auth/login", { method: "POST", body: { email, password }, skipRefresh: true }).then(rememberSession),
@@ -79,6 +95,50 @@ export const psychicsApi = {
   get: (slug: string, signal?: AbortSignal) => api<Psychic>(`/api/v1/psychics/${encodeURIComponent(slug)}`, { signal }),
   setAvailability: (availability: Availability) => api<Psychic>("/api/v1/psychic/availability", { method: "PATCH", body: { availability } }),
   earnings: () => api<EarningsReport>("/api/v1/psychic/earnings"),
+  /** Own dashboard (§8). `tz` is the viewer's IANA zone for hour/day buckets. */
+  analytics: (params: { from?: string; to?: string; tz?: string; interval?: AnalyticsInterval }, signal?: AbortSignal) =>
+    api<PsychicAnalytics>("/api/v1/psychic/analytics", { query: params, signal }),
+};
+
+/** Maximum chat image size accepted by the API (§9.1). */
+export const ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024;
+
+/** Build the multipart body of an image message (exported for tests). */
+export function attachmentForm(file: Blob, caption?: string, clientMsgId?: string, filename = "image"): FormData {
+  const form = new FormData();
+  form.append("image", file, file instanceof File ? file.name : filename);
+  if (caption) form.append("caption", caption);
+  if (clientMsgId) form.append("client_msg_id", clientMsgId);
+  return form;
+}
+
+export const reviewsApi = {
+  /** Rate a finished session (client of that session, once, within 7 days). */
+  submit: (sessionId: string, rating: number, comment?: string) =>
+    api<Review>(`/api/v1/chat/sessions/${encodeURIComponent(sessionId)}/review`, {
+      method: "POST",
+      body: comment ? { rating, comment } : { rating },
+    }),
+  /** Public, visible reviews of an advisor. */
+  forPsychic: (slug: string, cursor?: string, limit = 10, signal?: AbortSignal) =>
+    api<Page<Review>>(`/api/v1/psychics/${encodeURIComponent(slug)}/reviews`, { query: { cursor, limit }, signal }),
+  /** The signed-in advisor's own visible reviews. */
+  mine: (cursor?: string, signal?: AbortSignal) => api<Page<Review>>("/api/v1/psychic/reviews", { query: { cursor }, signal }),
+};
+
+export const withdrawalsApi = {
+  list: (cursor?: string, signal?: AbortSignal) => api<Page<Withdrawal>>("/api/v1/psychic/withdrawals", { query: { cursor }, signal }),
+  request: (input: { amount_credits: number; method: WithdrawalMethod; destination: string; idempotency_key: string }) =>
+    api<Withdrawal>("/api/v1/psychic/withdrawals", { method: "POST", body: input, idempotent: true }),
+  cancel: (id: string) => api<Withdrawal>(`/api/v1/psychic/withdrawals/${encodeURIComponent(id)}/cancel`, { method: "POST", idempotent: true }),
+};
+
+export const notificationsApi = {
+  list: (cursor?: string, limit = 20, signal?: AbortSignal) =>
+    api<Page<AppNotification>>("/api/v1/me/notifications", { query: { cursor, limit }, signal }),
+  unreadCount: (signal?: AbortSignal) => api<{ count: number }>("/api/v1/me/notifications/unread-count", { signal }),
+  markRead: (ids: string[]) => api<{ unread: number }>("/api/v1/me/notifications/read", { method: "POST", body: { ids }, idempotent: true }),
+  markAllRead: () => api<{ unread: number }>("/api/v1/me/notifications/read", { method: "POST", body: { all: true }, idempotent: true }),
 };
 
 export const chatApi = {
@@ -102,6 +162,19 @@ export const chatApi = {
   send: (sessionId: string, body: string, client_msg_id: string) =>
     api<{ message: ChatMessage }>(`/api/v1/chat/sessions/${sessionId}/messages`, { method: "POST", body: { body, client_msg_id }, idempotent: true }),
   typing: (sessionId: string, typing: boolean) => api<void>(`/api/v1/chat/sessions/${sessionId}/typing`, { method: "POST", body: { typing } }),
+  /** Upload an image message (multipart, §9.1). Resolves with the created message. */
+  uploadAttachment: (sessionId: string, file: Blob, caption?: string, clientMsgId?: string) =>
+    api<{ message: ChatMessage }>(`/api/v1/chat/sessions/${encodeURIComponent(sessionId)}/attachments`, {
+      method: "POST",
+      body: attachmentForm(file, caption, clientMsgId),
+      timeoutMs: 60_000,
+    }),
+  /** Image bytes, only for the two participants (cookies + refresh handled by the client). */
+  attachment: (id: string, signal?: AbortSignal) =>
+    api<Blob>(`/api/v1/chat/attachments/${encodeURIComponent(id)}`, { responseType: "blob", signal, timeoutMs: 30_000 }),
+  /** The client's profile for the advisor of a conversation (§9.3). */
+  clientProfile: (conversationId: string, signal?: AbortSignal) =>
+    api<ClientProfile>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/client`, { signal }),
   saved: (conversationId?: string) =>
     api<{ items: ChatMessage[] }>("/api/v1/chat/saved", { query: { conversation_id: conversationId } }).then((r) => r.items),
   save: (messageId: string) => api<void>(`/api/v1/chat/saved/${messageId}`, { method: "PUT", idempotent: true }),

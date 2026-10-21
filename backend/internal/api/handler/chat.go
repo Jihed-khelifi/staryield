@@ -20,7 +20,7 @@ func (h *Handler) Conversations(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": out})
+	return ok(c, map[string]any{"items": orEmpty(out)})
 }
 
 // Messages returns a page of history.
@@ -57,7 +57,7 @@ func (h *Handler) MessagesSince(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": out})
+	return ok(c, map[string]any{"items": orEmpty(out)})
 }
 
 type readRequest struct {
@@ -257,7 +257,7 @@ func (h *Handler) SavedMessages(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": out})
+	return ok(c, map[string]any{"items": orEmpty(out)})
 }
 
 // SaveMessage bookmarks a message.

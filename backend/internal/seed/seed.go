@@ -164,6 +164,9 @@ func Run(ctx context.Context, db *gorm.DB, hasher *security.PasswordHasher, opts
 			}
 			p := &domain.Psychic{UserID: u.ID, Slug: a.slug, Name: a.name, Headline: a.headline, About: a.about, Philosophy: a.philosophy,
 				ImageURL: a.image, Zodiac: a.zodiac, Skills: a.skills, Rating: a.rating, ReviewsCount: a.reviews, ReadingsCount: a.readings,
+				// The displayed rating is rating_sum / reviews_count, so the seeded average
+				// becomes the starting sum that real reviews are added to.
+				RatingSum:       a.rating * float64(a.reviews),
 				YearsExperience: a.years, RatePerMinute: a.rate, Availability: domain.AvailabilityOffline, Listed: true, SortOrder: i,
 				CreatedAt: now, UpdatedAt: now}
 			if err := psychics.Create(ctx, p); err != nil {

@@ -41,3 +41,40 @@ export function formatCalendarDate(iso: string, locale: Locale) {
     timeZone: "UTC",
   }).format(new Date(iso));
 }
+
+/** Flag emoji for an ISO 3166-1 alpha-2 code ("FR" → 🇫🇷), "" when invalid. */
+export function countryFlag(code: string | undefined | null): string {
+  const c = (code ?? "").trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return "";
+  return String.fromCodePoint(...[...c].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65));
+}
+
+/** Localized country name ("FR" → "France" / "Francia"), falling back to the code. */
+export function regionName(code: string | undefined | null, locale: string): string {
+  const c = (code ?? "").trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) return "";
+  try {
+    return new Intl.DisplayNames([locale], { type: "region" }).of(c) ?? c;
+  } catch {
+    return c;
+  }
+}
+
+/** Localized language name ("es" → "Spanish" / "espagnol"). */
+export function languageName(code: string | undefined | null, locale: string): string {
+  const c = (code ?? "").trim();
+  if (!c) return "";
+  try {
+    return new Intl.DisplayNames([locale], { type: "language" }).of(c) ?? c;
+  } catch {
+    return c;
+  }
+}
+
+/** "Oct 20, 2026" in the viewer's language. */
+export function formatDate(iso: string | undefined | null, locale: string, style: "medium" | "long" = "medium"): string {
+  if (!iso) return "";
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T12:00:00Z`) : new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat(locale, { dateStyle: style, ...(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? { timeZone: "UTC" } : {}) }).format(d);
+}

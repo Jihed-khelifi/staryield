@@ -73,6 +73,8 @@ describe("RealtimeClient", () => {
     await flush();
     const ws = latest();
     expect(ws.url).toContain("/api/v1/realtime/ws?ticket=t1");
+    // Server messages on this connection are localized (§10).
+    expect(new URL(ws.url).searchParams.get("locale")).toBe(document.documentElement.lang || "en");
     expect(ws.protocols).toEqual(["staryield.v1"]);
     ws.open();
     ws.hello();

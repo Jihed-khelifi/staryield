@@ -6,7 +6,8 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { chatApi } from "@/lib/api/endpoints";
 import { errorMessage, toApiError, type ApiError } from "@/lib/api/errors";
 import { newId } from "@/lib/api/client";
-import type { ChatMessage, ChatSession, Conversation, Participant, Psychic, SessionSummary } from "@/lib/api/types";
+import type { ChatMessage, ChatSession, Conversation, Participant, Psychic, Review, SessionSummary } from "@/lib/api/types";
+import { imageSize, seedAttachment } from "@/lib/chat/attachments";
 import { track } from "@/lib/analytics";
 import { useRealtimeEvent, useRealtimeEvents, useSession } from "@/lib/auth/session-provider";
 import { loginUrl } from "@/lib/navigation";
@@ -15,8 +16,10 @@ import { useToast } from "@/components/feedback/toast-provider";
 import { ChatFeed } from "@/components/chat/chat-feed";
 import { ChatHeader } from "@/components/chat/chat-header";
 import { ConversationList } from "@/components/chat/conversation-list";
-import { MessageComposer } from "@/components/chat/message-composer";
+import { MessageComposer, type ComposerSubmit } from "@/components/chat/message-composer";
 import { ReaderPanel } from "@/components/chat/reader-panel";
+import { ClientPanel } from "@/components/chat/client-panel";
+import { ReviewDialog } from "@/components/reviews/review-form";
 import { SessionPanel } from "@/components/chat/session-panel";
 import {
   elapsedSeconds,
@@ -44,7 +47,7 @@ const SESSION_EVENTS = [
   "session.ended",
 ] as const;
 
-export function ChatroomShell({ initialReader }: { initialReader?: string }) {
+export function ChatroomShell({ initialReader, initialReview }: { initialReader?: string; initialReview?: string }) {
   const { text, t, locale } = useI18n();
   const router = useRouter();
   const toast = useToast();
@@ -73,6 +76,12 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
   const [otherSession, setOtherSession] = React.useState<ChatSession | null>(null);
   const [inboxOpen, setInboxOpen] = React.useState(false);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
+  // Deep link from the `chat.review_prompt` notification (clients only). The
+  // prop can change without a remount (client navigation to the same reader).
+  const [dismissedReview, setDismissedReview] = React.useState<string | null>(null);
+  // Once the param is gone, the same link may open the dialog again later.
+  if (!initialReview && dismissedReview !== null) setDismissedReview(null);
+  const reviewOpen = Boolean(initialReview) && dismissedReview !== initialReview;
   const [, setTick] = React.useState(0);
   const requestKey = React.useRef(newId());
   const typingTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -306,6 +315,14 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
     if (d.conversation_id === activeConvId && d.reader_id !== meId) setSeenUpTo(d.read_at);
   });
 
+  // Advisors: live online/offline presence of their clients (§9.4).
+  useRealtimeEvent<{ user_id: string; online: boolean }>("presence.updated", (d) => {
+    if (role !== "psychic" || !d?.user_id) return;
+    const status = d.online ? "online" : "offline";
+    setConversations((list) => list.map((c) => (c.counterpart.id === d.user_id ? { ...c, counterpart: { ...c.counterpart, status } } : c)));
+    setCounterpart((c) => (c && c.id === d.user_id ? { ...c, status } : c));
+  });
+
   useRealtimeEvent<{ slug: string; status: Psychic["status"] }>("psychic.status_changed", (d) => {
     if (role === "client" && d.slug === psychic?.slug) {
       setPsychic((p) => (p ? { ...p, status: d.status } : p));
@@ -406,8 +423,59 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
       });
   }
 
+  /** Upload an image message with the same optimistic pending/failed/retry flow as text. */
+  async function sendImage(file: File, caption: string, retryOf?: UiMessage) {
+    if (!session || session.status !== "active") return;
+    const current = session;
+    const cmid = retryOf?.client_msg_id ?? newClientMsgId();
+    let local: UiMessage;
+    if (retryOf) local = { ...retryOf, pending: "sending" };
+    else {
+      const size = await imageSize(file);
+      local = {
+        id: cmid,
+        client_msg_id: cmid,
+        conversation_id: current.conversation_id,
+        session_id: current.id,
+        sender_id: meId,
+        kind: "image",
+        body: caption,
+        attachments: [{ id: `local-${cmid}`, content_type: file.type, width: size?.width ?? 0, height: size?.height ?? 0, bytes: file.size }],
+        created_at: new Date().toISOString(),
+        pending: "sending",
+        localFile: file,
+      };
+    }
+    setMessages((m) => mergeMessages(m, [local]));
+    try {
+      const { message } = await chatApi.uploadAttachment(current.id, file, caption || undefined, cmid);
+      const attachment = message.attachments?.[0];
+      // Show our own copy instead of downloading it again (GIFs are stored as their first frame).
+      if (attachment && file.type !== "image/gif") seedAttachment(attachment.id, file);
+      setMessages((m) => mergeMessages(m.filter((x) => !(x.pending && x.client_msg_id === cmid)), [{ ...message, pending: undefined }]));
+    } catch (err) {
+      const e = toApiError(err);
+      setMessages((m) => m.map((x) => (x.client_msg_id === cmid && x.pending ? { ...x, pending: "failed" } : x)));
+      if (e.code !== "network_error" && e.code !== "timeout") toast.showError(e);
+      logger.warn("image upload failed", e, { code: String(e.code) });
+    }
+  }
+
+  function submit({ body, file }: ComposerSubmit) {
+    if (file) void sendImage(file, body);
+    else send(body);
+  }
+
+  function retry(m: UiMessage) {
+    if (m.kind === "image") {
+      if (m.localFile) void sendImage(m.localFile, m.body, m);
+      return;
+    }
+    send(m.body, m);
+  }
+
   async function toggleBookmark(m: UiMessage) {
-    if (m.pending || m.kind !== "text") return;
+    if (m.pending || (m.kind !== "text" && m.kind !== "image")) return;
     const isSaved = saved.some((s) => s.id === m.id);
     try {
       if (isSaved) {
@@ -454,18 +522,25 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
       </button>
     </div>
   ) : (
-    <ConversationList conversations={conversations} activeId={activeConvId} onSelect={openConversation} />
+    <ConversationList conversations={conversations} viewerRole={role} activeId={activeConvId} onSelect={openConversation} />
   );
+  const removeSaved = (id: string) => {
+    const m = saved.find((s) => s.id === id);
+    if (m) void toggleBookmark(m as UiMessage);
+  };
   const panel = counterpart ? (
-    <ReaderPanel
-      counterpart={counterpart}
-      psychic={role === "client" ? psychic : null}
-      saved={saved}
-      onRemove={(id) => {
-        const m = saved.find((s) => s.id === id);
-        if (m) void toggleBookmark(m as UiMessage);
-      }}
-    />
+    role === "psychic" ? (
+      <ClientPanel
+        key={activeConvId ?? "none"}
+        conversationId={activeConvId}
+        counterpart={counterpart}
+        online={counterpart.status ? counterpart.status !== "offline" : undefined}
+        saved={saved}
+        onRemove={removeSaved}
+      />
+    ) : (
+      <ReaderPanel counterpart={counterpart} psychic={psychic} saved={saved} onRemove={removeSaved} />
+    )
   ) : null;
 
   const connectionBanner =
@@ -481,7 +556,8 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
       className="chat-workspace grid min-h-0 flex-1 gap-4 px-8 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_280px]"
     >
       <aside className="hidden min-h-0 overflow-hidden rounded-xl border border-border bg-[#d3cbb9] lg:block">{inbox}</aside>
-      <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-[#d3cbb9]">
+      {/* overflow-clip (not hidden): the column can never be scrolled by scrollIntoView or focus. */}
+      <section className="flex min-h-0 flex-col overflow-clip rounded-xl border border-border bg-[#d3cbb9]">
         {connectionBanner ? (
           <p className="chat-connection-banner" role="status">
             {connectionBanner}
@@ -491,6 +567,7 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
           <>
             <ChatHeader
               counterpart={counterpart}
+              viewerRole={role}
               session={session}
               elapsedSeconds={elapsed}
               rate={rate || undefined}
@@ -552,7 +629,7 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
                   }
                 }}
                 onBookmark={toggleBookmark}
-                onRetry={(m) => send(m.body, m)}
+                onRetry={retry}
               >
                 <SessionPanel
                   role={role}
@@ -570,11 +647,12 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
                   onAccept={() => session && void act(() => chatApi.accept(session.id), (s) => setSnap(snapshot(s)))}
                   onDecline={() => session && void act(() => chatApi.decline(session.id), (s) => setSnap(snapshot(s)))}
                   onDismissSummary={() => setSummary(null)}
+                  onReviewed={(review: Review) => setSummary((sum) => (sum ? { ...sum, review, can_review: false } : sum))}
                 />
               </ChatFeed>
             )}
             <MessageComposer
-              onSend={(body) => send(body)}
+              onSend={submit}
               onTyping={(isTyping) => session && realtime?.send("typing", { session_id: session.id, typing: isTyping })}
               disabled={composerDisabled}
               disabledReason={text(session?.status === "disconnected" ? "Paused while reconnecting…" : "Start a live chat to send messages")}
@@ -604,6 +682,18 @@ export function ChatroomShell({ initialReader }: { initialReader?: string }) {
           {panel}
         </SheetContent>
       </Sheet>
+      {initialReview && role === "client" ? (
+        <ReviewDialog
+          key={initialReview}
+          sessionId={initialReview}
+          open={reviewOpen}
+          onOpenChange={(open) => {
+            if (open) return;
+            setDismissedReview(initialReview);
+            router.replace(`/${locale}/chatroom${slug ? `?reader=${slug}` : ""}`, { scroll: false });
+          }}
+        />
+      ) : null}
     </main>
   );
 }

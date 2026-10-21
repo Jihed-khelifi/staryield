@@ -3,6 +3,7 @@
 package api
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"strings"
@@ -17,17 +18,36 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
 	"github.com/Jihed-khelifi/staryield/backend/internal/ratelimit"
 	"github.com/Jihed-khelifi/staryield/backend/internal/security"
+	"github.com/Jihed-khelifi/staryield/backend/internal/storage"
 )
 
 // Deps are the router's collaborators.
 type Deps struct {
-	Config  *config.Config
-	Log     *zap.Logger
-	Handler *handler.Handler
-	Auth    mw.Authenticator
-	CSRF    *security.CSRF
-	Limiter ratelimit.Limiter
-	Cookies mw.CookieNames
+	Config    *config.Config
+	Log       *zap.Logger
+	Handler   *handler.Handler
+	Auth      mw.Authenticator
+	AdminAuth AdminAuth
+	CSRF      *security.CSRF
+	Limiter   ratelimit.Limiter
+	Cookies   mw.CookieNames
+	// DevObjects serves public in-memory buckets in development (memory
+	// storage driver only; never set in production, never the chat bucket).
+	DevObjects map[string]storage.ObjectStore
+}
+
+// AdminAuth authenticates admin console sessions and enforces step-up.
+type AdminAuth interface {
+	mw.AdminAuthenticator
+	RequireStepUp(ctx context.Context) error
+}
+
+// uploadRoutes accept multipart bodies larger than the JSON body limit;
+// their handlers enforce per-route limits.
+var uploadRoutes = map[string]bool{
+	"/api/v1/me/avatar":                     true,
+	"/api/v1/admin/psychics/:id/image":      true,
+	"/api/v1/chat/sessions/:id/attachments": true,
 }
 
 // CookieNamesFor returns cookie names, using the __Host-/__Secure- prefixes
@@ -39,9 +59,9 @@ func CookieNamesFor(cfg config.SecurityConfig) mw.CookieNames {
 		if cfg.CookieDomain == "" {
 			access = "__Host-sy_at"
 		}
-		return mw.CookieNames{Access: access, Refresh: "__Secure-sy_rt", CSRF: "__Secure-sy_csrf"}
+		return mw.CookieNames{Access: access, Refresh: "__Secure-sy_rt", CSRF: "__Secure-sy_csrf", Admin: "__Host-sy_adm"}
 	}
-	return mw.CookieNames{Access: "sy_at", Refresh: "sy_rt", CSRF: "sy_csrf"}
+	return mw.CookieNames{Access: "sy_at", Refresh: "sy_rt", CSRF: "sy_csrf", Admin: "sy_adm"}
 }
 
 func rule(name string, r config.Rule, scale float64) ratelimit.Rule {
@@ -62,8 +82,21 @@ func NewRouter(d Deps) *echo.Echo {
 	e.IPExtractor = ipExtractor(cfg.HTTP)
 
 	allowed := map[string]bool{}
+	adminOrigins := map[string]bool{}
+	corsOrigins := append([]string{}, cfg.Security.AllowedOrigins...)
 	for _, o := range cfg.Security.AllowedOrigins {
 		allowed[strings.ToLower(o)] = true
+	}
+	for _, o := range cfg.Security.AdminOrigins {
+		allowed[strings.ToLower(o)] = true
+		adminOrigins[strings.ToLower(o)] = true
+		corsOrigins = append(corsOrigins, o)
+	}
+	var adminNets []*net.IPNet
+	for _, cidr := range cfg.Security.AdminIPAllowlist {
+		if _, n, err := net.ParseCIDR(cidr); err == nil {
+			adminNets = append(adminNets, n)
+		}
 	}
 	bodyLimit := parseSize(cfg.HTTP.BodyLimit, 64<<10)
 	h := d.Handler
@@ -81,14 +114,14 @@ func NewRouter(d Deps) *echo.Echo {
 	e.Use(mw.Recover())
 	e.Use(mw.SecurityHeaders(cfg.Security.HSTS))
 	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
-		AllowOrigins:     cfg.Security.AllowedOrigins,
+		AllowOrigins:     corsOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Content-Type", mw.CSRFHeader, mw.HeaderRequestID, "Idempotency-Key", "Authorization", "Last-Event-ID", "X-Locale"},
 		ExposeHeaders:    []string{mw.HeaderRequestID, "Retry-After", mw.CSRFHeader, "RateLimit-Remaining"},
 		AllowCredentials: true,
 		MaxAge:           600,
 	}))
-	e.Use(mw.BodyLimit(bodyLimit, func(c echo.Context) bool { return c.Path() == "/api/v1/me/avatar" }))
+	e.Use(mw.BodyLimit(bodyLimit, func(c echo.Context) bool { return uploadRoutes[c.Path()] }))
 	e.Use(mw.Timeout(cfg.HTTP.RequestTimeout, isStreaming))
 	e.Use(mw.RateLimit(limiter, rule("global", cfg.RateLimit.Global, scale), mw.ByIP, cfg.RateLimit.FailOpen))
 	e.Use(mw.CSRF(d.CSRF, d.Cookies, allowed, func(c echo.Context) bool {
@@ -97,6 +130,11 @@ func NewRouter(d Deps) *echo.Echo {
 
 	e.GET("/healthz", h.Healthz)
 	e.GET("/readyz", h.Readyz)
+	if len(d.DevObjects) > 0 && !cfg.IsProduction() {
+		e.GET("/_dev/storage/:bucket/*", devObject(d.DevObjects))
+	}
+	// Marketing short links (recorded, then redirected to the landing page).
+	e.GET("/l/:code", h.ShortLink, mw.RateLimit(limiter, rule("links", cfg.RateLimit.Ingest, scale), mw.ByIP, true))
 
 	v1 := e.Group("/api/v1")
 	optional := mw.Authenticate(d.Auth, d.Cookies, false)
@@ -107,7 +145,6 @@ func NewRouter(d Deps) *echo.Echo {
 	uploadRL := mw.RateLimit(limiter, rule("upload", cfg.RateLimit.Upload, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
 	client := mw.RequireRole(domain.RoleClient)
 	psychic := mw.RequireRole(domain.RolePsychic)
-	admin := mw.RequireRole(domain.RoleAdmin)
 
 	v1.GET("/time", h.ServerTime)
 
@@ -126,6 +163,7 @@ func NewRouter(d Deps) *echo.Echo {
 	// Public catalogue and calculators (FR-01, FR-06).
 	v1.GET("/psychics", h.Psychics)
 	v1.GET("/psychics/:slug", h.Psychic)
+	v1.GET("/psychics/:slug/reviews", h.PsychicReviews)
 	v1.GET("/credit-packs", h.CreditPacks)
 	v1.GET("/astrology/places", h.Places)
 	v1.POST("/astrology/chart", h.PublicChart)
@@ -143,6 +181,9 @@ func NewRouter(d Deps) *echo.Echo {
 	me.DELETE("/avatar", h.DeleteAvatar)
 	me.GET("/chart", h.MyChart)
 	me.GET("/horoscope", h.MyHoroscope)
+	me.GET("/notifications", h.Notifications)
+	me.GET("/notifications/unread-count", h.UnreadNotifications)
+	me.POST("/notifications/read", h.MarkNotificationsRead, writeRL)
 
 	v1.GET("/wallet", h.Wallet, authed)
 	v1.GET("/wallet/ledger", h.Ledger, authed)
@@ -160,6 +201,7 @@ func NewRouter(d Deps) *echo.Echo {
 	ch.GET("/conversations", h.Conversations)
 	ch.GET("/conversations/:id/messages", h.Messages)
 	ch.GET("/conversations/:id/messages/since", h.MessagesSince)
+	ch.GET("/conversations/:id/client", h.ClientProfile, psychic)
 	ch.POST("/conversations/:id/read", h.MarkRead)
 	ch.GET("/psychics/:slug", h.Thread, client)
 	ch.POST("/sessions", h.StartSession, client, writeRL)
@@ -172,6 +214,9 @@ func NewRouter(d Deps) *echo.Echo {
 	ch.POST("/sessions/:id/end", h.EndSession)
 	ch.POST("/sessions/:id/messages", h.SendMessage)
 	ch.POST("/sessions/:id/typing", h.Typing)
+	ch.POST("/sessions/:id/attachments", h.SendImage, uploadRL)
+	ch.POST("/sessions/:id/review", h.SubmitReview, client, writeRL)
+	ch.GET("/attachments/:id", h.Attachment)
 	ch.GET("/saved", h.SavedMessages)
 	ch.PUT("/saved/:messageId", h.SaveMessage)
 	ch.DELETE("/saved/:messageId", h.UnsaveMessage)
@@ -192,28 +237,90 @@ func NewRouter(d Deps) *echo.Echo {
 	ps.PATCH("/availability", h.SetAvailability)
 	ps.PATCH("/profile", h.UpdatePsychicProfile)
 	ps.GET("/earnings", h.Earnings)
+	ps.GET("/analytics", h.MyAnalytics)
+	ps.GET("/reviews", h.MyReviews)
+	ps.GET("/withdrawals", h.MyWithdrawals)
+	ps.POST("/withdrawals", h.RequestWithdrawal, writeRL)
+	ps.POST("/withdrawals/:id/cancel", h.CancelWithdrawal, writeRL)
 
-	// Administration (FR-13, FR-14).
-	ad := v1.Group("/admin", authed, admin)
+	// Administration (FR-13, FR-14). Admin routes are only reachable from
+	// the admin console origin (and allow-listed IPs), with a dedicated
+	// password + TOTP session; sensitive actions require a fresh TOTP code.
+	adm := v1.Group("/admin", mw.AdminOrigin(adminOrigins), mw.IPAllowlist(adminNets))
+	adm.POST("/auth/login", h.AdminLogin, authRL)
+	adm.POST("/auth/enroll", h.AdminEnroll, authRL)
+	adm.POST("/auth/enroll/confirm", h.AdminEnrollConfirm, authRL)
+	adm.POST("/auth/verify", h.AdminVerify, authRL)
+	adm.POST("/auth/logout", h.AdminLogout)
+
+	ad := adm.Group("", mw.AdminSession(d.AdminAuth, d.Cookies.Admin))
+	stepUp := mw.StepUp(d.AdminAuth.RequireStepUp)
+	adminRL := mw.RateLimit(limiter, rule("admin", cfg.RateLimit.Writes, scale*4), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
+	ad.GET("/auth/session", h.AdminSessionInfo)
+	ad.POST("/auth/step-up", h.AdminStepUp, authRL)
+	ad.GET("/auth/sessions", h.AdminAuthSessions)
+	ad.DELETE("/auth/sessions/:id", h.AdminRevokeAuthSession)
+	ad.POST("/auth/recovery-codes", h.AdminRecoveryCodes, stepUp)
+
 	ad.GET("/users", h.AdminUsers)
+	ad.POST("/users", h.AdminCreateUser, adminRL)
 	ad.GET("/users/:id", h.AdminUser)
-	ad.PATCH("/users/:id", h.AdminUpdateUser)
-	ad.POST("/users/:id/credits", h.AdminAdjustCredits)
+	ad.PATCH("/users/:id", h.AdminUpdateUser, adminRL)
+	ad.DELETE("/users/:id", h.AdminDeleteUser, stepUp, adminRL)
+	ad.POST("/users/:id/credits", h.AdminAdjustCredits, stepUp, adminRL)
+	ad.POST("/users/:id/logout-all", h.AdminLogoutUser, adminRL)
 	ad.GET("/psychics", h.AdminPsychics)
-	ad.POST("/psychics", h.AdminCreatePsychic)
-	ad.PATCH("/psychics/:id", h.AdminUpdatePsychic)
+	ad.POST("/psychics", h.AdminCreatePsychic, adminRL)
+	ad.GET("/psychics/:id", h.AdminPsychic)
+	ad.PATCH("/psychics/:id", h.AdminUpdatePsychic, adminRL)
+	ad.DELETE("/psychics/:id", h.AdminDeletePsychic, stepUp, adminRL)
+	ad.POST("/psychics/:id/image", h.AdminUploadPsychicImage, uploadRL)
+	ad.DELETE("/psychics/:id/image", h.AdminDeletePsychicImage, adminRL)
 	ad.GET("/psychics/:id/earnings", h.AdminPsychicEarnings)
-	ad.POST("/psychics/:id/services", h.AdminCreateService)
-	ad.PATCH("/services/:id", h.AdminUpdateService)
+	ad.GET("/psychics/:id/analytics", h.AdminPsychicAnalytics)
+	ad.POST("/psychics/:id/services", h.AdminCreateService, adminRL)
+	ad.PATCH("/services/:id", h.AdminUpdateService, adminRL)
+	ad.DELETE("/services/:id", h.AdminDeleteService, adminRL)
 	ad.GET("/credit-packs", h.AdminPacks)
-	ad.POST("/credit-packs", h.AdminCreatePack)
-	ad.PATCH("/credit-packs/:id", h.AdminUpdatePack)
+	ad.POST("/credit-packs", h.AdminCreatePack, adminRL)
+	ad.PATCH("/credit-packs/:id", h.AdminUpdatePack, adminRL)
+	ad.DELETE("/credit-packs/:id", h.AdminDeletePack, adminRL)
 	ad.GET("/custom-requests", h.AdminRequests)
-	ad.POST("/custom-requests/:id/resolve", h.AdminResolveRequest)
+	ad.POST("/custom-requests/:id/resolve", h.AdminResolveRequest, adminRL)
 	ad.GET("/chat/sessions", h.AdminSessions)
 	ad.GET("/chat/sessions/:id", h.AdminSession)
-	ad.GET("/chat/sessions/:id/transcript", h.AdminTranscript)
-	ad.POST("/chat/sessions/:id/terminate", h.AdminTerminateSession)
+	ad.GET("/chat/sessions/:id/transcript", h.AdminTranscript, stepUp)
+	ad.POST("/chat/sessions/:id/terminate", h.AdminTerminateSession, adminRL)
+	ad.GET("/reviews", h.AdminReviews)
+	ad.PATCH("/reviews/:id", h.AdminModerateReview, adminRL)
+	ad.GET("/withdrawals", h.AdminWithdrawals)
+	ad.GET("/withdrawals/:id/destination", h.AdminWithdrawalDestination, stepUp)
+	ad.POST("/withdrawals/:id/approve", h.AdminApproveWithdrawal, stepUp, adminRL)
+	ad.POST("/withdrawals/:id/pay", h.AdminPayWithdrawal, stepUp, adminRL)
+	ad.POST("/withdrawals/:id/reject", h.AdminRejectWithdrawal, adminRL)
+	ad.GET("/presence", h.AdminPresence)
+	ad.GET("/broadcasts", h.AdminBroadcasts)
+	ad.POST("/broadcasts", h.AdminBroadcast, adminRL)
+	ad.GET("/broadcasts/:id", h.AdminBroadcastDetail)
+	ad.GET("/campaigns", h.AdminCampaigns)
+	ad.POST("/campaigns", h.AdminCreateCampaign, adminRL)
+	ad.GET("/campaigns/:id", h.AdminCampaign)
+	ad.PATCH("/campaigns/:id", h.AdminUpdateCampaign, adminRL)
+	ad.DELETE("/campaigns/:id", h.AdminDeleteCampaign, adminRL)
+	ad.GET("/campaigns/:id/report", h.AdminCampaignReport)
+	ad.GET("/links", h.AdminLinks)
+	ad.GET("/links/settings", h.AdminLinkSettings)
+	ad.POST("/links", h.AdminCreateLink, adminRL)
+	ad.GET("/links/:id", h.AdminLink)
+	ad.PATCH("/links/:id", h.AdminUpdateLink, adminRL)
+	ad.DELETE("/links/:id", h.AdminDeleteLink, adminRL)
+	ad.GET("/links/:id/report", h.AdminLinkReport)
+	ad.GET("/acquisition/overview", h.AdminAcquisition)
+	ad.GET("/insights/audience", h.AdminAudience)
+	ad.GET("/insights/engagement", h.AdminEngagement)
+	ad.GET("/insights/retention", h.AdminRetention)
+	ad.GET("/insights/top-users", h.AdminTopUsers)
+	ad.GET("/insights/users/:id", h.AdminUserInsights)
 	ad.GET("/reports/overview", h.AdminOverview)
 	ad.GET("/reports/daily", h.AdminDaily)
 	ad.GET("/analytics/timeseries", h.AdminTimeseries)
@@ -223,6 +330,24 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.GET("/audit-logs", h.AdminAudit)
 
 	return e
+}
+
+// devObject serves objects of public in-memory buckets so uploaded images
+// display during local development.
+func devObject(stores map[string]storage.ObjectStore) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		store, ok := stores[c.Param("bucket")]
+		if !ok {
+			return echo.ErrNotFound
+		}
+		body, ct, err := store.Get(c.Request().Context(), c.Param("*"), 16<<20)
+		if err != nil {
+			return echo.ErrNotFound
+		}
+		c.Response().Header().Set("Cache-Control", "no-store")
+		c.Response().Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
+		return c.Blob(http.StatusOK, ct, body)
+	}
 }
 
 // ipExtractor trusts forwarding headers only from configured proxies.

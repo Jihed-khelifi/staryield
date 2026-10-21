@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/apperror"
@@ -79,13 +78,22 @@ func (h *Handler) AdminAdjustCredits(c echo.Context) error {
 	return ok(c, out)
 }
 
-// AdminPsychics lists advisors including unlisted ones.
+// AdminPsychics lists advisors including unlisted and banned ones.
 func (h *Handler) AdminPsychics(c echo.Context) error {
-	out, err := h.svc.Admin.Psychics(c.Request().Context())
+	listed, err := optionalBool(c, "listed")
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": out})
+	featured, err := optionalBool(c, "featured")
+	if err != nil {
+		return err
+	}
+	out, err := h.svc.Admin.Psychics(c.Request().Context(), service.PsychicFilter{Query: c.QueryParam("q"), Status: c.QueryParam("status"),
+		Listed: listed, Featured: featured})
+	if err != nil {
+		return err
+	}
+	return ok(c, map[string]any{"items": orEmpty(out)})
 }
 
 // AdminCreatePsychic creates an advisor.
@@ -170,7 +178,7 @@ func (h *Handler) AdminPacks(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": out})
+	return ok(c, map[string]any{"items": orEmpty(out)})
 }
 
 // AdminCreatePack adds a credit pack.
@@ -335,7 +343,7 @@ func (h *Handler) AdminDaily(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": out})
+	return ok(c, map[string]any{"items": orEmpty(out)})
 }
 
 // AdminTimeseries counts one event over time.
@@ -348,7 +356,7 @@ func (h *Handler) AdminTimeseries(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": out})
+	return ok(c, map[string]any{"items": orEmpty(out)})
 }
 
 // AdminFunnel computes an ordered conversion funnel.
@@ -367,7 +375,7 @@ func (h *Handler) AdminFunnel(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": out})
+	return ok(c, map[string]any{"items": orEmpty(out)})
 }
 
 // AdminTopEvents ranks events by volume.
@@ -384,7 +392,7 @@ func (h *Handler) AdminTopEvents(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": out})
+	return ok(c, map[string]any{"items": orEmpty(out)})
 }
 
 // AdminEvents lists raw analytics events.
@@ -426,11 +434,10 @@ func (h *Handler) AdminAudit(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	out, err := h.svc.Admin.Audit(c.Request().Context(), actor, c.QueryParam("target_type"), c.QueryParam("target_id"), c.QueryParam("cursor"), limit)
+	out, err := h.svc.Admin.Audit(c.Request().Context(), service.AuditFilter{ActorID: actor, TargetType: c.QueryParam("target_type"),
+		TargetID: c.QueryParam("target_id"), Action: c.QueryParam("action")}, c.QueryParam("cursor"), limit)
 	if err != nil {
 		return err
 	}
 	return ok(c, out)
 }
-
-var _ = uuid.Nil

@@ -32,7 +32,14 @@ type UserStatus string
 const (
 	UserActive      UserStatus = "active"
 	UserDeactivated UserStatus = "deactivated"
+	UserBanned      UserStatus = "banned"
+	UserDeleted     UserStatus = "deleted"
 )
+
+// Valid reports whether s is a known status.
+func (s UserStatus) Valid() bool {
+	return s == UserActive || s == UserDeactivated || s == UserBanned || s == UserDeleted
+}
 
 // User is an authenticated principal.
 type User struct {
@@ -47,10 +54,13 @@ type User struct {
 	TermsAcceptedAt time.Time `gorm:"not null"`
 	// TokenVersion is embedded in access tokens; incrementing it revokes
 	// every outstanding access token of the user immediately.
-	TokenVersion int `gorm:"not null"`
-	LastLoginAt  *time.Time
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	TokenVersion    int `gorm:"not null"`
+	LastLoginAt     *time.Time
+	StatusReason    string `gorm:"not null"`
+	StatusChangedAt *time.Time
+	DeletedAt       *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 func (User) TableName() string { return "users" }
@@ -77,6 +87,7 @@ type Profile struct {
 	NotifyHoroscope bool   `gorm:"not null"`
 	NotifyEvents    bool   `gorm:"not null"`
 	NotifyChart     bool   `gorm:"not null"`
+	CountryCode     string `gorm:"not null"`
 	UpdatedAt       time.Time
 }
 
@@ -227,6 +238,10 @@ type Psychic struct {
 	Availability    Availability `gorm:"not null"`
 	Listed          bool         `gorm:"not null"`
 	SortOrder       int          `gorm:"not null"`
+	Featured        bool         `gorm:"not null"`
+	FeaturedRank    int          `gorm:"not null"`
+	ImageKey        string       `gorm:"not null"`
+	RatingSum       float64      `gorm:"not null"`
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	Services        []PsychicService `gorm:"foreignKey:PsychicID;references:UserID"`
@@ -380,6 +395,7 @@ type MessageKind string
 const (
 	MessageText   MessageKind = "text"
 	MessageSystem MessageKind = "system"
+	MessageImage  MessageKind = "image"
 )
 
 // Message is a persisted chat message (the session transcript).
@@ -445,23 +461,23 @@ func SplitEarnings(gross int64, sharePercent int) (net, commission int64) {
 
 // AnalyticsEvent is a business analytics record.
 type AnalyticsEvent struct {
-	ID          int64      `gorm:"primaryKey;autoIncrement"`
-	EventID     uuid.UUID  `gorm:"type:uuid;not null"`
-	Name        string     `gorm:"not null"`
-	Source      string     `gorm:"not null"`
-	UserID      *uuid.UUID `gorm:"type:uuid"`
-	UserRole    string     `gorm:"not null"`
-	AnonymousID string     `gorm:"not null"`
-	SessionKey  string     `gorm:"not null"`
-	OccurredAt  time.Time  `gorm:"not null"`
-	ReceivedAt  time.Time  `gorm:"not null"`
-	Properties  JSONMap    `gorm:"type:jsonb;not null"`
-	Path        string     `gorm:"not null"`
-	Referrer    string     `gorm:"not null"`
-	Locale      string     `gorm:"not null"`
-	UserAgent   string     `gorm:"not null"`
-	IPHash      string     `gorm:"not null"`
-	RequestID   string     `gorm:"not null"`
+	ID          int64      `gorm:"primaryKey;autoIncrement" json:"id"`
+	EventID     uuid.UUID  `gorm:"type:uuid;not null" json:"event_id"`
+	Name        string     `gorm:"not null" json:"name"`
+	Source      string     `gorm:"not null" json:"source"`
+	UserID      *uuid.UUID `gorm:"type:uuid" json:"user_id,omitempty"`
+	UserRole    string     `gorm:"not null" json:"user_role"`
+	AnonymousID string     `gorm:"not null" json:"anonymous_id"`
+	SessionKey  string     `gorm:"not null" json:"session_key"`
+	OccurredAt  time.Time  `gorm:"not null" json:"occurred_at"`
+	ReceivedAt  time.Time  `gorm:"not null" json:"received_at"`
+	Properties  JSONMap    `gorm:"type:jsonb;not null" json:"properties"`
+	Path        string     `gorm:"not null" json:"path"`
+	Referrer    string     `gorm:"not null" json:"referrer"`
+	Locale      string     `gorm:"not null" json:"locale"`
+	UserAgent   string     `gorm:"not null" json:"user_agent"`
+	IPHash      string     `gorm:"not null" json:"-"`
+	RequestID   string     `gorm:"not null" json:"request_id"`
 }
 
 func (AnalyticsEvent) TableName() string { return "analytics_events" }

@@ -66,12 +66,20 @@ type CreditService struct {
 	events   EventPublisher
 	tracker  analytics.Tracker
 	clock    clock.Clock
+	notify   Notifier
+}
+
+// WithNotifier enables purchase notifications.
+func (s *CreditService) WithNotifier(n Notifier) *CreditService {
+	s.notify = n
+	return s
 }
 
 // NewCreditService wires the credit service.
 func NewCreditService(tx database.TxManager, credits repository.CreditRepository, wallet *WalletService, wallets repository.WalletRepository,
 	provider payment.Provider, events EventPublisher, tracker analytics.Tracker, clk clock.Clock) *CreditService {
-	return &CreditService{tx: tx, credits: credits, wallet: wallet, wallets: wallets, provider: provider, events: events, tracker: tracker, clock: clk}
+	return &CreditService{tx: tx, credits: credits, wallet: wallet, wallets: wallets, provider: provider, events: events, tracker: tracker,
+		clock: clk, notify: NoopNotifier{}}
 }
 
 func packView(p *domain.CreditPack) PackView {
@@ -215,6 +223,8 @@ func (s *CreditService) complete(ctx context.Context, purchaseID uuid.UUID, prov
 		s.tracker.Track(ctx, "credits.purchase_succeeded", map[string]any{
 			"pack_id": purchase.PackID, "credits": purchase.Credits, "amount_cents": purchase.PriceCents, "currency": purchase.Currency,
 		})
+		s.notify.Notify(ctx, NotificationSpec{Kind: NotifyPurchase, Data: map[string]any{"purchase_id": purchase.ID, "credits": purchase.Credits},
+			Link: "/profile"}, purchase.UserID)
 		return true, nil
 	}
 	return false, nil

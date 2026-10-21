@@ -199,6 +199,12 @@ export default function ScreenDesktopLegalPrivacyPolicy() {
                 {text(`    2.5. Aggregated and de-Identified data`)}
               </p>
             </ContentLink>
+            <p className="block font-serif font-normal leading-[1.5] relative shrink-0 text-[14px] w-[806px] whitespace-pre-wrap">
+              {text(`    2.6. Live readings, ratings and notifications`)}
+            </p>
+            <p className="block font-serif font-normal leading-[1.5] relative shrink-0 text-[14px] w-[806px] whitespace-pre-wrap">
+              {text(`    2.7. Marketing attribution`)}
+            </p>
             <ContentLink
               className="block cursor-pointer font-serif font-semibold leading-[0] min-w-full relative shrink-0 text-[15px] text-left w-[min-content]"
               data-node-id="826:2487"
@@ -632,9 +638,53 @@ export default function ScreenDesktopLegalPrivacyPolicy() {
                   {text("2.5. Aggregated and de-Identified data ")}
                 </p>
                 <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
-                <p className="leading-[1.6] text-[14px]">
+                <p className="leading-[1.6] mb-[10px] text-[14px]">
                   {text(
                     "We may aggregate, anonymize, or de-identify your personal data to ensure it cannot reasonably be used to identify you individually. This processed data may be used for statistical analysis and trend identification, to improve our Services, develop new features, or other lawful purposes. For example, we may analyse aggregated online activity, payment, and advertising performance data to identify common interest patterns among customers, which helps us enhance our Services and contribute to their overall quality. Such aggregated data no longer constitutes personal information under applicable privacy laws. ",
+                  )}
+                </p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
+                <p className="font-serif font-bold leading-[1.6] mb-[10px] text-[16px]">
+                  {text("2.6. Live readings, ratings and notifications ")}
+                </p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">
+                  {text(
+                    "Messages and images. We store the messages, emoji and images you exchange in live readings so that you and your advisor can see your conversation history. Images are re-encoded when you upload them, which removes embedded metadata such as GPS location and camera details. They are kept in private storage and can only be opened by the two participants of the conversation; our administration tools do not allow staff to open them. Text transcripts can be reviewed by authorised staff only to handle a dispute, a safety report or a legal obligation; every such access requires a stated reason and is recorded in an audit log.",
+                  )}
+                </p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">
+                  {text(
+                    "Information shown to your advisor. During a conversation, your advisor sees a client card with your first name or nickname, profile picture, online status, country (taken from your birth place), age, sun sign — plus moon and rising signs when you gave a birth time and place — your daily horoscope and the number and length of your past readings with them. We never show advisors your email address, credit balance, purchases or your exact birth place and time.",
+                  )}
+                </p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">
+                  {text(
+                    "Ratings, notifications and presence. When you rate a reading we store your rating, your comment and the reading it refers to; ratings are published on the advisor's profile with your first name or nickname only. We store the in-app notifications we send you and when you read them. While you are connected we process your online status so that advisors you are chatting with can see whether you are available.",
+                  )}
+                </p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">
+                  {text(
+                    "Advisors. If you are an advisor, we also process your earnings, withdrawal requests and payout details (bank account or PayPal address). Payout details are encrypted at rest and only revealed to authorised staff, with an audit record, when processing a payment. We also compute performance analytics from your readings and ratings, such as acceptance rate, response time and the hours when clients request readings.",
+                  )}
+                </p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
+                <p className="font-serif font-bold leading-[1.6] mb-[10px] text-[16px]">
+                  {text("2.7. Marketing attribution ")}
+                </p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">
+                  {text(
+                    "When you open one of our short links (for example from social media), we record the click with the link, its campaign, a pseudonymous visitor code computed from your IP address and browser (we do not store the IP address itself), your device type and the domain of the page that referred you. Automated link previews are flagged and excluded from our statistics.",
+                  )}
+                </p>
+                <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
+                <p className="leading-[1.6] text-[14px]">
+                  {text(
+                    "Our website keeps the campaign parameters of your first visit (UTM parameters such as source, medium and campaign, and the click code) in your browser's local storage for 30 days. If you create an account, these are sent with your sign-up and stored with your account, so we can measure which campaigns lead to sign-ups and purchases. We use this information only in aggregate to evaluate our marketing; we do not sell it. You can clear it at any time by clearing your browser's site data, and we do not record web analytics when your browser sends a Do Not Track or Global Privacy Control signal.",
                   )}
                 </p>
               </div>
@@ -1256,9 +1306,15 @@ export default function ScreenDesktopLegalPrivacyPolicy() {
                 )}
               </p>
               <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
-              <p className="leading-[1.6] text-[14px]">
+              <p className="leading-[1.6] mb-[10px] text-[14px]">
                 {text(
                   "If multiple lawful bases apply, we keep the personal data until the latest applicable period expires. In any of the above situations, if you decide to delete your account, we delete or anonymise the related personal data unless retention is required to comply with our legal obligations, establish, exercise, or defend legal claims, resolve disputes, and enforce our agreements. For example, certain accounting and tax laws require us to store Payment Data for long periods of time to comply with laws we are subject to. Therefore, even if you submit a data deletion request, a small portion of the data that relates to our compliance obligations will be stored even after the request is satisfied. ",
+                )}
+              </p>
+              <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
+              <p className="leading-[1.6] text-[14px]">
+                {text(
+                  "Additional retention periods. Chat messages and images are kept for as long as the conversation exists in your account. In-app notifications are deleted after 180 days. Marketing click records are kept in pseudonymous form for campaign reporting. When an account is deleted we erase the personal details that identify you and keep only the pseudonymous records required for accounting, fraud prevention and legal compliance. Advisor payout records are kept for as long as accounting and tax laws require.",
                 )}
               </p>
             </div>
@@ -1572,9 +1628,15 @@ export default function ScreenDesktopLegalPrivacyPolicy() {
                 {text("10. SECURITY MEASURES ")}
               </h2>
               <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
-              <p className="leading-[1.6] text-[14px]">
+              <p className="leading-[1.6] mb-[10px] text-[14px]">
                 {text(
                   "We use reasonable and appropriate organisational, technical, administrative, and physical security measures as required by the applicable laws to protect your personal data from unauthorized access, disclosure, use, and modification. This includes without limitation pseudonymisation and encryption of personal data, access management, vulnerability testing, user authorisation procedures, organisational policies, and regular tests and assessments of technical and organisational measures. We regularly review our security procedures and policies to consider appropriate new technology and methods. However, the Internet is not 100% secure and we cannot promise that your use of the Services of the App will be completely secure. We encourage you to use caution when using the Internet, including not sharing your passwords to our Services. ",
+                )}
+              </p>
+              <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
+              <p className="leading-[1.6] text-[14px]">
+                {text(
+                  "Additional safeguards. Access to our administration console requires a password and a second authentication factor, is limited to authorised staff on a dedicated, separately secured site, expires after inactivity, and requires the second factor again for sensitive actions. Every administrative action is recorded in an audit log that cannot be altered. Authentication secrets and payout details are encrypted at rest, and uploaded images are stored under random, unguessable names.",
                 )}
               </p>
             </div>
@@ -1654,7 +1716,7 @@ export default function ScreenDesktopLegalPrivacyPolicy() {
               </p>
               <p className="leading-[1.6] mb-[10px] text-[14px]">​</p>
               <p className="leading-[1.6] text-[14px]">
-                {text("Effective as of: October 1, 2026 ")}
+                {text("Effective as of: October 21, 2026 ")}
               </p>
             </div>
           </div>

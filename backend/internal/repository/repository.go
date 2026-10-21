@@ -23,6 +23,8 @@ var (
 	ErrNotFound      = errors.New("repository: not found")
 	ErrDuplicate     = errors.New("repository: duplicate")
 	ErrInvalidCursor = errors.New("repository: invalid cursor")
+	// ErrInUse is returned when deleting a row other rows still reference.
+	ErrInUse = errors.New("repository: in use")
 )
 
 // notFound converts gorm.ErrRecordNotFound into ErrNotFound.

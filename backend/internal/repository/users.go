@@ -29,6 +29,8 @@ type UserRepository interface {
 	GetForUpdate(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	Updates(ctx context.Context, id uuid.UUID, fields map[string]any) error
 	List(ctx context.Context, f UserFilter) ([]domain.User, error)
+	GetByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.User, error)
+	GetProfiles(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]domain.Profile, error)
 
 	CreateProfile(ctx context.Context, p *domain.Profile) error
 	GetProfile(ctx context.Context, userID uuid.UUID) (*domain.Profile, error)
@@ -105,6 +107,30 @@ func (r *GormUserRepository) List(ctx context.Context, f UserFilter) ([]domain.U
 	var out []domain.User
 	err := q.Order("created_at DESC, id DESC").Limit(clampLimit(f.Limit, 50, 200)).Find(&out).Error
 	return out, err
+}
+
+func (r *GormUserRepository) GetByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.User, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var out []domain.User
+	err := database.Conn(ctx, r.db).Where("id IN ?", ids).Find(&out).Error
+	return out, err
+}
+
+func (r *GormUserRepository) GetProfiles(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]domain.Profile, error) {
+	out := map[uuid.UUID]domain.Profile{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []domain.Profile
+	if err := database.Conn(ctx, r.db).Where("user_id IN ?", ids).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, p := range rows {
+		out[p.UserID] = p
+	}
+	return out, nil
 }
 
 func (r *GormUserRepository) CreateProfile(ctx context.Context, p *domain.Profile) error {

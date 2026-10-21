@@ -175,12 +175,26 @@ func (c *ChatService) Conversations(ctx context.Context, p reqctx.Principal, lim
 		openBy[open[i].ConversationID] = &open[i]
 	}
 	ps := c.newParticipants()
+	// Advisors see whether each client is connected right now.
+	online := map[uuid.UUID]bool{}
+	if asPsychic && len(rows) > 0 {
+		clients := make([]uuid.UUID, len(rows))
+		for i := range rows {
+			clients[i] = rows[i].ClientID
+		}
+		if m, err := c.presence.Online(ctx, clients); err == nil {
+			online = m
+		} else {
+			warnErr(ctx, "chat: client presence", err)
+		}
+	}
 	out := make([]ConversationView, 0, len(rows))
 	for i := range rows {
 		r := &rows[i]
 		v := ConversationView{ID: r.ID, LastMessageAt: r.LastMessageAt, Unread: r.Unread, CreatedAt: r.CreatedAt}
 		if asPsychic {
 			v.Counterpart = ps.client(ctx, r.ClientID)
+			v.Counterpart.Status = map[bool]string{true: "online", false: "offline"}[online[r.ClientID]]
 		} else {
 			v.Counterpart = ps.psychic(ctx, r.PsychicID)
 			if st, _, err := c.psychics.Status(ctx, r.PsychicID); err == nil {
@@ -289,6 +303,7 @@ func (c *ChatService) messagesPage(ctx context.Context, viewerID, conversationID
 		oldest := rows[len(rows)-1]
 		page.NextCursor = repository.EncodeCursor(oldest.CreatedAt, oldest.ID.String())
 	}
+	page.Items = c.withAttachments(ctx, page.Items)
 	return page, nil
 }
 
@@ -310,7 +325,7 @@ func (c *ChatService) MessagesSince(ctx context.Context, p reqctx.Principal, con
 	for i := range rows {
 		out[i] = messageView(&rows[i])
 	}
-	return out, nil
+	return c.withAttachments(ctx, out), nil
 }
 
 // Session returns one session for a participant or admin.
@@ -382,7 +397,7 @@ func (c *ChatService) Bookmark(ctx context.Context, p reqctx.Principal, messageI
 	if !save {
 		return mapRepoErr(c.chat.DeleteBookmark(ctx, p.UserID, messageID), "Bookmark")
 	}
-	if m.Kind != domain.MessageText {
+	if m.Kind != domain.MessageText && m.Kind != domain.MessageImage {
 		return apperror.Validation(map[string]string{"message_id": "Only messages can be saved."})
 	}
 	if err := c.chat.SaveBookmark(ctx, &domain.SavedMessage{UserID: p.UserID, MessageID: messageID, CreatedAt: c.clock.Now()}); err != nil {
@@ -403,7 +418,7 @@ func (c *ChatService) Bookmarks(ctx context.Context, p reqctx.Principal, convers
 		out[i] = messageView(&rows[i])
 		out[i].Saved = true
 	}
-	return out, nil
+	return c.withAttachments(ctx, out), nil
 }
 
 // errNotParticipant is returned when a connection is not owned by the caller.

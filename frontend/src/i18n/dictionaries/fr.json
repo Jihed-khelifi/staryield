@@ -89,5 +89,13 @@
     "m5": "merci ! avez-vous besoin de quelque chose de ma part, Ramone ?",
     "m6": "Mon rayon de soleil, je vois passer la Mort, le 6 de bâtons, l'as de bâtons et la carte du Jugement",
     "m7": "Mon rayon de soleil, je vois à travers la Mort, le 4 de bâtons, l'as de bâtons et le Jugement que vous êtes au bord d'une grande transition sur votre chemin professionnel !"
+  },
+  "analytics": {
+    "ratings_one": "{count} note",
+    "ratings_other": "{count} notes",
+    "requestsAt_one": "{day} à {hour} : {count} demande",
+    "requestsAt_other": "{day} à {hour} : {count} demandes",
+    "averageOf_one": "Moyenne de {average} sur {count} note",
+    "averageOf_other": "Moyenne de {average} sur {count} notes"
   }
 }

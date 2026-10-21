@@ -51,6 +51,7 @@ type ChatService struct {
 	limiter      ratelimit.Limiter
 	clock        clock.Clock
 	cfg          ChatSettings
+	extras       ChatExtras
 }
 
 // NewChatService wires the chat service.
@@ -158,6 +159,9 @@ func (c *ChatService) RequestSession(ctx context.Context, clientID uuid.UUID, ps
 		c.publishSession(ctx, realtime.EventSessionRequested, s, nil)
 		c.psychics.PublishStatus(ctx, s.PsychicID)
 		c.track(ctx, "chat.requested", s, nil)
+		client := c.newParticipants().client(ctx, clientID)
+		c.notifier().Notify(ctx, NotificationSpec{Kind: NotifyChatRequested,
+			Data: map[string]any{"session_id": s.ID, "client_name": client.Name}, Link: "/chatroom"}, s.PsychicID)
 	}
 	v := c.sessionView(ctx, c.newParticipants(), s, viewer{ID: clientID})
 	return &v, nil
@@ -633,6 +637,10 @@ func (c *ChatService) settleAndAnnounce(ctx context.Context, sessionID uuid.UUID
 			map[string]any{"session_id": s.ID, "net_credits": s.PsychicEarnings, "gross_credits": s.CreditsCharged}, s.PsychicID))
 	}
 	c.psychics.PublishStatus(ctx, s.PsychicID)
+	// Settlement retries (reason "") must not prompt twice.
+	if reason != "" {
+		c.notifyReviewPrompt(ctx, s)
+	}
 }
 
 // settle computes psychic earnings for an Ended session (BR-08).
@@ -800,6 +808,11 @@ func (c *ChatService) ExpireDue(ctx context.Context, batch int) (int, error) {
 		c.publishSession(ctx, realtime.EventSessionExpired, s, nil)
 		c.psychics.PublishStatus(ctx, s.PsychicID)
 		c.track(ctx, "chat.expired", s, map[string]any{"reason": string(s.EndReason)})
+		if s.EndReason == domain.EndRequestTimeout {
+			client := c.newParticipants().client(ctx, s.ClientID)
+			c.notifier().Notify(ctx, NotificationSpec{Kind: NotifyChatMissed,
+				Data: map[string]any{"session_id": s.ID, "client_name": client.Name}, Link: "/chatroom"}, s.PsychicID)
+		}
 	}
 	return len(expired), nil
 }

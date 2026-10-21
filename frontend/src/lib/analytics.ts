@@ -29,7 +29,8 @@ export type ClientEventName =
   | "realtime_reconnected"
   | "realtime_fallback"
   | "locale_changed"
-  | "chat_opened";
+  | "chat_opened"
+  | "campaign_landing";
 
 type Queued = {
   event_id: string;

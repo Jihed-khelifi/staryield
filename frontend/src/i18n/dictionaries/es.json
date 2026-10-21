@@ -89,5 +89,13 @@
     "m5": "¡gracias! ¿necesitas algo de mi parte, Ramone?",
     "m6": "Sol mío, veo pasar la Muerte, el 6 de bastos, el as de bastos y la carta del Juicio",
     "m7": "Sol mío, veo a través de la Muerte, el 4 de bastos, el as de bastos y el Juicio que estás al borde de una gran transición en tu camino profesional."
+  },
+  "analytics": {
+    "ratings_one": "{count} valoración",
+    "ratings_other": "{count} valoraciones",
+    "requestsAt_one": "{day} a las {hour}: {count} solicitud",
+    "requestsAt_other": "{day} a las {hour}: {count} solicitudes",
+    "averageOf_one": "Media de {average} con {count} valoración",
+    "averageOf_other": "Media de {average} con {count} valoraciones"
   }
 }

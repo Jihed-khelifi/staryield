@@ -28,7 +28,8 @@ func TestProductionHardening(t *testing.T) {
 	if err == nil {
 		t.Fatal("production without secrets must fail")
 	}
-	for _, want := range []string{"jwt_secret", "cookie_secure", "sandbox", "storage.driver memory", "mail.driver log", "https"} {
+	for _, want := range []string{"STARYIELD_AUTH_JWT_SECRET", "STARYIELD_SECURITY_COOKIE_SECURE", "STARYIELD_PAYMENTS_PROVIDER=sandbox",
+		"STARYIELD_STORAGE_DRIVER=memory", "STARYIELD_MAIL_DRIVER=log", "https"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("missing %q in: %v", want, err)
 		}
@@ -45,7 +46,7 @@ func TestValidateRejectsUnsafeValues(t *testing.T) {
 	cfg.Billing.PsychicSharePercent = 150
 	cfg.Realtime.PingInterval = cfg.Realtime.PongWait
 	err = cfg.Validate()
-	for _, want := range []string{"'*'", "CIDR", "psychic_share_percent", "ping_interval"} {
+	for _, want := range []string{"'*'", "CIDR", "STARYIELD_BILLING_PSYCHIC_SHARE_PERCENT", "STARYIELD_REALTIME_PING_INTERVAL"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("expected %q in %v", want, err)
 		}
@@ -57,7 +58,9 @@ func TestValidateRejectsUnsafeValues(t *testing.T) {
 func clearPlatformEnv(t *testing.T) {
 	t.Helper()
 	for _, k := range []string{"DATABASE_URL", "REDIS_URL", "APP_ENV", "PORT", "RAILWAY_ENVIRONMENT_ID", "RAILWAY_REPLICA_ID",
-		"STARYIELD_DATABASE_DSN", "STARYIELD_REDIS_URL", "STARYIELD_APP_ENV", "STARYIELD_HTTP_ADDR", "STARYIELD_APP_INSTANCE_ID"} {
+		"STARYIELD_DATABASE_DSN", "STARYIELD_REDIS_URL", "STARYIELD_APP_ENV", "STARYIELD_HTTP_ADDR", "STARYIELD_APP_INSTANCE_ID",
+		"R2_ADVISOR_IMAGE", "R2_ADVISOR_IMAGE_PUBLIC_URL", "R2_CHAT_IMAGES_PRIVATE", "STARYIELD_STORAGE_ADVISOR_BUCKET",
+		"STARYIELD_STORAGE_CHAT_BUCKET", "STARYIELD_STORAGE_ADVISOR_PUBLIC_BASE_URL"} {
 		t.Setenv(k, "")
 		os.Unsetenv(k)
 	}
@@ -115,7 +118,7 @@ func TestRailwayDefaultsToHardenedProduction(t *testing.T) {
 	// Without secrets the production checks must refuse to boot rather than
 	// fall back to development secrets.
 	_, err := Load("")
-	if err == nil || !strings.Contains(err.Error(), "jwt_secret") {
+	if err == nil || !strings.Contains(err.Error(), "STARYIELD_AUTH_JWT_SECRET") {
 		t.Fatalf("railway must default to production hardening, got %v", err)
 	}
 
@@ -158,7 +161,7 @@ func TestProductionAcceptsDisabledFeatures(t *testing.T) {
 func TestSpoofableIPSourcesRequireTrustedProxies(t *testing.T) {
 	clearPlatformEnv(t)
 	t.Setenv("STARYIELD_HTTP_IP_SOURCE", "x-real-ip")
-	if _, err := Load(""); err == nil || !strings.Contains(err.Error(), "trusted_proxies") {
+	if _, err := Load(""); err == nil || !strings.Contains(err.Error(), "STARYIELD_HTTP_TRUSTED_PROXIES") {
 		t.Fatalf("expected trusted_proxies error, got %v", err)
 	}
 }
@@ -173,4 +176,73 @@ func setProductionSecrets(t *testing.T) {
 	t.Setenv("STARYIELD_STORAGE_DRIVER", "disabled")
 	t.Setenv("STARYIELD_PAYMENTS_PROVIDER", "disabled")
 	t.Setenv("STARYIELD_MAIL_DRIVER", "noop")
+	t.Setenv("STARYIELD_SECURITY_DATA_ENCRYPTION_KEY", strings.Repeat("ab", 32))
+	t.Setenv("STARYIELD_SECURITY_ADMIN_ORIGINS", "https://admin.staryield.net")
+}
+
+func TestR2BucketsComeFromDotEnvNames(t *testing.T) {
+	clearPlatformEnv(t)
+	t.Setenv("R2_ADVISOR_IMAGE", "staryield-advisors")
+	t.Setenv("R2_ADVISOR_IMAGE_PUBLIC_URL", "https://advisorsassets.example.net/")
+	t.Setenv("R2_CHAT_IMAGES_PRIVATE", "staryield-chat-private")
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Storage.AdvisorBucket != "staryield-advisors" || cfg.Storage.ChatBucket != "staryield-chat-private" {
+		t.Fatalf("buckets: %q %q", cfg.Storage.AdvisorBucket, cfg.Storage.ChatBucket)
+	}
+	if cfg.Storage.AdvisorPublicBaseURL != "https://advisorsassets.example.net" {
+		t.Fatalf("advisor base url: %q", cfg.Storage.AdvisorPublicBaseURL)
+	}
+}
+
+func TestDotEnvFileDoesNotOverrideEnvironment(t *testing.T) {
+	clearPlatformEnv(t)
+	dir := t.TempDir()
+	wd, _ := os.Getwd()
+	t.Cleanup(func() { _ = os.Chdir(wd) })
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	env := "# comment\nexport R2_CHAT_IMAGES_PRIVATE=\"from-file\"\nR2_ADVISOR_IMAGE='advisors-file'\n"
+	if err := os.WriteFile(".env", []byte(env), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("R2_ADVISOR_IMAGE", "from-env")
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Unsetenv("R2_CHAT_IMAGES_PRIVATE") })
+	if cfg.Storage.ChatBucket != "from-file" || cfg.Storage.AdvisorBucket != "from-env" {
+		t.Fatalf("dotenv: chat=%q advisor=%q", cfg.Storage.ChatBucket, cfg.Storage.AdvisorBucket)
+	}
+}
+
+func TestEncryptionKeyFormatsAndAdminPolicy(t *testing.T) {
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if k, err := cfg.EncryptionKey(); err != nil || len(k) != 32 {
+		t.Fatalf("dev key: %v", err)
+	}
+	cfg.Security.DataEncryptionKey = "c2hvcnQ="
+	if _, err := cfg.EncryptionKey(); err == nil {
+		t.Fatal("short key accepted")
+	}
+	cfg.Security.DataEncryptionKey = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+	if k, err := cfg.EncryptionKey(); err != nil || len(k) != 32 {
+		t.Fatalf("base64 key: %v", err)
+	}
+	cfg.Admin.IdleTimeout = cfg.Admin.SessionTTL * 2
+	cfg.Security.AdminOrigins = []string{"*"}
+	cfg.Security.AdminIPAllowlist = []string{"not-a-cidr"}
+	err = cfg.Validate()
+	for _, want := range []string{"STARYIELD_ADMIN_IDLE_TIMEOUT", "STARYIELD_SECURITY_ADMIN_ORIGINS", "STARYIELD_SECURITY_ADMIN_IP_ALLOWLIST"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("expected %q error, got %v", want, err)
+		}
+	}
 }

@@ -20,10 +20,10 @@ import (
 func main() {
 	// All timestamps are handled in UTC (database scans included).
 	time.Local = time.UTC
-	configPath := flag.String("config", "", "path to a YAML config file (default ./config.yaml if present)")
+	envFile := flag.String("env-file", "", "path to a .env file (default ./.env if present); real environment variables win")
 	flag.Parse()
 
-	cfg, err := config.Load(*configPath)
+	cfg, err := config.Load(*envFile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "configuration error:", err)
 		os.Exit(2)
@@ -35,6 +35,9 @@ func main() {
 	}
 	defer func() { _ = log.Sync() }()
 	zap.ReplaceGlobals(log)
+	if unknown := config.UnknownEnv(); len(unknown) > 0 {
+		log.Warn("ignoring unknown configuration variables (typo?)", zap.Strings("names", unknown))
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/Jihed-khelifi/staryield/backend/internal/i18n"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -45,7 +46,9 @@ type Client struct {
 	UserID    uuid.UUID
 	Role      string
 	Transport string
-	Log       *zap.Logger
+	// Locale is the viewer's language for error frames (en, fr, es).
+	Locale string
+	Log    *zap.Logger
 
 	send      chan outFrame
 	done      chan struct{}
@@ -170,7 +173,10 @@ func (c *Client) SendEvent(eventType, ref string, data any, frameErr *FrameError
 
 // SendError queues an error event translated from err.
 func (c *Client) SendError(ref string, err error) {
-	c.SendEvent(EventError, ref, nil, ToFrameError(err, c.Log))
+	fe := ToFrameError(err, c.Log)
+	fe.Message = i18n.T(c.Locale, fe.Message)
+	fe.Details = i18n.Details(c.Locale, fe.Details)
+	c.SendEvent(EventError, ref, nil, fe)
 }
 
 // ToFrameError converts an error into a safe client payload, logging

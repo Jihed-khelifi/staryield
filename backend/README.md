@@ -2,14 +2,13 @@
 
 Go backend for Staryield: accounts and roles, credits and payments, psychic advisors, **real-time live chat billed per started minute**, custom requests, birth charts and horoscopes, an admin API, and business analytics. It implements the *Formal Specification v1.0* (roles, use cases, the live-chat sequence diagram, the session state machine, FR-01…FR-14 and BR-01…BR-10).
 
-**Stack:** Go 1.26 · Echo v4 · GORM + PostgreSQL (pgx) · Redis (Streams, Pub/Sub, Lua) · Viper · Zap · gorilla/websocket · Cloudflare R2 (S3 API) · Argon2id · JWT.
+**Stack:** Go 1.26 · Echo v4 · GORM + PostgreSQL (pgx) · Redis (Streams, Pub/Sub, Lua) · Zap · gorilla/websocket · Cloudflare R2 (S3 API) · Argon2id · JWT.
 
 ## Quick start
 
 ```bash
 cp .env.example .env              # local-only values, incl. seed accounts
 make up                           # PostgreSQL + Redis (docker compose)
-set -a; source .env; set +a
 make seed                         # migrations + advisors, credit packs, accounts
 make run                          # http://localhost:8080
 ```
@@ -96,7 +95,7 @@ declined · expired · cancelled            ended ──calculate earnings──
 
 Business events are recorded server-side and cannot be forged by clients. They cover registrations, logins and lockouts, purchases, every chat transition and billed minute, messages (length only), custom requests and profile changes. Browsers may only send allow-listed `web.*` events (page views, funnels, calculator use, errors), which are de-duplicated by `event_id`. Writes go through a non-blocking buffered tracker that batch-inserts.
 
-Admin endpoints for the future dashboard:
+Admin dashboard endpoints (served to the admin console, see below):
 
 * `GET /api/v1/admin/reports/overview` — users, revenue by currency, paying clients, credits purchased/spent/refunded, sessions by status and end reason, average duration, acceptance rate and response time, messages, requests, earnings vs commission, top psychics
 * `GET /api/v1/admin/reports/daily`
@@ -107,7 +106,7 @@ Admin endpoints for the future dashboard:
 
 ### Payments
 
-`payment.Provider` abstracts the provider (spec: "Buy Credits → Payment Provider"). Card data never reaches this API. A `sandbox` provider approves checkouts for development; amounts ending in `13` cents decline, for tests. Purchases are idempotent, and wallets are credited exactly once through the ledger. Signed webhooks (`t=…,v1=hmac`, with a replay window) handle async confirmation, failure and refund at `POST /api/v1/webhooks/payments`. Production deployments must plug in a real provider adapter; the config refuses `sandbox` there. Until then, `PAYMENTS_PROVIDER=disabled` refuses purchases (and webhooks) with a non-retryable `feature_unavailable` error instead of granting free credits.
+`payment.Provider` abstracts the provider (spec: "Buy Credits → Payment Provider"). Card data never reaches this API. A `sandbox` provider approves checkouts for development; amounts ending in `13` cents decline, for tests. Purchases are idempotent, and wallets are credited exactly once through the ledger. Signed webhooks (`t=…,v1=hmac`, with a replay window) handle async confirmation, failure and refund at `POST /api/v1/webhooks/payments`. Production deployments must plug in a real provider adapter; the config refuses `sandbox` there. Until then, `STARYIELD_PAYMENTS_PROVIDER=disabled` refuses purchases (and webhooks) with a non-retryable `feature_unavailable` error instead of granting free credits.
 
 ## API overview (`/api/v1`)
 
@@ -122,20 +121,57 @@ Admin endpoints for the future dashboard:
 | Requests | `GET/POST custom-requests` · `GET custom-requests/:id` · `POST custom-requests/:id/{cancel,dispute,accept,decline,deliver}` |
 | Astrology | `GET astrology/places` · `POST astrology/chart` · `GET astrology/horoscope/:sign` · `GET astrology/events` |
 | Telemetry | `POST analytics/events` · `POST client-logs` |
-| Admin | `users`, `users/:id[/credits]`, `psychics[/:id[/earnings,/services]]`, `services/:id`, `credit-packs[/:id]`, `custom-requests[/:id/resolve]`, `chat/sessions[/:id[/transcript,/terminate]]`, `reports/*`, `analytics/*`, `audit-logs` |
+| Notifications | `GET me/notifications` · `GET me/notifications/unread-count` · `POST me/notifications/read` |
+| Ratings | `POST chat/sessions/:id/review` · `GET psychics/:slug/reviews` · `GET psychic/reviews` |
+| Chat media | `POST chat/sessions/:id/attachments` · `GET chat/attachments/:id` · `GET chat/conversations/:id/client` |
+| Advisor tools | `GET psychic/analytics` · `GET/POST psychic/withdrawals` · `POST psychic/withdrawals/:id/cancel` |
+| Short links | `GET /l/:code` (API root) |
+| Admin auth | `admin/auth/{login,enroll,enroll/confirm,verify,session,step-up,logout,sessions,recovery-codes}` |
+| Admin | `users[/:id[/credits,/logout-all]]`, `psychics[/:id[/image,/earnings,/analytics,/services]]`, `services/:id`, `credit-packs[/:id]`, `custom-requests[/:id/resolve]`, `chat/sessions[/:id[/transcript,/terminate]]`, `reviews[/:id]`, `withdrawals[/:id/{destination,approve,pay,reject}]`, `broadcasts[/:id]`, `presence`, `campaigns[/:id[/report]]`, `links[/:id[/report]]`, `acquisition/overview`, `insights/{audience,engagement,retention,top-users,users/:id}`, `reports/*`, `analytics/*`, `audit-logs` |
 
 Health: `GET /healthz` (liveness), `GET /readyz` (PostgreSQL + Redis).
 
+## Platform extensions
+
+The admin console (`admin.staryield.net`, repository `staryield-admin`), growth tooling, notifications, chat media, ratings and advisor payouts are specified in [`../docs/platform-extensions.md`](../docs/platform-extensions.md), the single API contract shared by this API, the web app and the admin console.
+
+### Admin console security
+
+* **Separate sessions.** `/api/v1/admin/**` ignores the web app's access cookie. Administrators sign in with their password **and a TOTP code** (RFC 6238; enrolment with QR code on first sign-in, ten single-use recovery codes, replayed codes rejected, five attempts per challenge). The session is server-side (`admin_sessions`), held in an HttpOnly `__Host-sy_adm` cookie with `SameSite=Strict`, expires after 30 minutes of inactivity or 8 hours, and is revoked immediately on logout, role change, ban, deactivation or deletion.
+* **Admin origin only.** Every admin request must carry an `Origin` from `security.admin_origins`; pages on any other site, the web app included, cannot reach admin routes with an administrator's cookies. An optional `security.admin_ip_allowlist` restricts admin routes further.
+* **Step-up.** Bans, deletions, credit adjustments, creating administrators, transcript access, payout details and approvals, and broadcasts to everyone require a TOTP verification within the last 10 minutes (`403 step_up_required` otherwise).
+* **Secrets at rest.** TOTP secrets and advisor payout destinations are encrypted with AES-256-GCM (`security.data_encryption_key`), bound to their owner's ID. Recovery codes are stored as hashes.
+* **Audit.** Admin sign-ins, step-ups, failures and every mutation are written to the append-only audit log with the acting administrator.
+
+### Growth, notifications and chat media
+
+* **Campaigns and short links.** `GET /l/:code` records a click (keyed visitor hash, device class, referrer host; crawlers and link unfurlers are flagged as bots) and redirects to the UTM-tagged landing page with a `sy_click` id. The web app keeps the first touch and sends it on sign-up, so reports follow click → sign-up → credit purchase per link, campaign and source, with cost per sign-up and ROAS for budgeted campaigns.
+* **Notifications** are queued to an in-process asynchronous dispatcher (bounded buffer, batch insert, then realtime `notification.created`); a full buffer drops with an error log rather than slowing the triggering request. Clients render text from `kind` + `data` in the viewer's language; admin broadcasts carry English, French and Spanish copy.
+* **Chat images** are content-sniffed, size- and dimension-checked, re-encoded (EXIF/GPS stripped) and stored under random keys in the private `R2_CHAT_IMAGES_PRIVATE` bucket. They are only streamed by the API to the two participants of the conversation; administrators cannot open them.
+* **Advisor portraits** uploaded by administrators are re-encoded and stored in the public `R2_ADVISOR_IMAGE` bucket.
+
+### Localization
+
+Services keep writing English messages; the error handler and realtime error frames translate `message` and validation field messages into the caller's language (`X-Locale`, else `Accept-Language`; WebSocket `?locale=`). `internal/i18n` holds the French and Spanish catalogues, and `TestEveryServerMessageIsTranslated` scans the source for user-facing literals and fails the build if a translation is missing. Password-reset e-mails follow the user's language.
+
 ## Configuration
 
-Defaults live in `internal/config/config.go`; `config.example.yaml` documents the important keys. Any key can be set as `STARYIELD_<SECTION>_<KEY>`. The platform variables `DATABASE_URL`, `REDIS_URL`, `APP_ENV` and `PORT` are used when the `STARYIELD_*` equivalent is unset. On startup the API retries PostgreSQL and Redis with backoff for `DATABASE_CONNECT_TIMEOUT` / `REDIS_CONNECT_TIMEOUT` (default 60s), and logs the host it connects to (never credentials).
+Configuration comes **only from environment variables**; there is no config file format. Every setting is `STARYIELD_<SECTION>_<KEY>` (for example `STARYIELD_AUTH_JWT_SECRET`), and [`.env.example`](.env.example) lists all of them with their defaults. Durations use Go syntax (`500ms`, `30s`, `15m`, `2h`) and lists are comma-separated. The platform variables `DATABASE_URL`, `REDIS_URL`, `APP_ENV` and `PORT` are used when the `STARYIELD_*` equivalent is unset.
+
+* **Local development:** `cp .env.example .env`. The `api`, `migrate` and `seed` commands read `./.env` at startup (or the file passed with `-env-file`). Variables already set in the shell always win over the file.
+* **Railway and other hosts:** set the variables on the service. No file is shipped or read (`.env` is git- and docker-ignored).
+* **Precedence**, lowest to highest: built-in defaults (`internal/config/config.go`), Railway defaults, the `.env` file, the process environment.
+* **Validation:** an invalid value, or a missing production secret, stops startup with an error naming the variable to fix. Unknown `STARYIELD_*` names, usually typos, are logged as a warning at startup.
+
+On startup the API retries PostgreSQL and Redis with backoff for `STARYIELD_DATABASE_CONNECT_TIMEOUT` / `STARYIELD_REDIS_CONNECT_TIMEOUT` (default 1m), and logs the host it connects to (never credentials).
 
 Production requires `STARYIELD_APP_ENV=production` and the following:
 
-* `AUTH_JWT_SECRET`, `SECURITY_CSRF_SECRET`, `ANALYTICS_IP_HASH_SECRET`, `PAYMENTS_WEBHOOK_SECRET`
-* `SECURITY_ALLOWED_ORIGINS` (https only) and `SECURITY_COOKIE_SECURE=true`
-* R2 credentials (`STORAGE_DRIVER=r2`, `STORAGE_R2_*`), or `STORAGE_DRIVER=disabled` to refuse uploads
-* a real payment provider (or `PAYMENTS_PROVIDER=disabled`), and `MAIL_DRIVER=noop` until a mailer adapter exists
+* `STARYIELD_AUTH_JWT_SECRET`, `STARYIELD_SECURITY_CSRF_SECRET`, `STARYIELD_ANALYTICS_IP_HASH_SECRET`, `STARYIELD_PAYMENTS_WEBHOOK_SECRET`
+* `STARYIELD_SECURITY_ALLOWED_ORIGINS` (https only) and `STARYIELD_SECURITY_COOKIE_SECURE=true`
+* R2 credentials (`STARYIELD_STORAGE_DRIVER=r2`, `STARYIELD_STORAGE_R2_*`), or `STARYIELD_STORAGE_DRIVER=disabled` to refuse uploads; the bucket names `R2_ADVISOR_IMAGE` (public advisor portraits, with `R2_ADVISOR_IMAGE_PUBLIC_URL`) and `R2_CHAT_IMAGES_PRIVATE` (private chat images)
+* `STARYIELD_SECURITY_DATA_ENCRYPTION_KEY` (32 random bytes, `openssl rand -hex 32`) and `STARYIELD_SECURITY_ADMIN_ORIGINS=https://admin.staryield.net`
+* a real payment provider (or `STARYIELD_PAYMENTS_PROVIDER=disabled`), and `STARYIELD_MAIL_DRIVER=noop` until a mailer adapter exists
 
 ### Deploying on Railway
 
@@ -144,8 +180,9 @@ The `server` service builds `backend/Dockerfile` (root directory `/backend`, wat
 * **Detection:** when `RAILWAY_ENVIRONMENT_ID` is present, the defaults become production, secure cookies, HSTS, JSON logs, and client IPs from the edge's `X-Real-IP` header (trusted only from private-range peers). The instance ID becomes `RAILWAY_REPLICA_ID`. A Railway deployment therefore never falls back to development secrets.
 * **Variables:**
   * `DATABASE_URL=${{Postgres.DATABASE_URL}}` and `REDIS_URL=${{Redis.REDIS_URL}}`, which point at the private `*.railway.internal` network.
-  * The four secrets above, each generated with `openssl rand -hex 48`.
-  * `STARYIELD_SECURITY_ALLOWED_ORIGINS=https://staryield.net` and `STARYIELD_APP_FRONTEND_URL=https://staryield.net`.
+  * The four secrets above, each generated with `openssl rand -hex 48`, and the R2 variables above.
+  * `STARYIELD_SECURITY_ALLOWED_ORIGINS=https://staryield.net`, `STARYIELD_SECURITY_ADMIN_ORIGINS=https://admin.staryield.net` and `STARYIELD_APP_FRONTEND_URL=https://staryield.net`.
+  * `STARYIELD_SECURITY_DATA_ENCRYPTION_KEY` and `STARYIELD_LINKS_PUBLIC_BASE_URL=https://staryield.net/go`.
   * The storage, payment and mail drivers.
 * **Service settings:**
   * healthcheck `/readyz`
@@ -165,3 +202,8 @@ The `server` service builds `backend/Dockerfile` (root directory `/backend`, wat
   * WebSocket security and revocation, presence broadcasts, the SSE fallback, concurrent billing vs end
   * purchases, webhooks and refunds, the custom request lifecycle with disputes
   * admin reports and audit, analytics funnels, astrology
+  * admin console authentication: admin-origin lock, password + TOTP enrolment and verification, replay and recovery codes, attempt limits, idle timeout, step-up for sensitive actions, session revocation
+  * user and advisor management: create, edit, ban/unban, soft delete with anonymisation, hide, feature (directory order), portrait upload to the advisor bucket, services and packs deletion rules, presence
+  * campaigns, short links, bot-filtered click tracking, sign-up attribution and funnel reports; audience, engagement, retention and user insights
+  * private chat images (EXIF stripped, participants only), formatting preservation, the advisor's client card and presence, ratings and moderation
+  * realtime notifications and broadcasts (online-only, targeted, localized), advisor analytics and withdrawals, localized errors over HTTP and WebSocket

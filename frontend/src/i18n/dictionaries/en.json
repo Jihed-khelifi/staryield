@@ -89,5 +89,13 @@
     "m5": "thank you! do you need anything from my side Ramone",
     "m6": "Sunshine, I can see through the death, 6 of wand, ace of wands cards and the judgment card",
     "m7": "Sunshine, I can see through the death, 4 of wand, ace of wands cards and the judgment card that you are standing on the edge of a big transit brought in your professional path now!"
+  },
+  "analytics": {
+    "ratings_one": "{count} rating",
+    "ratings_other": "{count} ratings",
+    "requestsAt_one": "{day} at {hour}: {count} request",
+    "requestsAt_other": "{day} at {hour}: {count} requests",
+    "averageOf_one": "{average} average from {count} rating",
+    "averageOf_other": "{average} average from {count} ratings"
   }
 }

@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"bytes"
+	"encoding/json"
 	"image"
 	"image/color"
 	"image/png"
@@ -45,3 +46,12 @@ func pngBytes(t *testing.T, w, h int) []byte {
 }
 
 func uuidString() string { return uuid.NewString() }
+
+func jsonBody(t *testing.T, v any) io.Reader {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return bytes.NewReader(b)
+}

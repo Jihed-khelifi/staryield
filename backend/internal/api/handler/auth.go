@@ -41,6 +41,9 @@ type registerRequest struct {
 	AcceptTerms bool   `json:"accept_terms"`
 	BirthDate   string `json:"birth_date"`
 	Locale      string `json:"locale"`
+	// Attribution is the first-touch marketing source captured by the
+	// browser (UTM parameters and short-link click id).
+	Attribution *service.AttributionInput `json:"attribution"`
 }
 
 // Register creates a client account (FR-02).
@@ -55,6 +58,9 @@ func (h *Handler) Register(c echo.Context) error {
 	})
 	if err != nil {
 		return err
+	}
+	if h.svc.Growth != nil {
+		h.svc.Growth.Attribute(c.Request().Context(), res.UserID, req.Attribution)
 	}
 	return h.session(c, res, http.StatusCreated)
 }

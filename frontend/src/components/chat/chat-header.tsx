@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 
 type ChatHeaderProps = {
   counterpart: Participant;
+  /** The viewer's role: advisors see their client's online/offline presence. */
+  viewerRole?: "client" | "psychic";
   session: ChatSession | null;
   elapsedSeconds: number;
   rate?: number;
@@ -26,9 +28,10 @@ const statusCopy: Record<string, string> = {
   offline: "Offline",
 };
 
-export function ChatHeader({ counterpart, session, elapsedSeconds, rate, onOpenInbox, onOpenDetails, onEnd, ending }: ChatHeaderProps) {
+export function ChatHeader({ counterpart, viewerRole = "client", session, elapsedSeconds, rate, onOpenInbox, onOpenDetails, onEnd, ending }: ChatHeaderProps) {
   const { text, t } = useI18n();
   const live = session && (session.status === "active" || session.status === "disconnected" || session.status === "accepted");
+  const presence = viewerRole === "psychic" && counterpart.status ? (counterpart.status === "offline" ? "offline" : "online") : null;
   const statusLine =
     session?.status === "active"
       ? text("Live chat in progress")
@@ -50,12 +53,13 @@ export function ChatHeader({ counterpart, session, elapsedSeconds, rate, onOpenI
         >
           <FiMessageSquare className="size-4" aria-hidden />
         </Button>
-        <button type="button" className="md:pointer-events-none" onClick={onOpenDetails} aria-label={text("View {value0}'s details", { value0: counterpart.name })}>
+        <button type="button" className="relative shrink-0 xl:pointer-events-none" onClick={onOpenDetails} aria-label={text("View {value0}'s details", { value0: counterpart.name })}>
           <ReaderAvatar initial={counterpart.name.charAt(0).toUpperCase()} image={counterpart.avatar_url} />
+          {presence ? <span className="presence-dot presence-dot-avatar" data-online={presence === "online" || undefined} aria-hidden /> : null}
         </button>
         <div className="flex min-w-0 flex-col gap-0.5 text-ink">
           <span className="truncate font-serif text-[18px] font-bold">{text(counterpart.name)}</span>
-          <span className="chat-reader-status font-ui text-xs opacity-80">
+          <span className="chat-reader-status font-ui text-xs opacity-80" data-testid="chat-header-status">
             {statusLine}
             {rate ? (
               <span>

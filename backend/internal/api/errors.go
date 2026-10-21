@@ -10,7 +10,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/apperror"
+	"github.com/Jihed-khelifi/staryield/backend/internal/i18n"
 	"github.com/Jihed-khelifi/staryield/backend/internal/logger"
+	"github.com/Jihed-khelifi/staryield/backend/internal/reqctx"
 )
 
 // ErrorBody is the JSON error envelope shared by every endpoint.
@@ -88,8 +90,11 @@ func ErrorHandler(err error, c echo.Context) {
 	if appErr.RetryAfter > 0 {
 		c.Response().Header().Set("Retry-After", strconv.Itoa(int(appErr.RetryAfter.Seconds()+0.999)))
 	}
-	body := ErrorBody{Error: ErrorPayload{Code: appErr.Code, Message: appErr.Message, Details: appErr.Details,
-		RequestID: c.Response().Header().Get("X-Request-ID")}}
+	// Messages are written in English by services and translated here into
+	// the caller's language (X-Locale, else Accept-Language).
+	locale := reqctx.MetaFrom(ctx).Locale
+	body := ErrorBody{Error: ErrorPayload{Code: appErr.Code, Message: i18n.T(locale, appErr.Message),
+		Details: i18n.Details(locale, appErr.Details), RequestID: c.Response().Header().Get("X-Request-ID")}}
 	if c.Request().Method == http.MethodHead {
 		_ = c.NoContent(appErr.Status)
 		return

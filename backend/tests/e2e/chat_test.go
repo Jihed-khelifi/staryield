@@ -18,7 +18,14 @@ import (
 func startedSession(t *testing.T, e *env, rate, credits int64) (client, psychic *client, cws, pws *ws, s service.SessionView) {
 	t.Helper()
 	e.ensurePacks()
-	psychic = e.createPsychic(rate)
+	return startedSessionWith(t, e, e.createPsychic(rate), credits)
+}
+
+// startedSessionWith runs the same flow with an existing advisor login.
+func startedSessionWith(t *testing.T, e *env, psychic *client, credits int64) (client, _ *client, cws, pws *ws, s service.SessionView) {
+	t.Helper()
+	e.ensurePacks()
+	rate := psychic.user.Psychic.RatePerMinute
 	pws = psychic.goOnline()
 	client = e.registerClient()
 	if credits > 0 {

@@ -42,5 +42,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next|api|assets|favicon.ico|.*\\.[\\w]+$).*)"],
+  // `/go/:code` short links are route handlers outside the locale tree.
+  matcher: ["/((?!_next|api|assets|go/|favicon.ico|.*\\.[\\w]+$).*)"],
 }

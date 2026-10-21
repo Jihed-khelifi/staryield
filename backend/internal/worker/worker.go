@@ -29,6 +29,20 @@ type Scheduler struct {
 	cfg      config.WorkerConfig
 	log      *zap.Logger
 	wg       sync.WaitGroup
+	cleanups []Cleanup
+}
+
+// Cleanup is an extra housekeeping job run with Maintenance.
+type Cleanup struct {
+	Name string
+	Run  func(ctx context.Context, now time.Time) (int64, error)
+}
+
+// WithCleanups registers extra housekeeping jobs (expired admin sessions,
+// old notifications).
+func (s *Scheduler) WithCleanups(c ...Cleanup) *Scheduler {
+	s.cleanups = append(s.cleanups, c...)
+	return s
 }
 
 // New returns a scheduler.
@@ -120,6 +134,13 @@ func (s *Scheduler) Maintenance(ctx context.Context) error {
 	}
 	if _, err := s.tokens.DeleteExpired(ctx, s.clock.Now().Add(-24*time.Hour)); err != nil {
 		errs = append(errs, fmt.Errorf("purge tokens: %w", err))
+	}
+	for _, c := range s.cleanups {
+		if n, err := c.Run(ctx, s.clock.Now()); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", c.Name, err))
+		} else if n > 0 {
+			logger.FromContext(ctx).Info("housekeeping", zap.String("job", c.Name), zap.Int64("rows", n))
+		}
 	}
 	return joinErrs(errs)
 }

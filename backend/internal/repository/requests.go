@@ -178,7 +178,17 @@ func (r *GormEarningRepository) Summary(ctx context.Context, psychicID uuid.UUID
 // AuditRepository persists the admin audit trail.
 type AuditRepository interface {
 	Create(ctx context.Context, a *domain.AuditLog) error
-	List(ctx context.Context, actorID *uuid.UUID, targetType, targetID string, cursor *Cursor, limit int) ([]domain.AuditLog, error)
+	List(ctx context.Context, f AuditFilter) ([]domain.AuditLog, error)
+}
+
+// AuditFilter narrows audit listings.
+type AuditFilter struct {
+	ActorID    *uuid.UUID
+	TargetType string
+	TargetID   string
+	Action     string
+	Cursor     *Cursor
+	Limit      int
 }
 
 // GormAuditRepository implements AuditRepository.
@@ -191,19 +201,22 @@ func (r *GormAuditRepository) Create(ctx context.Context, a *domain.AuditLog) er
 	return database.Conn(ctx, r.db).Create(a).Error
 }
 
-func (r *GormAuditRepository) List(ctx context.Context, actorID *uuid.UUID, targetType, targetID string, cursor *Cursor, limit int) ([]domain.AuditLog, error) {
+func (r *GormAuditRepository) List(ctx context.Context, f AuditFilter) ([]domain.AuditLog, error) {
 	q := database.Conn(ctx, r.db).Model(&domain.AuditLog{})
-	if actorID != nil {
-		q = q.Where("actor_id = ?", *actorID)
+	if f.ActorID != nil {
+		q = q.Where("actor_id = ?", *f.ActorID)
 	}
-	if targetType != "" {
-		q = q.Where("target_type = ?", targetType)
+	if f.TargetType != "" {
+		q = q.Where("target_type = ?", f.TargetType)
 	}
-	if targetID != "" {
-		q = q.Where("target_id = ?", targetID)
+	if f.TargetID != "" {
+		q = q.Where("target_id = ?", f.TargetID)
 	}
-	q = applyCursor(q, cursor, "created_at", "id")
+	if f.Action != "" {
+		q = q.Where("action = ?", f.Action)
+	}
+	q = applyCursor(q, f.Cursor, "created_at", "id")
 	var out []domain.AuditLog
-	err := q.Order("created_at DESC, id DESC").Limit(clampLimit(limit, 50, 200)).Find(&out).Error
+	err := q.Order("created_at DESC, id DESC").Limit(clampLimit(f.Limit, 50, 200)).Find(&out).Error
 	return out, err
 }

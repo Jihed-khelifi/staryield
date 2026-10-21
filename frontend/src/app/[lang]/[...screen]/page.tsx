@@ -45,6 +45,7 @@ const accounts: Record<string, AccountView> = {
   profile: "overview",
   "profile/chart": "chart",
   "profile/settings": "settings",
+  "profile/analytics": "analytics",
 };
 const calculatorKinds: CalculatorKind[] = [
   "natal-chart",
@@ -73,6 +74,7 @@ export async function generateMetadata({
     profile: "Profile",
     "profile/chart": "Natal Chart",
     "profile/settings": "Settings",
+    "profile/analytics": "Analytics",
     credits: "Credits",
     signup: "Sign up",
     "signup/password": "Create password",

@@ -38,10 +38,12 @@ import (
 
 // Overrides replace infrastructure for tests (nil = production default).
 type Overrides struct {
-	Clock   clock.Clock
-	Mailer  mail.Mailer
-	Storage storage.ObjectStore
-	Tracker analytics.Tracker
+	Clock          clock.Clock
+	Mailer         mail.Mailer
+	Storage        storage.ObjectStore // avatars
+	AdvisorStorage storage.ObjectStore // advisor images (R2_ADVISOR_IMAGE)
+	ChatStorage    storage.ObjectStore // private chat images (R2_CHAT_IMAGES_PRIVATE)
+	Tracker        analytics.Tracker
 }
 
 // App is a fully wired server.
@@ -57,6 +59,8 @@ type App struct {
 	Realtime  *realtime.Server
 	Tracker   *analytics.AsyncTracker
 	Clock     clock.Clock
+	// Dispatcher delivers notifications asynchronously.
+	Dispatcher *service.Dispatcher
 
 	server *http.Server
 	cancel context.CancelFunc
@@ -106,6 +110,13 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	analyticsRepo := repository.NewAnalyticsRepository(db)
 	audit := repository.NewAuditRepository(db)
 	reports := repository.NewReportRepository(db)
+	admins := repository.NewAdminRepository(db)
+	growth := repository.NewGrowthRepository(db)
+	notificationsRepo := repository.NewNotificationRepository(db)
+	reviewsRepo := repository.NewReviewRepository(db)
+	withdrawalsRepo := repository.NewWithdrawalRepository(db)
+	attachments := repository.NewAttachmentRepository(db)
+	insights := repository.NewInsightsRepository(db)
 
 	// Security primitives.
 	hasher := security.NewPasswordHasher(cfg.Auth.Argon2Memory, cfg.Auth.Argon2Iterations, cfg.Auth.Argon2Parallelism)
@@ -114,6 +125,14 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		return nil, err
 	}
 	csrf, err := security.NewCSRF(cfg.Security.CSRFSecret)
+	if err != nil {
+		return nil, err
+	}
+	key, err := cfg.EncryptionKey()
+	if err != nil {
+		return nil, err
+	}
+	sealer, err := security.NewSealer(key)
 	if err != nil {
 		return nil, err
 	}
@@ -143,6 +162,18 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 			return nil, err
 		}
 	}
+	advisorStore := ov.AdvisorStorage
+	if advisorStore == nil {
+		if advisorStore, err = storage.NewBucket(cfg.Storage, cfg.Storage.AdvisorBucket, cfg.Storage.AdvisorPublicBaseURL); err != nil {
+			return nil, err
+		}
+	}
+	chatStore := ov.ChatStorage
+	if chatStore == nil {
+		if chatStore, err = storage.NewBucket(cfg.Storage, cfg.Storage.ChatBucket, ""); err != nil {
+			return nil, err
+		}
+	}
 	mailer := ov.Mailer
 	if mailer == nil {
 		switch cfg.Mail.Driver {
@@ -158,8 +189,17 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		log.Warn("payments disabled: credit purchases are refused until a provider is configured")
 	}
 	if _, off := store.(storage.Disabled); off {
-		log.Warn("object storage disabled: avatar uploads are refused until storage.driver is r2")
+		log.Warn("object storage disabled: avatar uploads are refused until STARYIELD_STORAGE_DRIVER=r2")
 	}
+	if _, off := advisorStore.(storage.Disabled); off {
+		log.Warn("advisor image storage disabled: set R2_ADVISOR_IMAGE to enable uploads")
+	}
+	if _, off := chatStore.(storage.Disabled); off {
+		log.Warn("chat image storage disabled: set R2_CHAT_IMAGES_PRIVATE to enable image messages")
+	}
+	dispatcher := service.NewDispatcher(notificationsRepo, publisher, log.With(zap.String("component", "notifications")), clk,
+		service.DispatcherConfig{BufferSize: cfg.Notifications.BufferSize, BatchSize: cfg.Notifications.BatchSize,
+			FlushInterval: cfg.Notifications.FlushInterval})
 
 	// Business layer.
 	share := cfg.Billing.PsychicSharePercent
@@ -174,7 +214,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	userSvc := service.NewUserService(users, wallets, psychics, store, service.AstroPlaceLookup, track, clk, cfg.Auth.MinimumAge,
 		service.AvatarSettings{MaxBytes: cfg.Storage.MaxAvatarBytes, MaxPixels: cfg.Storage.MaxAvatarPixels, Size: cfg.Storage.AvatarSize})
 	psychicSvc := service.NewPsychicService(psychics, chatRepo, earnings, presence, publisher, track, clk)
-	creditSvc := service.NewCreditService(txm, credits, walletSvc, wallets, provider, publisher, track, clk)
+	creditSvc := service.NewCreditService(txm, credits, walletSvc, wallets, provider, publisher, track, clk).WithNotifier(dispatcher)
 	chatSvc := service.NewChatService(txm, chatRepo, users, psychics, psychicSvc, walletSvc, wallets, earnings, presence, publisher, track, limiter, clk,
 		service.ChatSettings{
 			RequestTimeout: cfg.Chat.RequestTimeout, AcceptedTimeout: cfg.Chat.AcceptedTimeout, GracePeriod: cfg.Chat.GracePeriod,
@@ -186,9 +226,32 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	requestSvc := service.NewCustomRequestService(txm, requests, psychics, walletSvc, wallets, earnings, chatSvc, publisher, track, clk,
 		service.RequestSettings{AcceptTimeout: cfg.CustomRequests.AcceptTimeout, DeliveryTimeout: cfg.CustomRequests.DeliveryTimeout,
 			DisputeWindow: cfg.CustomRequests.DisputeWindow, MaxNoteLength: cfg.CustomRequests.MaxNoteLength,
-			MaxDelivery: cfg.CustomRequests.MaxDelivery, SharePercent: share})
-	adminSvc := service.NewAdminService(txm, users, wallets, tokens, psychics, credits, audit, chatRepo, walletSvc, authSvc, chatSvc,
-		psychicSvc, publisher, hasher, clk, cfg.Analytics.IPHashSecret, cfg.Billing.MaxAdminAdjustment)
+			MaxDelivery: cfg.CustomRequests.MaxDelivery, SharePercent: share}).WithNotifier(dispatcher)
+	adminAuthSvc := service.NewAdminAuthService(txm, authSvc, users, admins, audit, kv, sealer, track, clk, service.AdminAuthSettings{
+		SessionTTL: cfg.Admin.SessionTTL, IdleTimeout: cfg.Admin.IdleTimeout, StepUpWindow: cfg.Admin.StepUpWindow,
+		ChallengeTTL: cfg.Admin.ChallengeTTL, Issuer: cfg.Admin.TOTPIssuer, IPHashSecret: cfg.Analytics.IPHashSecret})
+	reviewSvc := service.NewReviewService(txm, reviewsRepo, chatRepo, users, psychics, audit, dispatcher, track, clk,
+		cfg.Reviews.Window, cfg.Analytics.IPHashSecret)
+	chatSvc.WithExtras(service.ChatExtras{Attachments: attachments, Store: chatStore, Insights: insights, Reviews: reviewSvc,
+		Notifier: dispatcher, Images: service.ImagePolicy{MaxBytes: cfg.Storage.MaxChatImageBytes, MaxPixels: cfg.Storage.MaxImagePixels,
+			MaxSide: cfg.Storage.ChatImageMaxSide, AllowGIF: true, KeepTransparency: true, Field: "image"}})
+	growthSvc := service.NewGrowthService(growth, audit, track, clk, service.GrowthSettings{FrontendURL: cfg.App.FrontendURL,
+		PublicBaseURL: cfg.Links.PublicBaseURL, AllowedHosts: cfg.Links.AllowedHosts, Currency: cfg.Payments.Currency,
+		IPHashSecret: cfg.Analytics.IPHashSecret})
+	notificationSvc := service.NewNotificationService(notificationsRepo, growth, presence, publisher, audit, clk,
+		cfg.Analytics.IPHashSecret, log.With(zap.String("component", "broadcasts")))
+	withdrawalSvc := service.NewWithdrawalService(txm, withdrawalsRepo, psychics, audit, sealer, dispatcher, track, clk, service.PayoutSettings{
+		CentsPerCredit: cfg.Billing.PayoutCentsPerCredit, MinCredits: cfg.Billing.MinWithdrawalCredits, Currency: cfg.Payments.Currency,
+		IPHashSecret: cfg.Analytics.IPHashSecret})
+	psychicAnalyticsSvc := service.NewPsychicAnalyticsService(insights, earnings, reviewsRepo, psychics, withdrawalSvc, clk)
+	adminSvc := service.NewAdminService(service.AdminDeps{Tx: txm, Users: users, Wallets: wallets, Tokens: tokens, Psychics: psychics,
+		Credits: credits, Audit: audit, Chat: chatRepo, Growth: growth, Insights: insights, Wallet: walletSvc, Auth: authSvc,
+		AdminAuth: adminAuthSvc, ChatSvc: chatSvc, PsychicSvc: psychicSvc, Events: publisher, Notifier: dispatcher, Presence: presence,
+		Hasher: hasher, AvatarStore: store, AdvisorStore: advisorStore, Clock: clk, IPSecret: cfg.Analytics.IPHashSecret,
+		MaxAdjust: cfg.Billing.MaxAdminAdjustment, Currency: cfg.Payments.Currency,
+		AdvisorImage: service.ImagePolicy{MaxBytes: cfg.Storage.MaxAdvisorImageBytes, MaxPixels: cfg.Storage.MaxImagePixels,
+			MaxSide: cfg.Storage.AdvisorImageMaxSide, Field: "image"}})
+	insightsSvc := service.NewInsightsService(insights, users, adminSvc, clk, cfg.Payments.Currency)
 	analyticsSvc := service.NewAnalyticsService(track, analyticsRepo, reports, clk, cfg.Analytics.IPHashSecret, cfg.Analytics.MaxBatch)
 	astroSvc := service.NewAstrologyService(users, track, clk)
 	gateway := service.NewRealtimeGateway(chatSvc, psychicSvc, presence)
@@ -197,7 +260,9 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		cfg.Security.AllowedOrigins, log.With(zap.String("component", "realtime")))
 
 	services := handler.Services{Auth: authSvc, Users: userSvc, Wallet: walletSvc, Psychics: psychicSvc, Credits: creditSvc,
-		Chat: chatSvc, Gateway: gateway, Requests: requestSvc, Admin: adminSvc, Analytics: analyticsSvc, Astrology: astroSvc}
+		Chat: chatSvc, Gateway: gateway, Requests: requestSvc, Admin: adminSvc, Analytics: analyticsSvc, Astrology: astroSvc,
+		AdminAuth: adminAuthSvc, Growth: growthSvc, Insights: insightsSvc, Notifications: notificationSvc, Reviews: reviewSvc,
+		Withdrawals: withdrawalSvc, PsychicAnalytics: psychicAnalyticsSvc}
 	cookieNames := api.CookieNamesFor(cfg.Security)
 	health := func(r *http.Request) map[string]error {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -210,12 +275,26 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	}
 	h := handler.New(services, csrf, handler.CookieSettings{Names: cookieNames, Domain: cfg.Security.CookieDomain,
 		Secure: cfg.Security.CookieSecure, AccessTTL: cfg.Auth.AccessTokenTTL, RefreshTTL: cfg.Auth.RefreshTokenTTL},
-		rtServer, health, cfg.Payments.Currency, cfg.Storage.MaxAvatarBytes)
-	router := api.NewRouter(api.Deps{Config: cfg, Log: log, Handler: h, Auth: authSvc, CSRF: csrf, Limiter: limiter, Cookies: cookieNames})
+		rtServer, health, cfg.Payments.Currency, handler.Limits{AvatarBytes: cfg.Storage.MaxAvatarBytes,
+			AdvisorImageBytes: cfg.Storage.MaxAdvisorImageBytes, ChatImageBytes: cfg.Storage.MaxChatImageBytes}, cfg.Admin.SessionTTL)
+	var devObjects map[string]storage.ObjectStore
+	if cfg.Storage.Driver == "memory" && !cfg.IsProduction() {
+		devObjects = map[string]storage.ObjectStore{"avatars": store, "advisors": advisorStore}
+	}
+	router := api.NewRouter(api.Deps{Config: cfg, Log: log, Handler: h, Auth: authSvc, AdminAuth: adminAuthSvc, CSRF: csrf,
+		Limiter: limiter, Cookies: cookieNames, DevObjects: devObjects})
+	scheduler := worker.New(chatSvc, requestSvc, tokens, clk, cfg.Worker, log).WithCleanups(
+		worker.Cleanup{Name: "admin sessions", Run: func(ctx context.Context, now time.Time) (int64, error) {
+			return admins.DeleteExpiredSessions(ctx, now.Add(-24*time.Hour))
+		}},
+		worker.Cleanup{Name: "old notifications", Run: func(ctx context.Context, now time.Time) (int64, error) {
+			return notificationsRepo.DeleteOlderThan(ctx, now.AddDate(0, 0, -180))
+		}},
+	)
 
 	return &App{
 		Config: cfg, Log: log, DB: db, Redis: rdb, Router: router, Services: services, Hub: hub, Realtime: rtServer,
-		Scheduler: worker.New(chatSvc, requestSvc, tokens, clk, cfg.Worker, log), Tracker: tracker, Clock: clk,
+		Scheduler: scheduler, Tracker: tracker, Clock: clk, Dispatcher: dispatcher,
 	}, nil
 }
 
@@ -223,6 +302,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 func (a *App) Start(ctx context.Context) {
 	ctx, a.cancel = context.WithCancel(ctx)
 	a.Tracker.Start()
+	a.Dispatcher.Start()
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
@@ -277,6 +357,8 @@ func (a *App) Shutdown(ctx context.Context) {
 	}
 	a.Scheduler.Wait()
 	a.wg.Wait()
+	a.Services.Notifications.Wait()
+	a.Dispatcher.Stop(ctx)
 	a.Tracker.Stop(ctx)
 	_ = a.Redis.Close()
 	closeDB(a.DB)

@@ -275,6 +275,8 @@ type CookieNames struct {
 	Access  string
 	Refresh string
 	CSRF    string
+	// Admin is the admin console session cookie.
+	Admin string
 }
 
 // CSRFHeader is the double-submit header.
@@ -299,7 +301,8 @@ func CSRF(csrf *security.CSRF, names CookieNames, allowed map[string]bool, skip 
 			}
 			_, hasAccess := cookie(r, names.Access)
 			_, hasRefresh := cookie(r, names.Refresh)
-			if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") && !hasAccess && !hasRefresh {
+			_, hasAdmin := cookie(r, names.Admin)
+			if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") && !hasAccess && !hasRefresh && !hasAdmin {
 				return next(c) // token clients are not exposed to CSRF
 			}
 			cv, _ := cookie(r, names.CSRF)

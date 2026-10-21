@@ -12,7 +12,7 @@
  *   honouring Retry-After.
  * - Every failure is converted into an ApiError and logged.
  */
-import { API_URL } from "@/lib/api/config";
+import { API_URL, currentLocale } from "@/lib/api/config";
 import { ApiError, toApiError } from "@/lib/api/errors";
 import { logger, setLogTransport } from "@/lib/logger";
 
@@ -32,6 +32,8 @@ export type RequestOptions = {
   skipRefresh?: boolean;
   /** Keep the request alive while the page unloads. */
   keepalive?: boolean;
+  /** Decode the body as JSON (default) or return it as a Blob (images). */
+  responseType?: "json" | "blob";
 };
 
 const AUTH_HINT = "staryield.auth-hint";
@@ -76,9 +78,7 @@ export function setCsrfToken(token: string | null) {
   csrfToken = token;
 }
 
-function currentLocale(): string {
-  return typeof document !== "undefined" ? document.documentElement.lang || "en" : "en";
-}
+export { currentLocale };
 
 async function fetchCsrf(): Promise<string> {
   if (csrfToken) return csrfToken;
@@ -209,7 +209,7 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
 
     try {
       const headers: Record<string, string> = {
-        Accept: "application/json",
+        Accept: opts.responseType === "blob" ? "image/*, application/json;q=0.5" : "application/json",
         "X-Request-ID": requestId,
         "X-Locale": currentLocale(),
       };
@@ -241,6 +241,13 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
       if (rotated) csrfToken = rotated;
 
       if (res.ok) {
+        if (opts.responseType === "blob") {
+          try {
+            return (await res.blob()) as T;
+          } catch (error) {
+            throw new ApiError({ code: "invalid_response", message: "Unreadable response body.", status: res.status, requestId, cause: error });
+          }
+        }
         if (res.status === 204 || res.headers.get("Content-Length") === "0") return undefined as T;
         try {
           return (await res.json()) as T;

@@ -77,6 +77,13 @@ type CustomRequestService struct {
 	tracker  analytics.Tracker
 	clock    clock.Clock
 	cfg      RequestSettings
+	notify   Notifier
+}
+
+// WithNotifier enables in-app notifications for request updates.
+func (s *CustomRequestService) WithNotifier(n Notifier) *CustomRequestService {
+	s.notify = n
+	return s
 }
 
 // NewCustomRequestService wires the service.
@@ -84,7 +91,7 @@ func NewCustomRequestService(tx database.TxManager, requests repository.CustomRe
 	wallet *WalletService, wallets repository.WalletRepository, earnings repository.EarningRepository, chat *ChatService,
 	events EventPublisher, tracker analytics.Tracker, clk clock.Clock, cfg RequestSettings) *CustomRequestService {
 	return &CustomRequestService{tx: tx, requests: requests, psychics: psychics, wallet: wallet, wallets: wallets,
-		earnings: earnings, chat: chat, events: events, tracker: tracker, clock: clk, cfg: cfg}
+		earnings: earnings, chat: chat, events: events, tracker: tracker, clock: clk, cfg: cfg, notify: NoopNotifier{}}
 }
 
 func (s *CustomRequestService) view(ctx context.Context, r *domain.CustomRequest, ps *participants) CustomRequestView {
@@ -101,6 +108,28 @@ func (s *CustomRequestService) publish(ctx context.Context, r *domain.CustomRequ
 	ps := s.chat.newParticipants()
 	v := s.view(ctx, r, ps)
 	warnErr(ctx, "requests: publish", s.events.Publish(ctx, event, map[string]any{"request": v}, r.ClientID, r.PsychicID))
+	s.notifyUpdate(ctx, r, v, event == realtime.EventCustomRequestCreated)
+}
+
+// notifyUpdate tells the other party (both, for system and admin actions)
+// that an order changed.
+func (s *CustomRequestService) notifyUpdate(ctx context.Context, r *domain.CustomRequest, v CustomRequestView, created bool) {
+	if created {
+		s.notify.Notify(ctx, NotificationSpec{Kind: NotifyRequestCreated, Data: map[string]any{"request_id": r.ID,
+			"service_name": r.ServiceName, "client_name": v.Client.Name}, Link: "/profile"}, r.PsychicID)
+		return
+	}
+	recipients := []uuid.UUID{r.ClientID, r.PsychicID}
+	if p, ok := reqctx.PrincipalFrom(ctx); ok {
+		switch p.UserID {
+		case r.ClientID:
+			recipients = []uuid.UUID{r.PsychicID}
+		case r.PsychicID:
+			recipients = []uuid.UUID{r.ClientID}
+		}
+	}
+	s.notify.Notify(ctx, NotificationSpec{Kind: NotifyRequestUpdated, Data: map[string]any{"request_id": r.ID,
+		"service_name": r.ServiceName, "status": string(r.Status)}, Link: "/profile"}, recipients...)
 }
 
 func (s *CustomRequestService) track(ctx context.Context, name string, r *domain.CustomRequest, props map[string]any) {

@@ -39,7 +39,7 @@ func (h *Handler) Psychics(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": out})
+	return ok(c, map[string]any{"items": orEmpty(out)})
 }
 
 // Psychic returns one advisor profile.
@@ -57,7 +57,7 @@ func (h *Handler) CreditPacks(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": out})
+	return ok(c, map[string]any{"items": orEmpty(out)})
 }
 
 // Wallet returns the balance.

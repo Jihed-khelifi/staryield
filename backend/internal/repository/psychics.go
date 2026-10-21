@@ -24,7 +24,11 @@ type PsychicRepository interface {
 	CreateService(ctx context.Context, s *domain.PsychicService) error
 	GetService(ctx context.Context, id uuid.UUID) (*domain.PsychicService, error)
 	UpdateService(ctx context.Context, id uuid.UUID, fields map[string]any) error
+	DeleteService(ctx context.Context, id uuid.UUID) error
 	ListServices(ctx context.Context, psychicID uuid.UUID, activeOnly bool) ([]domain.PsychicService, error)
+	// IsPublic reports whether an advisor may appear publicly (listed and
+	// the account active).
+	IsPublic(ctx context.Context, userID uuid.UUID) (bool, error)
 }
 
 // GormPsychicRepository implements PsychicRepository.
@@ -47,14 +51,39 @@ func (r *GormPsychicRepository) activeServices(db *gorm.DB) *gorm.DB {
 	return db.Where("active = true").Order("sort_order ASC, created_at ASC")
 }
 
+// List returns advisors in directory order: featured first (by rank),
+// then the editorial sort order. The public directory only includes listed
+// advisors whose account is active (banned/deleted accounts disappear).
 func (r *GormPsychicRepository) List(ctx context.Context, includeUnlisted bool) ([]domain.Psychic, error) {
 	q := database.Conn(ctx, r.db).Preload("Services", r.activeServices)
 	if !includeUnlisted {
-		q = q.Where("listed = true")
+		q = q.Joins("JOIN users ON users.id = psychics.user_id AND users.status = ?", domain.UserActive).Where("psychics.listed = true")
 	}
 	var out []domain.Psychic
-	err := q.Order("sort_order ASC, name ASC").Find(&out).Error
+	err := q.Order("psychics.featured DESC, psychics.featured_rank ASC, psychics.sort_order ASC, psychics.name ASC").Find(&out).Error
 	return out, err
+}
+
+func (r *GormPsychicRepository) IsPublic(ctx context.Context, userID uuid.UUID) (bool, error) {
+	var ok bool
+	err := database.Conn(ctx, r.db).Raw(`SELECT EXISTS (SELECT 1 FROM psychics p JOIN users u ON u.id = p.user_id
+		WHERE p.user_id = ? AND p.listed AND u.status = ?)`, userID, domain.UserActive).Scan(&ok).Error
+	return ok, err
+}
+
+// DeleteService removes a service no order references (ErrInUse otherwise).
+func (r *GormPsychicRepository) DeleteService(ctx context.Context, id uuid.UUID) error {
+	res := database.Conn(ctx, r.db).Where("id = ?", id).Delete(&domain.PsychicService{})
+	if res.Error != nil {
+		if database.IsForeignKeyViolation(res.Error) {
+			return ErrInUse
+		}
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *GormPsychicRepository) GetBySlug(ctx context.Context, slug string) (*domain.Psychic, error) {
@@ -142,6 +171,7 @@ type CreditRepository interface {
 	GetPack(ctx context.Context, id uuid.UUID) (*domain.CreditPack, error)
 	CreatePack(ctx context.Context, p *domain.CreditPack) error
 	UpdatePack(ctx context.Context, id uuid.UUID, fields map[string]any) error
+	DeletePack(ctx context.Context, id uuid.UUID) error
 
 	CreatePurchase(ctx context.Context, p *domain.CreditPurchase) error
 	GetPurchaseForUpdate(ctx context.Context, id uuid.UUID) (*domain.CreditPurchase, error)
@@ -177,6 +207,21 @@ func (r *GormCreditRepository) GetPack(ctx context.Context, id uuid.UUID) (*doma
 
 func (r *GormCreditRepository) CreatePack(ctx context.Context, p *domain.CreditPack) error {
 	return database.Conn(ctx, r.db).Create(p).Error
+}
+
+// DeletePack removes a pack no purchase references (ErrInUse otherwise).
+func (r *GormCreditRepository) DeletePack(ctx context.Context, id uuid.UUID) error {
+	res := database.Conn(ctx, r.db).Where("id = ?", id).Delete(&domain.CreditPack{})
+	if res.Error != nil {
+		if database.IsForeignKeyViolation(res.Error) {
+			return ErrInUse
+		}
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *GormCreditRepository) UpdatePack(ctx context.Context, id uuid.UUID, fields map[string]any) error {

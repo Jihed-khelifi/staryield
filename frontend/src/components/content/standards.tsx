@@ -707,6 +707,54 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
             </div>
           </div>
         </section>
+        <section
+          className="content-stretch flex flex-col items-center justify-center pb-[100px] px-6 md:px-10 lg:px-20 relative shrink-0 w-[1440px] figma-section"
+          data-name="Section / Ratings and Privacy"
+        >
+          <div
+            className="border border-[#aa9063] border-solid content-stretch drop-shadow-[0px_4px_8px_rgba(0,0,0,0.03)] flex flex-col gap-[24px] items-center p-[40px] relative rounded-[16px] shrink-0 w-[1208px]"
+            data-name="Card / Ratings and Privacy"
+          >
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none rounded-[16px]"
+            >
+              <div className="absolute bg-[#e0d5c3] inset-0 rounded-[16px]" />
+              <img
+                alt=""
+                className="absolute max-w-none mix-blend-overlay object-cover rounded-[16px] size-full"
+                src={imgMediaAdvisorIntegrityStandards}
+              />
+            </div>
+            <h2 className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[#1a1612] text-[28px] text-center">
+              {text("Ratings, Privacy & Fair Play ")}
+            </h2>
+            <div className="h-0 relative shrink-0 w-full" data-name="Divider / Horizontal">
+              <div className="absolute inset-[-1px_0_0_0]">
+                <img
+                  alt=""
+                  className="block max-w-none size-full"
+                  src={imgDividerHorizontal1}
+                />
+              </div>
+            </div>
+            <div
+              className="[word-break:break-word] content-stretch flex flex-col gap-[16px] items-start leading-[1.6] relative shrink-0 w-full"
+              data-name="Container / Ratings Content"
+            >
+              <p className="font-serif font-light relative shrink-0 text-[#1a1612] text-[18px] w-full">
+                {text(
+                  "Clients can rate an advisor once per completed reading. Advisors may not rate themselves, offer credits, discounts or extra time in exchange for ratings, or pressure clients to change a rating. We moderate ratings that contain personal information, offensive language or content unrelated to the reading, and we investigate patterns that suggest manipulation.",
+                )}
+              </p>
+              <p className="font-serif font-light relative shrink-0 text-[#1a1612] text-[18px] w-full">
+                {text(
+                  "Advisors see only a limited client card — first name, country, age, astrological details and reading history — and must never ask clients for contact details, payment information, identity documents or private photos of other people, nor try to continue readings outside Staryield. Photos shared in a chat stay between the client and the advisor.",
+                )}
+              </p>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { authApi, meApi } from "@/lib/api/endpoints";
 import { errorMessage, toApiError } from "@/lib/api/errors";
 import { track } from "@/lib/analytics";
+import { attributionForSignup } from "@/lib/attribution";
 import { useSession } from "@/lib/auth/session-provider";
 import { safeNext } from "@/lib/navigation";
 
@@ -119,12 +120,18 @@ export function AuthFlow({ step }: { step: AuthStep }) {
     try {
       switch (step) {
         case "password": {
-          const res = await authApi.register({
-            email: readSignupEmail(),
-            password: String(data.get("password")),
-            accept_terms: true,
-            locale,
-          });
+          const input = { email: readSignupEmail(), password: String(data.get("password")), accept_terms: true, locale };
+          // First-touch campaign attribution (UTM / short link), when any.
+          const attribution = attributionForSignup();
+          let res;
+          try {
+            res = await authApi.register({ ...input, attribution });
+          } catch (err) {
+            // Attribution is best effort: never let it block a sign-up.
+            const e = toApiError(err);
+            if (!attribution || e.code !== "validation_failed" || !Object.keys(e.fields).some((f) => f.startsWith("attribution"))) throw err;
+            res = await authApi.register(input);
+          }
           setUser(res.user);
           try {
             sessionStorage.removeItem(SIGNUP_EMAIL);

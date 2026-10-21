@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Jihed-khelifi/staryield/backend/internal/i18n"
+	"github.com/Jihed-khelifi/staryield/backend/internal/reqctx"
 	"io"
 	"net/http"
 	"strings"
@@ -71,7 +73,7 @@ func NewServer(hub *Hub, broker Broker, presence Presence, tickets TicketStore, 
 		CheckOrigin:       s.checkOrigin,
 		EnableCompression: false,
 		Error: func(w http.ResponseWriter, r *http.Request, status int, reason error) {
-			writeJSONError(w, status, apperror.New(apperror.CodeBadRequest, status, "WebSocket handshake failed."))
+			writeJSONError(w, r, status, apperror.New(apperror.CodeBadRequest, status, "WebSocket handshake failed."))
 		},
 	}
 	return s
@@ -97,23 +99,23 @@ func (s *Server) ServeWS(w http.ResponseWriter, r *http.Request) {
 
 	if !s.checkOrigin(r) {
 		log.Warn("realtime: websocket origin rejected", zap.String("origin", r.Header.Get("Origin")))
-		writeJSONError(w, http.StatusForbidden, apperror.Forbidden("Origin not allowed."))
+		writeJSONError(w, r, http.StatusForbidden, apperror.Forbidden("Origin not allowed."))
 		return
 	}
 	userID, role, ok, err := s.tickets.Consume(ctx, r.URL.Query().Get("ticket"))
 	if err != nil {
 		log.Error("realtime: ticket lookup failed", zap.Error(err))
-		writeJSONError(w, http.StatusServiceUnavailable, apperror.Unavailable(err))
+		writeJSONError(w, r, http.StatusServiceUnavailable, apperror.Unavailable(err))
 		return
 	}
 	if !ok {
-		writeJSONError(w, http.StatusUnauthorized, apperror.Unauthenticated("Realtime ticket is invalid or expired."))
+		writeJSONError(w, r, http.StatusUnauthorized, apperror.Unauthenticated("Realtime ticket is invalid or expired."))
 		return
 	}
 	if s.authorize != nil {
 		if role, err = s.authorize(ctx, userID); err != nil {
 			appErr := apperror.From(err)
-			writeJSONError(w, appErr.Status, appErr)
+			writeJSONError(w, r, appErr.Status, appErr)
 			return
 		}
 	}
@@ -128,6 +130,10 @@ func (s *Server) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	client := newClient(userID, role, "ws", s.cfg.SendBuffer, resume != "", s.log.With(zap.String("request_id", r.Header.Get("X-Request-ID"))))
+	client.Locale = i18n.Normalize(r.URL.Query().Get("locale"))
+	if r.URL.Query().Get("locale") == "" {
+		client.Locale = i18n.Normalize(reqctx.MetaFrom(ctx).Locale)
+	}
 	if err := s.hub.Register(client); err != nil {
 		code := CloseTooManyConns
 		msg := "too many connections"
@@ -367,7 +373,7 @@ func (s *Server) ServeSSE(w http.ResponseWriter, r *http.Request, userID uuid.UU
 	log := logger.FromContext(r.Context())
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		writeJSONError(w, http.StatusInternalServerError, apperror.Internal(errors.New("streaming unsupported")))
+		writeJSONError(w, r, http.StatusInternalServerError, apperror.Internal(errors.New("streaming unsupported")))
 		return
 	}
 	resume := r.Header.Get("Last-Event-ID")
@@ -378,12 +384,13 @@ func (s *Server) ServeSSE(w http.ResponseWriter, r *http.Request, userID uuid.UU
 		resume = ""
 	}
 	client := newClient(userID, role, "sse", s.cfg.SendBuffer, resume != "", log)
+	client.Locale = i18n.Normalize(reqctx.MetaFrom(r.Context()).Locale)
 	if err := s.hub.Register(client); err != nil {
 		status := http.StatusTooManyRequests
 		if errors.Is(err, ErrShuttingDown) {
 			status = http.StatusServiceUnavailable
 		}
-		writeJSONError(w, status, apperror.New(apperror.CodeRateLimited, status, "Too many open connections."))
+		writeJSONError(w, r, status, apperror.New(apperror.CodeRateLimited, status, "Too many open connections."))
 		return
 	}
 	s.wg.Add(1)
@@ -470,9 +477,13 @@ func (s *Server) RunBroker(ctx context.Context) error {
 	return s.broker.Run(ctx, s.hub.Dispatch)
 }
 
-func writeJSONError(w http.ResponseWriter, status int, e *apperror.Error) {
+func writeJSONError(w http.ResponseWriter, r *http.Request, status int, e *apperror.Error) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"code": e.Code, "message": e.Message}})
+	locale := r.URL.Query().Get("locale")
+	if locale == "" {
+		locale = reqctx.MetaFrom(r.Context()).Locale
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"code": e.Code, "message": i18n.T(locale, e.Message)}})
 }

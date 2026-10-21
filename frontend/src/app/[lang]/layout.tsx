@@ -12,6 +12,8 @@ import { createTranslateCopy } from "@/i18n/translate-copy";
 import { ToastProvider } from "@/components/feedback/toast-provider";
 import { ErrorReporter } from "@/components/feedback/error-reporter";
 import { SessionProvider } from "@/lib/auth/session-provider";
+import { NotificationsProvider } from "@/lib/notifications/notifications-provider";
+import { AttributionCapture } from "@/components/feedback/attribution-capture";
 
 /** Stand-in for Castellar, which is not available as a webfont. */
 const cinzel = Cinzel({
@@ -76,9 +78,12 @@ export default async function LangLayout({
       >
         <I18nProvider locale={lang} dictionary={dictionary}>
           <ErrorReporter />
+          <AttributionCapture />
           <ToastProvider>
             <SessionProvider>
-              <TooltipProvider>{children}</TooltipProvider>
+              <NotificationsProvider>
+                <TooltipProvider>{children}</TooltipProvider>
+              </NotificationsProvider>
             </SessionProvider>
           </ToastProvider>
         </I18nProvider>

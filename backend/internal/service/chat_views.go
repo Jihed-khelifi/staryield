@@ -51,24 +51,28 @@ type SessionView struct {
 	ServerTime        time.Time       `json:"server_time"`
 }
 
-// SessionSummary is the end-of-session recap (sequence step 18).
+// SessionSummary is the end-of-session recap (sequence step 18). For the
+// client it also says whether the reading can still be rated.
 type SessionSummary struct {
 	Session         SessionView `json:"session"`
 	DurationSeconds int64       `json:"duration_seconds"`
 	Messages        int64       `json:"messages"`
+	CanReview       bool        `json:"can_review"`
+	Review          *ReviewView `json:"review,omitempty"`
 }
 
 // MessageView is a chat message.
 type MessageView struct {
-	ID             uuid.UUID  `json:"id"`
-	ConversationID uuid.UUID  `json:"conversation_id"`
-	SessionID      uuid.UUID  `json:"session_id"`
-	SenderID       *uuid.UUID `json:"sender_id,omitempty"`
-	Kind           string     `json:"kind"`
-	Body           string     `json:"body"`
-	ClientMsgID    string     `json:"client_msg_id,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	Saved          bool       `json:"saved,omitempty"`
+	ID             uuid.UUID        `json:"id"`
+	ConversationID uuid.UUID        `json:"conversation_id"`
+	SessionID      uuid.UUID        `json:"session_id"`
+	SenderID       *uuid.UUID       `json:"sender_id,omitempty"`
+	Kind           string           `json:"kind"`
+	Body           string           `json:"body"`
+	ClientMsgID    string           `json:"client_msg_id,omitempty"`
+	CreatedAt      time.Time        `json:"created_at"`
+	Saved          bool             `json:"saved,omitempty"`
+	Attachments    []AttachmentView `json:"attachments,omitempty"`
 }
 
 // ConversationView is an inbox row.
@@ -178,7 +182,11 @@ func (c *ChatService) publishSession(ctx context.Context, eventType string, s *d
 func (c *ChatService) summary(ctx context.Context, s *domain.Session, w viewer) SessionSummary {
 	n, err := c.chat.CountSessionMessages(ctx, s.ID)
 	warnErr(ctx, "chat: count messages", err)
-	return SessionSummary{Session: c.sessionView(ctx, c.newParticipants(), s, w), DurationSeconds: s.ActiveSeconds, Messages: n}
+	sum := SessionSummary{Session: c.sessionView(ctx, c.newParticipants(), s, w), DurationSeconds: s.ActiveSeconds, Messages: n}
+	if w.ID == s.ClientID && c.extras.Reviews != nil {
+		sum.CanReview, sum.Review = c.extras.Reviews.CanReview(ctx, s, s.ClientID)
+	}
+	return sum
 }
 
 // loadParticipantSession returns the session if userID may see it.

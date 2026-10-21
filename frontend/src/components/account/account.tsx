@@ -2,8 +2,9 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Moon, Zap, Sun, CircleX } from "lucide-react";
+import { Moon, Zap, Sun, CircleX, LogOut } from "lucide-react";
 import { Dialog } from "radix-ui";
 import { useI18n } from "@/i18n/i18n-provider";
 import { SiteHeader, MobileNavigation } from "@/components/layout/site-header";
@@ -21,7 +22,22 @@ import { useToast } from "@/components/feedback/toast-provider";
 import { houseTheme, planetMeaning, planetSymbol, signFlavor } from "@/components/account/chart-copy";
 import { ClientOrders, PsychicTools } from "@/components/account/orders";
 
-export type AccountView = "overview" | "chart" | "settings";
+export type AccountView = "overview" | "chart" | "settings" | "analytics";
+
+// Chart.js is only needed on the advisor analytics view.
+const PsychicAnalyticsView = dynamic(() => import("@/components/analytics/psychic-analytics").then((m) => m.PsychicAnalyticsView), {
+  ssr: false,
+  loading: () => <AnalyticsLoading />,
+});
+
+function AnalyticsLoading() {
+  const { text } = useI18n();
+  return (
+    <p className="py-12 text-center text-sm" role="status">
+      {text("Loading your analytics…")}
+    </p>
+  );
+}
 
 function planetAsset(name: string) {
   const file = name === "Ascendant" ? "ascending" : name.toLowerCase();
@@ -62,12 +78,17 @@ function Notice({ error, onRetry }: { error: ApiError; onRetry?: () => void }) {
 export function Account({ view }: { view: AccountView }) {
   const { text, locale } = useI18n();
   const router = useRouter();
-  const { status, user, wallet } = useSession();
+  const { status, user, wallet, signOut } = useSession();
   const [planet, setPlanet] = useState<ChartPosition | null>(null);
 
   useEffect(() => {
     if (status === "anonymous") router.replace(loginUrl(locale));
   }, [status, locale, router]);
+
+  // Analytics are for advisors only.
+  useEffect(() => {
+    if (view === "analytics" && user && user.role !== "psychic") router.replace(`/${locale}/profile`);
+  }, [view, user, locale, router]);
 
   const horoscope = useAsync((signal) => meApi.horoscope(undefined, signal), [user?.id, user?.profile.birth_date], Boolean(user) && user?.role === "client");
   const chart = useAsync((signal) => meApi.chart(signal), [user?.id, user?.profile.birth_date, user?.profile.birth_time, user?.profile.birth_place_id], Boolean(user) && view === "chart");
@@ -130,13 +151,18 @@ export function Account({ view }: { view: AccountView }) {
             </div>
             {[
               ["Overview", "/profile", "overview"],
+              ...(user.role === "psychic" ? [["Analytics", "/profile/analytics", "analytics"]] : []),
               ["Chart", "/profile/chart", "chart"],
               ["Settings", "/profile/settings", "settings"],
             ].map(([label, href, id]) => (
-              <Link key={id} className={view === id ? "active" : ""} href={`/${locale}${href}`}>
+              <Link key={id} className={view === id ? "active" : ""} aria-current={view === id ? "page" : undefined} href={`/${locale}${href}`}>
                 {text(label)}
               </Link>
             ))}
+            <button type="button" className="account-signout" onClick={() => void signOut()}>
+              <LogOut size={15} aria-hidden />
+              {text("Sign out")}
+            </button>
           </aside>
           <main className={`account-main account-${view}`}>
             {view === "overview" ? (
@@ -145,6 +171,11 @@ export function Account({ view }: { view: AccountView }) {
               ) : (
                 <Overview name={name} horoscope={horoscope} />
               )
+            ) : view === "analytics" ? (
+              <>
+                <ProfileTabs view={view} />
+                {user.role === "psychic" ? <PsychicAnalyticsView /> : null}
+              </>
             ) : view === "settings" ? (
               <>
                 <ProfileTabs view={view} />
@@ -246,10 +277,16 @@ export function Account({ view }: { view: AccountView }) {
 
 function ProfileTabs({ view }: { view: AccountView }) {
   const { text, locale } = useI18n();
+  const { user } = useSession();
   return (
     <div className="profile-tabs">
       <h1>{text("Your cosmic profile")}</h1>
       <nav>
+        {user?.role === "psychic" ? (
+          <Link href={`/${locale}/profile/analytics`} className={view === "analytics" ? "active" : ""}>
+            {text("Analytics")}
+          </Link>
+        ) : null}
         <Link href={`/${locale}/profile/settings`} className={view === "settings" ? "active" : ""}>
           {text("Settings ")}
         </Link>
@@ -372,7 +409,7 @@ function Overview({ name, horoscope }: { name: string; horoscope: AsyncState<Hor
 
 function Settings() {
   const { text, locale } = useI18n();
-  const { user, setUser } = useSession();
+  const { user, setUser, signOut } = useSession();
   const toast = useToast();
   const [error, setError] = useState<ApiError | null>(null);
   const [saving, setSaving] = useState(false);
@@ -600,6 +637,23 @@ function Settings() {
           {text(saving ? "Saving…" : "Save changes ")}
         </Button>
       </div>
+      <section className="settings-session" aria-labelledby="session-heading">
+        <div>
+          <h2 id="session-heading" className="text-xl font-semibold">
+            {text("Session")}
+          </h2>
+          <p className="mt-1 text-sm font-light">{text("Signed in as {value0}", { value0: user.email })}</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Button type="button" variant="outline" className="h-auto min-h-10 max-w-full border-gold bg-cream px-5 py-2 whitespace-normal" onClick={() => void signOut({ everywhere: true })}>
+            {text("Sign out of all devices")}
+          </Button>
+          <Button type="button" className="gold-button h-auto min-h-10 max-w-full px-6 py-2 whitespace-normal" onClick={() => void signOut()} data-testid="settings-sign-out">
+            <LogOut size={15} aria-hidden />
+            {text("Sign out")}
+          </Button>
+        </div>
+      </section>
     </form>
   );
 }

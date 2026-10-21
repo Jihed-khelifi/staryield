@@ -38,6 +38,21 @@ type Services struct {
 	Admin     *service.AdminService
 	Analytics *service.AnalyticsService
 	Astrology *service.AstrologyService
+
+	AdminAuth        *service.AdminAuthService
+	Growth           *service.GrowthService
+	Insights         *service.InsightsService
+	Notifications    *service.NotificationService
+	Reviews          *service.ReviewService
+	Withdrawals      *service.WithdrawalService
+	PsychicAnalytics *service.PsychicAnalyticsService
+}
+
+// Limits bounds request bodies per upload type.
+type Limits struct {
+	AvatarBytes       int64
+	AdvisorImageBytes int64
+	ChatImageBytes    int64
 }
 
 // CookieSettings control auth cookies.
@@ -61,11 +76,15 @@ type Handler struct {
 	health          Health
 	defaultCurrency string
 	maxAvatarBytes  int64
+	limits          Limits
+	adminSessionTTL time.Duration
 }
 
 // New returns a handler set.
-func New(svc Services, csrf *security.CSRF, cookies CookieSettings, rt *realtime.Server, health Health, currency string, maxAvatar int64) *Handler {
-	return &Handler{svc: svc, csrf: csrf, cookies: cookies, realtime: rt, health: health, defaultCurrency: currency, maxAvatarBytes: maxAvatar}
+func New(svc Services, csrf *security.CSRF, cookies CookieSettings, rt *realtime.Server, health Health, currency string, limits Limits,
+	adminSessionTTL time.Duration) *Handler {
+	return &Handler{svc: svc, csrf: csrf, cookies: cookies, realtime: rt, health: health, defaultCurrency: currency,
+		maxAvatarBytes: limits.AvatarBytes, limits: limits, adminSessionTTL: adminSessionTTL}
 }
 
 // bind strictly decodes a JSON body: correct content type, no unknown
@@ -219,3 +238,12 @@ func created(c echo.Context, v any) error { return c.JSON(http.StatusCreated, v)
 
 // noContent writes 204.
 func noContent(c echo.Context) error { return c.NoContent(http.StatusNoContent) }
+
+// orEmpty makes nil slices encode as [] instead of null, so clients can
+// always iterate list responses.
+func orEmpty[T any](v []T) []T {
+	if v == nil {
+		return []T{}
+	}
+	return v
+}

@@ -19,6 +19,7 @@ import type { PresenceStatus, Psychic, Service } from "@/lib/api/types";
 import { track } from "@/lib/analytics";
 import { useRealtimeEvent, useSession } from "@/lib/auth/session-provider";
 import { useToast } from "@/components/feedback/toast-provider";
+import { PsychicReviews } from "@/components/reviews/psychic-reviews";
 
 const statusCopy: Record<PresenceStatus, string> = {
   online: "● Online",
@@ -366,6 +367,7 @@ export function PsychicProfile({ slug }: { slug: string }) {
             </div>
           </div>
         </section>
+        <PsychicReviews slug={slug} total={advisor.reviews_count} />
       </main>
       <MobileNavigation />
       <Sheet

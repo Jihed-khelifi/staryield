@@ -10,12 +10,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 type ConversationListProps = {
   conversations: Conversation[];
+  /** Advisors see each client's online/offline presence. */
+  viewerRole?: "client" | "psychic";
   activeId: string | null;
   onSelect: (conversation: Conversation) => void;
   className?: string;
 };
 
-export function ConversationList({ conversations, activeId, onSelect, className }: ConversationListProps) {
+export function ConversationList({ conversations, viewerRole = "client", activeId, onSelect, className }: ConversationListProps) {
   const { t, text } = useI18n();
 
   if (conversations.length === 0) {
@@ -23,13 +25,21 @@ export function ConversationList({ conversations, activeId, onSelect, className 
   }
 
   return (
-    <ScrollArea className={cn("h-full", className)}>
+    <ScrollArea className={cn("conversation-scroll h-full", className)}>
       <ul aria-label={t("chatroom.inbox.srHeading")} className="flex flex-col gap-2 p-3">
         {conversations.map((conversation) => {
           const isActive = conversation.id === activeId;
           const last = conversation.last_message;
-          const preview = last ? (last.kind === "system" ? text(systemCopy(last.body)) : last.body) : "";
+          const preview = last
+            ? last.kind === "system"
+              ? text(systemCopy(last.body))
+              : last.kind === "image"
+                ? `📷 ${last.body.trim() || text("Photo")}`
+                : last.body
+            : "";
           const live = conversation.open_session?.status;
+          const status = viewerRole === "psychic" ? conversation.counterpart.status : undefined;
+          const online = status ? status !== "offline" : null;
           return (
             <li key={conversation.id}>
               <button
@@ -41,9 +51,15 @@ export function ConversationList({ conversations, activeId, onSelect, className 
                   isActive ? "bg-sage" : "bg-transparent hover:bg-sage/40",
                 )}
               >
-                <ReaderAvatar initial={conversation.counterpart.name.charAt(0).toUpperCase()} image={conversation.counterpart.avatar_url} />
+                <span className="relative shrink-0">
+                  <ReaderAvatar initial={conversation.counterpart.name.charAt(0).toUpperCase()} image={conversation.counterpart.avatar_url} />
+                  {online !== null ? <span className="presence-dot presence-dot-avatar" data-online={online || undefined} aria-hidden /> : null}
+                </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden text-ink">
-                  <span className="block truncate font-serif text-base font-bold">{conversation.counterpart.name}</span>
+                  <span className="block truncate font-serif text-base font-bold">
+                    {conversation.counterpart.name}
+                    {online !== null ? <span className="sr-only">{` · ${text(online ? "Online" : "Offline")}`}</span> : null}
+                  </span>
                   <span className="block w-full truncate font-ui text-xs opacity-70">
                     {live === "requested" ? text("New chat request") : live === "active" ? text("Live now") : preview}
                   </span>

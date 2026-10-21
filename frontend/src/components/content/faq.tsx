@@ -2707,6 +2707,174 @@ export default function ScreenDesktopFaq() {
             </div>
           </section>
         </section>
+        <div
+          className="h-0 relative shrink-0 w-full"
+          data-name="Divider / Horizontal / 07"
+        >
+          <div className="absolute inset-[-1px_0_0_0]">
+            <img
+              alt=""
+              className="block max-w-none size-full"
+              src={imgDividerHorizontal}
+            />
+          </div>
+        </div>
+        <section
+          className="content-stretch flex gap-[40px] items-start relative shrink-0 w-full figma-section"
+          data-name="Section / FAQ Block / 08"
+          id="live-readings"
+        >
+          <section
+            className="content-stretch flex flex-col items-start relative shrink-0 w-[455px] figma-section"
+            data-name="Section / Left Column"
+          >
+            <div
+              className="content-stretch flex gap-[12px] items-center pb-[16px] relative shrink-0"
+              data-name="Header / Category"
+            >
+              <div
+                className="relative shrink-0 size-[34.07px]"
+                data-name="Instance / Star"
+              >
+                <img
+                  alt=""
+                  className="absolute block inset-0 max-w-none size-full"
+                  height="34.07"
+                  src={imgInstanceStar1}
+                  width="34.07"
+                />
+              </div>
+              <h2 className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[20px] text-black tracking-[0.6px]">
+                {text("Live readings ")}
+              </h2>
+            </div>
+            <p className="[word-break:break-word] font-serif font-normal leading-[22px] min-w-full relative shrink-0 text-[14px] text-black w-[min-content]">
+              {text(
+                "Messages, photos, ratings and notifications during and after your live readings.",
+              )}
+            </p>
+          </section>
+          <section
+            className="[word-break:break-word] content-stretch flex flex-col gap-[16px] items-start relative shrink-0 text-black text-left w-[705px] figma-section"
+            data-name="Section / Right Column"
+          >
+            <details
+              className="faq-item content-stretch flex flex-col gap-[8px] items-start overflow-clip pb-[32px] relative shrink-0 w-[495px]"
+              data-name="Instance / Live readings / 01"
+            >
+              <summary>
+                <p className="font-serif font-normal leading-[28px] relative shrink-0 text-[22px]">
+                  ↑
+                </p>
+                <div
+                  className="content-stretch flex flex-col gap-[2px] items-start leading-[normal] relative shrink-0 text-[9px] w-full"
+                  data-name="Frame"
+                >
+                  <p className="font-display not-italic relative shrink-0 tracking-[1.5px] uppercase whitespace-normal">
+                    {text("How do I rate my advisor?")}
+                  </p>
+                </div>
+              </summary>
+              <p className="mt-4 font-serif text-sm leading-[22px] tracking-normal normal-case whitespace-normal">
+                {text(
+                  "When your live reading ends, the chat summary invites you to rate your advisor from one to five stars and add an optional comment. You can also open the reminder from your notifications. Each reading can be rated once, within 7 days of its end.",
+                )}
+              </p>
+            </details>
+            <details
+              className="faq-item content-stretch flex flex-col gap-[8px] items-start overflow-clip pb-[32px] relative shrink-0 w-[495px]"
+              data-name="Instance / Live readings / 02"
+            >
+              <summary>
+                <p className="font-serif font-normal leading-[28px] relative shrink-0 text-[22px]">
+                  ↑
+                </p>
+                <div
+                  className="content-stretch flex flex-col gap-[2px] items-start leading-[normal] relative shrink-0 text-[9px] w-full"
+                  data-name="Frame"
+                >
+                  <p className="font-display not-italic relative shrink-0 tracking-[1.5px] uppercase whitespace-normal">
+                    {text("Can I share photos during a reading?")}
+                  </p>
+                </div>
+              </summary>
+              <p className="mt-4 font-serif text-sm leading-[22px] tracking-normal normal-case whitespace-normal">
+                {text(
+                  "Yes. Use the image button next to the message box, paste an image or drag it into the chat. Only images (PNG, JPEG, WebP or GIF) up to 8 MB can be shared, and location data is removed automatically.",
+                )}
+              </p>
+            </details>
+            <details
+              className="faq-item content-stretch flex flex-col gap-[8px] items-start overflow-clip pb-[32px] relative shrink-0 w-[495px]"
+              data-name="Instance / Live readings / 03"
+            >
+              <summary>
+                <p className="font-serif font-normal leading-[28px] relative shrink-0 text-[22px]">
+                  ↑
+                </p>
+                <div
+                  className="content-stretch flex flex-col gap-[2px] items-start leading-[normal] relative shrink-0 text-[9px] w-full"
+                  data-name="Frame"
+                >
+                  <p className="font-display not-italic relative shrink-0 tracking-[1.5px] uppercase whitespace-normal">
+                    {text("Who can see the photos I share?")}
+                  </p>
+                </div>
+              </summary>
+              <p className="mt-4 font-serif text-sm leading-[22px] tracking-normal normal-case whitespace-normal">
+                {text(
+                  "Only you and the advisor in that conversation. Images are stored privately and are never published, and Staryield staff cannot open them through our tools.",
+                )}
+              </p>
+            </details>
+            <details
+              className="faq-item content-stretch flex flex-col gap-[8px] items-start overflow-clip pb-[32px] relative shrink-0 w-[495px]"
+              data-name="Instance / Live readings / 04"
+            >
+              <summary>
+                <p className="font-serif font-normal leading-[28px] relative shrink-0 text-[22px]">
+                  ↑
+                </p>
+                <div
+                  className="content-stretch flex flex-col gap-[2px] items-start leading-[normal] relative shrink-0 text-[9px] w-full"
+                  data-name="Frame"
+                >
+                  <p className="font-display not-italic relative shrink-0 tracking-[1.5px] uppercase whitespace-normal">
+                    {text("What does my advisor know about me?")}
+                  </p>
+                </div>
+              </summary>
+              <p className="mt-4 font-serif text-sm leading-[22px] tracking-normal normal-case whitespace-normal">
+                {text(
+                  "Your first name or nickname, profile picture, country, age, your astrological signs and daily horoscope, whether you are online and how many readings you have had together. Advisors never see your email address, balance or purchases.",
+                )}
+              </p>
+            </details>
+            <details
+              className="faq-item content-stretch flex flex-col gap-[8px] items-start overflow-clip pb-[32px] relative shrink-0 w-[495px]"
+              data-name="Instance / Live readings / 05"
+            >
+              <summary>
+                <p className="font-serif font-normal leading-[28px] relative shrink-0 text-[22px]">
+                  ↑
+                </p>
+                <div
+                  className="content-stretch flex flex-col gap-[2px] items-start leading-[normal] relative shrink-0 text-[9px] w-full"
+                  data-name="Frame"
+                >
+                  <p className="font-display not-italic relative shrink-0 tracking-[1.5px] uppercase whitespace-normal">
+                    {text("How do notifications work?")}
+                  </p>
+                </div>
+              </summary>
+              <p className="mt-4 font-serif text-sm leading-[22px] tracking-normal normal-case whitespace-normal">
+                {text(
+                  "The bell at the top of the page shows chat requests, reading summaries, order updates and announcements in your language. Select a notification to open it, or mark them all as read.",
+                )}
+              </p>
+            </details>
+          </section>
+        </section>
       </div>
     </div>
   );

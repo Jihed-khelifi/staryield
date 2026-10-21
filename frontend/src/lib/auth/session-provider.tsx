@@ -15,6 +15,7 @@ import type { User, Wallet } from "@/lib/api/types";
 import { track } from "@/lib/analytics";
 import { logger } from "@/lib/logger";
 import { RealtimeClient, type ConnectionState, type TransportKind } from "@/lib/realtime/client";
+import { clearAttachmentCache } from "@/lib/chat/attachments";
 import { useToast } from "@/components/feedback/toast-provider";
 
 type Status = "loading" | "authenticated" | "anonymous";
@@ -30,14 +31,15 @@ type SessionContextValue = {
   setUser: (user: User) => void;
   setWallet: (wallet: Wallet) => void;
   reload: () => Promise<User | null>;
-  signOut: () => Promise<void>;
+  /** Revoke the session (or every session), clear client state and go to the locale home page. */
+  signOut: (opts?: { everywhere?: boolean }) => Promise<void>;
 };
 
 const SessionContext = React.createContext<SessionContextValue | null>(null);
 const IDLE = { state: "idle", transport: "ws" } as const;
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const { text } = useI18n();
+  const { text, locale } = useI18n();
   const toast = useToast();
   const pathname = usePathname();
   const [status, setStatus] = React.useState<Status>("loading");
@@ -46,6 +48,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = React.useState<ApiError | null>(null);
 
   const [connection, setConnection] = React.useState<{ state: ConnectionState; transport: TransportKind }>({ state: "idle", transport: "ws" });
+  // While signing out, revocation events are expected: no "signed out" toast.
+  const signingOut = React.useRef(false);
 
   const setUser = React.useCallback((u: User) => {
     setUserState(u);
@@ -105,7 +109,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(
     () =>
       onSessionExpired(() => {
-        if (status === "authenticated") toast.show({ tone: "info", message: text("Your session has expired. Please sign in again.") });
+        if (status === "authenticated" && !signingOut.current) toast.show({ tone: "info", message: text("Your session has expired. Please sign in again.") });
         clear();
       }),
     [clear, status, text, toast],
@@ -127,6 +131,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       if ((e.data as { reconnected?: boolean })?.reconnected) track("realtime_reconnected");
     });
     const offRevoked = client.on("auth.revoked", () => {
+      if (signingOut.current) return;
       toast.show({ tone: "info", message: text("You were signed out. Please sign in again.") });
       setAuthHint(false);
       clear();
@@ -150,15 +155,29 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     track("page_view");
   }, [pathname]);
 
-  const signOut = React.useCallback(async () => {
+  const signOut = React.useCallback(async (opts?: { everywhere?: boolean }) => {
+    if (signingOut.current) return;
+    signingOut.current = true;
+    realtime?.stop();
     try {
-      await authApi.logout();
+      await (opts?.everywhere ? authApi.logoutAll() : authApi.logout());
     } catch (err) {
       logger.warn("logout request failed", err);
     } finally {
-      clear();
+      setAuthHint(false);
+      try {
+        if (userId) sessionStorage.removeItem(`staryield.rt.last:${userId}`);
+      } catch {
+        // Storage unavailable: nothing was persisted.
+      }
+      clearAttachmentCache();
+      // A full navigation (not router.push) drops every in-memory cache —
+      // realtime, notifications, chat history — and lands signed out on the
+      // home page, without racing pages that redirect anonymous visitors.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign(`/${locale}`);
     }
-  }, [clear]);
+  }, [realtime, userId, locale]);
 
   const value = React.useMemo<SessionContextValue>(
     () => ({ status, user, wallet, error, realtime, connection: realtime ? connection : IDLE, setUser, setWallet, reload, signOut }),

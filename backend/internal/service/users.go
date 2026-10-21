@@ -28,12 +28,13 @@ import (
 
 // PlaceInfo is a resolved birth place.
 type PlaceInfo struct {
-	ID        string
-	Name      string
-	Country   string
-	Latitude  float64
-	Longitude float64
-	TimeZone  string
+	ID          string
+	Name        string
+	Country     string
+	CountryCode string
+	Latitude    float64
+	Longitude   float64
+	TimeZone    string
 }
 
 // PlaceLookup resolves a gazetteer place ID.
@@ -56,6 +57,7 @@ type ProfileView struct {
 	NotifyHoroscope bool     `json:"notify_horoscope"`
 	NotifyEvents    bool     `json:"notify_events"`
 	NotifyChart     bool     `json:"notify_chart"`
+	CountryCode     string   `json:"country_code"`
 }
 
 // PsychicSelfView is the psychic's own advisor settings.
@@ -133,7 +135,7 @@ func NewUserService(users repository.UserRepository, wallets repository.WalletRe
 
 func profileView(p *domain.Profile) ProfileView {
 	v := ProfileView{
-		Nickname: p.Nickname, BirthTime: p.BirthTime, BirthPlaceID: p.BirthPlaceID, BirthPlace: p.BirthPlace,
+		Nickname: p.Nickname, BirthTime: p.BirthTime, BirthPlaceID: p.BirthPlaceID, BirthPlace: p.BirthPlace, CountryCode: p.CountryCode,
 		BirthLatitude: p.BirthLatitude, BirthLongitude: p.BirthLongitude, BirthTimezone: p.BirthTimezone,
 		Location: p.Location, Mood: p.Mood, Theme: p.Theme, AvatarURL: p.AvatarURL,
 		NotifyHoroscope: p.NotifyHoroscope, NotifyEvents: p.NotifyEvents, NotifyChart: p.NotifyChart,
@@ -224,11 +226,13 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, in Pr
 		if id == "" {
 			profile["birth_place_id"], profile["birth_place"] = "", ""
 			profile["birth_latitude"], profile["birth_longitude"], profile["birth_timezone"] = nil, nil, ""
+			profile["country_code"] = ""
 		} else if place, ok := s.lookup(id); !ok {
 			fields["birth_place_id"] = "Choose a birth place from the list."
 		} else {
 			profile["birth_place_id"], profile["birth_place"] = place.ID, place.Name+", "+place.Country
 			profile["birth_latitude"], profile["birth_longitude"], profile["birth_timezone"] = place.Latitude, place.Longitude, place.TimeZone
+			profile["country_code"] = strings.ToUpper(place.CountryCode)
 		}
 	}
 	if in.Location != nil {

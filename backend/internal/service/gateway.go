@@ -33,8 +33,11 @@ func principalOf(c *realtime.Client) reqctx.Principal {
 
 // OnConnect implements realtime.FrameHandler.
 func (g *RealtimeGateway) OnConnect(ctx context.Context, c *realtime.Client) {
-	if domain.Role(c.Role) == domain.RolePsychic {
+	switch domain.Role(c.Role) {
+	case domain.RolePsychic:
 		g.psychics.PublishStatus(reqctx.WithPrincipal(ctx, principalOf(c)), c.UserID)
+	case domain.RoleClient:
+		g.chat.PublishClientPresence(ctx, c.UserID)
 	}
 }
 
@@ -42,8 +45,11 @@ func (g *RealtimeGateway) OnConnect(ctx context.Context, c *realtime.Client) {
 func (g *RealtimeGateway) OnDisconnect(ctx context.Context, c *realtime.Client, joined []uuid.UUID) {
 	ctx = reqctx.WithPrincipal(ctx, principalOf(c))
 	g.chat.ConnectionClosed(ctx, c.UserID, joined)
-	if domain.Role(c.Role) == domain.RolePsychic {
+	switch domain.Role(c.Role) {
+	case domain.RolePsychic:
 		g.psychics.PublishStatus(ctx, c.UserID)
+	case domain.RoleClient:
+		g.chat.PublishClientPresence(ctx, c.UserID)
 	}
 }
 
