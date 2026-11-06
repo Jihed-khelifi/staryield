@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/analytics"
 	"github.com/Jihed-khelifi/staryield/backend/internal/apperror"
@@ -15,7 +18,9 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/repository"
 )
 
-// ServiceView is a listed custom request offering (FR-06).
+// ServiceView is a listed custom request offering (FR-06). Kind tells the
+// admin-curated services ("standard") from the advisor's own offering
+// ("custom"); DeliveryDays is the typical delivery time in days.
 type ServiceView struct {
 	ID           uuid.UUID `json:"id"`
 	Name         string    `json:"name"`
@@ -23,6 +28,8 @@ type ServiceView struct {
 	Description  string    `json:"description"`
 	PriceCredits int64     `json:"price_credits"`
 	Active       bool      `json:"active"`
+	Kind         string    `json:"kind"`
+	DeliveryDays int       `json:"delivery_days"`
 }
 
 // PsychicView is the public advisor profile with live status.
@@ -90,6 +97,41 @@ type PsychicService struct {
 	events   EventPublisher
 	tracker  analytics.Tracker
 	clock    clock.Clock
+	// onStatus observers run after an advisor's status is published
+	// (presence history, directory cache).
+	onStatus []func(ctx context.Context, psychicID uuid.UUID, status domain.PresenceStatus)
+	// onDirectory observers run after an advisor's public card data changed
+	// (profile, listing, image, account status).
+	onDirectory []func()
+	// statusLocks serialise PublishStatus per advisor (striped by ID).
+	statusLocks [64]sync.Mutex
+}
+
+// OnDirectoryChange registers an observer called after an advisor's public
+// directory data changed. Observers must be quick and must not fail.
+func (s *PsychicService) OnDirectoryChange(fn func()) {
+	s.onDirectory = append(s.onDirectory, fn)
+}
+
+// DirectoryChanged notifies directory observers; every write that changes
+// what advisor cards show calls it.
+func (s *PsychicService) DirectoryChanged() {
+	for _, fn := range s.onDirectory {
+		fn()
+	}
+}
+
+// OnStatusChange registers an observer called whenever an advisor's
+// effective status is published. Observers must be quick and must not fail
+// the caller; they log their own errors.
+func (s *PsychicService) OnStatusChange(fn func(ctx context.Context, psychicID uuid.UUID, status domain.PresenceStatus)) {
+	s.onStatus = append(s.onStatus, fn)
+}
+
+// StatusesFor returns the effective status of the given advisors in one
+// batch (one presence lookup and one open-session query).
+func (s *PsychicService) StatusesFor(ctx context.Context, list []domain.Psychic) (map[uuid.UUID]domain.PresenceStatus, error) {
+	return s.statuses(ctx, list)
 }
 
 // NewPsychicService wires the psychic service.
@@ -115,9 +157,18 @@ func EffectiveStatus(av domain.Availability, connected, busy bool) domain.Presen
 func servicesView(in []domain.PsychicService) []ServiceView {
 	out := make([]ServiceView, 0, len(in))
 	for _, s := range in {
-		out = append(out, ServiceView{ID: s.ID, Name: s.Name, Subtitle: s.Subtitle, Description: s.Description, PriceCredits: s.PriceCredits, Active: s.Active})
+		out = append(out, serviceView(&s))
 	}
 	return out
+}
+
+func serviceView(s *domain.PsychicService) ServiceView {
+	kind := s.Kind
+	if kind == "" {
+		kind = domain.ServiceStandard
+	}
+	return ServiceView{ID: s.ID, Name: s.Name, Subtitle: s.Subtitle, Description: s.Description, PriceCredits: s.PriceCredits,
+		Active: s.Active, Kind: string(kind), DeliveryDays: s.DeliveryDays}
 }
 
 func psychicView(p *domain.Psychic, status domain.PresenceStatus) PsychicView {
@@ -212,8 +263,14 @@ func (s *PsychicService) Status(ctx context.Context, psychicID uuid.UUID) (domai
 	return st[p.UserID], p, nil
 }
 
-// PublishStatus broadcasts an advisor's current effective status.
+// PublishStatus broadcasts an advisor's current effective status. Calls for
+// one advisor are serialised and each reads the state after taking the
+// lock, so the last broadcast (and the last observer call) always carries
+// the latest state, even when a connect and an availability change race.
 func (s *PsychicService) PublishStatus(ctx context.Context, psychicID uuid.UUID) {
+	mu := &s.statusLocks[psychicID[len(psychicID)-1]%uint8(len(s.statusLocks))]
+	mu.Lock()
+	defer mu.Unlock()
 	st, p, err := s.Status(ctx, psychicID)
 	if err != nil {
 		if !errors.Is(err, apperror.ErrNotFound) {
@@ -223,6 +280,9 @@ func (s *PsychicService) PublishStatus(ctx context.Context, psychicID uuid.UUID)
 	}
 	warnErr(ctx, "psychics: broadcast status", s.events.Broadcast(ctx, realtime.EventPsychicStatusChanged,
 		PsychicStatusEvent{PsychicID: p.UserID, Slug: p.Slug, Status: string(st)}))
+	for _, fn := range s.onStatus {
+		fn(ctx, p.UserID, st)
+	}
 }
 
 // SetAvailability lets a psychic go online/away/offline.
@@ -243,14 +303,27 @@ func (s *PsychicService) SetAvailability(ctx context.Context, psychicID uuid.UUI
 	return &v, nil
 }
 
-// UpdateOwn applies a psychic's edits to their own profile (FR-08).
-// Pricing is admin-only (BR-09) and therefore not editable here.
-func (s *PsychicService) UpdateOwn(ctx context.Context, psychicID uuid.UUID, in PsychicProfileUpdate) (*PsychicView, error) {
+// Limits of the advisor-editable profile (mirrored by the frontend forms).
+const (
+	profileHeadlineMax     = 200
+	profilePhilosophyMax   = 600
+	profileAboutParagraphs = 6
+	profileParagraphMax    = 2000
+	profileSkillsMax       = 8
+	profileSkillMax        = 40
+)
+
+// profileChanges validates a psychic's edits to the advisor-editable
+// profile and returns the column updates. Field errors are keyed by the
+// request fields. Skills are de-duplicated case-insensitively (the first
+// spelling wins) before the limit is checked. It is shared by
+// PATCH /psychic/profile and PATCH /psychic/settings.
+func profileChanges(in PsychicProfileUpdate) (map[string]any, map[string]string) {
 	fields := map[string]string{}
 	upd := map[string]any{}
 	if in.Headline != nil {
 		v := CleanLine(*in.Headline)
-		if len([]rune(v)) > 200 {
+		if len([]rune(v)) > profileHeadlineMax {
 			fields["headline"] = "Use at most 200 characters."
 		} else {
 			upd["headline"] = v
@@ -258,20 +331,20 @@ func (s *PsychicService) UpdateOwn(ctx context.Context, psychicID uuid.UUID, in 
 	}
 	if in.Philosophy != nil {
 		v := CleanText(*in.Philosophy)
-		if len([]rune(v)) > 600 {
+		if len([]rune(v)) > profilePhilosophyMax {
 			fields["philosophy"] = "Use at most 600 characters."
 		} else {
 			upd["philosophy"] = v
 		}
 	}
 	if in.About != nil {
-		if len(*in.About) > 6 {
+		if len(*in.About) > profileAboutParagraphs {
 			fields["about"] = "Use at most 6 paragraphs."
 		} else {
 			paras := make(domain.StringList, 0, len(*in.About))
 			for _, p := range *in.About {
 				v := CleanText(p)
-				if len([]rune(v)) > 2000 {
+				if len([]rune(v)) > profileParagraphMax {
 					fields["about"] = "Each paragraph must be at most 2000 characters."
 					break
 				}
@@ -283,28 +356,44 @@ func (s *PsychicService) UpdateOwn(ctx context.Context, psychicID uuid.UUID, in 
 		}
 	}
 	if in.Skills != nil {
-		if len(*in.Skills) > 8 {
-			fields["skills"] = "Use at most 8 skills."
-		} else {
-			skills := make(domain.StringList, 0, len(*in.Skills))
-			for _, sk := range *in.Skills {
-				v := CleanLine(sk)
-				if v == "" || len([]rune(v)) > 40 {
-					fields["skills"] = "Each skill must be between 1 and 40 characters."
-					break
-				}
+		skills := make(domain.StringList, 0, len(*in.Skills))
+		seen := make(map[string]bool, len(*in.Skills))
+		for _, sk := range *in.Skills {
+			v := CleanLine(sk)
+			if v == "" || len([]rune(v)) > profileSkillMax {
+				fields["skills"] = "Each skill must be between 1 and 40 characters."
+				break
+			}
+			if key := strings.ToLower(v); !seen[key] {
+				seen[key] = true
 				skills = append(skills, v)
 			}
-			upd["skills"] = skills
+		}
+		if fields["skills"] == "" {
+			if len(skills) > profileSkillsMax {
+				fields["skills"] = "Use at most 8 skills."
+			} else {
+				upd["skills"] = skills
+			}
 		}
 	}
+	return upd, fields
+}
+
+// UpdateOwn applies a psychic's edits to their own profile (FR-08).
+// Pricing is admin-only (BR-09) and therefore not editable here. Saves bump
+// the settings version, so a stale settings page notices the change.
+func (s *PsychicService) UpdateOwn(ctx context.Context, psychicID uuid.UUID, in PsychicProfileUpdate) (*PsychicView, error) {
+	upd, fields := profileChanges(in)
 	if len(fields) > 0 {
 		return nil, apperror.Validation(fields)
 	}
 	if len(upd) > 0 {
+		upd["settings_version"] = gorm.Expr("settings_version + 1")
 		if err := s.psychics.Updates(ctx, psychicID, upd); err != nil {
 			return nil, mapRepoErr(err, "Advisor")
 		}
+		s.DirectoryChanged()
 	}
 	st, p, err := s.Status(ctx, psychicID)
 	if err != nil {

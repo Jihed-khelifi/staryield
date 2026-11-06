@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
@@ -48,6 +49,7 @@ var uploadRoutes = map[string]bool{
 	"/api/v1/me/avatar":                     true,
 	"/api/v1/admin/psychics/:id/image":      true,
 	"/api/v1/chat/sessions/:id/attachments": true,
+	"/api/v1/psychic/photo":                 true, // advisor settings
 }
 
 // CookieNamesFor returns cookie names, using the __Host-/__Secure- prefixes
@@ -125,7 +127,9 @@ func NewRouter(d Deps) *echo.Echo {
 	e.Use(mw.Timeout(cfg.HTTP.RequestTimeout, isStreaming))
 	e.Use(mw.RateLimit(limiter, rule("global", cfg.RateLimit.Global, scale), mw.ByIP, cfg.RateLimit.FailOpen))
 	e.Use(mw.CSRF(d.CSRF, d.Cookies, allowed, func(c echo.Context) bool {
-		return strings.HasPrefix(c.Path(), "/api/v1/webhooks/")
+		// astrology: /aztro accepts POST only for parity with the aztro API;
+		// it is stateless, reads no cookies and returns public data.
+		return strings.HasPrefix(c.Path(), "/api/v1/webhooks/") || c.Path() == "/api/v1/aztro"
 	}))
 
 	e.GET("/healthz", h.Healthz)
@@ -162,15 +166,42 @@ func NewRouter(d Deps) *echo.Echo {
 
 	// Public catalogue and calculators (FR-01, FR-06).
 	v1.GET("/psychics", h.Psychics)
+	featuredRL := mw.RateLimit(limiter, rule("featured", config.Rule{Rate: 120, Period: time.Minute, Burst: 60}, scale), mw.ByIP, true)
+	v1.GET("/psychics/featured", h.FeaturedPsychics, featuredRL)
 	v1.GET("/psychics/:slug", h.Psychic)
 	v1.GET("/psychics/:slug/reviews", h.PsychicReviews)
+	// Waiting lists: told once when the advisor is online (clients only).
+	waitlistRL := mw.RateLimit(limiter, rule("waitlist", config.Rule{Rate: 30, Period: time.Hour, Burst: 10}, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
+	v1.POST("/psychics/:slug/waitlist", h.JoinWaitlist, authed, client, waitlistRL)
+	v1.DELETE("/psychics/:slug/waitlist", h.LeaveWaitlist, authed, waitlistRL)
 	v1.GET("/credit-packs", h.CreditPacks)
-	v1.GET("/astrology/places", h.Places)
-	v1.POST("/astrology/chart", h.PublicChart)
-	v1.GET("/astrology/horoscope/:sign", h.SignHoroscope)
-	v1.GET("/astrology/events", h.CosmicEvents)
+	// astrology: stateless calculators (birth data in POST bodies only,
+	// answered no-store), the gazetteer and the public horoscope. The
+	// buckets are code constants; when Redis is unavailable they fall back
+	// to per-instance limits rather than failing open or closed.
+	astroLimiter := limiter
+	if limiter != nil {
+		astroLimiter = ratelimit.WithFallback(limiter, ratelimit.NewMemoryLimiter(nil))
+	}
+	astroRL := mw.RateLimit(astroLimiter, ratelimit.Rule{Name: "astro", Rate: 30, Period: time.Minute, Burst: 10}.Scaled(scale), mw.ByIP, false)
+	placesRL := mw.RateLimit(astroLimiter, ratelimit.Rule{Name: "places", Rate: 120, Period: time.Minute, Burst: 40}.Scaled(scale), mw.ByIP, false)
+	aztroRL := mw.RateLimit(astroLimiter, ratelimit.Rule{Name: "aztro", Rate: 60, Period: time.Minute, Burst: 20}.Scaled(scale), mw.ByIP, false)
+	v1.GET("/astrology/places", h.Places, placesRL)
+	v1.GET("/astrology/places/:id", h.Place, placesRL)
+	v1.POST("/astrology/natal", h.Natal, astroRL)
+	v1.POST("/astrology/numerology", h.Numerology, astroRL)
+	v1.POST("/astrology/sun-sign", h.SunSign, astroRL)
+	v1.POST("/astrology/chart", h.PublicChart, astroRL)
+	v1.GET("/astrology/horoscope/:sign", h.SignHoroscope, aztroRL)
+	v1.GET("/astrology/events", h.CosmicEvents, aztroRL)
+	v1.GET("/aztro", h.Aztro, aztroRL)
+	v1.POST("/aztro", h.Aztro, aztroRL)
 	v1.POST("/analytics/events", h.IngestEvents, optional, ingestRL)
 	v1.POST("/client-logs", h.ClientLog, optional, ingestRL)
+	// Contact form: public (optionally signed in), 5 per hour per IP and per user.
+	supportIPRL := mw.RateLimit(limiter, rule("support_ip", config.Rule{Rate: 5, Period: time.Hour, Burst: 5}, scale), mw.ByIP, cfg.RateLimit.FailOpen)
+	supportUserRL := mw.RateLimit(limiter, rule("support_user", config.Rule{Rate: 5, Period: time.Hour, Burst: 5}, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
+	v1.POST("/support/tickets", h.CreateSupportTicket, optional, supportIPRL, supportUserRL)
 	v1.POST("/webhooks/payments", h.PaymentWebhook)
 
 	// Signed-in user.
@@ -179,16 +210,74 @@ func NewRouter(d Deps) *echo.Echo {
 	me.PATCH("/profile", h.UpdateProfile, writeRL)
 	me.POST("/avatar", h.UploadAvatar, uploadRL)
 	me.DELETE("/avatar", h.DeleteAvatar)
+	// astrology
 	me.GET("/chart", h.MyChart)
 	me.GET("/horoscope", h.MyHoroscope)
+	me.GET("/waitlist", h.MyWaitlist)
+	me.GET("/numerology", h.MyNumerology)
 	me.GET("/notifications", h.Notifications)
 	me.GET("/notifications/unread-count", h.UnreadNotifications)
 	me.POST("/notifications/read", h.MarkNotificationsRead, writeRL)
+
+	// --- Web Push (M0 delivery channels) ---
+	// Public VAPID key for browsers; per-user browser subscriptions.
+	pushRL := mw.RateLimit(limiter, rule("push", cfg.RateLimit.Push, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
+	v1.GET("/push/config", h.PushConfig)
+	me.POST("/push-subscriptions", h.SubscribePush, pushRL)
+	me.DELETE("/push-subscriptions", h.UnsubscribePush, pushRL)
+	// --- end Web Push ---
+
+	// --- identity: settings, devices, e-mail change, consents, exports,
+	// deactivation and closure. Re-authenticated, abuse-prone actions share
+	// a small hourly budget that fails closed.
+	sensitiveRL := mw.RateLimit(limiter, rule("sensitive", config.Rule{Rate: 5, Period: time.Hour, Burst: 5}, scale), mw.ByUserOrIP, false)
+	v1.GET("/consent-policy", h.ConsentPolicy)
+	me.GET("/settings", h.Settings)
+	me.PATCH("/settings", h.UpdateSettings, writeRL)
+	for _, base := range []string{"/sessions", "/devices"} {
+		me.GET(base, h.Devices)
+		me.DELETE(base, h.RevokeDevices, writeRL)
+		me.DELETE(base+"/:id", h.RevokeDevice, writeRL)
+	}
+	me.POST("/email-change", h.RequestEmailChange, sensitiveRL)
+	a.POST("/email-change/confirm", h.ConfirmEmailChange, authRL)
+	a.POST("/email-change/cancel", h.CancelEmailChange, authRL)
+	me.GET("/consents", h.Consents)
+	me.PUT("/consents", h.UpdateConsents, writeRL)
+	me.POST("/exports", h.RequestExport, sensitiveRL)
+	me.GET("/exports", h.Exports)
+	me.GET("/exports/:id", h.Export)
+	me.POST("/exports/:id/download-token", h.ExportDownloadToken, sensitiveRL)
+	me.GET("/exports/:id/download", h.DownloadExport, writeRL)
+	me.POST("/deactivate", h.Deactivate, sensitiveRL)
+	me.POST("/close", h.CloseAccount, sensitiveRL)
+	a.POST("/reactivate", h.Reactivate, authRL)
+	a.POST("/closure/cancel", h.CancelClosure, authRL)
+	// --- end identity ---
 
 	v1.GET("/wallet", h.Wallet, authed)
 	v1.GET("/wallet/ledger", h.Ledger, authed)
 	v1.POST("/credits/purchases", h.Purchase, authed, client, writeRL)
 	v1.GET("/credits/purchases", h.Purchases, authed, client)
+
+	// billing: Premium Membership, saved cards and payment history. Card
+	// data never reaches these routes (provider tokens only); attaching
+	// cards and subscribing are tightly rate limited (card testing).
+	billingRL := mw.RateLimit(limiter, rule("billing", cfg.Payments.RateLimit, scale), mw.ByUserOrIP, false)
+	v1.GET("/billing/plans", h.BillingPlans)
+	v1.POST("/webhooks/payments/:provider", h.ProviderWebhook)
+	bl := v1.Group("/billing", authed, client)
+	bl.GET("/client-config", h.BillingClientConfig)
+	bl.GET("/payment-methods", h.PaymentMethods)
+	bl.POST("/payment-methods", h.AttachPaymentMethod, billingRL)
+	bl.DELETE("/payment-methods/:id", h.DeletePaymentMethod, writeRL)
+	bl.POST("/payment-methods/:id/default", h.SetDefaultPaymentMethod, writeRL)
+	bl.GET("/subscription", h.Subscription)
+	bl.POST("/subscriptions", h.Subscribe, billingRL)
+	bl.PATCH("/subscription", h.UpdateSubscription, billingRL)
+	bl.POST("/subscription/cancel", h.CancelSubscription, writeRL)
+	bl.POST("/subscription/resume", h.ResumeSubscription, writeRL)
+	bl.GET("/transactions", h.Transactions)
 
 	// Realtime (WebSocket primary, SSE fallback).
 	v1.POST("/realtime/ticket", h.RealtimeTicket, authed)
@@ -221,6 +310,14 @@ func NewRouter(d Deps) *echo.Echo {
 	ch.PUT("/saved/:messageId", h.SaveMessage)
 	ch.DELETE("/saved/:messageId", h.UnsaveMessage)
 
+	// Client notes: advisors only; writes have their own hourly bucket.
+	noteRL := mw.RateLimit(limiter, rule("notes", config.Rule{Rate: 30, Period: time.Hour, Burst: 10}, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
+	ch.GET("/conversations/:id/notes", h.ConversationNotes, psychic)
+	ch.POST("/conversations/:id/notes", h.CreateConversationNote, psychic, noteRL)
+	ch.GET("/conversations/:id/notes/shared", h.SharedConversationNotes, psychic)
+	ch.PATCH("/notes/:id", h.UpdateNote, psychic, noteRL)
+	ch.DELETE("/notes/:id", h.DeleteNote, psychic, noteRL)
+
 	// Custom requests (FR-07, §5.1).
 	cr := v1.Group("/custom-requests", authed)
 	cr.GET("", h.ListRequests)
@@ -238,10 +335,28 @@ func NewRouter(d Deps) *echo.Echo {
 	ps.PATCH("/profile", h.UpdatePsychicProfile)
 	ps.GET("/earnings", h.Earnings)
 	ps.GET("/analytics", h.MyAnalytics)
+	ps.GET("/stats/overview", h.MyStatsOverview)
 	ps.GET("/reviews", h.MyReviews)
+	ps.GET("/balance", h.MyBalance)
 	ps.GET("/withdrawals", h.MyWithdrawals)
 	ps.POST("/withdrawals", h.RequestWithdrawal, writeRL)
 	ps.POST("/withdrawals/:id/cancel", h.CancelWithdrawal, writeRL)
+
+	// --- advisor settings (M4): contact details and profile text, the
+	// photo submitted for review (private until approved) and the advisor's
+	// own custom offering. Photo uploads have their own small budget that
+	// fails closed (the service also caps uploads per day in the database).
+	photoRL := mw.RateLimit(limiter, rule("advisor_photo", config.Rule{Rate: 6, Period: time.Hour, Burst: 3}, scale), mw.ByUserOrIP, false)
+	ps.GET("/settings", h.PsychicSettings)
+	ps.PATCH("/settings", h.UpdatePsychicSettings, writeRL)
+	ps.GET("/photo", h.PsychicPhoto)
+	ps.POST("/photo", h.SubmitPsychicPhoto, photoRL)
+	ps.DELETE("/photo", h.WithdrawPsychicPhoto, writeRL)
+	ps.GET("/photo/image", h.PsychicPhotoImage)
+	ps.GET("/service", h.PsychicCustomService)
+	ps.PUT("/service", h.PutPsychicCustomService, writeRL)
+	ps.DELETE("/service", h.DeletePsychicCustomService, writeRL)
+	// --- end advisor settings ---
 
 	// Administration (FR-13, FR-14). Admin routes are only reachable from
 	// the admin console origin (and allow-listed IPs), with a dedicated
@@ -290,6 +405,9 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.GET("/chat/sessions", h.AdminSessions)
 	ad.GET("/chat/sessions/:id", h.AdminSession)
 	ad.GET("/chat/sessions/:id/transcript", h.AdminTranscript, stepUp)
+	// Client notes: oversight and access requests (always audited with a reason).
+	ad.GET("/client-notes", h.AdminClientNotes, stepUp)
+	ad.DELETE("/client-notes/:id", h.AdminRemoveClientNote, stepUp, adminRL)
 	ad.POST("/chat/sessions/:id/terminate", h.AdminTerminateSession, adminRL)
 	ad.GET("/reviews", h.AdminReviews)
 	ad.PATCH("/reviews/:id", h.AdminModerateReview, adminRL)
@@ -328,6 +446,31 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.GET("/analytics/top", h.AdminTopEvents)
 	ad.GET("/analytics/events", h.AdminEvents)
 	ad.GET("/audit-logs", h.AdminAudit)
+
+	// --- advisor settings: photo review (step-up; previews and decisions
+	// are audited). Unreviewed photos are only ever streamed from here.
+	ad.GET("/photo-submissions", h.AdminPhotoSubmissions, stepUp)
+	ad.GET("/photo-submissions/:id/image", h.AdminPhotoSubmissionImage, stepUp)
+	ad.POST("/photo-submissions/:id/approve", h.AdminApprovePhoto, stepUp, adminRL)
+	ad.POST("/photo-submissions/:id/reject", h.AdminRejectPhoto, stepUp, adminRL)
+	// --- end advisor settings ---
+
+	// billing: plans (immutable versions), routing, memberships, payments.
+	ad.GET("/billing/plans", h.AdminBillingPlans)
+	ad.POST("/billing/plans", h.AdminCreateBillingPlan, stepUp, adminRL)
+	ad.PATCH("/billing/plans/:id", h.AdminUpdateBillingPlan, stepUp, adminRL)
+	ad.DELETE("/billing/plans/:id", h.AdminDeleteBillingPlan, stepUp, adminRL)
+	ad.POST("/billing/plans/:id/versions", h.AdminCreateBillingPlanVersion, stepUp, adminRL)
+	ad.GET("/billing/routing-rules", h.AdminRoutingRules)
+	ad.POST("/billing/routing-rules", h.AdminCreateRoutingRule, stepUp, adminRL)
+	ad.POST("/billing/routing-rules/simulate", h.AdminSimulateRoute)
+	ad.PATCH("/billing/routing-rules/:id", h.AdminUpdateRoutingRule, stepUp, adminRL)
+	ad.DELETE("/billing/routing-rules/:id", h.AdminDeleteRoutingRule, stepUp, adminRL)
+	ad.GET("/billing/providers", h.AdminPaymentProviders)
+	ad.GET("/billing/subscriptions", h.AdminBillingSubscriptions)
+	ad.POST("/billing/subscriptions/:id/cancel", h.AdminCancelBillingSubscription, stepUp, adminRL)
+	ad.GET("/billing/transactions", h.AdminBillingTransactions)
+	ad.POST("/billing/transactions/:id/refund", h.AdminRefundTransaction, stepUp, adminRL)
 
 	return e
 }

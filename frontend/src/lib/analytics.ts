@@ -7,6 +7,7 @@
  * message content or form values, and strips query strings server-side.
  */
 import { api, newId } from "@/lib/api/client";
+import { analyticsRefused } from "@/lib/consent";
 import { logger } from "@/lib/logger";
 
 export type ClientEventName =
@@ -51,7 +52,8 @@ let installed = false;
 function optedOut(): boolean {
   if (typeof navigator === "undefined") return true;
   const gpc = (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl;
-  return navigator.doNotTrack === "1" || gpc === true;
+  // account settings: an explicit "analytics off" in Privacy preferences (sy_consent).
+  return navigator.doNotTrack === "1" || gpc === true || analyticsRefused();
 }
 
 function stored(storage: () => Storage, key: string): string {

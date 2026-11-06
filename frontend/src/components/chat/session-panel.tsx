@@ -7,8 +7,10 @@ import { errorMessage, type ApiError } from "@/lib/api/errors";
 import type { ChatSession, Participant, Review, SessionSummary, Wallet } from "@/lib/api/types";
 import { formatDuration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { endReasonCopy } from "@/components/chat/chat-model";
+import { endReasonCopy, type RateView } from "@/components/chat/chat-model";
+import { RatePrice } from "@/components/chat/rate-price";
 import { ReviewForm, ReviewThanks } from "@/components/reviews/review-form";
+import { WaitlistButton } from "@/components/waitlist/waitlist-button";
 
 type Props = {
   role: "client" | "psychic";
@@ -28,6 +30,16 @@ type Props = {
   onDismissSummary: () => void;
   /** Client: the summary's session was rated. */
   onReviewed?: (review: Review) => void;
+  /** The rate as the viewer sees it (member discount for clients). */
+  rateView?: RateView;
+  /** Client: the advisor turned out to be online (waiting list answered 409). */
+  onAdvisorAvailable?: () => void;
+};
+
+const unavailableCopy: Record<string, string> = {
+  busy: "{value0} is in another reading right now.",
+  away: "{value0} is away right now.",
+  offline: "{value0} is offline right now.",
 };
 
 /** The state-dependent card above the composer (spec §5 and §6). */
@@ -66,6 +78,11 @@ export function SessionPanel(p: Props) {
       <div className="chat-session-card" role="status">
         <p className="font-semibold">{text("Waiting for {value0} to accept…", { value0: name })}</p>
         <p className="text-xs">{text("This request expires in {value0} seconds.", { value0: p.secondsLeft })}</p>
+        {p.rateView?.discounted ? (
+          <p className="mt-1 text-xs" data-testid="request-rate">
+            <RatePrice rate={p.rateView} />
+          </p>
+        ) : null}
         <Button variant="outline" className="mt-3" onClick={p.onCancel} disabled={p.busy}>
           {text("Cancel request")}
         </Button>
@@ -140,6 +157,18 @@ export function SessionPanel(p: Props) {
 
   const offline = p.counterpart.status && p.counterpart.status !== "online";
   const free = p.wallet?.free_minutes ?? 0;
+  if (offline && p.counterpart.slug) {
+    // Not a dead end: wait for the advisor instead.
+    return (
+      <div className="chat-session-card" data-testid="chat-waitlist-card">
+        {s && endReasonCopy[s.end_reason ?? ""] ? <p className="mb-2 text-xs">{text(endReasonCopy[s.end_reason!])}</p> : null}
+        <p className="font-semibold">{text(unavailableCopy[p.counterpart.status!] ?? unavailableCopy.offline, { value0: name })}</p>
+        <p className="text-xs">{text("Join the waiting list and we'll let you know when they're online.")}</p>
+        <WaitlistButton slug={p.counterpart.slug} name={p.counterpart.name} onAvailable={p.onAdvisorAvailable} className="mt-3 w-full sm:w-auto sm:px-6" />
+        {errorBlock}
+      </div>
+    );
+  }
   return (
     <div className="chat-session-card">
       {s && endReasonCopy[s.end_reason ?? ""] ? <p className="mb-2 text-xs">{text(endReasonCopy[s.end_reason!])}</p> : null}

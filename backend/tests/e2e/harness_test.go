@@ -110,6 +110,8 @@ type env struct {
 	advisors *storage.Memory
 	chat     *storage.Memory
 	tracker  *analytics.Recorder
+	// push records Web Push sends (no real push service is ever reached).
+	push *fakePush
 }
 
 type option func(*config.Config)
@@ -146,14 +148,16 @@ func newEnv(t *testing.T, opts ...option) *env {
 	store := storage.NewMemory("https://assets.test")
 	advisors := storage.NewMemory("https://advisors.test")
 	chatImages := storage.NewMemory("")
+	pushes := &fakePush{}
 	ctx := context.Background()
-	a, err := app.New(ctx, cfg, log, app.Overrides{Clock: fake, Mailer: rec, Storage: store, AdvisorStorage: advisors, ChatStorage: chatImages})
+	a, err := app.New(ctx, cfg, log, app.Overrides{Clock: fake, Mailer: rec, Storage: store, AdvisorStorage: advisors, ChatStorage: chatImages,
+		PushSender: pushes})
 	if err != nil {
 		t.Fatalf("app: %v", err)
 	}
 	a.Start(ctx)
 	srv := httptest.NewServer(a.Router)
-	e := &env{t: t, app: a, srv: srv, clock: fake, mail: rec, store: store, advisors: advisors, chat: chatImages}
+	e := &env{t: t, app: a, srv: srv, clock: fake, mail: rec, store: store, advisors: advisors, chat: chatImages, push: pushes}
 	t.Cleanup(func() {
 		srv.CloseClientConnections()
 		srv.Close()

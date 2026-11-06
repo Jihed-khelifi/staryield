@@ -6,3 +6,6 @@ config.yml
 !.env.example
 *.out
 coverage.*
+
+# Load test reports (tests/load)
+/tests/load/results/

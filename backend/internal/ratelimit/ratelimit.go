@@ -113,17 +113,44 @@ func (l *RedisLimiter) Allow(ctx context.Context, key string, rule Rule) (Result
 	return Result{Allowed: vals[0] == 1, RetryAfter: time.Duration(vals[1]) * time.Millisecond, Remaining: int(vals[2])}, nil
 }
 
+// WithFallback returns a limiter that asks primary and, when primary fails
+// (Redis unavailable), the in-process fallback, so limits degrade to
+// per-instance limits instead of failing open or closed.
+func WithFallback(primary, fallback Limiter) Limiter {
+	return fallbackLimiter{primary: primary, fallback: fallback}
+}
+
+type fallbackLimiter struct{ primary, fallback Limiter }
+
+// Allow implements Limiter.
+func (f fallbackLimiter) Allow(ctx context.Context, key string, rule Rule) (Result, error) {
+	res, err := f.primary.Allow(ctx, key, rule)
+	if err == nil {
+		return res, nil
+	}
+	if fres, ferr := f.fallback.Allow(ctx, key, rule); ferr == nil {
+		return fres, nil
+	}
+	return res, err
+}
+
 // MemoryLimiter is an in-process token bucket.
 type MemoryLimiter struct {
 	mu      sync.Mutex
 	buckets map[string]*bucket
 	now     func() time.Time
+	swept   time.Time
 }
 
 type bucket struct {
 	tokens float64
 	ts     time.Time
+	full   time.Time // when the bucket is full again (it can then be dropped)
 }
+
+// sweepEvery bounds how often idle buckets are dropped. A full bucket is
+// the same as no bucket, so dropping it never changes a decision.
+const sweepEvery = time.Minute
 
 // NewMemoryLimiter returns an in-memory limiter. now may be nil.
 func NewMemoryLimiter(now func() time.Time) *MemoryLimiter {
@@ -142,6 +169,14 @@ func (l *MemoryLimiter) Allow(_ context.Context, key string, rule Rule) (Result,
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := l.now()
+	if now.Sub(l.swept) >= sweepEvery {
+		for k, b := range l.buckets {
+			if !b.full.After(now) {
+				delete(l.buckets, k)
+			}
+		}
+		l.swept = now
+	}
 	k := rule.Name + ":" + key
 	b, ok := l.buckets[k]
 	burst := float64(rule.burst())
@@ -156,8 +191,10 @@ func (l *MemoryLimiter) Allow(_ context.Context, key string, rule Rule) (Result,
 	}
 	if b.tokens >= 1 {
 		b.tokens--
+		b.full = now.Add(time.Duration(math.Ceil((burst-b.tokens)/rate)) * time.Millisecond)
 		return Result{Allowed: true, Remaining: int(b.tokens)}, nil
 	}
+	b.full = now.Add(time.Duration(math.Ceil((burst-b.tokens)/rate)) * time.Millisecond)
 	retry := time.Duration(math.Ceil((1-b.tokens)/rate)) * time.Millisecond
 	return Result{Allowed: false, RetryAfter: retry}, nil
 }

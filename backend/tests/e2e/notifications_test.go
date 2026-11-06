@@ -159,7 +159,10 @@ func TestPsychicAnalyticsAndWithdrawals(t *testing.T) {
 	client, psychic, cws, _, s := startedSession(t, e, 40, 600)
 	// Five billed minutes, the first three free (sign-up offer), then end:
 	// 2 × 40 = 80 credits gross, the advisor earns 60% = 48.
-	for i := 0; i < 4; i++ {
+	// Ticks land one second past each minute boundary (a minute starts
+	// strictly after its boundary).
+	e.tick(61 * time.Second)
+	for i := 0; i < 3; i++ {
 		e.tick(60 * time.Second)
 	}
 	client.must(http.StatusOK, http.MethodPost, "/api/v1/chat/sessions/"+s.ID.String()+"/end", nil, nil)

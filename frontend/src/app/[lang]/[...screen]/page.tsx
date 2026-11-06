@@ -15,8 +15,11 @@ import {
   Calculator,
   type CalculatorKind,
 } from "@/components/calculators/calculator";
+import { CalculatorArticle } from "@/components/content/article/calculator-article";
 import { Account, type AccountView } from "@/components/account/account";
 import { CreditCheckout } from "@/components/account/credit-checkout";
+// account settings: one-time e-mail link pages (tokens are read client-side, then stripped).
+import { EmailLinkPage, type EmailLinkAction } from "@/components/account/email-link-page";
 import { isLocale } from "@/i18n/config";
 import advisors from "@/data/advisors.json";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -29,9 +32,9 @@ const content = {
   standards: Standards,
   faq: Faq,
   disclaimer: Disclaimer,
-  terms: Terms,
-  privacy: Privacy,
 };
+// Legal documents are server-rendered from src/content/legal and need the locale.
+const legal = { terms: Terms, privacy: Privacy };
 const auth: Record<string, AuthStep> = {
   signup: "email",
   "signup/password": "password",
@@ -46,6 +49,11 @@ const accounts: Record<string, AccountView> = {
   "profile/chart": "chart",
   "profile/settings": "settings",
   "profile/analytics": "analytics",
+};
+const emailLinks: Record<string, EmailLinkAction> = {
+  "confirm-email": "confirm-email",
+  "cancel-email-change": "cancel-email-change",
+  "keep-account": "keep-account",
 };
 const calculatorKinds: CalculatorKind[] = [
   "natal-chart",
@@ -86,6 +94,9 @@ export async function generateMetadata({
     "calculators/natal-chart": "Natal Chart",
     "calculators/path-of-life": "Life Path",
     "calculators/astrology": "Astrology",
+    "confirm-email": "Confirm your email",
+    "cancel-email-change": "Email change",
+    "keep-account": "Keep your account",
   };
   const advisor =
     screen[0] === "psychics"
@@ -93,6 +104,10 @@ export async function generateMetadata({
       : undefined;
   const title =
     advisor?.name ?? text(titles[route.replace(/\/results$/, "")] ?? "Home");
+  // One-time links: never indexed, and the URL (with its token) is never
+  // sent as a referrer.
+  if (route in emailLinks)
+    return { title, referrer: "no-referrer", robots: { index: false, follow: false } };
   return {
     title:
       screen.at(-1) === "results" ? `${title} — ${text("Results")}` : title,
@@ -115,8 +130,17 @@ export default async function ScreenPage({ params }: RouteProps) {
       </PublicFrame>
     );
   }
+  if (route in legal) {
+    const Legal = legal[route as keyof typeof legal];
+    return (
+      <PublicFrame>
+        <Legal locale={lang} />
+      </PublicFrame>
+    );
+  }
   if (route in auth) return <AuthFlow key={route} step={auth[route]} />;
   if (route in accounts) return <Account key={route} view={accounts[route]} />;
+  if (route in emailLinks) return <EmailLinkPage key={route} action={emailLinks[route]} />;
   if (route === "contact") return <ContactForm />;
   if (route === "psychics") return <PsychicsBrowse />;
   // Advisors come from the API; any well-formed slug is resolved client-side
@@ -145,6 +169,12 @@ export default async function ScreenPage({ params }: RouteProps) {
         key={route}
         kind={screen[1] as CalculatorKind}
         showResults={screen[2] === "results"}
+        article={
+          <CalculatorArticle
+            kind={screen[1] as CalculatorKind}
+            locale={lang}
+          />
+        }
       />
     );
   notFound();

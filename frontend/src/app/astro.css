@@ -1,0 +1,176 @@
+/* ---------------------------------------------------------------------------
+   Calculators, chart wheels and the client account overview / chart tab
+   (FE-CALC). Imported once from globals.css.
+
+   Contrast: the Figma sage (#978F6E) behind white copy is 3.2:1, so white-on-
+   olive sections use --olive-ink (#76704F, 5.0:1 with white); small sage
+   labels on cream use --sage-ink (#625C47, 4.6:1). Both are deliberate,
+   minimal darkenings of the design colours.
+   --------------------------------------------------------------------------- */
+:root {
+  --olive-ink: #76704f;
+  --sage-ink: #625c47;
+  --muted-ink: #4c483a;
+  --badge-gold: #88724a;
+}
+
+/* Input card (Figma "Card / Dob"). */
+.calc-card {
+  box-shadow: 0 16px 20px rgb(45 42 38 / 0.05);
+}
+.calc-date-parts label {
+  font-family: var(--font-serif);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sage-ink);
+  letter-spacing: 0;
+}
+.calc-date-parts input,
+.calc-input {
+  height: 39px;
+  border: 1px solid var(--warm-gray);
+  border-radius: 8px;
+  background: rgb(193 187 169 / 0.26);
+  padding-inline: 16px;
+  font-family: var(--font-serif);
+  font-size: 16px;
+}
+.calc-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--sage-ink);
+}
+[data-slot="field"][data-invalid] .calc-date-parts input,
+.calc-date-parts input[aria-invalid="true"],
+[data-slot="field"][data-invalid] .calc-input {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgb(153 27 27 / 0.14);
+}
+[data-slot="field"][data-valid]:not([data-invalid]) .calc-input {
+  border-color: var(--success);
+}
+.calc-disclosure {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid rgb(170 142 98 / 0.35);
+  padding-top: 14px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.calc-cta {
+  border: 0.5px solid #000;
+  border-radius: 8px;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+/* Result date (Figma "Section / Date Input" + "Input / Date / Filled"). */
+.calc-date-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 389px;
+  max-width: 100%;
+  height: 38px;
+  border: 1px solid #000;
+  border-radius: 8px;
+  background-color: var(--amber);
+  background-image: url("https://assets.staryield.net/assets/figma/fb9ee.jpg");
+  background-size: cover;
+  background-blend-mode: overlay;
+  box-shadow: var(--shadow-cta-glow);
+  font-weight: 300;
+  font-size: 20px;
+  letter-spacing: 1.5px;
+  color: #000;
+}
+.calc-date-button:hover {
+  filter: brightness(0.97);
+}
+
+/* Olive bands with the aged-paper texture (Figma sage + overlay). */
+.calc-olive {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--sage);
+}
+.calc-olive[data-tone="dark"] {
+  background-color: var(--olive-ink);
+}
+/* Behind white copy the texture may only darken (multiply), never lighten. */
+.calc-olive[data-tone="dark"]::after {
+  mix-blend-mode: multiply;
+}
+.calc-olive::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url("https://assets.staryield.net/assets/figma/fb9ee.jpg");
+  background-size: cover;
+  background-position: center;
+  mix-blend-mode: overlay;
+  opacity: var(--calc-texture, 0.5);
+  pointer-events: none;
+}
+.calc-paper {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--cream);
+}
+.calc-paper::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url("https://assets.staryield.net/assets/figma/fb9ee.jpg");
+  background-size: cover;
+  background-position: center;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+.calc-cta-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 442px;
+  max-width: 100%;
+  min-height: 46px;
+  padding: 8px 16px;
+  border: 1px solid #000;
+  border-radius: 8px;
+  background-color: var(--amber);
+  background-image: url("https://assets.staryield.net/assets/figma/fb9ee.jpg");
+  background-size: cover;
+  background-blend-mode: overlay;
+  box-shadow: var(--shadow-cta-glow);
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #000;
+}
+.calc-cta-link:hover {
+  filter: brightness(0.97);
+}
+@media (max-width: 767px) {
+  .calc-cta-link {
+    font-size: 19px;
+  }
+}
+
+/* Chart tab: planet rows open in place (accordion), two columns on phones. */
+.chart-rows [data-state="open"] {
+  grid-column: 1 / -1;
+}
+.chart-glyph {
+  font-family: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols", "Noto Sans Symbols 2", "DejaVu Sans", var(--font-serif), serif;
+}
+

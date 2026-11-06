@@ -3,30 +3,31 @@
 import * as React from "react";
 
 import { useI18n } from "@/i18n/i18n-provider";
+import { useWatch } from "react-hook-form";
+
 import { newId } from "@/lib/api/client";
 import { withdrawalsApi } from "@/lib/api/endpoints";
-import { errorMessage, toApiError, type ApiError } from "@/lib/api/errors";
+import { errorMessage } from "@/lib/api/errors";
 import type { Page, PsychicAnalytics, Withdrawal, WithdrawalMethod } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
-import { creditsValue, validateWithdrawal, type WithdrawalDraft, type WithdrawalErrors } from "@/lib/psychic-analytics";
+import { applyApiError } from "@/lib/forms/server-errors";
+import { keepFocusOnPress } from "@/lib/forms/submit-press";
+import { useSchemaForm } from "@/lib/forms/use-schema-form";
+import { creditsValue } from "@/lib/psychic-analytics";
+import {
+  emptyWithdrawal,
+  toWithdrawalRequest,
+  withdrawalSchema,
+  type WithdrawalContext,
+  type WithdrawalValues,
+} from "@/lib/schemas/withdrawal";
 import { useAsync } from "@/lib/use-async";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/feedback/toast-provider";
 import { Button } from "@/components/ui/button";
+import { FieldRow } from "@/components/ui/field";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormRootError } from "@/components/ui/form";
 import { methodLabel, withdrawalStatusLabel } from "@/components/analytics/analytics-copy";
-
-const EMPTY: WithdrawalDraft = { amount: "", method: "bank_transfer", destination: "" };
-
-/** Map server field names onto the form's fields. */
-function serverFieldErrors(error: ApiError | null): WithdrawalErrors {
-  if (!error) return {};
-  const f = error.fields;
-  const out: WithdrawalErrors = {};
-  if (f.amount_credits) out.amount = { message: f.amount_credits };
-  if (f.method) out.method = { message: f.method };
-  if (f.destination) out.destination = { message: f.destination };
-  return out;
-}
 
 /** Available/reserved/paid balances, the payout request form and history (§8). */
 export function Withdrawals({ payout, onChanged }: { payout: PsychicAnalytics["payout"] | null; onChanged: () => void }) {
@@ -36,10 +37,16 @@ export function Withdrawals({ payout, onChanged }: { payout: PsychicAnalytics["p
   const [more, setMore] = React.useState<Page<Withdrawal>[]>([]);
   const [updated, setUpdated] = React.useState<Record<string, Withdrawal>>({});
   const [created, setCreated] = React.useState<Withdrawal[]>([]);
-  const [draft, setDraft] = React.useState<WithdrawalDraft>(EMPTY);
-  const [errors, setErrors] = React.useState<WithdrawalErrors>({});
-  const [apiError, setApiError] = React.useState<ApiError | null>(null);
-  const [busy, setBusy] = React.useState(false);
+  // The payout limits reach the schema through the resolver context
+  // (react-hook-form reads the latest options on every validation).
+  const context = React.useMemo<WithdrawalContext>(
+    () => ({ payout, format: (n: number) => new Intl.NumberFormat(locale).format(n) }),
+    [payout, locale],
+  );
+  const form = useSchemaForm(withdrawalSchema, { defaultValues: emptyWithdrawal, context });
+  const method = useWatch({ control: form.control, name: "method" });
+  const amount = useWatch({ control: form.control, name: "amount" });
+  const busy = form.formState.isSubmitting;
   const [confirming, setConfirming] = React.useState<string | null>(null);
   const [cancelling, setCancelling] = React.useState<string | null>(null);
   // One idempotency key per request form: retries and double submits never pay twice.
@@ -55,27 +62,17 @@ export function Withdrawals({ payout, onChanged }: { payout: PsychicAnalytics["p
   const money = (credits: number) => (payout ? creditsValue(credits, payout.cents_per_credit, payout.currency, locale) : "");
   const number = new Intl.NumberFormat(locale);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(values: WithdrawalValues) {
     if (!payout) return;
-    setApiError(null);
-    const result = validateWithdrawal(draft, payout);
-    setErrors(result.errors);
-    if (!result.value) return;
-    setBusy(true);
     try {
-      const w = await withdrawalsApi.request({ ...result.value, idempotency_key: key.current });
+      const w = await withdrawalsApi.request({ ...toWithdrawalRequest(values), idempotency_key: key.current });
       key.current = newId();
       setCreated((c) => [w, ...c]);
-      setDraft(EMPTY);
+      form.reset(emptyWithdrawal);
       toast.show({ tone: "success", message: text("Withdrawal requested. We will email you once it is processed.") });
       onChanged();
     } catch (err) {
-      const e2 = toApiError(err);
-      setApiError(e2);
-      setErrors(serverFieldErrors(e2));
-    } finally {
-      setBusy(false);
+      applyApiError(form, err, { text, fieldMap: { amount_credits: "amount", method: "method", destination: "destination" } });
     }
   }
 
@@ -103,16 +100,6 @@ export function Withdrawals({ payout, onChanged }: { payout: PsychicAnalytics["p
     }
   }
 
-  const fieldError = (name: keyof WithdrawalDraft) =>
-    errors[name] ? (
-      <span id={`${ids}-${name}-error`} className="text-xs text-red-800" role="alert">
-        {text(errors[name]!.message, formatValues(errors[name]!.values))}
-      </span>
-    ) : null;
-  const formatValues = (values?: Record<string, string | number>) =>
-    values && Object.fromEntries(Object.entries(values).map(([k, v]) => [k, typeof v === "number" ? number.format(v) : v]));
-  const describedBy = (name: keyof WithdrawalDraft) => (errors[name] ? `${ids}-${name}-error` : undefined);
-
   return (
     <section className="analytics-card" aria-labelledby={`${ids}-heading`} data-testid="withdrawals">
       <h2 id={`${ids}-heading`} className="mb-4 text-xl font-semibold">
@@ -138,92 +125,95 @@ export function Withdrawals({ payout, onChanged }: { payout: PsychicAnalytics["p
       ) : null}
 
       <div className="withdrawal-layout">
-        <form className="withdrawal-form" onSubmit={submit} noValidate data-testid="withdrawal-form">
-          <h3 className="text-base font-semibold">{text("Request a withdrawal")}</h3>
-          {payout ? (
-            <p className="text-xs font-light">
-              {text("Minimum {value0} credits ({value1}). One withdrawal can be in progress at a time.", {
-                value0: number.format(payout.min_withdrawal_credits),
-                value1: money(payout.min_withdrawal_credits),
-              })}
-            </p>
-          ) : null}
-          {open ? (
-            <p className="rounded-md bg-cream/70 p-3 text-sm" role="status">
-              {text("You already have a withdrawal in progress. You can request another once it is processed.")}
-            </p>
-          ) : null}
-          <fieldset disabled={busy || Boolean(open) || !payout} className="grid gap-4">
-            <div className="field">
-              <label htmlFor={`${ids}-amount`}>{text("Amount (credits)")}</label>
-              <span className="flex gap-2">
-                <input
-                  id={`${ids}-amount`}
-                  name="amount"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={draft.amount}
-                  onChange={(e) => setDraft((d) => ({ ...d, amount: e.target.value }))}
-                  aria-invalid={errors.amount ? true : undefined}
-                  aria-describedby={describedBy("amount")}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-auto border-gold bg-cream px-3"
-                  onClick={() => payout && setDraft((d) => ({ ...d, amount: String(payout.available_credits) }))}
-                >
-                  {text("Max")}
-                </Button>
-              </span>
-              {draft.amount && /^\d+$/.test(draft.amount.trim()) ? <span className="text-xs font-light">{money(Number(draft.amount))}</span> : null}
-              {fieldError("amount")}
-            </div>
-            <fieldset className="grid gap-2" aria-describedby={describedBy("method")}>
-              <legend className="mb-2 text-sm">{text("Payout method")}</legend>
-              <div className="flex flex-wrap gap-2">
-                {(Object.keys(methodLabel) as WithdrawalMethod[]).map((m) => (
-                  <label key={m} className={cn("status-pill cursor-pointer", draft.method === m && "online")}>
-                    <input
-                      type="radio"
-                      name="method"
-                      value={m}
-                      className="sr-only"
-                      checked={draft.method === m}
-                      onChange={() => setDraft((d) => ({ ...d, method: m }))}
-                    />
-                    {text(methodLabel[m])}
-                  </label>
-                ))}
-              </div>
-              {fieldError("method")}
-            </fieldset>
-            <div className="field">
-              <label htmlFor={`${ids}-destination`}>{text(draft.method === "paypal" ? "PayPal email" : "IBAN or account number")}</label>
-              <input
-                id={`${ids}-destination`}
-                name="destination"
-                type={draft.method === "paypal" ? "email" : "text"}
-                autoComplete="off"
-                maxLength={200}
-                value={draft.destination}
-                onChange={(e) => setDraft((d) => ({ ...d, destination: e.target.value }))}
-                aria-invalid={errors.destination ? true : undefined}
-                aria-describedby={describedBy("destination")}
-              />
-              <span className="text-xs font-light">{text("Stored encrypted. Only the last characters are shown afterwards.")}</span>
-              {fieldError("destination")}
-            </div>
-            {apiError && Object.keys(serverFieldErrors(apiError)).length === 0 ? (
-              <p role="alert" className="text-sm text-red-800">
-                {text(errorMessage(apiError))}
+        <Form {...form}>
+          <form className="withdrawal-form" onSubmit={(event) => void form.handleSubmit(submit)(event)} noValidate data-testid="withdrawal-form">
+            <h3 className="text-base font-semibold">{text("Request a withdrawal")}</h3>
+            {payout ? (
+              <p className="text-xs font-light">
+                {text("Minimum {value0} credits ({value1}). One withdrawal can be in progress at a time.", {
+                  value0: number.format(payout.min_withdrawal_credits),
+                  value1: money(payout.min_withdrawal_credits),
+                })}
               </p>
             ) : null}
-            <Button type="submit" className="gold-button h-11" aria-busy={busy}>
-              {text(busy ? "Sending…" : "Request withdrawal")}
-            </Button>
-          </fieldset>
-        </form>
+            {open ? (
+              <p className="rounded-md bg-cream/70 p-3 text-sm" role="status">
+                {text("You already have a withdrawal in progress. You can request another once it is processed.")}
+              </p>
+            ) : null}
+            <fieldset disabled={busy || Boolean(open) || !payout} className="grid gap-4">
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem showValid>
+                    <FormLabel>{text("Amount (credits)")}</FormLabel>
+                    <span className="flex gap-2">
+                      <FormControl>
+                        <input {...field} inputMode="numeric" autoComplete="off" className="min-w-0 flex-1" />
+                      </FormControl>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-auto border-gold bg-cream px-3"
+                        onClick={() =>
+                          payout && form.setValue("amount", String(payout.available_credits), { shouldValidate: true, shouldDirty: true })
+                        }
+                      >
+                        {text("Max")}
+                      </Button>
+                    </span>
+                    {amount && /^\d+$/.test(amount.trim()) ? <span className="text-xs font-light">{money(Number(amount))}</span> : null}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="method"
+                render={({ field }) => (
+                  <FormItem>
+                    <fieldset className="grid gap-2">
+                      <legend className="mb-2 text-sm">{text("Payout method")}</legend>
+                      <div className="flex flex-wrap gap-2">
+                        {(Object.keys(methodLabel) as WithdrawalMethod[]).map((m) => (
+                          <label key={m} className={cn("status-pill cursor-pointer", field.value === m && "online")}>
+                            <input
+                              type="radio"
+                              name={field.name}
+                              value={m}
+                              className="sr-only"
+                              checked={field.value === m}
+                              onBlur={field.onBlur}
+                              onChange={() => {
+                                field.onChange(m);
+                                if (form.getFieldState("destination").isTouched) void form.trigger("destination");
+                              }}
+                            />
+                            {text(methodLabel[m])}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FieldRow
+                control={form.control}
+                name="destination"
+                label={text(method === "paypal" ? "PayPal email" : "IBAN or account number")}
+                description={text("Stored encrypted. Only the last characters are shown afterwards.")}
+              >
+                {(field) => <input {...field} type={method === "paypal" ? "email" : "text"} autoComplete="off" maxLength={200} />}
+              </FieldRow>
+              <FormRootError />
+              <Button type="submit" className="gold-button h-11" aria-busy={busy} onMouseDown={keepFocusOnPress}>
+                {text(busy ? "Sending…" : "Request withdrawal")}
+              </Button>
+            </fieldset>
+          </form>
+        </Form>
 
         <div className="min-w-0">
           <h3 className="mb-3 text-base font-semibold">{text("History")}</h3>

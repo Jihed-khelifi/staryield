@@ -31,8 +31,12 @@ type ChatSettings struct {
 	HistoryPageSize   int
 	LowBalanceMinutes int
 	SharePercent      int // psychic share of gross credits (BR-08)
-	MessageRule       ratelimit.Rule
-	TypingRule        ratelimit.Rule
+	// PayoutCentsPerCredit and Currency express live advisor earnings in
+	// money (the chat header); 0 leaves the amount out.
+	PayoutCentsPerCredit int64
+	Currency             string
+	MessageRule          ratelimit.Rule
+	TypingRule           ratelimit.Rule
 }
 
 // ChatService implements live chat (spec §5, §6, FR-09–FR-12).
@@ -52,6 +56,14 @@ type ChatService struct {
 	clock        clock.Clock
 	cfg          ChatSettings
 	extras       ChatExtras
+	// discountFor returns a client's member chat discount in basis points
+	// (billing); nil means no discounts.
+	discountFor func(ctx context.Context, clientID uuid.UUID) int
+}
+
+// SetDiscounts installs the member discount lookup (billing.DiscountFor).
+func (c *ChatService) SetDiscounts(fn func(ctx context.Context, clientID uuid.UUID) int) {
+	c.discountFor = fn
 }
 
 // NewChatService wires the chat service.
@@ -124,14 +136,20 @@ func (c *ChatService) RequestSession(ctx context.Context, clientID uuid.UUID, ps
 	if err != nil {
 		return nil, mapRepoErr(err, "Wallet")
 	}
-	if w.FreeMinutes <= 0 && w.Balance < psychic.RatePerMinute {
-		return nil, apperror.InsufficientCredits(psychic.RatePerMinute, w.Balance)
+	// Members pay a discounted rate, snapshotted for the whole session.
+	discount := 0
+	if c.discountFor != nil {
+		discount = c.discountFor(ctx, clientID)
+	}
+	rate := domain.ApplyDiscount(psychic.RatePerMinute, discount)
+	if w.FreeMinutes <= 0 && w.Balance < rate {
+		return nil, apperror.InsufficientCredits(rate, w.Balance)
 	}
 
 	now := c.clock.Now()
 	s := &domain.Session{
 		ID: domain.NewID(), ClientID: clientID, PsychicID: psychic.UserID, Status: domain.SessionRequested,
-		RatePerMinute: psychic.RatePerMinute, RequestKey: requestKey, RequestedAt: now,
+		RatePerMinute: rate, ListRatePerMinute: psychic.RatePerMinute, DiscountBps: discount, RequestKey: requestKey, RequestedAt: now,
 		ExpiresAt: now.Add(c.cfg.RequestTimeout), CreatedAt: now, UpdatedAt: now,
 	}
 	err = c.tx.WithinTx(ctx, func(ctx context.Context) error {
@@ -544,7 +562,23 @@ func (c *ChatService) billMinuteLocked(ctx context.Context, s *domain.Session, d
 			clientPayload[k] = v
 		}
 		warnErr(ctx, "chat: publish billed", c.events.Publish(ctx, realtime.EventSessionBilled, clientPayload, snapshot.ClientID))
-		warnErr(ctx, "chat: publish billed", c.events.Publish(ctx, realtime.EventSessionBilled, billed, snapshot.PsychicID))
+		// The advisor earns on the list rate even when the client has a
+		// member discount, and never sees what the client paid.
+		psychicPayload := make(map[string]any, len(billed))
+		for k, v := range billed {
+			psychicPayload[k] = v
+		}
+		if !free {
+			psychicPayload["charged"] = max(snapshot.ListRatePerMinute, charged)
+		}
+		// The advisor's live earnings so far (same values as the session
+		// view), so the chat header stays current without a refetch.
+		earned, _ := domain.SplitEarnings(snapshot.AdvisorGross(), c.cfg.SharePercent)
+		psychicPayload["psychic_earnings"] = earned
+		if c.cfg.PayoutCentsPerCredit > 0 {
+			psychicPayload["psychic_earnings_cents"], psychicPayload["currency"] = earned*c.cfg.PayoutCentsPerCredit, c.cfg.Currency
+		}
+		warnErr(ctx, "chat: publish billed", c.events.Publish(ctx, realtime.EventSessionBilled, psychicPayload, snapshot.PsychicID))
 		warnErr(ctx, "chat: publish wallet", c.events.Publish(ctx, realtime.EventWalletUpdated, wallet, snapshot.ClientID))
 		if remaining < int64(c.cfg.LowBalanceMinutes) {
 			warnErr(ctx, "chat: publish low balance", c.events.Publish(ctx, realtime.EventSessionLowBalance,
@@ -571,8 +605,9 @@ func (c *ChatService) BillDue(ctx context.Context, batch int) (int, error) {
 			}
 			found = true
 			s := &rows[0]
-			// Catch up minute by minute if the worker fell behind.
-			for s.Status == domain.SessionActive && s.NextBillingAt != nil && !s.NextBillingAt.After(now) {
+			// Catch up minute by minute if the worker fell behind. The
+			// boundary is the one the end flow uses (MinuteStarted).
+			for s.MinuteStarted(now) {
 				if err := c.billMinuteLocked(ctx, s, *s.NextBillingAt, now, &post); err != nil {
 					return err
 				}
@@ -655,11 +690,12 @@ func (c *ChatService) settle(ctx context.Context, sessionID uuid.UUID) (*domain.
 		if s.Status != domain.SessionEnded {
 			return nil
 		}
-		net, commission := domain.SplitEarnings(s.CreditsCharged, c.cfg.SharePercent)
-		if s.CreditsCharged > 0 {
+		gross := s.AdvisorGross()
+		net, commission := domain.SplitEarnings(gross, c.cfg.SharePercent)
+		if gross > 0 {
 			if err := c.earnings.Create(ctx, &domain.Earning{
 				ID: domain.NewID(), PsychicID: s.PsychicID, SourceType: domain.EarningChatSession, SourceID: s.ID,
-				EntryKind: domain.EarningKindEarning, GrossCredits: s.CreditsCharged, CommissionCredits: commission,
+				EntryKind: domain.EarningKindEarning, GrossCredits: gross, CommissionCredits: commission,
 				NetCredits: net, SharePercent: c.cfg.SharePercent, CreatedAt: c.clock.Now(),
 			}); err != nil && !errors.Is(err, repository.ErrDuplicate) {
 				return err
@@ -728,8 +764,9 @@ func (c *ChatService) end(ctx context.Context, sessionID uuid.UUID, reason domai
 		}
 		now := c.clock.Now()
 		// Bill minutes that already started but the worker has not charged
-		// yet (BR-02), so ending a chat never skips a started minute.
-		for s.Status == domain.SessionActive && s.NextBillingAt != nil && s.NextBillingAt.Before(now) {
+		// yet (BR-02), so ending a chat never skips a started minute. Same
+		// predicate as the worker, so both agree exactly at the boundary.
+		for s.MinuteStarted(now) {
 			if err := c.billMinuteLocked(ctx, s, *s.NextBillingAt, now, &post); err != nil {
 				return err
 			}
@@ -891,19 +928,16 @@ func (c *ChatService) SweepPresence(ctx context.Context, limit int) error {
 	return nil
 }
 
-// addSystemMessage records a system notice in the transcript.
+// addSystemMessage records a system notice in the transcript. It takes the
+// conversation's next seq and counts as unread for both participants.
 func (c *ChatService) addSystemMessage(ctx context.Context, s *domain.Session, body string, at time.Time, post *afterCommit) error {
-	m := &domain.Message{ID: domain.NewID(), ConversationID: s.ConversationID, SessionID: s.ID, Kind: domain.MessageSystem, Body: body, CreatedAt: at}
-	if _, err := c.chat.CreateMessage(ctx, m); err != nil {
-		return err
-	}
-	if err := c.chat.TouchConversation(ctx, s.ConversationID, m.ID, at); err != nil {
+	m := &domain.Message{ID: domain.NewID(), ConversationID: s.ConversationID, SessionID: s.ID, Kind: domain.MessageSystem, Body: body,
+		CreatedAt: at, UpdatedAt: at}
+	if _, err := c.chat.AppendMessage(ctx, m); err != nil {
 		return err
 	}
 	view := messageView(m)
 	client, psychic := s.ClientID, s.PsychicID
-	post.add(func(ctx context.Context) {
-		warnErr(ctx, "chat: publish system message", c.events.Publish(ctx, realtime.EventMessageCreated, map[string]any{"message": view}, client, psychic))
-	})
+	post.add(func(ctx context.Context) { c.publishMessage(ctx, view, client, psychic) })
 	return nil
 }

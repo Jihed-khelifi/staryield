@@ -1,10 +1,66 @@
 [
   {
+    "key": "assets/articles/natal/energy-mapping-diagram-d92680b7.png",
+    "url": "https://assets.staryield.net/assets/articles/natal/energy-mapping-diagram-d92680b7.png",
+    "contentType": "image/png",
+    "bytes": 644411,
+    "sha256": "d92680b76b227e0e1240d74f2db14d11ff89a27ed44adfe07bc3c615a273b58b"
+  },
+  {
+    "key": "assets/articles/natal/twelve-houses-intro-0cf68eb2.png",
+    "url": "https://assets.staryield.net/assets/articles/natal/twelve-houses-intro-0cf68eb2.png",
+    "contentType": "image/png",
+    "bytes": 466393,
+    "sha256": "0cf68eb2d09339ed36fdea0cd81d21934b4b8cebbadac8d2c5b9be6188fa08ce"
+  },
+  {
+    "key": "assets/articles/timeline-connector-b79b343a.svg",
+    "url": "https://assets.staryield.net/assets/articles/timeline-connector-b79b343a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 335,
+    "sha256": "b79b343a1cc3fd0baec8ef53dfe8ee03567818ca22aa3c7c0cff23124cdc44e3"
+  },
+  {
+    "key": "assets/articles/timeline-star-73dd09ac.png",
+    "url": "https://assets.staryield.net/assets/articles/timeline-star-73dd09ac.png",
+    "contentType": "image/png",
+    "bytes": 3200,
+    "sha256": "73dd09ac05c3f69fb6fc0c9aaa7068d52734597a1672f6f3078f2dbf173d62ec"
+  },
+  {
     "key": "assets/bookmark.png",
     "url": "https://assets.staryield.net/assets/bookmark.png",
     "contentType": "image/png",
     "bytes": 5408,
     "sha256": "575e30625af66ea3164d2ad01564ac1d108e7da8469ce575774ca13cc1703894"
+  },
+  {
+    "key": "assets/brand/auth-rays-92bd14a495.svg",
+    "url": "https://assets.staryield.net/assets/brand/auth-rays-92bd14a495.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1940,
+    "sha256": "92bd14a495335b95704c7698ea062615dc200ded45c504557170e09a9445748f"
+  },
+  {
+    "key": "assets/brand/sun-mark-180-208bacab8e.png",
+    "url": "https://assets.staryield.net/assets/brand/sun-mark-180-208bacab8e.png",
+    "contentType": "image/png",
+    "bytes": 28574,
+    "sha256": "208bacab8e7cae48adeb8760f3b1407263e7f90db133590b811568de8acf0c85"
+  },
+  {
+    "key": "assets/brand/sun-mark-192-c139a00d54.png",
+    "url": "https://assets.staryield.net/assets/brand/sun-mark-192-c139a00d54.png",
+    "contentType": "image/png",
+    "bytes": 31987,
+    "sha256": "c139a00d5479c517c5b0c83ecd71418252e0ddb16bd2cac42d98bd528630a8dc"
+  },
+  {
+    "key": "assets/brand/sun-mark-32-19cd009ec9.png",
+    "url": "https://assets.staryield.net/assets/brand/sun-mark-32-19cd009ec9.png",
+    "contentType": "image/png",
+    "bytes": 2523,
+    "sha256": "19cd009ec9d6b719f0c4f839912ee3ffcaed711296e690b03925281533cf8397"
   },
   {
     "key": "assets/figma/00a59.svg",
@@ -1890,6 +1946,153 @@
     "sha256": "5cb693ca51bbb81e68cf7b2c7fd32865f8b8c386d0bb4b4324b60bb5073c7e64"
   },
   {
+    "key": "assets/planets/v2/ascendant-3d5fd3fdd8.svg",
+    "url": "https://assets.staryield.net/assets/planets/v2/ascendant-3d5fd3fdd8.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 354,
+    "sha256": "3d5fd3fdd8d825d497467bc8cd06820ffd7f77caad876b5038d3654d97e003b3"
+  },
+  {
+    "key": "assets/planets/v2/jupiter-b354447969.svg",
+    "url": "https://assets.staryield.net/assets/planets/v2/jupiter-b354447969.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 494,
+    "sha256": "b3544479695d800f9c03c1614184628887bde646e5820fce5b01f29b6441a1ae"
+  },
+  {
+    "key": "assets/planets/v2/mars-4120f90aa2.svg",
+    "url": "https://assets.staryield.net/assets/planets/v2/mars-4120f90aa2.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 637,
+    "sha256": "4120f90aa2f3d8862746f08f044e157078b7f6b38d40215fe799b78506634aca"
+  },
+  {
+    "key": "assets/planets/v2/mercury-dec98efec2.svg",
+    "url": "https://assets.staryield.net/assets/planets/v2/mercury-dec98efec2.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 789,
+    "sha256": "dec98efec27cef58f003bb79f61077fa6918661ddfeaa8257473b1e5e51ca3e0"
+  },
+  {
+    "key": "assets/planets/v2/moon-72dd3db430.svg",
+    "url": "https://assets.staryield.net/assets/planets/v2/moon-72dd3db430.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 553,
+    "sha256": "72dd3db430592bf70bb30d99003952993dd3b1f21a7e9119384f29da5ee32085"
+  },
+  {
+    "key": "assets/planets/v2/neptune-3d0796ab70.svg",
+    "url": "https://assets.staryield.net/assets/planets/v2/neptune-3d0796ab70.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 616,
+    "sha256": "3d0796ab70a89b96d633825add93af7e90e611bbda66bdad92a1fae9d3f7f8ef"
+  },
+  {
+    "key": "assets/planets/v2/pluto-6c283e3a8a.svg",
+    "url": "https://assets.staryield.net/assets/planets/v2/pluto-6c283e3a8a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1142,
+    "sha256": "6c283e3a8a141021a7c8c73b980d335d673fc597b786dcb4d83e91d26e30095c"
+  },
+  {
+    "key": "assets/planets/v2/saturn-ee85cef7b9.svg",
+    "url": "https://assets.staryield.net/assets/planets/v2/saturn-ee85cef7b9.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 723,
+    "sha256": "ee85cef7b97efe2b591820addeb16e65cfd680a336b4ad12151b1c267d07c595"
+  },
+  {
+    "key": "assets/planets/v2/sun-42f09ca443.svg",
+    "url": "https://assets.staryield.net/assets/planets/v2/sun-42f09ca443.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 753,
+    "sha256": "42f09ca44339d531ccf53e527444d1e6914a1d9bee273d8594ff82376b817ce6"
+  },
+  {
+    "key": "assets/planets/v2/uranus-7d7c7e2931.svg",
+    "url": "https://assets.staryield.net/assets/planets/v2/uranus-7d7c7e2931.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 944,
+    "sha256": "7d7c7e29318e6a6f06fa0af4762efc3da9834ae28654d32849d1618e09134f12"
+  },
+  {
+    "key": "assets/planets/v2/venus-05c7ab07c9.svg",
+    "url": "https://assets.staryield.net/assets/planets/v2/venus-05c7ab07c9.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 629,
+    "sha256": "05c7ab07c9da03738241cf932cf1c65910264658eec13dc666c3751f5a9a8044"
+  },
+  {
+    "key": "assets/settings/gear-9df80e4343.svg",
+    "url": "https://assets.staryield.net/assets/settings/gear-9df80e4343.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 2611,
+    "sha256": "9df80e434364051d44254a8039c971a0f8c13a881c1d29d14c9d66cddb4fd48f"
+  },
+  {
+    "key": "assets/settings/log-out-2190dc8cb1.svg",
+    "url": "https://assets.staryield.net/assets/settings/log-out-2190dc8cb1.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 477,
+    "sha256": "2190dc8cb121013e3e38ba8b240cfc8cc2b5c6fa7ddb3c9112f0b420abb68e44"
+  },
+  {
+    "key": "assets/settings/notification-outline-70df938e98.svg",
+    "url": "https://assets.staryield.net/assets/settings/notification-outline-70df938e98.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 2189,
+    "sha256": "70df938e981fc174370b4318de794de6ec62f0e40619586257eec206c3b5f2d3"
+  },
+  {
+    "key": "assets/social/app-store-0526e10fa3.svg",
+    "url": "https://assets.staryield.net/assets/social/app-store-0526e10fa3.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 2977,
+    "sha256": "0526e10fa3aee504f94b0fe96fb847786631cad783688859e4c8bc7b4eadba13"
+  },
+  {
+    "key": "assets/social/facebook-fe82eb80d5.svg",
+    "url": "https://assets.staryield.net/assets/social/facebook-fe82eb80d5.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 391,
+    "sha256": "fe82eb80d5bd8af6deed54065a332a6be38f9dff8bafc62bb4d34876b8a62364"
+  },
+  {
+    "key": "assets/social/google-play-70cc64ee4e.svg",
+    "url": "https://assets.staryield.net/assets/social/google-play-70cc64ee4e.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 933,
+    "sha256": "70cc64ee4e8696904d8cd5a2808c5a7a6269e10d741ddd2611911e2c95c8ffa4"
+  },
+  {
+    "key": "assets/social/instagram-cf7ff32b33.svg",
+    "url": "https://assets.staryield.net/assets/social/instagram-cf7ff32b33.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 662,
+    "sha256": "cf7ff32b3312ade2211c9345832d85e4de2f1804fc82b58190b1194b726ce8af"
+  },
+  {
+    "key": "assets/social/reddit-b92a9b5fbe.svg",
+    "url": "https://assets.staryield.net/assets/social/reddit-b92a9b5fbe.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 2099,
+    "sha256": "b92a9b5fbe8b715322ad5376d85908a2fbfd4360e63b245403e88011f4672733"
+  },
+  {
+    "key": "assets/social/tiktok-d4c1acc79e.svg",
+    "url": "https://assets.staryield.net/assets/social/tiktok-d4c1acc79e.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1570,
+    "sha256": "d4c1acc79e50b35ea90dd677077946222c2111e64e7e3952219341579533cddb"
+  },
+  {
+    "key": "assets/social/x-3e7a43860a.svg",
+    "url": "https://assets.staryield.net/assets/social/x-3e7a43860a.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 475,
+    "sha256": "3e7a43860ac93d31dcdbcf82059975ff5c0b6b78b35aacab652e8445c80a26c8"
+  },
+  {
     "key": "assets/tarot/death.png",
     "url": "https://assets.staryield.net/assets/tarot/death.png",
     "contentType": "image/png",
@@ -2189,6 +2392,90 @@
     "contentType": "image/svg+xml",
     "bytes": 1001,
     "sha256": "07355cbf483988efc8da61c5607db4645030ad32569171b1147a1ef4690df512"
+  },
+  {
+    "key": "assets/zodiac/v2/aquarius-f796a3a6bc.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/v2/aquarius-f796a3a6bc.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 699,
+    "sha256": "f796a3a6bc088de33bea77c8c22f7921f84674df3f39faa7efdb85e5fe19b965"
+  },
+  {
+    "key": "assets/zodiac/v2/aries-fd711723b9.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/v2/aries-fd711723b9.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 872,
+    "sha256": "fd711723b9c667d46c3e94be70969fb57a09b88bed6b88869c85bd8ee929b45a"
+  },
+  {
+    "key": "assets/zodiac/v2/cancer-51e4ceb47f.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/v2/cancer-51e4ceb47f.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1263,
+    "sha256": "51e4ceb47fd61dc770a4a302aa64163939fa8eefb93dca50d9d15f3d3ba5f5f2"
+  },
+  {
+    "key": "assets/zodiac/v2/capricorn-bb33ab6275.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/v2/capricorn-bb33ab6275.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1268,
+    "sha256": "bb33ab627538c1d9ad5a813522fad16308685f35812378e403e0db5819b9fcad"
+  },
+  {
+    "key": "assets/zodiac/v2/gemini-0531f9a034.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/v2/gemini-0531f9a034.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 518,
+    "sha256": "0531f9a034adc52e923d46d5033df32ad6cbf81ee124784ac78cb24ad1ca98fa"
+  },
+  {
+    "key": "assets/zodiac/v2/leo-b976af92a6.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/v2/leo-b976af92a6.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1180,
+    "sha256": "b976af92a612a9ff6cf436626663ffa34bf7774cb2e7b81e4e1becbdb6c86820"
+  },
+  {
+    "key": "assets/zodiac/v2/libra-8e5d075d6d.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/v2/libra-8e5d075d6d.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 777,
+    "sha256": "8e5d075d6d9b3f8b116966dc79d436c59762568e3801908fdb309d1b4a0c1f56"
+  },
+  {
+    "key": "assets/zodiac/v2/pisces-7ffc7a911b.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/v2/pisces-7ffc7a911b.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 775,
+    "sha256": "7ffc7a911b046b0e5dee67797a5cb6a9854e27e1940ea1f6b7bea409a91a4934"
+  },
+  {
+    "key": "assets/zodiac/v2/sagittarius-06e02d23f3.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/v2/sagittarius-06e02d23f3.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 556,
+    "sha256": "06e02d23f30158dd609a0e948f7c8aae39ad8e45743f3f45e8802656965cda43"
+  },
+  {
+    "key": "assets/zodiac/v2/scorpio-91ebdf2e74.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/v2/scorpio-91ebdf2e74.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1126,
+    "sha256": "91ebdf2e7465504caaadf17df6abb377d712fd4104c8932a0727da5bc26478a0"
+  },
+  {
+    "key": "assets/zodiac/v2/taurus-4a7439db96.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/v2/taurus-4a7439db96.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1112,
+    "sha256": "4a7439db96dc02ffd0365f76dde73abe5e3caf753171ed019be649a3eaabfc8f"
+  },
+  {
+    "key": "assets/zodiac/v2/virgo-c6d87c9213.svg",
+    "url": "https://assets.staryield.net/assets/zodiac/v2/virgo-c6d87c9213.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1115,
+    "sha256": "c6d87c921347e26fdf269f2e27a8860357132d109b3f6aa3e1bb1050f114667d"
   },
   {
     "key": "assets/zodiac/venus-1.svg",

@@ -29,6 +29,17 @@ type PsychicRepository interface {
 	// IsPublic reports whether an advisor may appear publicly (listed and
 	// the account active).
 	IsPublic(ctx context.Context, userID uuid.UUID) (bool, error)
+
+	// --- advisor settings (M4) ---
+	// GetForUpdate locks an advisor's profile row (services not loaded).
+	GetForUpdate(ctx context.Context, userID uuid.UUID) (*domain.Psychic, error)
+	// CustomService returns the advisor's live custom offering
+	// (kind 'custom', active or not).
+	CustomService(ctx context.Context, psychicID uuid.UUID) (*domain.PsychicService, error)
+	// GetServiceAny returns a service even when it was removed: orders keep
+	// referencing removed services.
+	GetServiceAny(ctx context.Context, id uuid.UUID) (*domain.PsychicService, error)
+	// --- end advisor settings ---
 }
 
 // GormPsychicRepository implements PsychicRepository.
@@ -65,13 +76,15 @@ func (r *GormPsychicRepository) List(ctx context.Context, includeUnlisted bool) 
 }
 
 func (r *GormPsychicRepository) IsPublic(ctx context.Context, userID uuid.UUID) (bool, error) {
-	var ok bool
-	err := database.Conn(ctx, r.db).Raw(`SELECT EXISTS (SELECT 1 FROM psychics p JOIN users u ON u.id = p.user_id
-		WHERE p.user_id = ? AND p.listed AND u.status = ?)`, userID, domain.UserActive).Scan(&ok).Error
-	return ok, err
+	var n int64
+	err := database.Conn(ctx, r.db).Model(&domain.Psychic{}).
+		Joins("JOIN users ON users.id = psychics.user_id AND users.status = ?", domain.UserActive).
+		Where("psychics.user_id = ? AND psychics.listed", userID).Count(&n).Error
+	return n > 0, err
 }
 
-// DeleteService removes a service no order references (ErrInUse otherwise).
+// DeleteService soft-deletes a service (gorm.DeletedAt): orders that
+// reference it keep their history. ErrInUse is kept for hard deletes.
 func (r *GormPsychicRepository) DeleteService(ctx context.Context, id uuid.UUID) error {
 	res := database.Conn(ctx, r.db).Where("id = ?", id).Delete(&domain.PsychicService{})
 	if res.Error != nil {
@@ -124,6 +137,34 @@ func (r *GormPsychicRepository) Updates(ctx context.Context, userID uuid.UUID, f
 		return ErrNotFound
 	}
 	return nil
+}
+
+// GetForUpdate implements PsychicRepository.
+func (r *GormPsychicRepository) GetForUpdate(ctx context.Context, userID uuid.UUID) (*domain.Psychic, error) {
+	var p domain.Psychic
+	if err := database.Conn(ctx, r.db).Clauses(forUpdate).First(&p, "user_id = ?", userID).Error; err != nil {
+		return nil, notFound(err)
+	}
+	return &p, nil
+}
+
+// CustomService implements PsychicRepository.
+func (r *GormPsychicRepository) CustomService(ctx context.Context, psychicID uuid.UUID) (*domain.PsychicService, error) {
+	var s domain.PsychicService
+	err := database.Conn(ctx, r.db).Where("psychic_id = ? AND kind = ?", psychicID, domain.ServiceCustom).First(&s).Error
+	if err != nil {
+		return nil, notFound(err)
+	}
+	return &s, nil
+}
+
+// GetServiceAny implements PsychicRepository.
+func (r *GormPsychicRepository) GetServiceAny(ctx context.Context, id uuid.UUID) (*domain.PsychicService, error) {
+	var s domain.PsychicService
+	if err := database.Conn(ctx, r.db).Unscoped().First(&s, "id = ?", id).Error; err != nil {
+		return nil, notFound(err)
+	}
+	return &s, nil
 }
 
 func (r *GormPsychicRepository) IncrementReadings(ctx context.Context, userID uuid.UUID) error {

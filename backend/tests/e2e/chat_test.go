@@ -96,7 +96,14 @@ func TestLiveChatFullLifecycle(t *testing.T) {
 	if dup.Message.ID != sent.Message.ID {
 		t.Fatal("duplicate send created a second message")
 	}
-	pws.mustAck(realtime.FrameMessageSend, map[string]any{"session_id": s.ID, "body": "Let me shuffle the cards for you.", "client_msg_id": "pmsg-0001"})
+	pack := pws.mustAck(realtime.FrameMessageSend, map[string]any{"session_id": s.ID, "body": "Let me shuffle the cards for you.", "client_msg_id": "pmsg-0001"})
+	var reply struct {
+		Message service.MessageView `json:"message"`
+	}
+	_ = json.Unmarshal(pack, &reply)
+	if reply.Message.Seq != sent.Message.Seq+1 {
+		t.Fatalf("seqs: client %d, reply %d", sent.Message.Seq, reply.Message.Seq)
+	}
 	cws.waitFor(realtime.EventMessageCreated, 5*time.Second)
 
 	// Typing indicators are relayed to the other side only.
@@ -117,8 +124,15 @@ func TestLiveChatFullLifecycle(t *testing.T) {
 	}
 
 	// Minutes 2 and 3 use the remaining free minutes; minute 4 is paid (BR-02).
+	// A minute starts strictly after its boundary (MinuteStarted), so the
+	// clock first moves one second past the boundary and stays one second
+	// past each following one.
 	for minute := 2; minute <= 4; minute++ {
-		e.tick(time.Minute)
+		step := time.Minute
+		if minute == 2 {
+			step += time.Second
+		}
+		e.tick(step)
 		billed := cws.waitMatch(realtime.EventSessionBilled, fmt.Sprintf(`"minute":%d,`, minute), 5*time.Second)
 		var b struct {
 			Minute int                `json:"minute"`
@@ -148,9 +162,14 @@ func TestLiveChatFullLifecycle(t *testing.T) {
 		t.Fatal("ledger rows must not be deletable")
 	}
 
-	// Mark read → read receipt to the psychic.
+	// Reading their own message moves nothing (sending already did); reading
+	// the advisor's reply sends a read receipt with the new position.
 	cws.mustAck(realtime.FrameMessageRead, map[string]any{"conversation_id": s.ConversationID, "message_id": sent.Message.ID})
-	pws.waitFor(realtime.EventMessageRead, 5*time.Second)
+	cws.mustAck(realtime.FrameMessageRead, map[string]any{"conversation_id": s.ConversationID, "message_id": reply.Message.ID})
+	receipt := pws.waitFor(realtime.EventMessageRead, 5*time.Second)
+	if !strings.Contains(string(receipt.Data), fmt.Sprintf(`"read_seq":%d`, reply.Message.Seq)) {
+		t.Fatalf("receipt: %s", receipt.Data)
+	}
 
 	// Bookmark a message, list saved.
 	client.must(http.StatusNoContent, http.MethodPut, "/api/v1/chat/saved/"+sent.Message.ID.String(), nil, nil)
@@ -163,7 +182,7 @@ func TestLiveChatFullLifecycle(t *testing.T) {
 	}
 
 	// Client ends the chat (step 15) → summary for both (step 18).
-	e.clock.Advance(20 * time.Second)
+	e.clock.Advance(19 * time.Second) // 3m20s after the start
 	var sum service.SessionSummary
 	client.must(http.StatusOK, http.MethodPost, "/api/v1/chat/sessions/"+s.ID.String()+"/end", nil, &sum)
 	if sum.Session.Status != "settled" || sum.Session.EndReason != "client_ended" || sum.Session.BilledMinutes != 4 || sum.Messages != 2 {
@@ -226,8 +245,10 @@ func TestCreditsExhaustedEndsSession(t *testing.T) {
 	const rate = 100
 	client, _, cws, pws, s := startedSession(t, e, rate, 250)
 	// 3 free minutes, then 2 paid minutes (250 credits / 100), then the
-	// next started minute cannot be paid → session ends (BR-03).
-	for i := 0; i < 5; i++ {
+	// next started minute cannot be paid → session ends (BR-03). Each tick
+	// lands one second past a minute boundary.
+	e.tick(time.Minute + time.Second)
+	for i := 0; i < 4; i++ {
 		e.tick(time.Minute)
 	}
 	low := cws.waitFor(realtime.EventSessionLowBalance, 5*time.Second)
@@ -269,7 +290,9 @@ func TestRequestRequiresCreditsAndOnlinePsychic(t *testing.T) {
 	var list struct {
 		Items []service.PsychicView `json:"items"`
 	}
-	client.must(http.StatusOK, http.MethodGet, "/api/v1/psychics", nil, &list)
+	// Search by name: the shared test database holds many advisors, and the
+	// default page lists only the first ones.
+	client.must(http.StatusOK, http.MethodGet, "/api/v1/psychics?q="+psychic.slug(), nil, &list)
 	found := false
 	for _, p := range list.Items {
 		if p.Slug == psychic.slug() {
@@ -379,9 +402,9 @@ func TestDisconnectGraceAndResume(t *testing.T) {
 	if resumed.Status != "active" || resumed.Reconnects != 1 {
 		t.Fatalf("resumed: %+v", resumed)
 	}
-	// Paid coverage continues where it stopped: minute 2 bills 60s after start
-	// minus nothing elapsed while disconnected.
-	e.tick(60 * time.Second)
+	// Paid coverage continues where it stopped: minute 2 starts just after
+	// 60s of activity (nothing elapsed while disconnected counts).
+	e.tick(61 * time.Second)
 	cws2.waitMatch(realtime.EventSessionBilled, `"minute":2,`, 5*time.Second)
 
 	// Disconnect again and let the grace period lapse → Ended (grace expired).

@@ -86,6 +86,13 @@ func ProcessImage(data []byte, p ImagePolicy) (*ProcessedImage, error) {
 	if err != nil {
 		return nil, apperror.Validation(map[string]string{field: "The file is not a valid image."})
 	}
+	// Re-encoding drops EXIF, so bake the camera's orientation into the
+	// pixels first; otherwise portrait phone photos end up sideways.
+	if ct == "image/jpeg" {
+		if o := jpegOrientation(data); o > 1 {
+			src = applyOrientation(src, o)
+		}
+	}
 	w, h := fit(src.Bounds().Dx(), src.Bounds().Dy(), p.MaxSide)
 	transparent := p.KeepTransparency && hasTransparency(src)
 	var dst draw.Image

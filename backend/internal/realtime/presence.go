@@ -22,6 +22,10 @@ const (
 type Presence interface {
 	// Connect registers a live connection for userID.
 	Connect(ctx context.Context, connID string, userID uuid.UUID) error
+	// ConnectLimited registers a live connection unless userID already has
+	// max live connections across all instances (max <= 0: unlimited). It
+	// reports whether the connection was admitted.
+	ConnectLimited(ctx context.Context, connID string, userID uuid.UUID, max int) (bool, error)
 	// Heartbeat refreshes the connection and every session it joined.
 	Heartbeat(ctx context.Context, connID string, userID uuid.UUID) error
 	// Disconnect removes the connection and returns the sessions it had joined.
@@ -72,6 +76,33 @@ func (p *RedisPresence) Connect(ctx context.Context, connID string, userID uuid.
 	pipe.ZAdd(ctx, p.onlineKey(), redis.Z{Score: p.expiry(), Member: userID.String()})
 	_, err := pipe.Exec(ctx)
 	return err
+}
+
+// connectLimitedScript prunes expired connections of the user, refuses a new
+// one at the cap, and otherwise registers it exactly like Connect — in one
+// atomic step, so concurrent handshakes on different instances cannot both
+// take the last slot.
+//
+//	KEYS: user connections zset, connection key, online zset
+//	ARGV: now ms, expiry ms, max, connection id, user id, ttl ms
+var connectLimitedScript = redis.NewScript(`
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', '(' .. ARGV[1])
+local max = tonumber(ARGV[3])
+if max > 0 and not redis.call('ZSCORE', KEYS[1], ARGV[4]) and redis.call('ZCARD', KEYS[1]) >= max then
+  return 0
+end
+redis.call('SET', KEYS[2], ARGV[5], 'PX', ARGV[6])
+redis.call('ZADD', KEYS[1], ARGV[2], ARGV[4])
+redis.call('PEXPIRE', KEYS[1], 2 * tonumber(ARGV[6]))
+redis.call('ZADD', KEYS[3], ARGV[2], ARGV[5])
+return 1
+`)
+
+// ConnectLimited implements Presence.
+func (p *RedisPresence) ConnectLimited(ctx context.Context, connID string, userID uuid.UUID, max int) (bool, error) {
+	n, err := connectLimitedScript.Run(ctx, p.client, []string{p.userKey(userID), p.connKey(connID), p.onlineKey()},
+		p.now().UnixMilli(), int64(p.expiry()), max, connID, userID.String(), p.ttl.Milliseconds()).Int()
+	return n == 1, err
 }
 
 // Heartbeat implements Presence.
@@ -242,6 +273,26 @@ func (m *MemoryPresence) Connect(_ context.Context, connID string, userID uuid.U
 	defer m.mu.Unlock()
 	m.conns[connID] = memConn{user: userID, expires: m.now().Add(m.ttl), sessions: map[uuid.UUID]struct{}{}}
 	return nil
+}
+
+// ConnectLimited implements Presence.
+func (m *MemoryPresence) ConnectLimited(_ context.Context, connID string, userID uuid.UUID, max int) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := m.now()
+	if _, existing := m.conns[connID]; !existing && max > 0 {
+		live := 0
+		for _, c := range m.conns {
+			if c.user == userID && c.expires.After(now) {
+				live++
+			}
+		}
+		if live >= max {
+			return false, nil
+		}
+	}
+	m.conns[connID] = memConn{user: userID, expires: now.Add(m.ttl), sessions: map[uuid.UUID]struct{}{}}
+	return true, nil
 }
 
 // Heartbeat implements Presence.

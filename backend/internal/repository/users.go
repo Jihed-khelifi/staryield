@@ -199,16 +199,44 @@ func (r *GormTokenRepository) RevokeRefresh(ctx context.Context, id uuid.UUID, r
 		Updates(map[string]any{"revoked_at": at, "revoke_reason": reason, "replaced_by": replacedBy, "last_used_at": at}).Error
 }
 
+// RevokeFamily revokes every token of a refresh family and signs the
+// matching device (user_sessions row) out.
 func (r *GormTokenRepository) RevokeFamily(ctx context.Context, familyID uuid.UUID, reason string, at time.Time) (int64, error) {
-	res := database.Conn(ctx, r.db).Model(&domain.RefreshToken{}).Where("family_id = ? AND revoked_at IS NULL", familyID).
+	conn := database.Conn(ctx, r.db)
+	res := conn.Model(&domain.RefreshToken{}).Where("family_id = ? AND revoked_at IS NULL", familyID).
 		Updates(map[string]any{"revoked_at": at, "revoke_reason": reason})
-	return res.RowsAffected, res.Error
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	if err := conn.Model(&domain.UserSession{}).Where("id = ? AND revoked_at IS NULL", familyID).
+		Updates(map[string]any{"revoked_at": at, "revoke_reason": sessionReason(reason), "updated_at": at}).Error; err != nil {
+		return 0, err
+	}
+	return res.RowsAffected, nil
 }
 
+// RevokeAllForUser revokes every refresh token of a user and signs all of
+// their devices out.
 func (r *GormTokenRepository) RevokeAllForUser(ctx context.Context, userID uuid.UUID, reason string, at time.Time) (int64, error) {
-	res := database.Conn(ctx, r.db).Model(&domain.RefreshToken{}).Where("user_id = ? AND revoked_at IS NULL", userID).
+	conn := database.Conn(ctx, r.db)
+	res := conn.Model(&domain.RefreshToken{}).Where("user_id = ? AND revoked_at IS NULL", userID).
 		Updates(map[string]any{"revoked_at": at, "revoke_reason": reason})
-	return res.RowsAffected, res.Error
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	if err := conn.Model(&domain.UserSession{}).Where("user_id = ? AND revoked_at IS NULL", userID).
+		Updates(map[string]any{"revoked_at": at, "revoke_reason": sessionReason(reason), "updated_at": at}).Error; err != nil {
+		return 0, err
+	}
+	return res.RowsAffected, nil
+}
+
+// sessionReason fits a revoke reason into user_sessions.revoke_reason.
+func sessionReason(reason string) string {
+	if len(reason) > 64 {
+		return reason[:64]
+	}
+	return reason
 }
 
 func (r *GormTokenRepository) CreateReset(ctx context.Context, t *domain.PasswordResetToken) error {
@@ -239,5 +267,11 @@ func (r *GormTokenRepository) DeleteExpired(ctx context.Context, before time.Tim
 		return 0, res.Error
 	}
 	res2 := conn.Where("expires_at < ?", before).Delete(&domain.PasswordResetToken{})
-	return res.RowsAffected + res2.RowsAffected, res2.Error
+	if res2.Error != nil {
+		return 0, res2.Error
+	}
+	// Devices whose last refresh token expired (their tokens were just
+	// removed; any left are removed with them by the foreign key).
+	res3 := conn.Where("expires_at < ?", before).Delete(&domain.UserSession{})
+	return res.RowsAffected + res2.RowsAffected + res3.RowsAffected, res3.Error
 }

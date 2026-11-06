@@ -10,6 +10,7 @@ import { SunLogo } from "@/components/brand/sun-logo";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 import { UserAvatar, UserMenu, useAccountLinks } from "@/components/layout/user-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { AdvisorHeaderActions, WalletPill } from "@/components/psychic/header-actions";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -31,6 +32,8 @@ export function SiteHeader({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const signedIn = status === "authenticated" && Boolean(user);
+  // Advisors work from the chatroom and their profile (Figma 1174:2294).
+  const advisor = signedIn && user?.role === "psychic";
   const items = publicSite
     ? [
         ["Psychics", "/psychics"],
@@ -38,11 +41,16 @@ export function SiteHeader({
         ["Path of Life", "/calculators/path-of-life"],
         ["Astrology", "/calculators/astrology"],
       ]
-    : [
-        [t("nav.psychics"), "/psychics"],
-        [t("nav.chatroom"), "/chatroom"],
-        [t("nav.profile"), "/profile"],
-      ];
+    : advisor
+      ? [
+          [t("nav.chatroom"), "/chatroom"],
+          [t("nav.profile"), "/profile"],
+        ]
+      : [
+          [t("nav.psychics"), "/psychics"],
+          [t("nav.chatroom"), "/chatroom"],
+          [t("nav.profile"), "/profile"],
+        ];
   const active = (href: string) => pathname.startsWith(`/${locale}${href}`);
   const accountLinks = useAccountLinks();
   const menuLinks = signedIn
@@ -95,6 +103,8 @@ export function SiteHeader({
                 <Link href={`/${locale}/signup`}>{text("Sign Up")}</Link>
               </Button>
             </div>
+          ) : advisor ? (
+            <AdvisorHeaderActions />
           ) : (
             <>
               {user?.role === "client" ? (
@@ -130,6 +140,7 @@ export function SiteHeader({
                 <SheetTitle>{text("Staryield")}</SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-6 px-6">
+                {advisor ? <WalletPill className="self-start" onNavigate={() => setOpen(false)} /> : null}
                 {menuLinks.map(([label, href]) => (
                   <Link
                     key={href}
@@ -187,7 +198,7 @@ export function MobileNavigation() {
           href={`/${locale}${href}`}
           className={
             path === `/${locale}${href}` ||
-            (label === "Profile" && path.includes("/settings"))
+            (label === "Profile" && /\/profile\/(settings|analytics)/.test(path))
               ? "active"
               : ""
           }

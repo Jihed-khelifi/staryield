@@ -19,7 +19,6 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/clock"
 	"github.com/Jihed-khelifi/staryield/backend/internal/database"
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
-	"github.com/Jihed-khelifi/staryield/backend/internal/i18n"
 	"github.com/Jihed-khelifi/staryield/backend/internal/logger"
 	mailer "github.com/Jihed-khelifi/staryield/backend/internal/mail"
 	"github.com/Jihed-khelifi/staryield/backend/internal/realtime"
@@ -74,20 +73,23 @@ type AuthService struct {
 	issuer  *security.TokenIssuer
 	kv      cache.Store
 	tickets realtime.TicketStore
-	mailer  mailer.Mailer
+	mail    EmailQueue
 	events  EventPublisher
 	tracker analytics.Tracker
 	clock   clock.Clock
 	cfg     AuthSettings
+	// ident enables signed-in devices (identity module; see devices.go).
+	ident *authIdentity
 }
 
-// NewAuthService wires the auth service.
+// NewAuthService wires the auth service. E-mail (password resets) goes
+// through the outbox (EmailQueue).
 func NewAuthService(tx database.TxManager, users repository.UserRepository, tokens repository.TokenRepository,
 	wallet *WalletService, wallets repository.WalletRepository, hasher *security.PasswordHasher, issuer *security.TokenIssuer,
-	kv cache.Store, tickets realtime.TicketStore, m mailer.Mailer, events EventPublisher, tracker analytics.Tracker,
+	kv cache.Store, tickets realtime.TicketStore, m EmailQueue, events EventPublisher, tracker analytics.Tracker,
 	clk clock.Clock, cfg AuthSettings) *AuthService {
 	return &AuthService{tx: tx, users: users, tokens: tokens, wallet: wallet, wallets: wallets, hasher: hasher, issuer: issuer,
-		kv: kv, tickets: tickets, mailer: m, events: events, tracker: tracker, clock: clk, cfg: cfg}
+		kv: kv, tickets: tickets, mail: m, events: events, tracker: tracker, clock: clk, cfg: cfg}
 }
 
 // NormalizeEmail lowercases and validates an e-mail address.
@@ -168,9 +170,9 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*AuthResu
 		}
 		name = local
 	}
-	hash, err := s.hasher.Hash(in.Password)
+	hash, err := s.hasher.HashContext(ctx, in.Password)
 	if err != nil {
-		return nil, apperror.Internal(err)
+		return nil, hashError(err)
 	}
 
 	user := &domain.User{
@@ -232,6 +234,9 @@ func (s *AuthService) Login(ctx context.Context, rawEmail, password string) (*Au
 	}
 	if !user.Active() {
 		s.tracker.Track(ctx, "user.login_failed", map[string]any{"reason": string(user.Status)})
+		if err := s.offerReactivation(ctx, user); err != nil {
+			return nil, err
+		}
 		return nil, apperror.AccountDisabled()
 	}
 	result, err := s.issueSession(ctx, user, uuid.Nil)
@@ -250,7 +255,9 @@ func (s *AuthService) Login(ctx context.Context, rawEmail, password string) (*Au
 func (s *AuthService) VerifyCredentials(ctx context.Context, rawEmail, password string) (*domain.User, error) {
 	email, ok := NormalizeEmail(rawEmail)
 	if !ok || password == "" || len(password) > security.PasswordMaxLength*4 {
-		s.hasher.VerifyDummy(password)
+		if err := s.hasher.VerifyDummyContext(ctx, password); err != nil {
+			return nil, hashError(err)
+		}
 		return nil, apperror.InvalidCredentials()
 	}
 	key := s.throttleKey(email)
@@ -269,11 +276,17 @@ func (s *AuthService) VerifyCredentials(ctx context.Context, rawEmail, password 
 		if !errors.Is(err, repository.ErrNotFound) {
 			return nil, apperror.Internal(err)
 		}
-		s.hasher.VerifyDummy(password)
+		// A busy hasher answers like it would for a real account, and is not a failed attempt.
+		if err := s.hasher.VerifyDummyContext(ctx, password); err != nil {
+			return nil, hashError(err)
+		}
 		s.recordFailure(ctx, key, "unknown_email")
 		return nil, apperror.InvalidCredentials()
 	}
-	needsRehash, err := s.hasher.Verify(password, user.PasswordHash)
+	needsRehash, err := s.hasher.VerifyContext(ctx, password, user.PasswordHash)
+	if hasherBusy(err) {
+		return nil, hashError(err)
+	}
 	if err != nil {
 		if !errors.Is(err, security.ErrMismatch) {
 			logger.FromContext(ctx).Error("auth: stored hash unreadable", zap.String("user_id", user.ID.String()), zap.Error(err))
@@ -289,7 +302,7 @@ func (s *AuthService) VerifyCredentials(ctx context.Context, rawEmail, password 
 	now := s.clock.Now()
 	fields := map[string]any{"last_login_at": now}
 	if needsRehash {
-		if h, err := s.hasher.Hash(password); err == nil {
+		if h, err := s.hasher.HashContext(ctx, password); err == nil {
 			fields["password_hash"] = h
 		}
 	}
@@ -320,7 +333,8 @@ func (s *AuthService) recordFailure(ctx context.Context, key, reason string) {
 // issueSession creates a refresh token (new family unless given) and an
 // access token.
 func (s *AuthService) issueSession(ctx context.Context, user *domain.User, family uuid.UUID) (*AuthResult, error) {
-	if family == uuid.Nil {
+	newFamily := family == uuid.Nil
+	if newFamily {
 		family = domain.NewID()
 	}
 	raw, err := security.RandomToken(32)
@@ -333,6 +347,9 @@ func (s *AuthService) issueSession(ctx context.Context, user *domain.User, famil
 		ID: domain.NewID(), UserID: user.ID, FamilyID: family, TokenHash: security.HashToken(raw),
 		ExpiresAt: now.Add(s.cfg.RefreshTTL), UserAgent: truncateString(meta.UserAgent, 256),
 		IPHash: security.Keyed(s.cfg.IPHashSecret, meta.IP, 32), CreatedAt: now,
+	}
+	if err := s.recordDevice(ctx, rt, newFamily); err != nil {
+		return nil, err
 	}
 	if err := s.tokens.CreateRefresh(ctx, rt); err != nil {
 		return nil, err
@@ -436,12 +453,14 @@ func (s *AuthService) revokeAccess(ctx context.Context, userID uuid.UUID) {
 	warnErr(ctx, "auth: realtime revoke", s.events.Revoke(ctx, userID))
 }
 
-// Logout revokes the refresh-token family of the presented token.
+// Logout signs this device out: its refresh-token family is revoked, its
+// access token stops working at once and its realtime connections close.
 func (s *AuthService) Logout(ctx context.Context, raw string) error {
-	if raw == "" {
+	if raw == "" || len(raw) > 128 {
 		return nil
 	}
-	return s.tx.WithinTx(ctx, func(ctx context.Context) error {
+	var signedOut *domain.RefreshToken
+	err := s.tx.WithinTx(ctx, func(ctx context.Context) error {
 		rt, err := s.tokens.GetRefreshByHashForUpdate(ctx, security.HashToken(raw))
 		if errors.Is(err, repository.ErrNotFound) {
 			return nil
@@ -449,9 +468,19 @@ func (s *AuthService) Logout(ctx context.Context, raw string) error {
 		if err != nil {
 			return apperror.Internal(err)
 		}
-		_, err = s.tokens.RevokeFamily(ctx, rt.FamilyID, "logout", s.clock.Now())
-		return err
+		if _, err = s.tokens.RevokeFamily(ctx, rt.FamilyID, "logout", s.clock.Now()); err != nil {
+			return err
+		}
+		signedOut = rt
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+	if signedOut != nil {
+		s.afterFamilyRevoked(ctx, signedOut.UserID, signedOut.FamilyID)
+	}
+	return nil
 }
 
 // LogoutAll signs the user out of every device.
@@ -510,14 +539,12 @@ func (s *AuthService) ForgotPassword(ctx context.Context, rawEmail, locale strin
 	}
 	link := fmt.Sprintf("%s/%s/reset-password?token=%s", s.cfg.FrontendURL, lang, raw)
 	minutes := int(s.cfg.ResetTTL / time.Minute)
-	if err := s.mailer.Send(ctx, mailer.Message{
-		To:      user.Email,
-		Subject: i18n.T(lang, "Reset your Staryield password"),
-		Text: i18n.T(lang, "We received a request to reset your password.") + "\n\n" +
-			i18n.T(lang, fmt.Sprintf("Use this link within %d minutes:", minutes)) + "\n" + link + "\n\n" +
-			i18n.T(lang, "If you did not ask for this, you can ignore this email."),
-	}); err != nil {
-		logger.FromContext(ctx).Error("auth: send reset email failed", zap.Error(err))
+	// The outbox seals the link at rest and retries delivery; a failure to
+	// enqueue is logged, never revealed (the response is always the same).
+	uid := user.ID
+	if err := s.mail.Enqueue(ctx, EmailRequest{UserID: &uid, To: user.Email, Locale: lang, Category: domain.EmailSecurity,
+		Template: "password_reset", Content: mailer.PasswordReset(lang, link, minutes)}); err != nil {
+		logger.FromContext(ctx).Error("auth: enqueue reset email failed", zap.Error(err))
 	}
 	s.tracker.Track(reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: user.ID, Role: user.Role}), "password.reset_requested", nil)
 	return nil
@@ -546,9 +573,9 @@ func (s *AuthService) ResetPassword(ctx context.Context, raw, password string) e
 		if msg := security.ValidatePassword(password, user.Email); msg != "" {
 			return apperror.Validation(map[string]string{"password": msg})
 		}
-		hash, err := s.hasher.Hash(password)
+		hash, err := s.hasher.HashContext(ctx, password)
 		if err != nil {
-			return err
+			return hashError(err)
 		}
 		if err := s.users.Updates(ctx, user.ID, map[string]any{
 			"password_hash": hash, "token_version": gorm.Expr("token_version + 1"),
@@ -580,7 +607,10 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, curr
 	if err != nil {
 		return nil, mapRepoErr(err, "User")
 	}
-	if _, err := s.hasher.Verify(current, user.PasswordHash); err != nil {
+	if _, err := s.hasher.VerifyContext(ctx, current, user.PasswordHash); err != nil {
+		if hasherBusy(err) {
+			return nil, hashError(err)
+		}
 		return nil, apperror.Validation(map[string]string{"current_password": "The current password is incorrect."})
 	}
 	if msg := security.ValidatePassword(next, user.Email); msg != "" {
@@ -589,9 +619,9 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, curr
 	if current == next {
 		return nil, apperror.Validation(map[string]string{"new_password": "Choose a password different from the current one."})
 	}
-	hash, err := s.hasher.Hash(next)
+	hash, err := s.hasher.HashContext(ctx, next)
 	if err != nil {
-		return nil, apperror.Internal(err)
+		return nil, hashError(err)
 	}
 	now := s.clock.Now()
 	var result *AuthResult
@@ -679,9 +709,14 @@ func (s *AuthService) Authenticate(ctx context.Context, token string) (reqctx.Pr
 		return reqctx.Principal{}, apperror.Unauthenticated("")
 	}
 	userID := uuid.MustParse(claims.Subject)
-	st, err := s.status(ctx, userID)
+	family, _ := uuid.Parse(claims.FamilyID)
+	st, err := s.authState(ctx, userID, family)
 	if err != nil {
 		return reqctx.Principal{}, err
+	}
+	// A signed-out device's access token dies immediately.
+	if st.revoked {
+		return reqctx.Principal{}, apperror.SessionExpired()
 	}
 	if st.Status != domain.UserActive {
 		return reqctx.Principal{}, apperror.AccountDisabled()
@@ -690,15 +725,22 @@ func (s *AuthService) Authenticate(ctx context.Context, token string) (reqctx.Pr
 	if claims.Version != st.TokenVersion {
 		return reqctx.Principal{}, apperror.SessionExpired()
 	}
-	family, _ := uuid.Parse(claims.FamilyID)
+	if !st.seen {
+		s.markSeen(ctx, family)
+	}
 	return reqctx.Principal{UserID: userID, Role: st.Role, FamilyID: family}, nil
 }
 
-// AuthorizeRealtime checks that a user may (still) hold realtime connections.
-func (s *AuthService) AuthorizeRealtime(ctx context.Context, userID uuid.UUID) (string, error) {
-	st, err := s.status(ctx, userID)
+// AuthorizeRealtime checks that a user may (still) hold realtime
+// connections from the device the ticket was issued to: a ticket fetched
+// moments before that device was signed out must not open a connection.
+func (s *AuthService) AuthorizeRealtime(ctx context.Context, userID, family uuid.UUID) (string, error) {
+	st, err := s.authState(ctx, userID, family)
 	if err != nil {
 		return "", err
+	}
+	if st.revoked {
+		return "", apperror.SessionExpired()
 	}
 	if st.Status != domain.UserActive {
 		return "", apperror.AccountDisabled()
@@ -708,7 +750,7 @@ func (s *AuthService) AuthorizeRealtime(ctx context.Context, userID uuid.UUID) (
 
 // IssueRealtimeTicket returns a single-use WebSocket handshake ticket.
 func (s *AuthService) IssueRealtimeTicket(ctx context.Context, p reqctx.Principal) (string, time.Duration, error) {
-	ticket, err := s.tickets.Issue(ctx, p.UserID, string(p.Role), s.cfg.TicketTTL)
+	ticket, err := s.realtimeTicket(ctx, p)
 	if err != nil {
 		return "", 0, apperror.Unavailable(err)
 	}

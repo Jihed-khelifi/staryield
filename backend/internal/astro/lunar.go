@@ -38,13 +38,16 @@ type LunarEvent struct {
 	Sign string    `json:"sign"`
 }
 
-// MoonPhaseAngle returns the Moon's elongation from the Sun in ecliptic
-// longitude, in degrees within [0, 360): 0 at New Moon, 90 at First Quarter,
-// 180 at Full Moon and 270 at Last Quarter.
+// MoonPhaseAngle returns the Moon's elongation from the Sun in apparent
+// ecliptic longitude, in degrees within [0, 360): 0 at New Moon, 90 at
+// First Quarter, 180 at Full Moon and 270 at Last Quarter.
 func MoonPhaseAngle(t time.Time) float64 {
-	d := dayNumber(t)
-	sun, _ := sunPosition(d)
-	return norm360(moonLongitude(d) - sun)
+	return norm360(EclipticLongitude(Moon, t) - EclipticLongitude(Sun, t))
+}
+
+// fastPhaseAngle is MoonPhaseAngle with the fast model, for coarse scans.
+func fastPhaseAngle(t time.Time) float64 {
+	return norm360(fastLongitude(Moon, t) - fastLongitude(Sun, t))
 }
 
 // Illumination returns the approximate illuminated fraction of the Moon's
@@ -84,11 +87,14 @@ const lunarSearchStep = 6 * time.Hour
 // skipped, so passing a previously returned event's At yields the next one.
 const lunarEventResolution = time.Minute
 
+// lunarBracketMargin widens a fast-model bracket before precise refinement.
+const lunarBracketMargin = 2 * time.Hour
+
 // NextLunarEvents returns the next n principal lunar phases after from, in
-// chronological order. Each moment is found by bracketing the target
-// elongation and refining it by bisection to better than a minute; the
-// result is rounded to the nearest second. Each event reports the Moon's sign
-// at that moment.
+// chronological order. Each moment is bracketed with the fast model, then
+// refined by bisection on the precise elongation to better than a minute;
+// the result is rounded to the nearest second. Each event reports the Moon's
+// sign at that moment.
 func NextLunarEvents(from time.Time, n int) []LunarEvent {
 	if n <= 0 {
 		return nil
@@ -101,9 +107,22 @@ func NextLunarEvents(from time.Time, n int) []LunarEvent {
 		target := float64(q) * 90
 		offset := func(t time.Time) float64 { return wrap180(MoonPhaseAngle(t) - target) }
 
+		fastOffset := func(t time.Time) float64 { return wrap180(fastPhaseAngle(t) - target) }
 		hi := lo.Add(lunarSearchStep)
-		for offset(hi) < 0 {
+		for fastOffset(hi) < 0 {
 			lo, hi = hi, hi.Add(lunarSearchStep)
+		}
+		// The fast model is off by minutes of time at most; widen the
+		// bracket before refining with the precise elongation.
+		lo, hi = lo.Add(-lunarBracketMargin), hi.Add(lunarBracketMargin)
+		if lo.Before(from) {
+			lo = from
+		}
+		for offset(lo) >= 0 && lo.After(from) {
+			lo = lo.Add(-lunarBracketMargin)
+		}
+		for offset(hi) < 0 {
+			hi = hi.Add(lunarBracketMargin)
 		}
 		for hi.Sub(lo) > 30*time.Second {
 			mid := lo.Add(hi.Sub(lo) / 2)

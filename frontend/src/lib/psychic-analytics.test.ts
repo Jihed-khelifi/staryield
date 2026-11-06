@@ -15,7 +15,6 @@ import {
   heatmapCells,
   rangeFor,
   ratio,
-  validateWithdrawal,
   weekdayName,
 } from "@/lib/psychic-analytics";
 import { componentCopy, gradeCopy, levelCopy, methodLabel, rangeCopy, withdrawalStatusLabel } from "@/components/analytics/analytics-copy";
@@ -136,41 +135,6 @@ describe("score helpers", () => {
 
   it("values credits in money", () => {
     expect(creditsValue(2500, 2, "USD", "en")).toBe("$50.00");
-  });
-});
-
-describe("validateWithdrawal", () => {
-  const payout = { available_credits: 5000, min_withdrawal_credits: 2500 };
-  const ok = { amount: "3000", method: "bank_transfer" as const, destination: "FR76 3000 6000 0112 3456 7890 189" };
-
-  it("accepts a valid request and trims the destination", () => {
-    expect(validateWithdrawal({ ...ok, destination: `  ${ok.destination}  ` }, payout)).toEqual({
-      errors: {},
-      value: { amount_credits: 3000, method: "bank_transfer", destination: ok.destination },
-    });
-    expect(validateWithdrawal({ amount: "2500", method: "paypal", destination: "me@example.com" }, payout).value).toBeDefined();
-  });
-
-  it.each([
-    [{ amount: "" }, "amount", "Enter an amount."],
-    [{ amount: "12.5" }, "amount", "Enter a whole number of credits."],
-    [{ amount: "-3" }, "amount", "Enter a whole number of credits."],
-    [{ amount: "100" }, "amount", "The minimum withdrawal is {min} credits."],
-    [{ amount: "6000" }, "amount", "You can withdraw at most {max} credits."],
-    [{ method: "" }, "method", "Choose a payout method."],
-    [{ destination: "  " }, "destination", "Enter where we should send the money."],
-    [{ destination: "x".repeat(201) }, "destination", "Keep this under 200 characters."],
-    [{ method: "paypal", destination: "not-an-email" }, "destination", "Enter the email address of your PayPal account."],
-    [{ destination: "12" }, "destination", "Enter a valid IBAN or account number."],
-  ] as const)("rejects %o", (patch, field, message) => {
-    const result = validateWithdrawal({ ...ok, ...patch }, payout);
-    expect(result.value).toBeUndefined();
-    expect(result.errors[field]?.message).toBe(message);
-  });
-
-  it("passes limits as interpolation values", () => {
-    expect(validateWithdrawal({ ...ok, amount: "1" }, payout).errors.amount?.values).toEqual({ min: 2500 });
-    expect(validateWithdrawal({ ...ok, amount: "9999" }, payout).errors.amount?.values).toEqual({ max: 5000 });
   });
 });
 

@@ -42,6 +42,10 @@ describe("notificationText", () => {
     ["credits.adjusted", { amount: -30 }, "Balance adjusted", "30 credits were removed from your balance."],
     ["withdrawal.updated", { withdrawal_id: "w", status: "paid", amount_credits: 3000 }, "Withdrawal update", "Your withdrawal of 3,000 credits has been paid."],
     ["withdrawal.updated", { withdrawal_id: "w", status: "rejected", amount_credits: 2500 }, "Withdrawal update", "Your withdrawal of 2,500 credits was rejected. The credits are available again."],
+    // advisor settings: photo review decisions
+    ["photo.approved", { submission_id: "p" }, "Photo approved", "Your new profile photo is now on your profile."],
+    ["photo.rejected", { submission_id: "p", reason: "Your face is not visible." }, "Photo not approved", "Your new profile photo was not approved: Your face is not visible."],
+    ["photo.rejected", { submission_id: "p" }, "Photo not approved", "Your new profile photo was not approved. Upload another one from your settings."],
   ])("renders %s in English", (kind, data, title, body) => {
     expect(notificationText(n(kind, data), "en", textEn)).toEqual({ title, body });
   });

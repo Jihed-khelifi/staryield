@@ -38,9 +38,11 @@ type FrameHandler interface {
 	OnDisconnect(ctx context.Context, c *Client, joined []uuid.UUID)
 }
 
-// Authorizer re-validates the user when a connection opens (status may
-// have changed since the ticket was issued).
-type Authorizer func(ctx context.Context, userID uuid.UUID) (role string, err error)
+// Authorizer re-validates the user when a connection opens: the account
+// status may have changed, and the device (refresh family) the ticket was
+// issued to may have been signed out since. family is uuid.Nil when the
+// ticket carries none.
+type Authorizer func(ctx context.Context, userID, family uuid.UUID) (role string, err error)
 
 // Server serves WebSocket and SSE connections.
 type Server struct {
@@ -102,7 +104,16 @@ func (s *Server) ServeWS(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, r, http.StatusForbidden, apperror.Forbidden("Origin not allowed."))
 		return
 	}
-	userID, role, ok, err := s.tickets.Consume(ctx, r.URL.Query().Get("ticket"))
+	// identity: tickets may carry the signed-in device (family).
+	var claims TicketClaims
+	var ok bool
+	var err error
+	if ft, family := s.tickets.(FamilyTickets); family {
+		claims, ok, err = ft.ConsumeClaims(ctx, r.URL.Query().Get("ticket"))
+	} else {
+		claims.UserID, claims.Role, ok, err = s.tickets.Consume(ctx, r.URL.Query().Get("ticket"))
+	}
+	userID, role := claims.UserID, claims.Role
 	if err != nil {
 		log.Error("realtime: ticket lookup failed", zap.Error(err))
 		writeJSONError(w, r, http.StatusServiceUnavailable, apperror.Unavailable(err))
@@ -113,7 +124,7 @@ func (s *Server) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.authorize != nil {
-		if role, err = s.authorize(ctx, userID); err != nil {
+		if role, err = s.authorize(ctx, userID, claims.Family); err != nil {
 			appErr := apperror.From(err)
 			writeJSONError(w, r, appErr.Status, appErr)
 			return
@@ -130,6 +141,7 @@ func (s *Server) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	client := newClient(userID, role, "ws", s.cfg.SendBuffer, resume != "", s.log.With(zap.String("request_id", r.Header.Get("X-Request-ID"))))
+	client.Family = claims.Family
 	client.Locale = i18n.Normalize(r.URL.Query().Get("locale"))
 	if r.URL.Query().Get("locale") == "" {
 		client.Locale = i18n.Normalize(reqctx.MetaFrom(ctx).Locale)
@@ -166,6 +178,14 @@ func (s *Server) runWS(conn *websocket.Conn, c *Client, resume string) {
 		s.writeWS(conn, c)
 	}()
 
+	if err := s.admit(connCtx, c); err != nil {
+		// Over the per-user cap across instances: close like the local cap.
+		c.Close(CloseTooManyConns, "too many connections")
+		<-writerDone
+		_ = conn.Close()
+		s.hub.Unregister(c)
+		return
+	}
 	s.open(connCtx, c, resume)
 	go s.heartbeat(connCtx, c)
 	s.readWS(connCtx, conn, c)
@@ -176,10 +196,35 @@ func (s *Server) runWS(conn *websocket.Conn, c *Client, resume string) {
 	s.close(c)
 }
 
-// open registers presence, greets the client and replays missed events.
-func (s *Server) open(ctx context.Context, c *Client, resume string) {
-	if err := s.presence.Connect(ctx, c.ID, c.UserID); err != nil {
+// admit registers the connection's presence, enforcing the per-user
+// connection cap across every instance. Presence is best-effort: when Redis
+// is unavailable the connection is admitted (the local hub cap still holds).
+func (s *Server) admit(ctx context.Context, c *Client) error {
+	ok, err := s.presence.ConnectLimited(ctx, c.ID, c.UserID, s.cfg.MaxConnsPerUser)
+	if err != nil {
 		c.Log.Error("realtime: presence connect failed", zap.Error(err))
+		return nil
+	}
+	if !ok {
+		c.Log.Info("realtime: connection refused (per-user cap across instances)")
+		return ErrTooManyConnections
+	}
+	return nil
+}
+
+// open subscribes this instance to the user's channel, greets the client
+// and replays missed events. The subscription is confirmed before hello, so
+// every event published after the client's next state reload reaches it; if
+// confirmation times out the client is told to resync.
+func (s *Server) open(ctx context.Context, c *Client, resume string) {
+	c.subscribed = true // Subscribe takes a reference even when it times out
+	subErr := s.broker.Subscribe(ctx, c.UserID)
+	if subErr != nil {
+		c.Log.Warn("realtime: user channel subscription not confirmed", zap.Error(subErr))
+	}
+	tail, err := s.broker.Tail(ctx, c.UserID)
+	if err != nil {
+		c.Log.Warn("realtime: stream tail unavailable", zap.Error(err))
 	}
 	c.SendEvent(EventHello, "", map[string]any{
 		"connection_id":   c.ID,
@@ -190,6 +235,9 @@ func (s *Server) open(ctx context.Context, c *Client, resume string) {
 		"protocol":        Subprotocol,
 		"resumed":         resume != "",
 		"max_frame_bytes": s.cfg.MaxFrameBytes,
+		// Newest durable event ID: a client that receives nothing before
+		// disconnecting can still resume from here.
+		"stream_tail": tail,
 	}, nil)
 	if resume != "" {
 		frames, gap, err := s.broker.Replay(ctx, c.UserID, resume, s.cfg.ReplayLimit)
@@ -203,12 +251,18 @@ func (s *Server) open(ctx context.Context, c *Client, resume string) {
 		}
 		c.Log.Debug("realtime: replayed events", zap.Int("count", len(frames)), zap.Bool("gap", gap))
 	}
+	if subErr != nil {
+		c.SendEvent(EventResyncRequired, "", map[string]string{"reason": "subscription_pending"}, nil)
+	}
 	s.handler.OnConnect(ctx, c)
 }
 
 // close removes presence and notifies the service layer.
 func (s *Server) close(c *Client) {
 	s.hub.Unregister(c)
+	if c.subscribed {
+		s.broker.Unsubscribe(c.UserID)
+	}
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background(), c.Log), 10*time.Second)
 	defer cancel()
 	joined, err := s.presence.Disconnect(ctx, c.ID, c.UserID)
@@ -384,6 +438,9 @@ func (s *Server) ServeSSE(w http.ResponseWriter, r *http.Request, userID uuid.UU
 		resume = ""
 	}
 	client := newClient(userID, role, "sse", s.cfg.SendBuffer, resume != "", log)
+	if p, ok := reqctx.PrincipalFrom(r.Context()); ok { // identity
+		client.Family = p.FamilyID
+	}
 	client.Locale = i18n.Normalize(reqctx.MetaFrom(r.Context()).Locale)
 	if err := s.hub.Register(client); err != nil {
 		status := http.StatusTooManyRequests
@@ -391,6 +448,11 @@ func (s *Server) ServeSSE(w http.ResponseWriter, r *http.Request, userID uuid.UU
 			status = http.StatusServiceUnavailable
 		}
 		writeJSONError(w, r, status, apperror.New(apperror.CodeRateLimited, status, "Too many open connections."))
+		return
+	}
+	if err := s.admit(r.Context(), client); err != nil {
+		s.hub.Unregister(client)
+		writeJSONError(w, r, http.StatusTooManyRequests, apperror.New(apperror.CodeRateLimited, http.StatusTooManyRequests, "Too many open connections."))
 		return
 	}
 	s.wg.Add(1)

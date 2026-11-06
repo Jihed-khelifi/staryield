@@ -1,9 +1,12 @@
 package astro
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/Jihed-khelifi/staryield/backend/internal/astro/ephem"
 )
 
 // GeoLocation is a point on the Earth in degrees, with latitude positive
@@ -17,6 +20,8 @@ type GeoLocation struct {
 type Position struct {
 	Body       string  `json:"body"`
 	Longitude  float64 `json:"longitude"`
+	Latitude   float64 `json:"latitude"`
+	Speed      float64 `json:"speed"` // degrees per day; negative when retrograde
 	Sign       string  `json:"sign"`
 	Degree     int     `json:"degree"`
 	Minute     int     `json:"minute"`
@@ -27,22 +32,86 @@ type Position struct {
 	Retrograde bool    `json:"retrograde"`
 }
 
-// Chart is a natal (or any moment's) chart.
-type Chart struct {
-	Instant     time.Time      `json:"instant"`
-	HasLocation bool           `json:"has_location"`
-	HouseSystem string         `json:"house_system,omitempty"`
-	SunSign     string         `json:"sun_sign"`
-	MoonSign    string         `json:"moon_sign"`
-	RisingSign  string         `json:"rising_sign,omitempty"`
-	Positions   []Position     `json:"positions"`
-	HouseCusps  []float64      `json:"house_cusps,omitempty"`
-	Element     map[string]int `json:"elements"`
+// ChartAngles holds the four angles (ecliptic longitudes in degrees).
+type ChartAngles struct {
+	Asc float64 `json:"asc"`
+	MC  float64 `json:"mc"`
+	Dsc float64 `json:"dsc"`
+	IC  float64 `json:"ic"`
 }
 
-// HouseSystemEqual is the identifier of the equal house system, in which
-// every house spans 30° starting from the Ascendant.
-const HouseSystemEqual = "equal"
+// HouseCusp is the start of one house.
+type HouseCusp struct {
+	Number int     `json:"number"`
+	Cusp   float64 `json:"cusp"`
+	Sign   string  `json:"sign"`
+}
+
+// Chart is a natal (or any moment's) chart.
+type Chart struct {
+	Instant              time.Time      `json:"instant"`
+	TimeKnown            bool           `json:"time_known"`
+	HasLocation          bool           `json:"has_location"`
+	HouseSystem          HouseSystem    `json:"house_system,omitempty"`
+	HouseSystemUsed      HouseSystem    `json:"house_system_used,omitempty"`
+	FallbackReason       string         `json:"fallback_reason,omitempty"`
+	SunSign              string         `json:"sun_sign"`
+	SunSignUncertain     bool           `json:"sun_sign_uncertain"`
+	SunSignAlternatives  []string       `json:"sun_sign_alternatives,omitempty"`
+	MoonSign             string         `json:"moon_sign"`
+	MoonSignUncertain    bool           `json:"moon_sign_uncertain"`
+	MoonSignAlternatives []string       `json:"moon_sign_alternatives,omitempty"`
+	RisingSign           string         `json:"rising_sign,omitempty"`
+	Angles               *ChartAngles   `json:"angles,omitempty"`
+	Positions            []Position     `json:"positions"`
+	HouseCusps           []float64      `json:"house_cusps,omitempty"`
+	Houses               []HouseCusp    `json:"houses,omitempty"`
+	Aspects              []Aspect       `json:"aspects"`
+	Element              map[string]int `json:"elements"`
+	Modality             map[string]int `json:"modalities"`
+
+	// cusps keeps the unrounded cusps for house assignments (tarot, client
+	// cards) without re-parsing Houses.
+	cusps *[12]float64
+}
+
+// Cusps returns the twelve house cusps and true when the chart has houses.
+func (c Chart) Cusps() ([12]float64, bool) {
+	if c.cusps == nil {
+		return [12]float64{}, false
+	}
+	return *c.cusps, true
+}
+
+// PositionOf returns the position of body b in the chart.
+func (c Chart) PositionOf(b Body) (Position, bool) {
+	for _, p := range c.Positions {
+		if p.Body == string(b) {
+			return p, true
+		}
+	}
+	return Position{}, false
+}
+
+// ChartRequest describes the moment and place to chart.
+type ChartRequest struct {
+	// Instant is the birth instant (UTC); when the time is unknown it is the
+	// representative instant from BirthWindow (local or UTC noon).
+	Instant time.Time
+	// TimeKnown enables the Ascendant, Midheaven and houses (with Loc).
+	TimeKnown bool
+	// Loc is the birthplace; nil when unknown.
+	Loc *GeoLocation
+	// System is the house system (default Placidus).
+	System HouseSystem
+	// WindowStart and WindowEnd bound the possible birth instants when the
+	// time (or place) is unknown; signs that change within the window are
+	// flagged uncertain. Zero values mean the instant is exact.
+	WindowStart, WindowEnd time.Time
+}
+
+// ErrOutOfRange is returned for instants the ephemeris does not cover.
+var ErrOutOfRange = errors.New("astro: date outside the supported range")
 
 // houseLabels names houses 1..12 (index 0 is the first house).
 var houseLabels = [12]string{
@@ -60,75 +129,74 @@ func HouseLabel(n int) string {
 	return houseLabels[n-1]
 }
 
-// maxAngleLatitude keeps the Ascendant formula away from the poles, where
-// tan(latitude) diverges.
-const maxAngleLatitude = 89.9
+// moonWindowStep is the sampling step used to list every sign the Moon
+// crosses during an uncertain birth window (it needs about 2.5 days per sign).
+const moonWindowStep = 2 * time.Hour
 
-// Angles returns the Ascendant and Midheaven (ecliptic longitudes in degrees)
-// for instant t at loc. They are derived from the local apparent sidereal
-// time (approximated by the local mean sidereal time), the obliquity of the
-// ecliptic and the geographic latitude. Near and beyond the polar circles the
-// Ascendant is mathematically defined but astrologically unstable.
-func Angles(t time.Time, loc GeoLocation) (asc, mc float64) {
-	return anglesFromRAMC(localSiderealDegrees(t, loc.Longitude), obliquity(dayNumber(t)), loc.Latitude)
-}
-
-// anglesFromRAMC computes the Ascendant and Midheaven from the right
-// ascension of the meridian, the obliquity of the ecliptic and the latitude
-// (all degrees).
-func anglesFromRAMC(ramc, eps, lat float64) (asc, mc float64) {
-	lat = math.Max(-maxAngleLatitude, math.Min(maxAngleLatitude, lat))
-	mc = norm360(atan2d(sind(ramc), cosd(ramc)*cosd(eps)))
-	// The two-argument arctangent resolves the quadrant: the Ascendant is
-	// the ecliptic point rising on the eastern horizon, which always lies
-	// less than 180° ahead of the Midheaven.
-	asc = norm360(atan2d(cosd(ramc), -(sind(ramc)*cosd(eps) + tand(lat)*sind(eps))))
-	return asc, mc
-}
-
-// greenwichSiderealDegrees returns the Greenwich mean sidereal time at t as
-// an angle in degrees (IAU 1982 expression, UT based).
-func greenwichSiderealDegrees(t time.Time) float64 {
-	jd := julianDayUT(t)
-	T := (jd - jdJ2000) / 36525
-	return norm360(280.46061837 + 360.98564736629*(jd-jdJ2000) + 0.000387933*T*T - T*T*T/38710000)
-}
-
-// localSiderealDegrees returns the local mean sidereal time (the right
-// ascension of the meridian, RAMC) in degrees for an east-positive longitude.
-func localSiderealDegrees(t time.Time, longitude float64) float64 {
-	return norm360(greenwichSiderealDegrees(t) + longitude)
-}
-
-// ComputeChart computes the positions of the ten planets at instant. When loc
-// is non-nil it also computes the Ascendant, Midheaven and equal houses;
-// otherwise house fields are left empty and HasLocation is false.
-func ComputeChart(instant time.Time, loc *GeoLocation) Chart {
-	instant = instant.UTC()
+// ComputeChart computes the positions of the ten planets at req.Instant.
+// When the time is known and req.Loc is set it also computes the angles,
+// the houses (Placidus by default, Porphyry inside the polar circles) and
+// assigns every point to a house. Aspects between the planets (and the
+// angles, when known) are always included.
+func ComputeChart(req ChartRequest) (Chart, error) {
+	instant := req.Instant.UTC()
+	sys := req.System
+	if sys == "" {
+		sys = DefaultHouseSystem
+	}
 	c := Chart{
 		Instant:     instant,
-		HasLocation: loc != nil,
+		TimeKnown:   req.TimeKnown,
+		HasLocation: req.Loc != nil,
 		Element:     map[string]int{Fire: 0, Earth: 0, Air: 0, Water: 0},
+		Modality:    map[string]int{Cardinal: 0, Fixed: 0, Mutable: 0},
 		Positions:   make([]Position, 0, len(Planets)+2),
+		Aspects:     []Aspect{},
 	}
 
-	var asc, mc float64
-	if loc != nil {
-		asc, mc = Angles(instant, *loc)
-		c.HouseSystem = HouseSystemEqual
-		c.HouseCusps = make([]float64, 12)
-		for i := range c.HouseCusps {
-			c.HouseCusps[i] = norm360(roundTo(norm360(asc+30*float64(i)), 6))
+	coords, errs := ephem.Default().Positions(ephem.JulianDay(instant))
+	for i := range errs {
+		if errs[i] != nil {
+			if Planets[i] == Pluto && errors.Is(errs[i], ephem.ErrOutOfRange) && errs[ephem.Sun] == nil {
+				continue // Pluto alone is undefined before 1885 or after 2099
+			}
+			return Chart{}, fmt.Errorf("%w: %v", ErrOutOfRange, errs[i])
 		}
-		ap := newPosition(Ascendant, asc, false)
+	}
+
+	withHouses := req.TimeKnown && req.Loc != nil
+	var cusps [12]float64
+	var points []aspectPoint
+	if withHouses {
+		asc, mc, ramc, eps := anglesAt(instant, *req.Loc)
+		var used HouseSystem
+		cusps, used, c.FallbackReason = Houses(sys, ramc, eps, req.Loc.Latitude)
+		c.HouseSystem, c.HouseSystemUsed = sys, used
+		c.cusps = &cusps
+		c.HouseCusps = make([]float64, 12)
+		c.Houses = make([]HouseCusp, 12)
+		for i, cusp := range cusps {
+			c.HouseCusps[i] = roundTo(cusp, 6)
+			c.Houses[i] = HouseCusp{Number: i + 1, Cusp: roundTo(cusp, 6), Sign: SignForLongitude(cusp)}
+		}
+		c.Angles = &ChartAngles{Asc: roundTo(asc, 6), MC: roundTo(mc, 6), Dsc: roundTo(norm360(asc+180), 6), IC: roundTo(norm360(mc+180), 6)}
+		ap := newPosition(Ascendant, asc, 0, 0)
 		c.RisingSign = ap.Sign
 		c.Positions = append(c.Positions, ap)
+		points = append(points, aspectPoint{body: Ascendant, lon: asc, angle: true})
+		points = append(points, aspectPoint{body: Midheaven, lon: mc, angle: true})
 	}
 
-	for _, b := range Planets {
-		p := newPosition(b, EclipticLongitude(b, instant), IsRetrograde(b, instant))
+	for i, b := range Planets {
+		if errs[i] != nil {
+			continue
+		}
+		co := coords[i]
+		p := newPosition(b, co.Lon, co.Lat, co.Speed)
 		c.Positions = append(c.Positions, p)
 		c.Element[ElementOf(p.Sign)]++
+		c.Modality[ModalityOf(p.Sign)]++
+		points = append(points, aspectPoint{body: b, lon: co.Lon, speed: co.Speed})
 		switch b {
 		case Sun:
 			c.SunSign = p.Sign
@@ -137,27 +205,64 @@ func ComputeChart(instant time.Time, loc *GeoLocation) Chart {
 		}
 	}
 
-	if loc != nil {
-		c.Positions = append(c.Positions, newPosition(Midheaven, mc, false))
-		// Houses are assigned from the rounded longitudes that are reported,
-		// so the Ascendant always sits exactly on the first cusp.
-		first := c.HouseCusps[0]
+	if withHouses {
+		c.Positions = append(c.Positions, newPosition(Midheaven, c.Angles.MC, 0, 0))
 		for i := range c.Positions {
 			p := &c.Positions[i]
-			p.House = equalHouse(p.Longitude, first)
+			p.House = HouseOf(p.Longitude, cusps)
 			p.HouseLabel = HouseLabel(p.House)
 		}
+		// The angles define cusps 1 and 10 exactly.
+		c.Positions[0].House, c.Positions[0].HouseLabel = 1, HouseLabel(1)
+		last := len(c.Positions) - 1
+		c.Positions[last].House, c.Positions[last].HouseLabel = 10, HouseLabel(10)
 	}
-	return c
+	c.Aspects = findAspects(orderAspectPoints(points))
+
+	if !req.WindowStart.IsZero() && !req.WindowEnd.IsZero() && req.WindowEnd.After(req.WindowStart) {
+		sun := SunSignForBirth(instant, req.WindowStart, req.WindowEnd)
+		c.SunSignUncertain, c.SunSignAlternatives = sun.Uncertain, sun.Alternatives
+		c.MoonSignAlternatives = signsCrossed(Moon, req.WindowStart, req.WindowEnd, moonWindowStep)
+		c.MoonSignUncertain = len(c.MoonSignAlternatives) > 1
+		if !c.MoonSignUncertain {
+			c.MoonSignAlternatives = nil
+		}
+	}
+	return c, nil
 }
 
-// equalHouse returns the equal-system house (1..12) containing lon.
-func equalHouse(lon, asc float64) int {
-	h := int(norm360(lon-asc)/30) + 1
-	if h > 12 {
-		h = 12
+// orderAspectPoints lists planets first (in traditional order) and the
+// angles last, so aspects read "Sun trine Moon", "Mars square Ascendant".
+func orderAspectPoints(points []aspectPoint) []aspectPoint {
+	out := make([]aspectPoint, 0, len(points))
+	for _, p := range points {
+		if !p.angle {
+			out = append(out, p)
+		}
 	}
-	return h
+	for _, p := range points {
+		if p.angle {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// signsCrossed lists, in order, the distinct signs b occupies between start
+// and end, sampling every step (and at both ends).
+func signsCrossed(b Body, start, end time.Time, step time.Duration) []string {
+	var out []string
+	add := func(t time.Time) {
+		s := SignForLongitude(EclipticLongitude(b, t))
+		if s != "" && (len(out) == 0 || out[len(out)-1] != s) {
+			out = append(out, s)
+		}
+	}
+	for t := start; t.Before(end); t = t.Add(step) {
+		add(t)
+	}
+	add(end)
+	return out
 }
 
 // arcsecondsPerCircle and arcsecondsPerSign express the zodiac in whole
@@ -170,19 +275,21 @@ const (
 
 // newPosition builds a Position for body at ecliptic longitude lon. The
 // longitude is rounded to the nearest arcsecond before being split into
-// sign, degree, minute and second.
-func newPosition(body Body, lon float64, retro bool) Position {
+// sign, degree, minute and second, so the parts always agree.
+func newPosition(body Body, lon, lat, speed float64) Position {
 	lon = norm360(lon)
 	total := int(math.Round(lon*3600)) % arcsecondsPerCircle
 	within := total % arcsecondsPerSign
 	p := Position{
 		Body:       string(body),
 		Longitude:  norm360(roundTo(lon, 6)),
+		Latitude:   roundTo(lat, 6),
+		Speed:      roundTo(speed, 6),
 		Sign:       Signs[total/arcsecondsPerSign],
 		Degree:     within / 3600,
 		Minute:     within % 3600 / 60,
 		Second:     within % 60,
-		Retrograde: retro,
+		Retrograde: canRetrograde(body) && speed < 0,
 	}
 	p.Formatted = FormatZodiac(p.Sign, p.Degree, p.Minute, p.Second)
 	return p

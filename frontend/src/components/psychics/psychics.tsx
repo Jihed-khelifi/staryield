@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/i18n-provider";
+import { zodiacIconUrl } from "@/lib/astro-icons";
 import { formatRating } from "@/lib/format";
 import { SiteHeader, MobileNavigation } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
@@ -12,14 +13,20 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { psychicsApi, requestsApi } from "@/lib/api/endpoints";
+import { psychicsApi } from "@/lib/api/endpoints";
 import { errorMessage, toApiError, type ApiError } from "@/lib/api/errors";
-import { newId } from "@/lib/api/client";
-import type { PresenceStatus, Psychic, Service } from "@/lib/api/types";
+import type { AdvisorCard, PresenceStatus, Psychic, Service } from "@/lib/api/types";
 import { track } from "@/lib/analytics";
 import { useRealtimeEvent, useSession } from "@/lib/auth/session-provider";
-import { useToast } from "@/components/feedback/toast-provider";
 import { PsychicReviews } from "@/components/reviews/psychic-reviews";
+import { NumberedPager } from "@/components/ui/pagination";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { ErrorState } from "@/components/feedback/error-state";
+import { announce } from "@/components/feedback/live-region";
+import { useAsync } from "@/lib/use-async";
+import { ServiceOrderForm } from "@/components/psychics/service-order-form";
+import { WaitlistButton } from "@/components/waitlist/waitlist-button";
 
 const statusCopy: Record<PresenceStatus, string> = {
   online: "● Online",
@@ -57,36 +64,138 @@ function LoadState({ error, onRetry }: { error: ApiError | null; onRetry: () => 
   );
 }
 
-export function PsychicsBrowse() {
-  const { text, locale } = useI18n();
-  const [advisors, setAdvisors] = useState<Psychic[] | null>(null);
-  const [error, setError] = useState<ApiError | null>(null);
+/** Advisors per directory page (the API allows up to 48). */
+export const DIRECTORY_PAGE_SIZE = 12;
 
-  const load = useCallback(() => {
-    psychicsApi
-      .list()
-      .then((list) => {
-        setAdvisors(list);
-        setError(null);
-      })
-      .catch((err) => setError(toApiError(err)));
-  }, []);
+/** The page number in the address bar (`?page=`), 1 when absent or invalid. */
+export function readDirectoryPage(search: string): number {
+  const raw = new URLSearchParams(search).get("page");
+  if (!raw || !/^\d{1,5}$/.test(raw)) return 1;
+  const n = Number(raw);
+  return n >= 1 && n <= 10_000 ? n : 1;
+}
+
+/** Records the page in the address bar without a navigation or new history entry. */
+function writeDirectoryPage(page: number) {
+  const url = new URL(window.location.href);
+  if (page > 1) url.searchParams.set("page", String(page));
+  else url.searchParams.delete("page");
+  if (url.href !== window.location.href) window.history.replaceState(window.history.state, "", url);
+}
+
+function AdvisorGridSkeleton() {
+  return (
+    <div className="advisor-grid" aria-hidden data-testid="advisor-grid-skeleton">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="advisor-card">
+          <Skeleton className="advisor-card-image rounded-none" />
+          <div className="advisor-card-copy space-y-3">
+            <Skeleton className="h-7 w-2/3" />
+            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-3 w-full" />
+            <SkeletonText lines={2} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Accessible status names (the desktop card shows a dot, mobile a pill). */
+const statusName: Record<PresenceStatus, string> = { online: "Online", busy: "Busy", away: "Away", offline: "Offline" };
+
+function AdvisorCardView({ advisor }: { advisor: AdvisorCard }) {
+  const { text, locale } = useI18n();
+  return (
+    <article className="advisor-card texture-24" data-status={advisor.status}>
+      <img className="advisor-card-image" src={advisor.image_url} alt={text(advisor.name)} loading="lazy" decoding="async" />
+      <div className="advisor-card-copy">
+        <div className="advisor-card-head">
+          <h2 className="text-[26px] md:font-display">
+            {/* Figma desktop: a status dot before the name. Its shape also
+                changes (filled when available, hollow when offline), so the
+                status is not told by colour alone. */}
+            <span className={`advisor-status-dot ${advisor.status}`} aria-hidden title={text(statusName[advisor.status])} />
+            {text(advisor.name)}
+            <span className="sr-only">, {text(statusName[advisor.status])}</span>
+          </h2>
+          <span className={`status-pill ${advisor.status === "online" ? "online" : ""}`} aria-hidden>
+            {text(statusCopy[advisor.status])}
+          </span>
+        </div>
+        {advisor.skills.length ? (
+          <ul className="advisor-skills" aria-label={text("Specialties")}>
+            {advisor.skills.slice(0, 4).map((skill) => (
+              <li key={skill}>{text(skill)}</li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="advisor-card-meta">
+          <span>
+            <img className="advisor-card-star" src="https://assets.staryield.net/assets/figma/d9e90.svg" alt="" aria-hidden />
+            <strong>{formatRating(advisor.rating, locale)}</strong>{" "}
+            <span className="advisor-card-reviews">
+              {text("({value0} reviews)", { value0: advisor.reviews_count.toLocaleString(locale) })}
+            </span>
+          </span>
+          <span className="font-extralight">
+            {advisor.rate_per_minute} {text("credits/min ")}
+          </span>
+        </div>
+        <p className="advisor-card-headline">{text(advisor.headline)}</p>
+        <Link className="advisor-profile-link" href={`/${locale}/psychics/${advisor.slug}`}>
+          {text("View full profile ")}
+          <span className="md:hidden" aria-hidden>
+            &gt;
+          </span>
+          <span className="sr-only">: {text(advisor.name)}</span>
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+export function PsychicsBrowse() {
+  const { text } = useI18n();
+  // Read once on the client; the server renders the loading state, which
+  // does not depend on the page, so hydration matches.
+  const [page, setPage] = useState(() => (typeof window === "undefined" ? 1 : readDirectoryPage(window.location.search)));
+  const top = useRef<HTMLDivElement>(null);
+  const { data, error, loading, reload, setData } = useAsync(async (signal) => {
+    const res = await psychicsApi.browse({ page, page_size: DIRECTORY_PAGE_SIZE }, signal);
+    // A deep link past the end (advisors were hidden since): show the last page.
+    if (res.items.length === 0 && res.total_pages > 0 && page > res.total_pages)
+      return psychicsApi.browse({ page: res.total_pages, page_size: DIRECTORY_PAGE_SIZE }, signal);
+    return res;
+  }, [page]);
 
   useEffect(() => {
-    load();
     track("psychic_list_viewed");
-  }, [load]);
+  }, []);
+
+  const shown = data?.page;
+  useEffect(() => {
+    if (shown) writeDirectoryPage(shown);
+  }, [shown]);
 
   useLiveStatuses(
-    (slug, status) => setAdvisors((list) => list?.map((a) => (a.slug === slug ? { ...a, status } : a)) ?? list),
-    load,
+    (slug, status) =>
+      setData((d) => (d ? { ...d, items: d.items.map((a) => (a.slug === slug ? { ...a, status } : a)) } : d)),
+    reload,
   );
+
+  function goTo(next: number) {
+    setPage(next);
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    top.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    announce(text("Page {value0} of {value1}", { value0: next, value1: data?.total_pages ?? next }));
+  }
 
   return (
     <div className="dashboard-page">
       <SiteHeader />
       <main className="psychics-browse">
-        <div className="text-center">
+        <div className="text-center" ref={top}>
           <p className="eyebrow md:hidden">{text("Trusted guidance")}</p>
           <h1 className="mt-3 text-3xl md:font-display md:text-[40px]">
             <span className="md:hidden">{text("Our psychic advisors")}</span>
@@ -103,54 +212,42 @@ export function PsychicsBrowse() {
             )}
           </p>
         </div>
-        {advisors === null ? (
-          <LoadState
-            error={error}
-            onRetry={() => {
-              setError(null);
-              load();
-            }}
+        {data === null ? (
+          error && !loading ? (
+            <ErrorState className="mx-auto mt-11 max-w-md" error={error} onRetry={reload} title={text("We couldn't load the advisors.")} />
+          ) : (
+            <div aria-busy="true">
+              <p role="status" className="sr-only">
+                {text("Loading advisors…")}
+              </p>
+              <AdvisorGridSkeleton />
+            </div>
+          )
+        ) : data.total === 0 ? (
+          <EmptyState
+            className="mx-auto mt-11 max-w-md"
+            title={text("No advisors are listed right now.")}
+            description={text("New advisors join regularly. Please check back soon.")}
           />
-        ) : advisors.length === 0 ? (
-          <p className="py-16 text-center text-sm">{text("No advisors are listed right now.")}</p>
         ) : (
-          <div className="advisor-grid">
-            {advisors.map((advisor) => (
-              <article key={advisor.slug} className="advisor-card">
-                <img className="advisor-card-image" src={advisor.image_url} alt={text(advisor.name)} />
-                <div className="advisor-card-copy">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-[26px] md:font-display">
-                      <span className="hidden text-amber md:inline">• </span>
-                      {text(advisor.name)}
-                    </h2>
-                    <span className={`status-pill ${advisor.status === "online" ? "online" : ""}`}>
-                      {text(statusCopy[advisor.status])}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs text-sage">
-                    {advisor.skills.map((skill) => text(skill)).join(" · ")}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between gap-2 text-[11px]">
-                    <span>
-                      ★{" "}
-                      <strong>
-                        {formatRating(advisor.rating, locale)} · {advisor.reviews_count.toLocaleString(locale)} {text("reviews ")}
-                      </strong>
-                    </span>
-                    <span className="font-extralight">
-                      {advisor.rate_per_minute} {text("credits/min ")}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-[13px] leading-snug">{text(advisor.headline)}</p>
-                  <Link className="advisor-profile-link" href={`/${locale}/psychics/${advisor.slug}`}>
-                    {text("View full profile ")}
-                    <span className="md:hidden">&gt;</span>
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
+          <>
+            {error && !loading ? <ErrorState compact className="mx-auto mt-6 max-w-md" error={error} onRetry={reload} /> : null}
+            <div aria-busy={loading} className={loading ? "opacity-70 transition-opacity" : "transition-opacity"}>
+              <div className="advisor-grid">
+                {data.items.map((advisor) => (
+                  <AdvisorCardView key={advisor.slug} advisor={advisor} />
+                ))}
+              </div>
+            </div>
+            <NumberedPager
+              className="mt-10"
+              page={data.page}
+              pageCount={data.total_pages}
+              loading={loading}
+              label={text("Advisor pages")}
+              onPageChange={goTo}
+            />
+          </>
         )}
       </main>
       <MobileNavigation />
@@ -160,15 +257,10 @@ export function PsychicsBrowse() {
 
 export function PsychicProfile({ slug }: { slug: string }) {
   const { text, locale } = useI18n();
-  const { status: sessionStatus, user, wallet, setWallet } = useSession();
-  const toast = useToast();
+  const { status: sessionStatus, user } = useSession();
   const [advisor, setAdvisor] = useState<Psychic | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [service, setService] = useState<Service | null>(null);
-  const [notice, setNotice] = useState("");
-  const [orderError, setOrderError] = useState<ApiError | null>(null);
-  const [ordering, setOrdering] = useState(false);
-  const orderKey = useRef(newId());
 
   const load = useCallback(() => {
     psychicsApi
@@ -183,38 +275,6 @@ export function PsychicProfile({ slug }: { slug: string }) {
 
   useEffect(load, [load]);
   useLiveStatuses((s, st) => setAdvisor((a) => (a && a.slug === s ? { ...a, status: st } : a)), load);
-
-  async function order(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!service) return;
-    const data = new FormData(event.currentTarget);
-    const date = String(data.get("date") ?? "");
-    const time = String(data.get("time") ?? "");
-    const preferred = date ? new Date(`${date}T${time || "12:00"}`).toISOString() : undefined;
-    setOrdering(true);
-    setOrderError(null);
-    setNotice("");
-    track("service_order_started", { slug, credits: service.price_credits });
-    try {
-      const req = await requestsApi.order({
-        service_id: service.id,
-        note: String(data.get("note") ?? ""),
-        preferred_at: preferred,
-        idempotency_key: orderKey.current,
-      });
-      if (req.wallet) setWallet(req.wallet);
-      orderKey.current = newId();
-      setNotice(text("Your request was sent. {value0} credits are held until {value1} delivers it.", {
-        value0: req.price_credits.toLocaleString(locale),
-        value1: advisor?.name ?? "",
-      }));
-      toast.show({ tone: "success", message: text("Request sent to {value0}.", { value0: advisor?.name ?? "" }) });
-    } catch (err) {
-      setOrderError(toApiError(err));
-    } finally {
-      setOrdering(false);
-    }
-  }
 
   if (!advisor) {
     return (
@@ -268,12 +328,8 @@ export function PsychicProfile({ slug }: { slug: string }) {
           </div>
           <div className="flex flex-col justify-center gap-6">
             <h1 className="flex items-center gap-4 font-display text-4xl lg:text-[56px]">
-              {advisor.zodiac ? (
-                <img
-                  src={`https://assets.staryield.net/assets/zodiac/${advisor.zodiac.toLowerCase()}.png`}
-                  alt={text(advisor.zodiac)}
-                  className="h-12 w-12 object-contain"
-                />
+              {zodiacIconUrl(advisor.zodiac) ? (
+                <img src={zodiacIconUrl(advisor.zodiac)} alt={text(advisor.zodiac)} className="h-12 w-12 object-contain" />
               ) : null}
               {text(advisor.name)}
             </h1>
@@ -312,11 +368,22 @@ export function PsychicProfile({ slug }: { slug: string }) {
                   {text(canChat ? "No waiting queue " : "Live chat opens when this advisor is online.")}
                 </p>
               </div>
-              <Button asChild className="gold-button mt-5 h-14 w-full">
-                <Link href={`/${locale}/chatroom?reader=${slug}`} onClick={() => track("chat_cta_clicked", { slug, status: advisor.status })}>
-                  {text("♧ Start live chat ")}
-                </Link>
-              </Button>
+              {/* Busy, away or offline: wait for the advisor next to the chat CTA (same flow as the home cards). */}
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row" data-testid="profile-ctas">
+                <Button asChild className="gold-button h-14 w-full sm:flex-1">
+                  <Link href={`/${locale}/chatroom?reader=${slug}`} onClick={() => track("chat_cta_clicked", { slug, status: advisor.status })}>
+                    {text("♧ Start live chat ")}
+                  </Link>
+                </Button>
+                {!canChat ? (
+                  <WaitlistButton
+                    slug={slug}
+                    name={advisor.name}
+                    className="h-14 w-full sm:flex-1"
+                    onAvailable={() => setAdvisor((a) => (a ? { ...a, status: "online" } : a))}
+                  />
+                ) : null}
+              </div>
             </div>
           </div>
         </section>
@@ -344,6 +411,11 @@ export function PsychicProfile({ slug }: { slug: string }) {
                     <div>
                       <h3 className="text-xl">{text(item.name)}</h3>
                       <p className="text-xs font-light">{text(item.subtitle)}</p>
+                      {item.kind === "custom" && item.delivery_days ? (
+                        <p className="text-xs font-light" data-testid="service-delivery">
+                          {text("Custom request · delivered in about {value0} days", { value0: item.delivery_days })}
+                        </p>
+                      ) : null}
                     </div>
                     <span className="status-pill self-start">
                       {text("{value0} Credits", { value0: item.price_credits.toLocaleString(locale) })}
@@ -354,9 +426,6 @@ export function PsychicProfile({ slug }: { slug: string }) {
                     className="h-10 w-full bg-gold"
                     onClick={() => {
                       setService(item);
-                      setNotice("");
-                      setOrderError(null);
-                      orderKey.current = newId();
                       track("service_viewed", { slug, credits: item.price_credits });
                     }}
                   >
@@ -389,44 +458,9 @@ export function PsychicProfile({ slug }: { slug: string }) {
             </div>
           ) : user?.role !== "client" ? (
             <p className="p-6">{text("Only client accounts can place requests.")}</p>
-          ) : (
-            <form className="space-y-5 p-6" onSubmit={order}>
-              <p>{text(service?.description)}</p>
-              <label className="field">
-                {text("What would you like to explore?")}
-                <textarea name="note" rows={4} maxLength={2000} />
-              </label>
-              <label className="field">
-                {text("Preferred date ")}
-                <input type="date" name="date" min={new Date().toISOString().slice(0, 10)} />
-              </label>
-              <label className="field">
-                {text("Preferred time ")}
-                <input type="time" name="time" />
-              </label>
-              <p>
-                {text("{value0} Credits", { value0: (service?.price_credits ?? 0).toLocaleString(locale) })} ·{" "}
-                {text("Balance: {value0} credits", { value0: (wallet?.balance ?? 0).toLocaleString(locale) })}
-              </p>
-              <p className="text-xs font-light">
-                {text("Credits are held when you order and released to the advisor only when they deliver. Declined or expired requests are refunded.")}
-              </p>
-              <Button className="gold-button w-full" type="submit" disabled={ordering} aria-busy={ordering}>
-                {text(ordering ? "Sending request…" : "Request a session ")}
-              </Button>
-              {orderError ? (
-                <div role="alert" className="text-sm text-red-800">
-                  <p>{text(errorMessage(orderError))}</p>
-                  {orderError.code === "insufficient_credits" ? (
-                    <Link className="underline" href={`/${locale}/credits?next=${returnHere}`}>
-                      {text("Top up credits")}
-                    </Link>
-                  ) : null}
-                </div>
-              ) : null}
-              <p role="status">{notice}</p>
-            </form>
-          )}
+          ) : service ? (
+            <ServiceOrderForm key={service.id} service={service} advisorName={advisor.name} slug={slug} returnHere={returnHere} />
+          ) : null}
         </SheetContent>
       </Sheet>
     </div>

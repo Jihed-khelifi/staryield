@@ -1,0 +1,24 @@
+VSOP87B planetary series
+========================
+
+Files: vsop87b_{mer,ven,ear,mar,jup,sat,ura,nep}.bin.gz
+
+Source: Bretagnon P., Francou G., "Planetary theories in rectangular and
+spherical variables: VSOP87 solutions", Astron. Astrophys. 202, 309 (1988),
+1988A&A...202..309B. Data files VSOP87B.* of catalogue VI/81 distributed by
+the authors' institute (IMCCE, https://ftp.imcce.fr/pub/ephem/planets/vsop87/)
+and by the CDS VizieR service (mirror used: https://vizier.cfa.harvard.edu/
+ftp/cats/VI/81/). The series are published for free scientific and public use;
+the original publication above must be cited, which this notice does.
+
+Conversion: scripts/vsop87 (go run ./scripts/vsop87 -out
+internal/astro/ephem/data). Each file holds the heliocentric spherical
+coordinates L, B, R referred to the dynamical ecliptic and equinox of J2000,
+with terms whose effective amplitude A·0.25^k is below 1e-8 removed (10,415 of
+35,080 terms kept). Format: "VSOP87B1", then for L, B and R a series count
+(uint8) followed per series by a term count (uint32) and little-endian float64
+triples (A, B, C); gzip-compressed.
+
+Measured against JPL Horizons (apparent geocentric ecliptic longitudes,
+1900–2100): Sun ≤ 0.1″, Mercury–Mars ≤ 0.2″, Jupiter–Saturn ≤ 0.5″,
+Uranus ≤ 1.1″, Neptune ≤ 2.6″ (see testdata/horizons.json).

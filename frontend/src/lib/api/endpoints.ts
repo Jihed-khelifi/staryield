@@ -10,13 +10,21 @@ import type {
   ChatMessage,
   ChatSession,
   Conversation,
+  InboxPage,
+  MessagePage,
+  ReadResult,
+  SincePage,
   CosmicEvents,
   CreditPack,
   CustomRequest,
   CustomRequestStatus,
+  DirectoryPage,
+  DirectoryQuery,
   EarningsReport,
+  FeaturedList,
   Horoscope,
   LedgerEntry,
+  Note,
   Page,
   Place,
   Profile,
@@ -24,13 +32,24 @@ import type {
   PsychicThread,
   Purchase,
   PsychicAnalytics,
+  PsychicBalance,
   Review,
   SessionResponse,
   SessionSummary,
+  SharedNote,
+  StatsOverview,
   User,
+  WaitlistEntry,
   Wallet,
   Withdrawal,
   WithdrawalMethod,
+  TicketInput,
+  TicketReceipt,
+  AdvisorSettings,
+  AdvisorSettingsPatch,
+  CustomServiceInput,
+  CustomServiceState,
+  PhotoState,
 } from "@/lib/api/types";
 
 function rememberSession(res: SessionResponse): SessionResponse {
@@ -90,11 +109,27 @@ export const walletApi = {
   purchases: () => api<Page<Purchase>>("/api/v1/credits/purchases"),
 };
 
+export const waitlistApi = {
+  /** Joins an advisor's waiting list (idempotent; 409 advisor_available when online). */
+  join: (slug: string) => api<WaitlistEntry>(`/api/v1/psychics/${encodeURIComponent(slug)}/waitlist`, { method: "POST" }),
+  leave: (slug: string) => api<void>(`/api/v1/psychics/${encodeURIComponent(slug)}/waitlist`, { method: "DELETE" }),
+  mine: (params: { cursor?: string; limit?: number } = {}, signal?: AbortSignal) =>
+    api<Page<WaitlistEntry>>("/api/v1/me/waitlist", { query: params, signal }),
+};
+
 export const psychicsApi = {
-  list: (signal?: AbortSignal) => api<{ items: Psychic[] }>("/api/v1/psychics", { signal }).then((r) => r.items),
+  /** Numbered directory page; filters are optional. */
+  browse: (query: DirectoryQuery = {}, signal?: AbortSignal) => api<DirectoryPage>("/api/v1/psychics", { query, signal }),
+  /** Home-page selection: available advisors first, then best rated (1–6). */
+  featured: (limit?: number, signal?: AbortSignal) => api<FeaturedList>("/api/v1/psychics/featured", { query: { limit }, signal }),
   get: (slug: string, signal?: AbortSignal) => api<Psychic>(`/api/v1/psychics/${encodeURIComponent(slug)}`, { signal }),
   setAvailability: (availability: Availability) => api<Psychic>("/api/v1/psychic/availability", { method: "PATCH", body: { availability } }),
   earnings: () => api<EarningsReport>("/api/v1/psychic/earnings"),
+  /** Withdrawable earnings for the header wallet pill. */
+  balance: (signal?: AbortSignal) => api<PsychicBalance>("/api/v1/psychic/balance", { signal }),
+  /** "Advisor stats overview" KPIs; dates are calendar days in `tz`. */
+  stats: (params: { from?: string; to?: string; tz?: string }, signal?: AbortSignal) =>
+    api<StatsOverview>("/api/v1/psychic/stats/overview", { query: params, signal }),
   /** Own dashboard (§8). `tz` is the viewer's IANA zone for hour/day buckets. */
   analytics: (params: { from?: string; to?: string; tz?: string; interval?: AnalyticsInterval }, signal?: AbortSignal) =>
     api<PsychicAnalytics>("/api/v1/psychic/analytics", { query: params, signal }),
@@ -123,7 +158,8 @@ export const reviewsApi = {
   forPsychic: (slug: string, cursor?: string, limit = 10, signal?: AbortSignal) =>
     api<Page<Review>>(`/api/v1/psychics/${encodeURIComponent(slug)}/reviews`, { query: { cursor, limit }, signal }),
   /** The signed-in advisor's own visible reviews. */
-  mine: (cursor?: string, signal?: AbortSignal) => api<Page<Review>>("/api/v1/psychic/reviews", { query: { cursor }, signal }),
+  mine: (cursor?: string, signal?: AbortSignal, limit?: number) =>
+    api<Page<Review>>("/api/v1/psychic/reviews", { query: { cursor, limit }, signal }),
 };
 
 export const withdrawalsApi = {
@@ -179,6 +215,47 @@ export const chatApi = {
     api<{ items: ChatMessage[] }>("/api/v1/chat/saved", { query: { conversation_id: conversationId } }).then((r) => r.items),
   save: (messageId: string) => api<void>(`/api/v1/chat/saved/${messageId}`, { method: "PUT", idempotent: true }),
   unsave: (messageId: string) => api<void>(`/api/v1/chat/saved/${messageId}`, { method: "DELETE", idempotent: true }),
+  // --- FE-CHAT (wave 3): seq history, gap filling, inbox and saved pages ---
+  /** One inbox page (newest activity first); `next_cursor` only when more exist. */
+  inbox: (cursor?: string, limit = 20, signal?: AbortSignal) =>
+    api<InboxPage>("/api/v1/chat/conversations", { query: { cursor, limit }, signal }),
+  /** History before `beforeSeq` (the newest page when absent), chronological. */
+  history: (conversationId: string, beforeSeq?: number, limit = 50, signal?: AbortSignal) =>
+    api<MessagePage>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/messages`, {
+      query: { before_seq: beforeSeq, limit },
+      signal,
+    }),
+  /** Messages after `afterSeq`, oldest first; follow `has_more` from the last item. */
+  since: (conversationId: string, afterSeq: number, limit = 200, signal?: AbortSignal) =>
+    api<SincePage>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/messages/since`, {
+      query: { after_seq: afterSeq, limit },
+      signal,
+    }),
+  /** Move the caller's read position forward to `seq` (never backwards). */
+  markReadSeq: (conversationId: string, seq: number) =>
+    api<ReadResult>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/read`, {
+      method: "POST",
+      body: { seq },
+      idempotent: true,
+    }),
+  /** One page of saved messages (most recently saved first). */
+  savedPage: (conversationId: string | undefined, cursor?: string, limit = 5, signal?: AbortSignal) =>
+    api<Page<ChatMessage>>("/api/v1/chat/saved", { query: { conversation_id: conversationId, cursor, limit }, signal }),
+  // --- end FE-CHAT ---
+};
+
+/** Advisors' notes about the client of a conversation (§9.5). */
+export const notesApi = {
+  list: (conversationId: string, cursor?: string, limit = 5, signal?: AbortSignal) =>
+    api<Page<Note>>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/notes`, { query: { cursor, limit }, signal }),
+  create: (conversationId: string, input: { body: string; shared: boolean }) =>
+    api<Note>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/notes`, { method: "POST", body: input }),
+  update: (noteId: string, patch: { body?: string; shared?: boolean }) =>
+    api<Note>(`/api/v1/chat/notes/${encodeURIComponent(noteId)}`, { method: "PATCH", body: patch, idempotent: true }),
+  remove: (noteId: string) => api<void>(`/api/v1/chat/notes/${encodeURIComponent(noteId)}`, { method: "DELETE", idempotent: true }),
+  /** Notes other advisors shared about the same client (read-only). */
+  shared: (conversationId: string, cursor?: string, limit = 5, signal?: AbortSignal) =>
+    api<Page<SharedNote>>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/notes/shared`, { query: { cursor, limit }, signal }),
 };
 
 export const realtimeApi = {
@@ -188,8 +265,8 @@ export const realtimeApi = {
 };
 
 export const requestsApi = {
-  list: (status?: CustomRequestStatus[]) =>
-    api<Page<CustomRequest>>("/api/v1/custom-requests", { query: { status: status?.join(",") } }),
+  list: (status?: CustomRequestStatus[], cursor?: string, limit?: number, signal?: AbortSignal) =>
+    api<Page<CustomRequest>>("/api/v1/custom-requests", { query: { status: status?.join(","), cursor, limit }, signal }),
   order: (input: { service_id: string; note?: string; preferred_at?: string; idempotency_key: string }) =>
     api<CustomRequest>("/api/v1/custom-requests", { method: "POST", body: input, idempotent: true }),
   cancel: (id: string) => api<CustomRequest>(`/api/v1/custom-requests/${id}/cancel`, { method: "POST", idempotent: true }),
@@ -202,10 +279,42 @@ export const requestsApi = {
     api<CustomRequest>(`/api/v1/custom-requests/${id}/dispute`, { method: "POST", body: { reason } }),
 };
 
+/** Contact form (public; signed-in senders are linked to their account). */
+export const supportApi = {
+  createTicket: (input: TicketInput) => api<TicketReceipt>("/api/v1/support/tickets", { method: "POST", body: input }),
+};
+
 export const astrologyApi = {
   places: (q: string, signal?: AbortSignal) => api<{ items: Place[] }>("/api/v1/astrology/places", { query: { q }, signal }).then((r) => r.items),
   chart: (input: { birth_date: string; birth_time?: string; place_id?: string }) =>
     api<Chart>("/api/v1/astrology/chart", { method: "POST", body: input, idempotent: true }),
   horoscope: (sign: string, date?: string) => api<Horoscope>(`/api/v1/astrology/horoscope/${encodeURIComponent(sign.toLowerCase())}`, { query: { date } }),
   events: (signal?: AbortSignal) => api<CosmicEvents>("/api/v1/astrology/events", { signal }),
+};
+
+// --- Advisor settings (§8.2) -----------------------------------------------------
+/** Maximum advisor photo upload accepted by the API. */
+export const ADVISOR_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+/** The signed-in advisor's settings, photo review and custom offering. */
+export const advisorApi = {
+  settings: (signal?: AbortSignal) => api<AdvisorSettings>("/api/v1/psychic/settings", { signal }),
+  /** Partial update; a stale `expected_version` answers 409 `version_conflict`. */
+  updateSettings: (patch: AdvisorSettingsPatch) => api<AdvisorSettings>("/api/v1/psychic/settings", { method: "PATCH", body: patch }),
+  photo: (signal?: AbortSignal) => api<PhotoState>("/api/v1/psychic/photo", { signal }),
+  /** Submit a photo for review (multipart field "photo"); it stays private until approved. */
+  uploadPhoto: (file: Blob, filename = "photo.jpg") => {
+    const form = new FormData();
+    form.append("photo", file, file instanceof File ? file.name : filename);
+    return api<PhotoState>("/api/v1/psychic/photo", { method: "POST", body: form, timeoutMs: 60_000 });
+  },
+  /** Withdraw the pending submission. */
+  withdrawPhoto: () => api<void>("/api/v1/psychic/photo", { method: "DELETE", idempotent: true }),
+  /** The advisor's own pending or rejected photo (private; shown from an object URL). */
+  photoImage: (signal?: AbortSignal) => api<Blob>("/api/v1/psychic/photo/image", { responseType: "blob", signal, timeoutMs: 30_000 }),
+  customService: (signal?: AbortSignal) => api<CustomServiceState>("/api/v1/psychic/service", { signal }),
+  /** Create (201) or replace (200) the custom offering. */
+  saveCustomService: (input: CustomServiceInput) =>
+    api<CustomServiceState>("/api/v1/psychic/service", { method: "PUT", body: input, idempotent: true }),
+  deleteCustomService: () => api<void>("/api/v1/psychic/service", { method: "DELETE", idempotent: true }),
 };

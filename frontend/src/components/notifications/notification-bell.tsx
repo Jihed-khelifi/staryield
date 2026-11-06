@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Popover } from "radix-ui";
-import { Bell, CheckCheck, Clock, Coins, Megaphone, MessageCircle, MessageCircleX, ScrollText, Star, Wallet, type LucideIcon } from "lucide-react";
+import { Bell, CheckCheck, Clock, Coins, ImageIcon, Megaphone, MessageCircle, MessageCircleX, ScrollText, Star, Wallet, type LucideIcon } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { errorMessage } from "@/lib/api/errors";
@@ -23,6 +23,8 @@ const icons: Record<string, LucideIcon> = {
   "purchase.succeeded": Coins,
   "credits.adjusted": Coins,
   "withdrawal.updated": Wallet,
+  "photo.approved": ImageIcon, // advisor settings
+  "photo.rejected": ImageIcon,
   broadcast: Megaphone,
 };
 

@@ -1,253 +1,198 @@
 "use client";
-import { TarotSpread } from "./tarot-spread";
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { LockKeyhole } from "lucide-react";
-import { useI18n } from "@/i18n/i18n-provider";
-import { PublicFrame } from "@/components/layout/public-frame";
-import { RadiantPanel } from "@/components/forms/radiant-panel";
-import { ZodiacWheel } from "@/components/astrology/ZodiacWheel";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  lifePath,
-  personalCycles,
-  validBirthDate,
-  zodiacForDate,
-} from "@/lib/calculators";
-import { track } from "@/lib/analytics";
 
-export type CalculatorKind = "natal-chart" | "path-of-life" | "astrology";
-const descriptions = {
-  "natal-chart":
-    "Discover your cosmic blueprint — enter your birth date, time, and location to generate a personalized natal chart.",
-  "path-of-life":
-    "Your birth date holds the mathematical blueprint of your destiny. We use it to calculate your Life Path number—the primary force shaping your journey.",
-  astrology:
-    "Discover your zodiac sign instantly — enter your birth date and uncover the traits, elements, and cosmic insights tied to your star sign.",
-};
-export { TarotSpread } from "./tarot-spread";
+import * as React from "react";
+
+import { useI18n } from "@/i18n/i18n-provider";
+import { placeLabel } from "@/lib/api/astrology";
+import { decodeFragment, encodeFragment } from "@/lib/astro/fragment";
+import { useLocationHash, writeLocationHash } from "@/lib/astro/hash-store";
+import { useAsync } from "@/lib/use-async";
+import {
+  emptyCalculatorValues,
+  type CalculatorFormValues,
+  type CalculatorKind,
+  type NatalFormValues,
+  type SunSignFormValues,
+} from "@/lib/schemas/calculator";
+import { PublicFrame } from "@/components/layout/public-frame";
+import { ErrorState } from "@/components/feedback/error-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CalculatorForm } from "@/components/calculators/calculator-form";
+import { cachedResult, calculate, rememberResult, type CalculatorResult } from "@/components/calculators/calculate";
+import { LifePathResultView, NatalResultView, ResultDate, SunSignResultView } from "@/components/calculators/results";
+
+export type { CalculatorKind };
+
+/** The design's sample birth date, shown by the `/results` reference routes. */
+const SAMPLE_FRAGMENT = "#v=1&d=1945-04-30";
+
+/**
+ * A public calculator (natal chart, astrology, path of life). The input and
+ * the result live in the URL fragment, so a refresh or a shared link shows
+ * the same result while birth data never reaches the server's logs. The
+ * long-form article (a server-rendered slot) follows the calculator.
+ */
 export function Calculator({
   kind,
   showResults = false,
+  article,
 }: {
   kind: CalculatorKind;
+  /** `/calculators/<kind>/results`: show the design's sample result when no fragment is set. */
   showResults?: boolean;
+  article?: React.ReactNode;
 }) {
-  const { text, locale } = useI18n();
-  const [birth, setBirth] = useState(showResults ? "1945-04-30" : "");
-  const [error, setError] = useState("");
-  const [submitted, setSubmitted] = useState(showResults);
-  const [day, month, year] = birth
-    ? birth.split("-").reverse().map(Number)
-    : [0, 0, 0];
-  const { personalYear, personalMonth } = personalCycles(birth);
-  const zodiac = birth ? zodiacForDate(month, day) : "Gemini";
-  useEffect(() => {
-    if (!showResults) track("calculator_started", { kind });
-  }, [kind, showResults]);
-  function calculate(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const d = Number(data.get("day")),
-      m = Number(data.get("month")),
-      y = Number(data.get("year"));
-    if (!validBirthDate(d, m, y)) {
-      setError("Enter a valid birth date that is not in the future.");
-      return;
-    }
-    setBirth(
-      `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
-    );
-    setSubmitted(true);
-    setError("");
-    track("calculator_completed", { kind });
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }
+  const { text } = useI18n();
+  const hash = useLocationHash();
+  const sample = !hash && showResults;
+  const fragment = hash || (showResults ? SAMPLE_FRAGMENT : "");
+  const decoded = React.useMemo(() => decodeFragment(kind, fragment, text), [kind, fragment, text]);
+  const [draft, setDraft] = React.useState<{ values: CalculatorFormValues; version: number; expandCusp: boolean }>(() => ({
+    values: emptyCalculatorValues(kind),
+    version: 0,
+    expandCusp: false,
+  }));
+  const focusResult = React.useRef(false);
+
+  const showForm = React.useCallback((values: CalculatorFormValues, expandCusp = false) => {
+    setDraft((d) => ({ values, version: d.version + 1, expandCusp }));
+    writeLocationHash("", true);
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0 });
+      document.querySelector<HTMLInputElement>('[data-testid="calculator-form"] input')?.focus();
+    });
+  }, []);
+
+  const onCalculated = React.useCallback(
+    (values: CalculatorFormValues, result: CalculatorResult) => {
+      let next = values;
+      if (result.kind === "natal-chart" && result.natal.chart.place && "place" in values && values.place) {
+        next = { ...values, place: { id: values.place.id, label: placeLabel(result.natal.chart.place) } } as NatalFormValues;
+      }
+      const nextFragment = encodeFragment(kind, next);
+      rememberResult(`${kind}${nextFragment}`, result);
+      setDraft((d) => ({ values: next, version: d.version, expandCusp: false }));
+      focusResult.current = true;
+      writeLocationHash(nextFragment, true);
+    },
+    [kind],
+  );
+
   return (
     <PublicFrame>
-      {!submitted ? (
-        <RadiantPanel>
-          <form className="calculator-card paper-page" onSubmit={calculate}>
-            <h1 className="text-center text-4xl">{text("Date of Birth")}</h1>
-            <p className="mt-4 text-center text-sm font-light leading-relaxed">
-              {text(descriptions[kind])}
-            </p>
-            <div className="my-8 grid grid-cols-3 gap-4">
-              {[
-                ["Day", "day", "DD", 1, 31],
-                ["Month", "month", "MM", 1, 12],
-                ["Year", "year", "YYYY", 1900, new Date().getFullYear()],
-              ].map(([label, name, placeholder, min, max]) => (
-                <label className="field text-xs text-sage" key={name}>
-                  {text(label)}
-                  <Input
-                    name={String(name)}
-                    type="number"
-                    inputMode="numeric"
-                    placeholder={text(String(placeholder))}
-                    min={Number(min)}
-                    max={Number(max)}
-                    required
-                    className="h-10 bg-warm-gray/25"
-                  />
-                </label>
-              ))}
-            </div>
-            <p role="alert" className="mb-3 text-sm text-red-800">
-              {text(error)}
-            </p>
-            <Button className="gold-button h-12 w-full" type="submit">
-              {text("Reveal your path ")}
-            </Button>
-            <p className="mt-4 flex items-center justify-center gap-2 text-xs text-sage">
-              <LockKeyhole size={12} />
-              {text("Your data is calculated locally & never stored. ")}
-            </p>
-          </form>
-        </RadiantPanel>
+      {decoded.status === "ok" ? (
+        <ResultView
+          key={fragment}
+          kind={kind}
+          values={decoded.values}
+          fragment={fragment}
+          sample={sample}
+          focusOnMountRef={focusResult}
+          onEdit={(expandCusp) => showForm(decoded.values, expandCusp)}
+          onCalculated={onCalculated}
+        />
       ) : (
-        <div className="calculator-results">
-          <section className="result-date">
-            <h1 className="font-display text-2xl md:text-[32px]">
-              {text("Natal alignment calculated for: ")}
-            </h1>
-            <button
-              type="button"
-              className="result-date-field gold-button"
-              onClick={() => setSubmitted(false)}
-              aria-label={text("Change birth date")}
-            >
-              {text(String(day).padStart(2, "0"))} /{" "}
-              {text(String(month).padStart(2, "0"))} / {year}
-            </button>
-            {showResults && (
-              <span className="sr-only">
-                {text(
-                  "Sample date from the design. Change the birth date to calculate your own result. ",
-                )}
-              </span>
-            )}
-          </section>
-          <section className="result-art">
-            <h2 className="font-display text-[32px] md:text-[40px]">
-              {text("✦ Your")}{" "}
-              {text(
-                kind === "natal-chart"
-                  ? "spread"
-                  : kind === "path-of-life"
-                    ? "numbers"
-                    : "zodiac",
-              )}{" "}
-              ✦
-            </h2>
-            {kind === "natal-chart" ? (
-              <>
-                <p className="mt-3 text-sm">
-                  {text(
-                    "A 12-card spread exploring the current landscape, themes, and guidance for your journey. ",
-                  )}
-                </p>
-                <TarotSpread />
-                <p className="text-xs text-sage">
-                  {text(
-                    "Illustrative tarot spread. A planetary birth chart requires the astrology service. ",
-                  )}
-                </p>
-              </>
-            ) : kind === "path-of-life" ? (
-              <div className="number-tiles">
-                {[
-                  [
-                    "Life Path",
-                    lifePath(birth),
-                    "The foundational blueprint of your earthly journey, structuring your natural potential and ultimate purpose.",
-                  ],
-                  [
-                    "Personal year",
-                    personalYear,
-                    "The overarching theme and energetic vibration defining your current twelve-month developmental cycle.",
-                  ],
-                  [
-                    "Personal month",
-                    personalMonth,
-                    "Your immediate energetic climate, highlighting focused opportunities and acute lessons for this cycle.",
-                  ],
-                ].map(([label, number, copy]) => (
-                  <article className="number-tile" key={label}>
-                    <h3 className="font-display text-sm tracking-wider">
-                      {text(label)}
-                    </h3>
-                    <p className="my-4 font-display text-[72px] text-amber">
-                      {text(number)}
-                    </p>
-                    <p className="text-sm font-light">{text(copy)}</p>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="zodiac-wheel-viewport">
-                <ZodiacWheel sign={zodiac} />
-              </div>
-            )}
-          </section>
-          {kind === "path-of-life" && (
-            <section className="result-insight paper-page">
-              <h2 className="font-display text-[28px]">
-                {text("Life path ")}
-                {lifePath(birth)}
-              </h2>
-              <p className="mt-4">
-                {text(
-                  lifePath(birth) === 6
-                    ? "Deeply responsible, prioritizing family, domestic life, and acts of service. Life Path 6s are the ultimate caregivers. Their dark side is a tendency to become self-righteous meddlers or professional martyrs."
-                    : "Your life path number is calculated by reducing the digits of your birth date, preserving the master numbers 11, 22, and 33.",
-                )}
-              </p>
-            </section>
-          )}
-          {kind === "astrology" && (
-            <section className="result-insight paper-page">
-              <h2 className="text-[28px] font-semibold">
-                {text(
-                  "According to your alignment, the sun resides in the sign of",
-                )}{" "}
-                <span className="font-display text-[48px]">{text(zodiac)}</span>
-              </h2>
-              <p className="mt-4 text-lg leading-relaxed">
-                {text(
-                  zodiac === "Gemini"
-                    ? "This highlighted house reveals your native energy flow, communicative versatility, and intellectual curiosity. Gemini is ruled by Mercury and belongs to the Air element."
-                    : "The highlighted sign shows your sun sign based on your birth date. A complete natal chart also considers the time and place of birth.",
-                )}
-              </p>
-            </section>
-          )}
-          <section className="result-cta paper-page">
-            <h2 className="mx-auto max-w-4xl font-display text-2xl">
-              {text(
-                kind === "astrology"
-                  ? "Want to discover your planetary coordinates?"
-                  : kind === "natal-chart"
-                    ? "Get a better understanding of what this spread means with the guidance of one of our amazing psychics!"
-                    : "Get a deeper understanding of what a life path really means and the alignment that comes with it",
-              )}
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-sm font-light">
-              {text(
-                "Speak with our certified, strategic psychic advisors to map out your life alignment metrics, address upcoming planetary transitions, and clear your karmic debt with complete confidence. ",
-              )}
-            </p>
-            <Button asChild className="gold-button mt-6 h-11 w-full max-w-sm">
-              <Link
-                href={`/${locale}/${kind === "astrology" ? "signup" : "psychics"}`}
-              >
-                {text(kind === "astrology" ? "Sign in / up" : "Click here!")}
-              </Link>
-            </Button>
-          </section>
-        </div>
+        <CalculatorForm
+          key={`${kind}-${draft.version}`}
+          kind={kind}
+          initialValues={draft.values}
+          invalidLink={decoded.status === "invalid"}
+          expandCusp={draft.expandCusp}
+          onCalculated={onCalculated}
+        />
       )}
+      {article}
     </PublicFrame>
   );
+}
+
+function ResultView({
+  kind,
+  values,
+  fragment,
+  sample,
+  focusOnMountRef,
+  onEdit,
+  onCalculated,
+}: {
+  kind: CalculatorKind;
+  values: CalculatorFormValues;
+  fragment: string;
+  sample: boolean;
+  focusOnMountRef: React.RefObject<boolean>;
+  onEdit: (expandCusp?: boolean) => void;
+  onCalculated: (values: CalculatorFormValues, result: CalculatorResult) => void;
+}) {
+  const { text } = useI18n();
+  const key = `${kind}${fragment}`;
+  const cached = cachedResult(key);
+  const state = useAsync(
+    async (signal) => {
+      const result = await calculate(kind, values, signal);
+      rememberResult(key, result);
+      return result;
+    },
+    [key],
+    !cached,
+  );
+  const result = cached ?? state.data;
+  const error = cached ? null : state.error;
+
+  React.useEffect(() => {
+    if (!focusOnMountRef.current) return;
+    focusOnMountRef.current = false;
+    window.scrollTo({ top: 0 });
+    document.getElementById("calculator-result-title")?.focus({ preventScroll: true });
+  }, [focusOnMountRef]);
+
+  // The API rejected the link's data (e.g. a time without a place, an unknown
+  // place): back to the form with the server's messages on the fields.
+  if (error && error.code === "validation_failed") {
+    return <CalculatorForm kind={kind} initialValues={values} serverError={error} onCalculated={onCalculated} />;
+  }
+
+  const details = result ? resultDetails(result, values, text) : null;
+  return (
+    <div data-testid="calculator-result" data-kind={kind} aria-busy={!result && !error}>
+      <ResultDate values={values} details={details} onChange={() => onEdit(false)} sample={sample} />
+      {error ? (
+        <section className="bg-cream px-5 py-16">
+          <ErrorState error={error} onRetry={state.reload} className="mx-auto max-w-xl" title={text("We could not calculate this result")} />
+        </section>
+      ) : !result ? (
+        <section className="flex flex-col items-center gap-6 bg-cream px-5 py-16" data-testid="calculator-loading">
+          <p role="status" className="sr-only">
+            {text("Calculating…")}
+          </p>
+          <Skeleton className="h-10 w-72" />
+          <Skeleton className="aspect-square w-full max-w-[560px] rounded-full" />
+        </section>
+      ) : result.kind === "natal-chart" ? (
+        <NatalResultView result={result.natal} />
+      ) : result.kind === "astrology" ? (
+        <SunSignResultView result={result.sun} onAddTime={() => onEdit(true)} />
+      ) : (
+        <LifePathResultView result={result.numbers} />
+      )}
+    </div>
+  );
+}
+
+/** "08:45 · Paris, Île-de-France, France · Placidus houses" under the date. */
+function resultDetails(result: CalculatorResult, values: CalculatorFormValues, text: ReturnType<typeof useI18n>["text"]): React.ReactNode {
+  if (result.kind === "natal-chart") {
+    const v = values as NatalFormValues;
+    const chart = result.natal.chart;
+    const parts = [
+      chart.time_known && chart.birth_time ? chart.birth_time : text("Birth time unknown"),
+      chart.place ? placeLabel(chart.place) : v.place?.label || "",
+    ].filter(Boolean);
+    return parts.join(" · ");
+  }
+  if (result.kind === "astrology") {
+    const v = values as SunSignFormValues;
+    const parts = [v.birth.time || "", v.place?.label || ""].filter(Boolean);
+    return parts.length ? parts.join(" · ") : null;
+  }
+  return null;
 }

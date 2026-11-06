@@ -16,8 +16,9 @@ const retrogradeScanMargin = 200 * 24 * time.Hour
 
 // RetrogradePeriods returns the retrograde periods of b that overlap the
 // interval [from, to], in chronological order. Stations are located by
-// scanning the apparent motion once a day and refining each change of
-// direction by bisection to under a minute. A period already in progress at
+// scanning the apparent motion once a day with the fast model and refining
+// each change of direction by bisection on the precise daily motion to under
+// a minute. A period already in progress at
 // from (or still in progress at to) is returned with its true start (or end).
 // The Sun, Moon and chart points have no retrograde periods.
 func RetrogradePeriods(b Body, from, to time.Time) []Period {
@@ -33,11 +34,11 @@ func RetrogradePeriods(b Body, from, to time.Time) []Period {
 	open := false
 
 	prev := start
-	prevRetro := IsRetrograde(b, prev)
+	prevRetro := fastMotion(b, prev) < 0
 	for t := start.Add(step); !t.After(end); t = t.Add(step) {
-		retro := IsRetrograde(b, t)
+		retro := fastMotion(b, t) < 0
 		if retro != prevRetro {
-			station := refineStation(b, prev, t, prevRetro)
+			station := refineStation(b, prev.Add(-stationMargin), t.Add(stationMargin), prevRetro)
 			if retro {
 				periodStart, open = station, true
 			} else if open {
@@ -60,10 +61,20 @@ func RetrogradePeriods(b Body, from, to time.Time) []Period {
 	return overlapping
 }
 
-// refineStation bisects [lo, hi] — where b's retrograde state changes from
-// loRetro — down to under a minute and returns the station time, rounded to
-// the second.
+// stationMargin widens the fast model's daily bracket before refinement; its
+// station times are accurate to well under a day.
+const stationMargin = 2 * 24 * time.Hour
+
+// refineStation bisects [lo, hi] — where b's precise retrograde state
+// changes from loRetro — down to under a minute and returns the station
+// time, rounded to the second.
 func refineStation(b Body, lo, hi time.Time, loRetro bool) time.Time {
+	for i := 0; i < 5 && IsRetrograde(b, lo) != loRetro; i++ {
+		lo = lo.Add(-24 * time.Hour)
+	}
+	for i := 0; i < 5 && IsRetrograde(b, hi) == loRetro; i++ {
+		hi = hi.Add(24 * time.Hour)
+	}
 	for hi.Sub(lo) > 30*time.Second {
 		mid := lo.Add(hi.Sub(lo) / 2)
 		if IsRetrograde(b, mid) == loRetro {

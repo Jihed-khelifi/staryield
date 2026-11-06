@@ -15,7 +15,8 @@ import (
 
 // scanned are the packages whose string literals can reach users (error
 // messages, validation messages, realtime error frames).
-var scanned = []string{"../apperror", "../api", "../api/handler", "../api/middleware", "../realtime", "../service", "../security"}
+var scanned = []string{"../apperror", "../api", "../api/handler", "../api/middleware", "../realtime", "../service", "../security",
+	"../mail", "../push"}
 
 // sentence matches user-facing copy: starts with a capital letter, has a
 // space, ends like a sentence. Log lines are lowercase and excluded.

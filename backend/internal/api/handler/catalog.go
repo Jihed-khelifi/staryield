@@ -35,11 +35,7 @@ func (h *Handler) Readyz(c echo.Context) error {
 
 // Psychics lists advisors (public, FR-06).
 func (h *Handler) Psychics(c echo.Context) error {
-	out, err := h.svc.Psychics.List(c.Request().Context())
-	if err != nil {
-		return err
-	}
-	return ok(c, map[string]any{"items": orEmpty(out)})
+	return h.browsePsychics(c)
 }
 
 // Psychic returns one advisor profile.
@@ -86,6 +82,11 @@ type purchaseRequest struct {
 	PackID         uuid.UUID `json:"pack_id"`
 	IdempotencyKey string    `json:"idempotency_key"`
 	ReceiptEmail   string    `json:"receipt_email"`
+	// billing: pay with a saved card or a provider token (never card data).
+	PaymentMethodID *uuid.UUID `json:"payment_method_id"`
+	PaymentToken    string     `json:"payment_token"`
+	Provider        string     `json:"provider"`
+	SaveMethod      bool       `json:"save_method"`
 }
 
 // Purchase buys a credit pack (FR-05).
@@ -102,6 +103,8 @@ func (h *Handler) Purchase(c echo.Context) error {
 	}
 	out, err := h.svc.Credits.Purchase(c.Request().Context(), principal(c).UserID, service.PurchaseInput{
 		PackID: req.PackID, IdempotencyKey: req.IdempotencyKey, ReceiptEmail: req.ReceiptEmail,
+		PaymentMethodID: req.PaymentMethodID, PaymentToken: req.PaymentToken, Provider: req.Provider, SaveMethod: req.SaveMethod,
+		TrustedCountry: h.trustedCountry(c),
 	})
 	if err != nil {
 		return err
@@ -183,62 +186,6 @@ func (h *Handler) earningsFor(c echo.Context, psychicID uuid.UUID) error {
 		return err
 	}
 	out, err := h.svc.Psychics.Earnings(c.Request().Context(), psychicID, from, to, c.QueryParam("cursor"), limit)
-	if err != nil {
-		return err
-	}
-	return ok(c, out)
-}
-
-// Places searches birth places.
-func (h *Handler) Places(c echo.Context) error {
-	limit, err := limitParam(c, 8, 20)
-	if err != nil {
-		return err
-	}
-	return ok(c, map[string]any{"items": h.svc.Astrology.Places(c.QueryParam("q"), limit)})
-}
-
-// PublicChart computes a natal chart for the anonymous calculator (FR-01).
-func (h *Handler) PublicChart(c echo.Context) error {
-	var req service.ChartInput
-	if err := bind(c, &req); err != nil {
-		return err
-	}
-	out, err := h.svc.Astrology.Chart(c.Request().Context(), req)
-	if err != nil {
-		return err
-	}
-	return ok(c, out)
-}
-
-// SignHoroscope returns a sign's daily horoscope (public).
-func (h *Handler) SignHoroscope(c echo.Context) error {
-	out, err := h.svc.Astrology.HoroscopeFor(c.Request().Context(), c.Param("sign"), c.QueryParam("date"))
-	if err != nil {
-		return err
-	}
-	c.Response().Header().Set("Cache-Control", "public, max-age=900")
-	return ok(c, out)
-}
-
-// CosmicEvents lists upcoming lunar phases and retrogrades.
-func (h *Handler) CosmicEvents(c echo.Context) error {
-	c.Response().Header().Set("Cache-Control", "public, max-age=900")
-	return ok(c, h.svc.Astrology.Events(4))
-}
-
-// MyChart returns the client's full birth chart (FR-03).
-func (h *Handler) MyChart(c echo.Context) error {
-	out, err := h.svc.Astrology.MyChart(c.Request().Context(), principal(c).UserID)
-	if err != nil {
-		return err
-	}
-	return ok(c, out)
-}
-
-// MyHoroscope returns the client's daily horoscope (FR-04).
-func (h *Handler) MyHoroscope(c echo.Context) error {
-	out, err := h.svc.Astrology.MyHoroscope(c.Request().Context(), principal(c).UserID, c.QueryParam("date"))
 	if err != nil {
 		return err
 	}

@@ -74,9 +74,12 @@ func TestRedisBrokerPublishReplayAndFanout(t *testing.T) {
 
 	got := make(chan Delivery, 10)
 	go func() { _ = b.Run(ctx, func(d Delivery) { got <- d }) }()
-	time.Sleep(100 * time.Millisecond)
 
+	// An instance only receives the channels of users connected to it.
 	u := uuid.New()
+	if err := b.Subscribe(ctx, u); err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
 	payload, _ := encode("message.created", map[string]string{"body": "hi"}, time.Now())
 	id1, err := b.Publish(ctx, u, payload)
 	if err != nil {
@@ -363,7 +366,7 @@ func newTestServer(t *testing.T, mutate func(*config.RealtimeConfig)) (*Server, 
 	h := &fakeHandler{}
 	hub := NewHub(zap.NewNop(), cfg.MaxConnsPerUser)
 	s := NewServer(hub, broker, NewMemoryPresence(time.Minute, nil), tickets, h, nil, cfg, []string{"http://app.test"}, zap.NewNop())
-	broker.Subscribe(hub.Dispatch)
+	broker.SubscribeAll(hub.Dispatch)
 	srv := httptest.NewServer(http.HandlerFunc(s.ServeWS))
 	t.Cleanup(srv.Close)
 	return s, srv, tickets, h, broker

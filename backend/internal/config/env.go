@@ -29,6 +29,7 @@ var aliases = map[string][]string{
 	"storage.advisor_bucket":          {"R2_ADVISOR_IMAGE"},
 	"storage.advisor_public_base_url": {"R2_ADVISOR_IMAGE_PUBLIC_URL"},
 	"storage.chat_bucket":             {"R2_CHAT_IMAGES_PRIVATE"},
+	"storage.export_bucket":           {"R2_EXPORTS_PRIVATE"}, // identity
 }
 
 // unmanagedPrefixes are STARYIELD_* variables read elsewhere (seed accounts,

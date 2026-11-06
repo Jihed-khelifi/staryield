@@ -3,12 +3,15 @@
 package security
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -16,6 +19,13 @@ import (
 )
 
 // PasswordHasher hashes and verifies passwords with Argon2id (RFC 9106).
+//
+// Argon2id is memory-hard (64 MiB per hash by default), so the hasher admits
+// only a few computations at a time. Without that bound a burst of logins,
+// or a credential-stuffing run, allocates memory for every request at once,
+// pushes the host into swap and starves every other request. A caller waits
+// for a slot only while its context allows and never longer than maxWait,
+// then gets ErrBusy (a retryable "try again" for the client).
 type PasswordHasher struct {
 	memory      uint32
 	iterations  uint32
@@ -23,39 +33,112 @@ type PasswordHasher struct {
 	saltLen     uint32
 	keyLen      uint32
 	dummy       string
+	slots       chan struct{}
+	maxWait     time.Duration
 }
 
-// NewPasswordHasher returns a hasher with the given cost parameters.
+// DefaultHashWait is how long a request may wait for a hashing slot.
+const DefaultHashWait = 3 * time.Second
+
+// NewPasswordHasher returns a hasher with the given cost parameters. It
+// runs about one hash per CPU (GOMAXPROCS / parallelism, at least 2) at a
+// time; WithLimits changes that.
 func NewPasswordHasher(memoryKiB, iterations uint32, parallelism uint8) *PasswordHasher {
 	h := &PasswordHasher{memory: memoryKiB, iterations: iterations, parallelism: parallelism, saltLen: 16, keyLen: 32}
+	h.setLimits(0, 0)
 	// A real hash used to equalise timing when a login targets an unknown
 	// e-mail, so response times do not reveal which accounts exist.
 	h.dummy, _ = h.Hash("dummy-password-for-timing-equalisation")
 	return h
 }
 
+// WithLimits sets how many hashes may run at once (0 = automatic) and how
+// long a caller may wait for a slot (0 = DefaultHashWait). Call it before
+// the hasher is shared.
+func (h *PasswordHasher) WithLimits(concurrency int, maxWait time.Duration) *PasswordHasher {
+	h.setLimits(concurrency, maxWait)
+	return h
+}
+
+func (h *PasswordHasher) setLimits(concurrency int, maxWait time.Duration) {
+	if concurrency <= 0 {
+		concurrency = max(2, runtime.GOMAXPROCS(0)/max(1, int(h.parallelism)))
+	}
+	if maxWait <= 0 {
+		maxWait = DefaultHashWait
+	}
+	h.slots, h.maxWait = make(chan struct{}, concurrency), maxWait
+}
+
 // ErrMismatch is returned when a password does not match its hash.
 var ErrMismatch = errors.New("security: password mismatch")
 
-// Hash returns a PHC-formatted Argon2id hash.
+// ErrBusy is returned when no hashing slot became free in time. It says
+// nothing about the password: callers must not count it as a failed login.
+var ErrBusy = errors.New("security: password hashing is busy")
+
+// Acquire holds one hashing slot until release is called. Hashing methods
+// use it internally; it is exported so tests and maintenance tools can
+// bound or simulate load.
+func (h *PasswordHasher) Acquire(ctx context.Context) (release func(), err error) {
+	select {
+	case h.slots <- struct{}{}:
+		return func() { <-h.slots }, nil
+	default:
+	}
+	timer := time.NewTimer(h.maxWait)
+	defer timer.Stop()
+	select {
+	case h.slots <- struct{}{}:
+		return func() { <-h.slots }, nil
+	case <-ctx.Done():
+		return nil, fmt.Errorf("%w: %w", ErrBusy, ctx.Err())
+	case <-timer.C:
+		return nil, ErrBusy
+	}
+}
+
+// Hash returns a PHC-formatted Argon2id hash (no caller deadline).
 func (h *PasswordHasher) Hash(password string) (string, error) {
+	return h.HashContext(context.Background(), password)
+}
+
+// HashContext is Hash bounded by the caller's context.
+func (h *PasswordHasher) HashContext(ctx context.Context, password string) (string, error) {
 	salt := make([]byte, h.saltLen)
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("security: salt: %w", err)
 	}
+	release, err := h.Acquire(ctx)
+	if err != nil {
+		return "", err
+	}
 	key := argon2.IDKey([]byte(password), salt, h.iterations, h.memory, h.parallelism, h.keyLen)
+	release()
 	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s", argon2.Version, h.memory, h.iterations, h.parallelism,
 		base64.RawStdEncoding.EncodeToString(salt), base64.RawStdEncoding.EncodeToString(key)), nil
 }
 
-// Verify checks password against encoded in constant time. It returns
-// needsRehash when the stored parameters are weaker than the current ones.
+// Verify checks password against encoded in constant time (no caller
+// deadline). It returns needsRehash when the stored parameters are weaker
+// than the current ones.
 func (h *PasswordHasher) Verify(password, encoded string) (needsRehash bool, err error) {
+	return h.VerifyContext(context.Background(), password, encoded)
+}
+
+// VerifyContext is Verify bounded by the caller's context. It returns
+// ErrBusy when no slot became free in time.
+func (h *PasswordHasher) VerifyContext(ctx context.Context, password, encoded string) (needsRehash bool, err error) {
 	p, salt, key, err := decodeHash(encoded)
 	if err != nil {
 		return false, err
 	}
+	release, err := h.Acquire(ctx)
+	if err != nil {
+		return false, err
+	}
 	other := argon2.IDKey([]byte(password), salt, p.iterations, p.memory, p.parallelism, uint32(len(key)))
+	release()
 	if subtle.ConstantTimeCompare(key, other) != 1 {
 		return false, ErrMismatch
 	}
@@ -64,7 +147,17 @@ func (h *PasswordHasher) Verify(password, encoded string) (needsRehash bool, err
 
 // VerifyDummy burns the same CPU as a real verification.
 func (h *PasswordHasher) VerifyDummy(password string) {
-	_, _ = h.Verify(password, h.dummy)
+	_ = h.VerifyDummyContext(context.Background(), password)
+}
+
+// VerifyDummyContext is VerifyDummy bounded by the caller's context. It
+// returns ErrBusy like a real verification would, so a busy server answers
+// unknown and known accounts the same way.
+func (h *PasswordHasher) VerifyDummyContext(ctx context.Context, password string) error {
+	if _, err := h.VerifyContext(ctx, password, h.dummy); errors.Is(err, ErrBusy) {
+		return err
+	}
+	return nil
 }
 
 type hashParams struct {

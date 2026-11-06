@@ -37,7 +37,9 @@ internal/domain                       entities, enums, state machines, billing a
 internal/realtime                     WebSocket/SSE transport, hub, Redis broker, presence, tickets
 internal/worker                       billing ticks, expiries, grace periods, settlement retries
 internal/analytics                    async batched business-event tracker
-internal/astro                        ephemeris, natal charts, lunar events, horoscope content
+internal/astro                        natal charts, houses, aspects, tarot spread, numerology, lunar events
+internal/astro/ephem, tz, geo         VSOP87B ephemeris, backzone tzdata, GeoNames gazetteer (embedded)
+internal/astro/horoscope              daily horoscope engine (en/fr/es) and the aztro-compatible shape
 internal/security, cache, ratelimit, payment, storage, mail, config, logger, apperror, clock
 ```
 
@@ -93,7 +95,18 @@ declined · expired · cancelled            ended ──calculate earnings──
 
 ### Analytics (admin dashboard data)
 
-Business events are recorded server-side and cannot be forged by clients. They cover registrations, logins and lockouts, purchases, every chat transition and billed minute, messages (length only), custom requests and profile changes. Browsers may only send allow-listed `web.*` events (page views, funnels, calculator use, errors), which are de-duplicated by `event_id`. Writes go through a non-blocking buffered tracker that batch-inserts.
+Business events are recorded server-side and cannot be forged by clients. They cover registrations, logins and lockouts, purchases, every chat transition and billed minute, messages (length only), custom requests and profile changes. Browsers may only send allow-listed `web.*` events (page views, funnels, calculator use, errors), which are de-duplicated by `event_id`. Writes go through a non-blocking buffered tracker that batch-inserts. `analytics.Sanitize` drops birth data (`birth_*`), signs, places, coordinates, contact details and search text from every event, whoever sends it.
+
+### Astrology
+
+Everything is computed in-process from embedded data; no third-party API is called and no birth data is stored, cached or logged by the calculators (POST bodies, answered `no-store`).
+
+* **Ephemeris** (`astro/ephem`): VSOP87B (IMCCE, truncated at 1e-8, 216 KB gzipped) for the Sun and planets, Meeus ch. 47 for the Moon and Pluto (via `soniakeys/meeus`, MIT); apparent geocentric longitudes (light time, aberration, FK5, nutation, true obliquity), ΔT from JPL Horizons. Valid 1750–2250 (Pluto 1885–2099). Checked against 380 JPL Horizons positions (planets ≤ 3.3″, Moon ≤ 11″).
+* **Time** (`astro/tz`): IANA tzdata built with `PACKRATDATA=backzone` (pre-1970 history per city), embedded; `Resolve` flags skipped and ambiguous wall times and local mean time.
+* **Places** (`astro/geo`): GeoNames `cities5000` (70k places, en/fr/es names; CC BY 4.0, attribution in every response that uses it), accent-insensitive prefix and fuzzy search with cursors. The original 173 city slugs (`paris-fr`) still resolve; migration 0006 moves stored ones to GeoNames IDs.
+* **Charts**: Placidus (Porphyry beyond the polar circle, reported as `house_system_used`/`fallback_reason`), Whole Sign and Equal houses; aspects with orbs; a time without a place is refused (422 `place_id`); an unknown time gives no angles or houses and flags Sun or Moon signs that change during the possible birth window. The Twelve Houses tarot spread follows the Golden Dawn attributions.
+* **Horoscope** (`astro/horoscope`): deterministic daily readings in en/fr/es from the real Moon sign and phase, for the requester's time zone (`?tz=`); yesterday's, today's and tomorrow's are cached in Redis until the end of their day; `GET|POST /aztro?sign=&day=&tz=&lang=` serves the aztro API's fields plus a `staryield{}` block.
+* **Rate limits** (per IP, code constants): calculators 30/min (burst 10), places 120/min (burst 40), horoscope and aztro 60/min (burst 20); they fall back to per-instance limits when Redis is down.
 
 Admin dashboard endpoints (served to the admin console, see below):
 
@@ -113,13 +126,13 @@ Admin dashboard endpoints (served to the admin console, see below):
 | Area | Endpoints |
 | --- | --- |
 | Auth | `GET auth/csrf` · `POST auth/register` · `auth/login` · `auth/refresh` · `auth/logout` · `auth/logout-all` · `auth/password/{forgot,reset,change}` |
-| Me | `GET me` · `PATCH me/profile` · `POST/DELETE me/avatar` · `GET me/chart` · `GET me/horoscope` |
+| Me | `GET me` · `PATCH me/profile` · `POST/DELETE me/avatar` · `GET me/chart` · `GET me/horoscope` · `GET me/numerology` |
 | Credits | `GET credit-packs` · `GET wallet` · `GET wallet/ledger` · `POST/GET credits/purchases` · `POST webhooks/payments` |
 | Advisors | `GET psychics` · `GET psychics/:slug` · `PATCH psychic/availability` · `PATCH psychic/profile` · `GET psychic/earnings` |
 | Chat | `GET chat/conversations` · `GET chat/conversations/:id/messages[/since]` · `POST chat/conversations/:id/read` · `GET chat/psychics/:slug` · `POST/GET chat/sessions` · `GET chat/sessions/:id[/summary]` · `POST chat/sessions/:id/{accept,decline,cancel,end,messages,typing}` · `GET/PUT/DELETE chat/saved[/:messageId]` |
 | Realtime | `POST realtime/ticket` · `GET realtime/ws` · `GET realtime/stream` · `POST realtime/presence` |
 | Requests | `GET/POST custom-requests` · `GET custom-requests/:id` · `POST custom-requests/:id/{cancel,dispute,accept,decline,deliver}` |
-| Astrology | `GET astrology/places` · `POST astrology/chart` · `GET astrology/horoscope/:sign` · `GET astrology/events` |
+| Astrology | `GET astrology/places[/:id]` · `POST astrology/{natal,numerology,sun-sign,chart}` · `GET astrology/horoscope/:sign` · `GET astrology/events` · `GET/POST aztro` |
 | Telemetry | `POST analytics/events` · `POST client-logs` |
 | Notifications | `GET me/notifications` · `GET me/notifications/unread-count` · `POST me/notifications/read` |
 | Ratings | `POST chat/sessions/:id/review` · `GET psychics/:slug/reviews` · `GET psychic/reviews` |

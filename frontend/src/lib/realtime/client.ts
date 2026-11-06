@@ -161,6 +161,14 @@ export class RealtimeClient {
     });
   }
 
+  /**
+   * Reconnect now instead of waiting for the backoff timer (the user
+   * pressed "Retry now"). No-op while connected or stopped.
+   */
+  reconnect() {
+    this.onOnline();
+  }
+
   /** Fire-and-forget frame (typing indicators). */
   send(type: string, data: unknown) {
     if (this.transport === "sse") {
@@ -318,8 +326,11 @@ export class RealtimeClient {
     this.emit(env);
   }
 
-  private onHello(env: RealtimeEvent<{ connection_id: string; heartbeat_ms?: number; resumed?: boolean }>) {
+  private onHello(env: RealtimeEvent<{ connection_id: string; heartbeat_ms?: number; resumed?: boolean; stream_tail?: string }>) {
     this.connectionId = env.data?.connection_id ?? null;
+    // Nothing to resume from yet: start from the newest durable event, so a
+    // connection that drops before receiving any event still resumes.
+    if (!this.lastEventId && typeof env.data?.stream_tail === "string" && env.data.stream_tail) this.rememberEventId(env.data.stream_tail);
     this.attempts = 0;
     if (this.transport === "ws") this.wsFailures = 0;
     const reconnected = this.openedOnce;
@@ -333,10 +344,15 @@ export class RealtimeClient {
     } else {
       this.flushQueueViaRest();
     }
-    // Presence is per connection: re-join every chat session.
+    // Presence is per connection: re-join every chat session. The ack is the
+    // fresh session view (a paused session resumes on join), surfaced to
+    // listeners as "session.rejoined".
     for (const id of this.joined) {
-      void this.request("session.join", { session_id: id }).catch((error) =>
-        logger.debug("realtime: rejoin failed", { code: toApiError(error).code }),
+      void this.request("session.join", { session_id: id }).then(
+        (view) => {
+          if (view && typeof view === "object") this.emit({ type: "session.rejoined", ts: new Date().toISOString(), data: view });
+        },
+        (error) => logger.debug("realtime: rejoin failed", { code: toApiError(error).code }),
       );
     }
     this.emit({ ...env, data: { ...env.data, reconnected } });
@@ -374,9 +390,12 @@ export class RealtimeClient {
       case "typing":
         await chatApi.typing(d.session_id, Boolean((data as { typing?: boolean }).typing));
         return undefined as T;
-      case "message.read":
+      case "message.read": {
+        const seq = (data as { seq?: unknown }).seq;
+        if (typeof seq === "number") return { read: true, ...(await chatApi.markReadSeq(d.conversation_id, seq)) } as T;
         await chatApi.markRead(d.conversation_id, d.message_id);
         return { read: true } as T;
+      }
     }
     throw new ApiError({ code: "bad_request", message: `Unsupported intent ${type}.` });
   }

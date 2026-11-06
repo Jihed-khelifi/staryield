@@ -1,489 +1,186 @@
 "use client";
-import { TarotStackCard } from "@/components/ui/tarot-stack-card";
-import { useI18n } from "@/i18n/i18n-provider";
 /* eslint-disable @next/next/no-img-element */
-const imgImageJustice = "https://assets.staryield.net/assets/tarot/justice.png";
-const imgImageWheelOfFortune =
-  "https://assets.staryield.net/assets/tarot/wheel-of-fortune.png";
-const imgImageTheHermit =
-  "https://assets.staryield.net/assets/tarot/the-hermit.png";
-const imgImageStrength =
-  "https://assets.staryield.net/assets/tarot/strength.png";
-const imgImageTheChariot =
-  "https://assets.staryield.net/assets/tarot/the-chariot.png";
-const imgImageTheLovers =
-  "https://assets.staryield.net/assets/tarot/the-lovers.png";
-const imgImageTheHierophant =
-  "https://assets.staryield.net/assets/tarot/the-hierophant.png";
-const imgImageTheEmperor =
-  "https://assets.staryield.net/assets/tarot/the-emperor.png";
-const imgImageTheEmpress =
-  "https://assets.staryield.net/assets/tarot/the-empress.png";
-const imgImageTheHighPriestess =
-  "https://assets.staryield.net/assets/tarot/the-high-priestess.png";
-const imgImageJudgement =
-  "https://assets.staryield.net/assets/tarot/judgement.png";
-const imgImageTheFool =
-  "https://assets.staryield.net/assets/tarot/the-fool.png";
-function ComponentTarotCardJustice({ className }: { className?: string }) {
-  return (
-    <div
-      className={className || "h-[355px] relative w-[210px]"}
-      data-node-id="95:231"
-      data-name="Component / Tarot Card / Justice"
-    >
-      <div
-        className="absolute h-[355px] left-0 top-0 w-[210px]"
-        data-node-id="95:232"
-        data-name="Image / Justice"
-      >
-        <img
-          alt=""
-          className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-          src={imgImageJustice}
-        />
-      </div>
-    </div>
-  );
+import * as React from "react";
+
+import { useI18n } from "@/i18n/i18n-provider";
+import type { TarotCard, TarotSpread as Spread } from "@/lib/api/astrology";
+import { CARD_RADIUS, placeCard, spreadGeometry } from "@/lib/astro/spread-layout";
+import { HOUSE_KEYWORDS, TAROT_CARDS, houseLabel, tarotImage } from "@/lib/astro/zodiac";
+import { cn } from "@/lib/utils";
+
+const GEOMETRY = spreadGeometry();
+/** Native artwork size (210 × 355) → stage size. */
+const SCALE = GEOMETRY.cardWidth / 210;
+
+/** Display name of a card slug (unknown slugs keep their slug). */
+export function cardName(slug: string): string {
+  return TAROT_CARDS[slug] ?? slug;
 }
-function ComponentTarotCardWheelOfFortune({
-  className,
-}: {
-  className?: string;
-}) {
-  return (
-    <div
-      className={className || "h-[355px] relative w-[210px]"}
-      data-node-id="95:229"
-      data-name="Component / Tarot Card / Wheel Of Fortune"
-    >
-      <div
-        className="absolute h-[355px] left-0 top-0 w-[210px]"
-        data-node-id="95:230"
-        data-name="Image / Wheel Of Fortune"
-      >
-        <img
-          alt=""
-          className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-          src={imgImageWheelOfFortune}
-        />
-      </div>
-    </div>
-  );
-}
-function ComponentTarotCardTheHermit({ className }: { className?: string }) {
-  return (
-    <div
-      className={className || "h-[355px] relative w-[210px]"}
-      data-node-id="95:227"
-      data-name="Component / Tarot Card / The Hermit"
-    >
-      <div
-        className="absolute h-[355px] left-0 top-0 w-[210px]"
-        data-node-id="95:228"
-        data-name="Image / The Hermit"
-      >
-        <img
-          alt=""
-          className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-          src={imgImageTheHermit}
-        />
-      </div>
-    </div>
-  );
-}
-function ComponentTarotCardStrength({ className }: { className?: string }) {
-  return (
-    <div
-      className={className || "h-[355px] relative w-[210px]"}
-      data-node-id="95:225"
-      data-name="Component / Tarot Card / Strength"
-    >
-      <div
-        className="absolute h-[355px] left-0 top-0 w-[210px]"
-        data-node-id="95:226"
-        data-name="Image / Strength"
-      >
-        <img
-          alt=""
-          className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-          src={imgImageStrength}
-        />
-      </div>
-    </div>
-  );
-}
-function ComponentTarotCardTheChariot({ className }: { className?: string }) {
-  return (
-    <div
-      className={className || "h-[355px] relative w-[210px]"}
-      data-node-id="95:223"
-      data-name="Component / Tarot Card / The Chariot"
-    >
-      <div
-        className="absolute h-[355px] left-0 top-0 w-[210px]"
-        data-node-id="95:224"
-        data-name="Image / The Chariot"
-      >
-        <img
-          alt=""
-          className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-          src={imgImageTheChariot}
-        />
-      </div>
-    </div>
-  );
-}
-function ComponentTarotCardTheLovers({ className }: { className?: string }) {
-  return (
-    <div
-      className={className || "h-[355px] relative w-[210px]"}
-      data-node-id="95:221"
-      data-name="Component / Tarot Card / The Lovers"
-    >
-      <div
-        className="absolute h-[355px] left-0 top-0 w-[210px]"
-        data-node-id="95:222"
-        data-name="Image / The Lovers"
-      >
-        <img
-          alt=""
-          className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-          src={imgImageTheLovers}
-        />
-      </div>
-    </div>
-  );
-}
-function ComponentTarotCardTheHierophant({
-  className,
-}: {
-  className?: string;
-}) {
-  return (
-    <div
-      className={className || "h-[355px] relative w-[210px]"}
-      data-node-id="95:219"
-      data-name="Component / Tarot Card / The Hierophant"
-    >
-      <div
-        className="absolute h-[355px] left-0 top-0 w-[210px]"
-        data-node-id="95:220"
-        data-name="Image / The Hierophant"
-      >
-        <img
-          alt=""
-          className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-          src={imgImageTheHierophant}
-        />
-      </div>
-    </div>
-  );
-}
-function ComponentTarotCardTheEmperor({ className }: { className?: string }) {
-  return (
-    <div
-      className={className || "h-[355px] relative w-[210px]"}
-      data-node-id="95:217"
-      data-name="Component / Tarot Card / The Emperor"
-    >
-      <div
-        className="absolute h-[355px] left-0 top-0 w-[210px]"
-        data-node-id="95:218"
-        data-name="Image / The Emperor"
-      >
-        <img
-          alt=""
-          className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-          src={imgImageTheEmperor}
-        />
-      </div>
-    </div>
-  );
-}
-function ComponentTarotCardTheEmpress({ className }: { className?: string }) {
-  return (
-    <div
-      className={className || "h-[355px] relative w-[210px]"}
-      data-node-id="95:215"
-      data-name="Component / Tarot Card / The Empress"
-    >
-      <div
-        className="absolute h-[355px] left-0 top-0 w-[210px]"
-        data-node-id="95:216"
-        data-name="Image / The Empress"
-      >
-        <img
-          alt=""
-          className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-          src={imgImageTheEmpress}
-        />
-      </div>
-    </div>
-  );
-}
-function ComponentTarotCardTheHighPriestess({
-  className,
-}: {
-  className?: string;
-}) {
-  return (
-    <div
-      className={className || "h-[355px] relative w-[210px]"}
-      data-node-id="95:213"
-      data-name="Component / Tarot Card / The High Priestess"
-    >
-      <div
-        className="absolute h-[355px] left-0 top-0 w-[210px]"
-        data-node-id="95:214"
-        data-name="Image / The High Priestess"
-      >
-        <img
-          alt=""
-          className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-          src={imgImageTheHighPriestess}
-        />
-      </div>
-    </div>
-  );
-}
-function ComponentTarotCardJudgement({ className }: { className?: string }) {
-  return (
-    <div
-      className={className || "h-[355px] relative w-[210px]"}
-      data-node-id="95:211"
-      data-name="Component / Tarot Card / Judgement"
-    >
-      <div
-        className="absolute h-[355px] left-0 top-0 w-[210px]"
-        data-node-id="95:212"
-        data-name="Image / Judgement"
-      >
-        <img
-          alt=""
-          className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-          src={imgImageJudgement}
-        />
-      </div>
-    </div>
-  );
-}
-function ComponentTarotCardTheFool({ className }: { className?: string }) {
-  return (
-    <div
-      className={className || "h-[355px] relative w-[210px]"}
-      data-node-id="95:209"
-      data-name="Component / Tarot Card / The Fool"
-    >
-      <div
-        className="absolute aspect-[210/355] left-0 right-0 top-0"
-        data-node-id="95:210"
-        data-name="Image / The Fool"
-      >
-        <img
-          alt=""
-          className="absolute inset-0 max-w-none object-cover pointer-events-none size-full"
-          src={imgImageTheFool}
-        />
-      </div>
-    </div>
-  );
-}
-export function TarotSpread() {
+
+/**
+ * Why a card sits in its house, e.g. "Sun in Leo in the tenth house" or
+ * "Cusp sign: Leo — no planet in this house".
+ */
+export function useCardSource() {
   const { text } = useI18n();
+  return React.useCallback(
+    (card: TarotCard) => {
+      const house = text(houseLabel(card.house)).toLowerCase();
+      if (card.source.kind === "planet" && card.source.body) {
+        const base = text("{value0} in {value1}, in the {value2}", {
+          value0: text(card.source.body),
+          value1: text(card.source.sign),
+          value2: house,
+        });
+        return card.reversed ? `${base} · ${text("retrograde, so the card is reversed")}` : base;
+      }
+      return text("Cusp sign: {value0} (no planet in this house)", { value0: text(card.source.sign) });
+    },
+    [text],
+  );
+}
+
+/**
+ * The Twelve Houses spread, drawn from the API's `tarot` block: one card per
+ * house, counter-clockwise from the first house at 9 o'clock (the
+ * Ascendant), each with its house number; a reversed card (retrograde
+ * planet) is turned upside down. Frames have an 11 px radius at the
+ * artwork's native size. The picture is one image for assistive technology;
+ * the list below it carries every card and its reason.
+ */
+export function TarotSpread({ spread, className }: { spread: Spread; className?: string }) {
+  const { text } = useI18n();
+  const id = React.useId().replace(/:/g, "");
+  const cards = [...spread.cards].filter((c) => c.house >= 1 && c.house <= 12).sort((a, b) => a.house - b.house);
+  const w = GEOMETRY.cardWidth;
+  const h = GEOMETRY.cardHeight;
+  const radius = CARD_RADIUS * SCALE;
+
   return (
-    <div
-      className="tarot-spread-viewport"
-      aria-label={text("Twelve-card tarot spread")}
+    <svg
+      viewBox={`0 0 ${GEOMETRY.width.toFixed(1)} ${GEOMETRY.height.toFixed(1)}`}
+      role="img"
+      aria-labelledby={`${id}-title ${id}-desc`}
+      data-testid="tarot-spread"
+      className={cn("block h-auto w-full", className)}
     >
-      <div className="tarot-spread-stage">
-        <div
-          className="flex h-[960.445px] items-center justify-center relative shrink-0 w-[1404.082px]"
-          data-node-id="482:2047"
-        >
-          <div className="flex-none rotate-[-13.88deg]">
-            <div
-              className="content-stretch flex flex-col h-[673px] items-center relative"
-              data-name="Container / Mystical Tarot Cluster"
-            >
-              <div
-                className="h-[572px] relative shrink-0 w-[1280px]"
-                data-node-id="483:1972"
-                data-name="Container / Top Arc"
-              >
-                <TarotStackCard
-                  label={text("The Fool")}
-                  className="absolute flex h-[348.13px] items-center justify-center left-[-2.34px] top-[261.87px] w-[392.162px]"
-                  data-node-id="483:1973"
-                >
-                  <div className="-rotate-60 flex-none">
-                    <div
-                      className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[331.115px] items-start relative w-[210.817px]"
-                      data-name="Container / Cluster 1"
-                    >
-                      <ComponentTarotCardTheFool className="h-[357.631px] relative rounded-[8px] shrink-0 w-[196.739px]" />
-                    </div>
-                  </div>
-                </TarotStackCard>
-                <TarotStackCard
-                  label={text("Judgement")}
-                  className="absolute flex h-[395.728px] items-center justify-center left-[61.52px] top-[172.55px] w-[408.922px]"
-                  data-node-id="483:1977"
-                >
-                  <div className="flex-none rotate-[-49.09deg]">
-                    <div
-                      className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[350.602px] items-start relative w-[219.825px]"
-                      data-name="Container / Cluster 2"
-                    >
-                      <ComponentTarotCardJudgement className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
-                    </div>
-                  </div>
-                </TarotStackCard>
-                <TarotStackCard
-                  label={text("The High Priestess")}
-                  className="absolute flex h-[416.171px] items-center justify-center left-[151.05px] top-[120.37px] w-[390.679px]"
-                  data-node-id="483:1981"
-                >
-                  <div className="flex-none rotate-[-38.18deg]">
-                    <div
-                      className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[363.211px] items-start relative w-[211.381px]"
-                      data-name="Container / Cluster 3"
-                    >
-                      <ComponentTarotCardTheHighPriestess className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
-                    </div>
-                  </div>
-                </TarotStackCard>
-                <TarotStackCard
-                  label={text("The Empress")}
-                  className="absolute flex h-[403.94px] items-center justify-center left-[250.06px] top-[99.26px] w-[346.386px]"
-                  data-node-id="483:1985"
-                >
-                  <div className="flex-none rotate-[-27.27deg]">
-                    <div
-                      className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[345.333px] items-start relative w-[211.677px]"
-                      data-name="Container / Cluster 4"
-                    >
-                      <ComponentTarotCardTheEmpress className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
-                    </div>
-                  </div>
-                </TarotStackCard>
-                <TarotStackCard
-                  label={text("The Emperor")}
-                  className="absolute flex h-[401.404px] items-center justify-center left-[360.68px] top-[87.7px] w-[301.366px]"
-                  data-node-id="483:1989"
-                >
-                  <div className="flex-none rotate-[-16.36deg]">
-                    <div
-                      className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[356.896px] items-start relative w-[209.294px]"
-                      data-name="Container / Cluster 5"
-                    >
-                      <ComponentTarotCardTheEmperor className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
-                    </div>
-                  </div>
-                </TarotStackCard>
-                <TarotStackCard
-                  label={text("The Hierophant")}
-                  className="absolute flex h-[370.378px] items-center justify-center left-[476.35px] top-[106.87px] w-[241.94px]"
-                  data-node-id="483:1993"
-                >
-                  <div className="flex-none rotate-[-5.45deg]">
-                    <div
-                      className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[352.065px] items-start relative w-[209.423px]"
-                      data-name="Container / Cluster 6"
-                    >
-                      <ComponentTarotCardTheHierophant className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
-                    </div>
-                  </div>
-                </TarotStackCard>
-                <TarotStackCard
-                  label={text("The Lovers")}
-                  className="absolute flex h-[374.165px] items-center justify-center left-[558.61px] top-[125.05px] w-[245.898px]"
-                  data-node-id="483:1997"
-                >
-                  <div className="flex-none rotate-[5.45deg]">
-                    <div
-                      className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[355.522px] items-start relative w-[213.068px]"
-                      data-name="Container / Cluster 7"
-                    >
-                      <ComponentTarotCardTheLovers className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
-                    </div>
-                  </div>
-                </TarotStackCard>
-                <TarotStackCard
-                  label={text("The Chariot")}
-                  className="absolute flex h-[400.195px] items-center justify-center left-[609.35px] top-[147.47px] w-[302.024px]"
-                  data-node-id="483:2002"
-                >
-                  <div className="flex-none rotate-[16.36deg]">
-                    <div
-                      className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[355.297px] items-start relative w-[210.45px]"
-                      data-name="Container / Cluster 8"
-                    >
-                      <ComponentTarotCardTheChariot className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
-                    </div>
-                  </div>
-                </TarotStackCard>
-                <TarotStackCard
-                  label={text("Strength")}
-                  className="absolute flex h-[411.511px] items-center justify-center left-[656.77px] top-[191.36px] w-[348.667px]"
-                  data-node-id="483:2006"
-                >
-                  <div className="flex-none rotate-[27.27deg]">
-                    <div
-                      className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[355.133px] items-start relative w-[209.191px]"
-                      data-name="Container / Cluster 9"
-                    >
-                      <ComponentTarotCardStrength className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
-                    </div>
-                  </div>
-                </TarotStackCard>
-                <TarotStackCard
-                  label={text("The Hermit")}
-                  className="absolute flex h-[408.938px] items-center justify-center left-[698.74px] top-[255.35px] w-[384.766px]"
-                  data-node-id="483:2010"
-                >
-                  <div className="flex-none rotate-[38.18deg]">
-                    <div
-                      className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[354.6px] items-start relative w-[210.631px]"
-                      data-name="Container / Cluster 10"
-                    >
-                      <ComponentTarotCardTheHermit className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
-                    </div>
-                  </div>
-                </TarotStackCard>
-                <TarotStackCard
-                  label={text("Wheel Of Fortune")}
-                  className="absolute flex h-[390.418px] items-center justify-center left-[735.24px] top-[335.64px] w-[405.466px]"
-                  data-node-id="483:2014"
-                >
-                  <div className="flex-none rotate-[49.09deg]">
-                    <div
-                      className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[356.686px] items-start relative w-[207.526px]"
-                      data-name="Container / Cluster 11"
-                    >
-                      <ComponentTarotCardWheelOfFortune className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
-                    </div>
-                  </div>
-                </TarotStackCard>
-                <TarotStackCard
-                  label={text("Justice")}
-                  className="absolute flex h-[359.058px] items-center justify-center left-[764.49px] top-[432.34px] w-[412.444px]"
-                  data-node-id="483:2018"
-                >
-                  <div className="flex-none rotate-60">
-                    <div
-                      className="content-stretch drop-shadow-[0px_3px_5px_rgba(0,0,0,0.1)] flex flex-col h-[355.316px] items-start relative w-[209.463px]"
-                      data-name="Container / Cluster 12"
-                    >
-                      <ComponentTarotCardJustice className="h-[355px] relative rounded-[8px] shrink-0 w-[210px]" />
-                    </div>
-                  </div>
-                </TarotStackCard>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <title id={`${id}-title`}>{text("Twelve-card tarot spread")}</title>
+      <desc id={`${id}-desc`}>
+        {text("Twelve cards laid counter-clockwise from the first house at 9 o'clock. Each card and the reason it was drawn are listed below.")}
+      </desc>
+      <defs>
+        <clipPath id={`${id}-card`} clipPathUnits="userSpaceOnUse">
+          <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={radius} ry={radius} />
+        </clipPath>
+        <filter id={`${id}-shadow`} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3" stdDeviation="2.5" floodColor="#000" floodOpacity="0.14" />
+        </filter>
+      </defs>
+
+      {/* Spokes and house themes (desktop sizes only; tiny on phones). */}
+      <g aria-hidden="true">
+        <ellipse cx={GEOMETRY.cx} cy={GEOMETRY.cy} rx={GEOMETRY.rx * 0.36} ry={GEOMETRY.ry * 0.36} fill="none" stroke="#aa8e62" strokeWidth={1} opacity={0.5} />
+        {cards.map((card) => {
+          const at = placeCard(card.house, card.reversed, GEOMETRY);
+          const label = {
+            x: GEOMETRY.cx + (at.badge.x - GEOMETRY.cx) * 0.62,
+            y: GEOMETRY.cy + (at.badge.y - GEOMETRY.cy) * 0.62,
+          };
+          return (
+            <g key={`spoke-${card.house}`}>
+              <line x1={GEOMETRY.cx} y1={GEOMETRY.cy} x2={at.badge.x} y2={at.badge.y} stroke="#aa8e62" strokeWidth={1} opacity={0.45} />
+              <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="central" fontSize={15} fill="#4d4632" className="max-md:hidden">
+                {text(HOUSE_KEYWORDS[card.house - 1])}
+              </text>
+            </g>
+          );
+        })}
+        <circle cx={GEOMETRY.cx} cy={GEOMETRY.cy} r={5} fill="#c29a3d" />
+      </g>
+
+      {cards.map((card) => {
+        const at = placeCard(card.house, card.reversed, GEOMETRY);
+        const src = tarotImage(card.card);
+        return (
+          <g key={card.house} data-house={card.house} data-card={card.card} data-reversed={card.reversed || undefined}>
+            <g transform={`translate(${at.x} ${at.y}) rotate(${at.rotation})`} filter={`url(#${id}-shadow)`}>
+              <g clipPath={`url(#${id}-card)`}>
+                <rect x={-w / 2} y={-h / 2} width={w} height={h} fill="#f4f0ea" />
+                {src ? <image href={src} x={-w / 2} y={-h / 2} width={w} height={h} preserveAspectRatio="xMidYMid slice" /> : null}
+              </g>
+              <rect
+                x={-w / 2}
+                y={-h / 2}
+                width={w}
+                height={h}
+                rx={radius}
+                ry={radius}
+                fill="none"
+                stroke={card.uncertain ? "#8a6a1f" : "#2e2a22"}
+                strokeWidth={card.uncertain ? 1.6 : 1}
+                strokeDasharray={card.uncertain ? "5 4" : undefined}
+              />
+              {!src ? (
+                <text x={0} y={0} textAnchor="middle" dominantBaseline="central" fontSize={12} fill="#15100b">
+                  {text(cardName(card.card))}
+                </text>
+              ) : null}
+            </g>
+            <circle cx={at.badge.x} cy={at.badge.y} r={15} fill="#f4f0ea" stroke="#15100b" strokeWidth={1.2} />
+            <text x={at.badge.x} y={at.badge.y} textAnchor="middle" dominantBaseline="central" fontSize={15} fontWeight={600} fill="#15100b">
+              {card.house}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** The spread's cards with their reasons (the accessible companion of the picture). */
+export function SpreadCardList({ spread }: { spread: Spread }) {
+  const { text } = useI18n();
+  const source = useCardSource();
+  const cards = [...spread.cards].sort((a, b) => a.house - b.house);
+  return (
+    <ol className="grid gap-x-8 gap-y-5 text-left sm:grid-cols-2 lg:grid-cols-3" aria-label={text("Your twelve cards")} data-testid="spread-cards">
+      {cards.map((card) => {
+        const src = tarotImage(card.card);
+        return (
+          <li key={card.house} className="flex items-start gap-3" data-house={card.house}>
+            <span className="relative shrink-0" aria-hidden="true">
+              {src ? (
+                <img
+                  src={src}
+                  alt=""
+                  width={42}
+                  height={71}
+                  loading="lazy"
+                  decoding="async"
+                  className={cn("h-[71px] w-[42px] rounded-[2.2px] border border-ink/70 object-cover", card.reversed && "rotate-180")}
+                />
+              ) : (
+                <span className="block h-[71px] w-[42px] rounded-[2.2px] border border-ink/70 bg-cream-light" />
+              )}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[11px] font-semibold tracking-[1.2px] uppercase text-ink/75">
+                {text("House {value0}", { value0: card.house })}
+                {" · "}
+                {text(HOUSE_KEYWORDS[card.house - 1] ?? "")}
+              </span>
+              <span className="block font-display text-[17px] leading-tight">
+                {text(cardName(card.card))}
+                {card.reversed ? <span className="ml-2 align-middle font-serif text-[11px] font-semibold tracking-wide uppercase">{text("Reversed")}</span> : null}
+              </span>
+              <span className="mt-0.5 block text-[13px] leading-snug font-light">{source(card)}</span>
+              {card.uncertain ? (
+                <span className="mt-0.5 block text-[12px] leading-snug text-[#6b5214]">{text("This card may change with your exact birth time.")}</span>
+              ) : null}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }

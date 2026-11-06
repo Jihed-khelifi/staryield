@@ -134,16 +134,20 @@ type PackInput struct {
 
 // AdminDeps are the admin service's collaborators.
 type AdminDeps struct {
-	Tx           database.TxManager
-	Users        repository.UserRepository
-	Wallets      repository.WalletRepository
-	Tokens       repository.TokenRepository
-	Psychics     repository.PsychicRepository
-	Credits      repository.CreditRepository
-	Audit        repository.AuditRepository
-	Chat         repository.ChatRepository
-	Growth       repository.GrowthRepository
-	Insights     repository.InsightsRepository
+	Tx       database.TxManager
+	Users    repository.UserRepository
+	Wallets  repository.WalletRepository
+	Tokens   repository.TokenRepository
+	Psychics repository.PsychicRepository
+	Credits  repository.CreditRepository
+	Audit    repository.AuditRepository
+	Chat     repository.ChatRepository
+	Growth   repository.GrowthRepository
+	Insights repository.InsightsRepository
+	// Notes is optional; when set, account deletion erases client notes.
+	Notes repository.NoteRepository
+	// Waitlist is optional; when set, account deletion erases waiting lists.
+	Waitlist     repository.WaitlistRepository
 	Wallet       *WalletService
 	Auth         *AuthService
 	AdminAuth    *AdminAuthService
@@ -160,6 +164,9 @@ type AdminDeps struct {
 	MaxAdjust    int64
 	Currency     string
 	AdvisorImage ImagePolicy
+	// Eraser anonymises deleted accounts (identity); when nil one is built
+	// from the dependencies above.
+	Eraser *AccountEraser
 }
 
 // AdminService implements the administrative console API (FR-13, FR-14).
@@ -174,6 +181,8 @@ type AdminService struct {
 	chatRepo     repository.ChatRepository
 	growth       repository.GrowthRepository
 	insights     repository.InsightsRepository
+	notes        repository.NoteRepository
+	waitlist     repository.WaitlistRepository
 	wallet       *WalletService
 	auth         *AuthService
 	adminAuth    *AdminAuthService
@@ -190,6 +199,7 @@ type AdminService struct {
 	maxAdj       int64
 	currency     string
 	advisorImage ImagePolicy
+	eraser       *AccountEraser
 }
 
 // NewAdminService wires the admin service.
@@ -199,10 +209,19 @@ func NewAdminService(d AdminDeps) *AdminService {
 		notify = NoopNotifier{}
 	}
 	return &AdminService{tx: d.Tx, users: d.Users, wallets: d.Wallets, tokens: d.Tokens, psychics: d.Psychics, credits: d.Credits,
-		audit: d.Audit, chatRepo: d.Chat, growth: d.Growth, insights: d.Insights, wallet: d.Wallet, auth: d.Auth, adminAuth: d.AdminAuth,
+		audit: d.Audit, chatRepo: d.Chat, growth: d.Growth, insights: d.Insights, notes: d.Notes, waitlist: d.Waitlist, wallet: d.Wallet, auth: d.Auth, adminAuth: d.AdminAuth,
 		chat: d.ChatSvc, psySvc: d.PsychicSvc, events: d.Events, notify: notify, presence: d.Presence, hasher: d.Hasher,
 		avatarStore: d.AvatarStore, advisorStore: d.AdvisorStore, clock: d.Clock, ipSecret: d.IPSecret, maxAdj: d.MaxAdjust,
-		currency: d.Currency, advisorImage: d.AdvisorImage}
+		currency: d.Currency, advisorImage: d.AdvisorImage, eraser: d.Eraser}
+}
+
+func (s *AdminService) accountEraser() *AccountEraser {
+	if s.eraser == nil {
+		s.eraser = NewAccountEraser(EraserDeps{Tx: s.tx, Users: s.users, Tokens: s.tokens, Psychics: s.psychics, Hasher: s.hasher,
+			Clock: s.clock, Notes: s.notes, Waitlist: s.waitlist, AvatarStore: s.avatarStore, Auth: s.auth, AdminAuth: s.adminAuth, Chat: s.chat,
+			PsychicSvc: s.psySvc, Events: s.events})
+	}
+	return s.eraser
 }
 
 // record writes an audit entry; failures are logged loudly but do not undo
@@ -316,9 +335,9 @@ func (s *AdminService) CreateUser(ctx context.Context, in CreateUserInput) (*Adm
 		name = email[:strings.IndexByte(email, '@')]
 		name = truncateString(name, 40)
 	}
-	hash, err := s.hasher.Hash(in.Password)
+	hash, err := s.hasher.HashContext(ctx, in.Password)
 	if err != nil {
-		return nil, apperror.Internal(err)
+		return nil, hashError(err)
 	}
 	now := s.clock.Now()
 	user := &domain.User{ID: domain.NewID(), Email: email, PasswordHash: hash, Role: in.Role, Status: domain.UserActive,
@@ -364,6 +383,16 @@ func (s *AdminService) UpdateUser(ctx context.Context, adminID, id uuid.UUID, in
 			if *in.Status != before.Status {
 				fields["status"] = *in.Status
 				fields["status_changed_at"] = s.clock.Now()
+			}
+			// identity: a staff decision replaces the owner's own pause or
+			// closure request (no reactivation by signing in, no erasure).
+			if *in.Status == domain.UserDeactivated && before.DeactivatedBy != domain.DeactivatedByAdmin {
+				fields["deactivated_by"] = domain.DeactivatedByAdmin
+			} else if *in.Status != domain.UserDeactivated && before.DeactivatedBy != "" {
+				fields["deactivated_by"] = ""
+			}
+			if before.ClosureScheduledAt != nil {
+				fields["closure_scheduled_at"] = nil
 			}
 		case domain.UserDeleted:
 			invalid["status"] = "Delete accounts with the delete action."
@@ -469,6 +498,7 @@ func (s *AdminService) UpdateUser(ctx context.Context, adminID, id uuid.UUID, in
 		s.chat.EndAllForUser(ctx, id)
 	}
 	if before.Role == domain.RolePsychic && fields["status"] != nil {
+		s.psySvc.DirectoryChanged()
 		s.psySvc.PublishStatus(ctx, id)
 	}
 	meta := map[string]any{}
@@ -501,57 +531,12 @@ func (s *AdminService) DeleteUser(ctx context.Context, adminID, id uuid.UUID, re
 	if reason == "" || utf8.RuneCountInString(reason) > 300 {
 		return apperror.Validation(map[string]string{"reason": "A reason (up to 300 characters) is required."})
 	}
-	u, err := s.users.GetByID(ctx, id)
-	if err != nil {
-		return mapRepoErr(err, "User")
-	}
-	if u.Status == domain.UserDeleted {
+	u, err := s.accountEraser().Erase(ctx, id, EraseRequest{Reason: reason})
+	if errors.Is(err, ErrNotErasable) {
 		return nil
 	}
-	profile, _ := s.users.GetProfile(ctx, id)
-	now := s.clock.Now()
-	unusable, err := s.hasher.Hash(security.MustRandomToken(32))
 	if err != nil {
-		return apperror.Internal(err)
-	}
-	err = s.tx.WithinTx(ctx, func(ctx context.Context) error {
-		if err := s.users.Updates(ctx, id, map[string]any{
-			"email": "deleted+" + id.String() + "@deleted.invalid", "display_name": "Deleted user", "password_hash": unusable,
-			"status": domain.UserDeleted, "status_reason": reason, "status_changed_at": now, "deleted_at": now,
-			"token_version": gorm.Expr("token_version + 1"),
-		}); err != nil {
-			return err
-		}
-		if profile != nil {
-			if err := s.users.UpdateProfile(ctx, id, map[string]any{
-				"nickname": "", "birth_date": nil, "birth_time": "", "birth_place_id": "", "birth_place": "",
-				"birth_latitude": nil, "birth_longitude": nil, "birth_timezone": "", "location": "", "avatar_url": "",
-				"avatar_key": "", "country_code": "",
-			}); err != nil {
-				return err
-			}
-		}
-		if u.Role == domain.RolePsychic {
-			if err := s.psychics.Updates(ctx, id, map[string]any{"listed": false, "featured": false, "availability": domain.AvailabilityOffline}); err != nil && !errors.Is(err, repository.ErrNotFound) {
-				return err
-			}
-		}
-		_, err := s.tokens.RevokeAllForUser(ctx, id, "account_deleted", now)
 		return err
-	})
-	if err != nil {
-		return mapRepoErr(err, "User")
-	}
-	if profile != nil && profile.AvatarKey != "" && s.avatarStore != nil {
-		warnErr(ctx, "admin: delete avatar object", s.avatarStore.Delete(ctx, profile.AvatarKey))
-	}
-	s.auth.InvalidateStatus(ctx, id)
-	warnErr(ctx, "admin: realtime revoke", s.events.Revoke(ctx, id))
-	s.adminAuth.RevokeAllFor(ctx, id, "account_deleted")
-	s.adminAuth.ResetMFA(ctx, id)
-	s.chat.EndAllForUser(ctx, id)
-	if u.Role == domain.RolePsychic {
-		s.psySvc.PublishStatus(ctx, id)
 	}
 	s.record(ctx, "user.deleted", "user", id.String(), map[string]any{"reason": reason, "role": string(u.Role)})
 	return nil
@@ -771,9 +756,9 @@ func (s *AdminService) CreatePsychic(ctx context.Context, in PsychicInput) (*Adm
 	if len(fields) > 0 {
 		return nil, apperror.Validation(fields)
 	}
-	hash, err := s.hasher.Hash(*in.Password)
+	hash, err := s.hasher.HashContext(ctx, *in.Password)
 	if err != nil {
-		return nil, apperror.Internal(err)
+		return nil, hashError(err)
 	}
 	now := s.clock.Now()
 	user := &domain.User{ID: domain.NewID(), Email: email, PasswordHash: hash, Role: domain.RolePsychic, Status: domain.UserActive,
@@ -817,6 +802,7 @@ func (s *AdminService) CreatePsychic(ctx context.Context, in PsychicInput) (*Adm
 	if err != nil {
 		return nil, mapRepoErr(err, "Advisor")
 	}
+	s.psySvc.DirectoryChanged()
 	s.record(ctx, "psychic.created", "psychic", user.ID.String(), map[string]any{"slug": p.Slug, "rate": p.RatePerMinute})
 	return s.psychic(ctx, user.ID)
 }
@@ -967,6 +953,7 @@ func (s *AdminService) UpdatePsychic(ctx context.Context, id uuid.UUID, in Psych
 		}
 	}
 	s.record(ctx, action, "psychic", id.String(), meta)
+	s.psySvc.DirectoryChanged()
 	s.psySvc.PublishStatus(ctx, id)
 	return s.psychic(ctx, id)
 }
@@ -1111,6 +1098,7 @@ func (s *AdminService) UploadPsychicImage(ctx context.Context, id uuid.UUID, dat
 		warnErr(ctx, "admin: delete previous advisor image", s.advisorStore.Delete(ctx, p.ImageKey))
 	}
 	s.record(ctx, "psychic.image_uploaded", "psychic", id.String(), map[string]any{"bytes": len(img.Data), "width": img.Width, "height": img.Height})
+	s.psySvc.DirectoryChanged()
 	s.psySvc.PublishStatus(ctx, id)
 	return s.psychic(ctx, id)
 }
@@ -1127,6 +1115,7 @@ func (s *AdminService) DeletePsychicImage(ctx context.Context, id uuid.UUID) (*A
 	if p.ImageKey != "" && s.advisorStore != nil {
 		warnErr(ctx, "admin: delete advisor image", s.advisorStore.Delete(ctx, p.ImageKey))
 	}
+	s.psySvc.DirectoryChanged()
 	s.record(ctx, "psychic.image_removed", "psychic", id.String(), nil)
 	return s.psychic(ctx, id)
 }

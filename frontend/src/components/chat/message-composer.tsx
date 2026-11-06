@@ -45,7 +45,8 @@ export function MessageComposer({
 }: {
   onSend: (message: ComposerSubmit) => void;
   onTyping?: (typing: boolean) => void;
-  note: string;
+  /** Rate and balance line under the field (may contain a struck-through list rate). */
+  note: React.ReactNode;
   disabled?: boolean;
   disabledReason?: string;
   allowAttachments?: boolean;
@@ -251,63 +252,67 @@ export function MessageComposer({
         <label className="sr-only" htmlFor="chat-composer-input">
           {t("chatroom.composer.label")}
         </label>
-        <textarea
-          id="chat-composer-input"
-          ref={textareaRef}
-          rows={1}
-          value={value}
-          disabled={disabled}
-          maxLength={MESSAGE_MAX_LENGTH}
-          autoComplete="off"
-          enterKeyHint={touch ? "enter" : "send"}
-          placeholder={placeholder}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={cn(error && errorId, showCounter && counterId) || undefined}
-          className="composer-input"
-          onChange={(e) => {
-            setValue(e.target.value);
-            if (error) setError(null);
-            typed();
-          }}
-          onKeyDown={(e) => {
-            const action = composerKeyAction(
-              {
-                key: e.key,
-                shiftKey: e.shiftKey,
-                altKey: e.altKey,
-                ctrlKey: e.ctrlKey,
-                metaKey: e.metaKey,
-                isComposing: e.nativeEvent.isComposing,
-                keyCode: e.keyCode,
-              },
-              touch,
-            );
-            if (action === "send") {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          onPaste={(e) => {
-            const pasted = firstFile(e.clipboardData?.files);
-            if (pasted && pasted.type.startsWith("image/")) {
-              e.preventDefault();
-              attach(pasted);
-            }
-          }}
-        />
-        <Button
-          type="submit"
-          disabled={!canSend}
-          size="icon"
-          variant="ghost"
-          aria-label={t("chatroom.composer.send")}
-          className="composer-send shrink-0 text-ink hover:bg-warm-gray"
-        >
-          <FiSend className="size-4" aria-hidden />
-        </Button>
+        <div className="composer-field">
+          <textarea
+            id="chat-composer-input"
+            ref={textareaRef}
+            rows={1}
+            value={value}
+            disabled={disabled}
+            maxLength={MESSAGE_MAX_LENGTH}
+            autoComplete="off"
+            enterKeyHint={touch ? "enter" : "send"}
+            placeholder={placeholder}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={cn(error && errorId, showCounter && counterId) || undefined}
+            className="composer-input"
+            onChange={(e) => {
+              setValue(e.target.value);
+              if (error) setError(null);
+              typed();
+            }}
+            onKeyDown={(e) => {
+              const action = composerKeyAction(
+                {
+                  key: e.key,
+                  shiftKey: e.shiftKey,
+                  altKey: e.altKey,
+                  ctrlKey: e.ctrlKey,
+                  metaKey: e.metaKey,
+                  isComposing: e.nativeEvent.isComposing,
+                  keyCode: e.keyCode,
+                },
+                touch,
+              );
+              if (action === "send") {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            onPaste={(e) => {
+              const pasted = firstFile(e.clipboardData?.files);
+              if (pasted && pasted.type.startsWith("image/")) {
+                e.preventDefault();
+                attach(pasted);
+              }
+            }}
+          />
+          <Button
+            type="submit"
+            disabled={!canSend}
+            size="icon"
+            variant="ghost"
+            aria-label={t("chatroom.composer.send")}
+            className="composer-send shrink-0 text-ink hover:bg-warm-gray"
+          >
+            <FiSend className="size-4" aria-hidden />
+          </Button>
+        </div>
       </div>
       <div className="composer-meta">
-        <p className="font-ui text-[10px] text-ink opacity-50">{note}</p>
+        <p className="composer-note font-ui text-[10px] text-ink" data-testid="composer-note">
+          {note}
+        </p>
         {showCounter ? (
           <span
             id={counterId}

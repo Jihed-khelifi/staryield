@@ -132,15 +132,15 @@ func (r *GormReviewRepository) Stats(ctx context.Context, psychicID uuid.UUID, f
 	return st, nil
 }
 
+// AdjustPsychicRating applies the delta in one UPDATE (every expression reads
+// the row's previous values, so concurrent reviews cannot lose updates).
+// With no reviews left an advisor shows the new-advisor default of 5.0.
 func (r *GormReviewRepository) AdjustPsychicRating(ctx context.Context, psychicID uuid.UUID, sumDelta float64, countDelta int) error {
-	return database.Conn(ctx, r.db).Exec(`
-		UPDATE psychics SET
-			rating_sum    = GREATEST(rating_sum + ?, 0),
-			reviews_count = GREATEST(reviews_count + ?, 0),
-			-- With no reviews left an advisor shows the new-advisor default.
-			rating        = CASE WHEN reviews_count + ? > 0
-			                     THEN LEAST(5, GREATEST(0, round((rating_sum + ?) / (reviews_count + ?), 1)))
-			                     ELSE 5.0 END,
-			updated_at    = now()
-		WHERE user_id = ?`, sumDelta, countDelta, countDelta, sumDelta, countDelta, psychicID).Error
+	return database.Conn(ctx, r.db).Model(&domain.Psychic{}).Where("user_id = ?", psychicID).UpdateColumns(map[string]any{
+		"rating_sum":    gorm.Expr("GREATEST(rating_sum + ?, 0)", sumDelta),
+		"reviews_count": gorm.Expr("GREATEST(reviews_count + ?, 0)", countDelta),
+		"rating": gorm.Expr("CASE WHEN reviews_count + ? > 0 THEN LEAST(5, GREATEST(0, round((rating_sum + ?) / (reviews_count + ?), 1))) ELSE 5.0 END",
+			countDelta, sumDelta, countDelta),
+		"updated_at": gorm.Expr("now()"),
+	}).Error
 }

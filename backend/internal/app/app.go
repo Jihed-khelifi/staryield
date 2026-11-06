@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -23,9 +24,11 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/clock"
 	"github.com/Jihed-khelifi/staryield/backend/internal/config"
 	"github.com/Jihed-khelifi/staryield/backend/internal/database"
+	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
 	"github.com/Jihed-khelifi/staryield/backend/internal/mail"
 	"github.com/Jihed-khelifi/staryield/backend/internal/migrations"
 	"github.com/Jihed-khelifi/staryield/backend/internal/payment"
+	"github.com/Jihed-khelifi/staryield/backend/internal/push"
 	"github.com/Jihed-khelifi/staryield/backend/internal/ratelimit"
 	"github.com/Jihed-khelifi/staryield/backend/internal/realtime"
 	"github.com/Jihed-khelifi/staryield/backend/internal/redisx"
@@ -36,6 +39,17 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/worker"
 )
 
+// MailJob is the scheduler job delivering the e-mail outbox.
+const MailJob = "mail"
+
+// identity: scheduler jobs of the account self-service module.
+const (
+	// ExportJob builds queued personal-data exports.
+	ExportJob = "exports"
+	// ClosureJob erases accounts whose closure grace period ended.
+	ClosureJob = "account-closures"
+)
+
 // Overrides replace infrastructure for tests (nil = production default).
 type Overrides struct {
 	Clock          clock.Clock
@@ -44,6 +58,14 @@ type Overrides struct {
 	AdvisorStorage storage.ObjectStore // advisor images (R2_ADVISOR_IMAGE)
 	ChatStorage    storage.ObjectStore // private chat images (R2_CHAT_IMAGES_PRIVATE)
 	Tracker        analytics.Tracker
+	// PushSender replaces the Web Push transport (tests never reach real
+	// push services); push still needs VAPID keys in the configuration.
+	PushSender push.Sender
+	// billing: a shared simulated processor lets several app instances (and
+	// the test) see the same sandbox charges.
+	PaymentProcessor *payment.SandboxProcessor
+	// ExportStorage holds personal-data export archives (identity).
+	ExportStorage storage.ObjectStore
 }
 
 // App is a fully wired server.
@@ -61,6 +83,14 @@ type App struct {
 	Clock     clock.Clock
 	// Dispatcher delivers notifications asynchronously.
 	Dispatcher *service.Dispatcher
+	// Events publishes realtime events; Broker is this instance's fan-out
+	// (chat ordering gate, per-user subscriptions).
+	Events *realtime.Publisher
+	Broker *realtime.RedisBroker
+	// ExportStore holds personal-data export archives (identity).
+	ExportStore storage.ObjectStore
+	// Hasher is the shared, concurrency-bounded password hasher.
+	Hasher *security.PasswordHasher
 
 	server *http.Server
 	cancel context.CancelFunc
@@ -79,7 +109,9 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		clk = clock.Real{}
 	}
 
-	db, err := database.Open(ctx, cfg.Database, log)
+	// GORM timestamps (created_at, updated_at, deleted_at) follow the app
+	// clock, so a fake clock in tests governs them too.
+	db, err := database.Open(ctx, cfg.Database, log, database.WithClock(clk.Now))
 	if err != nil {
 		return nil, err
 	}
@@ -115,11 +147,13 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	notificationsRepo := repository.NewNotificationRepository(db)
 	reviewsRepo := repository.NewReviewRepository(db)
 	withdrawalsRepo := repository.NewWithdrawalRepository(db)
+	notesRepo := repository.NewNoteRepository(db)
 	attachments := repository.NewAttachmentRepository(db)
 	insights := repository.NewInsightsRepository(db)
 
 	// Security primitives.
-	hasher := security.NewPasswordHasher(cfg.Auth.Argon2Memory, cfg.Auth.Argon2Iterations, cfg.Auth.Argon2Parallelism)
+	hasher := security.NewPasswordHasher(cfg.Auth.Argon2Memory, cfg.Auth.Argon2Iterations, cfg.Auth.Argon2Parallelism).
+		WithLimits(cfg.Auth.Argon2Concurrency, cfg.Auth.PasswordHashWait)
 	issuer, err := security.NewTokenIssuer(cfg.Auth.JWTSecret, cfg.Auth.JWTIssuer, cfg.Auth.JWTAudience, cfg.Auth.AccessTokenTTL, clk.Now)
 	if err != nil {
 		return nil, err
@@ -177,12 +211,52 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	mailer := ov.Mailer
 	if mailer == nil {
 		switch cfg.Mail.Driver {
+		case "cloudflare":
+			cf, err := mail.NewCloudflare(mail.CloudflareConfig{AccountID: cfg.Mail.CloudflareAccountID, APIToken: cfg.Mail.CloudflareAPIToken,
+				From: cfg.Mail.From, FromName: cfg.Mail.FromName, ReplyTo: cfg.Mail.ReplyTo, BaseURL: cfg.Mail.CloudflareBaseURL,
+				Timeout: cfg.Mail.Timeout})
+			if err != nil {
+				return nil, err
+			}
+			mailer = cf
 		case "log":
 			mailer = mail.LogMailer{From: cfg.Mail.From}
 		default:
 			mailer = mail.NoopMailer{}
+			log.Warn("mail driver is noop: e-mail (password resets, account notices) is discarded")
 		}
 	}
+	// Keyed hashes identify e-mail addresses and push endpoints without
+	// storing them in clear; the keys derive from the data encryption key.
+	addressHashKey := security.Keyed(string(key), "staryield:address-hash:v1", 0)
+	endpointHashKey := security.Keyed(string(key), "staryield:push-endpoint:v1", 0)
+	mailSvc := service.NewMailService(txm, repository.NewEmailRepository(db), mailer, sealer, clk, log.With(zap.String("component", "mail")),
+		service.MailSettings{FrontendURL: cfg.App.FrontendURL, MaxAttempts: cfg.Mail.MaxAttempts, DailyCap: cfg.Mail.DailyCap,
+			AllowMarketing: cfg.Mail.AllowMarketing, SendTimeout: cfg.Mail.Timeout + 5*time.Second, HashKey: addressHashKey})
+	var pushSender push.Sender
+	pushPublicKey := ""
+	if cfg.Push.Active() {
+		pcfg := push.Config{PublicKey: cfg.Push.VAPIDPublicKey, PrivateKey: cfg.Push.VAPIDPrivateKey, Subject: cfg.Push.Subject,
+			TTL: cfg.Push.TTL, Timeout: cfg.Push.Timeout}
+		if err := pcfg.Validate(); err != nil {
+			return nil, fmt.Errorf("%s/%s: %w", config.EnvVar("push.vapid_public_key"), config.EnvVar("push.vapid_private_key"), err)
+		}
+		if pushSender = ov.PushSender; pushSender == nil {
+			wp, err := push.NewWebPush(pcfg, nil)
+			if err != nil {
+				return nil, err
+			}
+			pushSender = wp
+		}
+		pushPublicKey = cfg.Push.VAPIDPublicKey
+	} else {
+		log.Info("web push disabled: set the VAPID keys to enable it (go run ./cmd/vapid)")
+	}
+	pushSvc := service.NewPushService(repository.NewPushRepository(db), sealer, pushSender, clk, log.With(zap.String("component", "push")),
+		service.PushSettings{PublicKey: pushPublicKey, FrontendURL: cfg.App.FrontendURL, HashKey: endpointHashKey,
+			MaxPerUser: cfg.Push.MaxPerUser, Workers: cfg.Push.Workers, QueueSize: cfg.Push.QueueSize})
+	channels := service.NewNotificationChannels(repository.NewContactRepository(db), mailSvc, pushSvc, cfg.App.FrontendURL,
+		log.With(zap.String("component", "notification-channels")))
 	var provider payment.Provider = payment.NewSandbox(cfg.Payments.WebhookSecret, cfg.Payments.WebhookTolerance)
 	if cfg.Payments.Provider == "disabled" {
 		provider = payment.Disabled{}
@@ -199,12 +273,12 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	}
 	dispatcher := service.NewDispatcher(notificationsRepo, publisher, log.With(zap.String("component", "notifications")), clk,
 		service.DispatcherConfig{BufferSize: cfg.Notifications.BufferSize, BatchSize: cfg.Notifications.BatchSize,
-			FlushInterval: cfg.Notifications.FlushInterval})
+			FlushInterval: cfg.Notifications.FlushInterval}).WithChannels(channels)
 
 	// Business layer.
 	share := cfg.Billing.PsychicSharePercent
 	walletSvc := service.NewWalletService(txm, wallets, clk)
-	authSvc := service.NewAuthService(txm, users, tokens, walletSvc, wallets, hasher, issuer, kv, tickets, mailer, publisher, track, clk,
+	authSvc := service.NewAuthService(txm, users, tokens, walletSvc, wallets, hasher, issuer, kv, tickets, mailSvc, publisher, track, clk,
 		service.AuthSettings{
 			RefreshTTL: cfg.Auth.RefreshTokenTTL, ResetTTL: cfg.Auth.PasswordResetTTL, MaxFailures: cfg.Auth.LoginMaxFailures,
 			Lockout: cfg.Auth.LoginLockout, MinimumAge: cfg.Auth.MinimumAge, SignupFreeMinutes: cfg.Billing.SignupFreeMinutes,
@@ -220,6 +294,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 			RequestTimeout: cfg.Chat.RequestTimeout, AcceptedTimeout: cfg.Chat.AcceptedTimeout, GracePeriod: cfg.Chat.GracePeriod,
 			BillingInterval: cfg.Chat.BillingInterval, MaxMessageLength: cfg.Chat.MaxMessageLength, HistoryPageSize: cfg.Chat.HistoryPageSize,
 			LowBalanceMinutes: cfg.Chat.LowBalanceMinute, SharePercent: share,
+			PayoutCentsPerCredit: cfg.Billing.PayoutCentsPerCredit, Currency: cfg.Payments.Currency,
 			MessageRule: ratelimit.Rule{Name: "msg", Rate: cfg.Chat.MessageRate, Period: cfg.Chat.MessageRateEvery, Burst: cfg.Chat.MessageRate}.Scaled(cfg.RateLimit.Scale),
 			TypingRule:  ratelimit.Rule{Name: "typing", Rate: 1, Period: cfg.Realtime.TypingMinInterval, Burst: 2},
 		})
@@ -239,13 +314,14 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		PublicBaseURL: cfg.Links.PublicBaseURL, AllowedHosts: cfg.Links.AllowedHosts, Currency: cfg.Payments.Currency,
 		IPHashSecret: cfg.Analytics.IPHashSecret})
 	notificationSvc := service.NewNotificationService(notificationsRepo, growth, presence, publisher, audit, clk,
-		cfg.Analytics.IPHashSecret, log.With(zap.String("component", "broadcasts")))
+		cfg.Analytics.IPHashSecret, log.With(zap.String("component", "broadcasts"))).WithChannels(channels)
 	withdrawalSvc := service.NewWithdrawalService(txm, withdrawalsRepo, psychics, audit, sealer, dispatcher, track, clk, service.PayoutSettings{
 		CentsPerCredit: cfg.Billing.PayoutCentsPerCredit, MinCredits: cfg.Billing.MinWithdrawalCredits, Currency: cfg.Payments.Currency,
 		IPHashSecret: cfg.Analytics.IPHashSecret})
 	psychicAnalyticsSvc := service.NewPsychicAnalyticsService(insights, earnings, reviewsRepo, psychics, withdrawalSvc, clk)
 	adminSvc := service.NewAdminService(service.AdminDeps{Tx: txm, Users: users, Wallets: wallets, Tokens: tokens, Psychics: psychics,
-		Credits: credits, Audit: audit, Chat: chatRepo, Growth: growth, Insights: insights, Wallet: walletSvc, Auth: authSvc,
+		Credits: credits, Audit: audit, Chat: chatRepo, Growth: growth, Insights: insights, Notes: notesRepo, Waitlist: repository.NewWaitlistRepository(db),
+		Wallet: walletSvc, Auth: authSvc,
 		AdminAuth: adminAuthSvc, ChatSvc: chatSvc, PsychicSvc: psychicSvc, Events: publisher, Notifier: dispatcher, Presence: presence,
 		Hasher: hasher, AvatarStore: store, AdvisorStore: advisorStore, Clock: clk, IPSecret: cfg.Analytics.IPHashSecret,
 		MaxAdjust: cfg.Billing.MaxAdminAdjustment, Currency: cfg.Payments.Currency,
@@ -253,8 +329,105 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 			MaxSide: cfg.Storage.AdvisorImageMaxSide, Field: "image"}})
 	insightsSvc := service.NewInsightsService(insights, users, adminSvc, clk, cfg.Payments.Currency)
 	analyticsSvc := service.NewAnalyticsService(track, analyticsRepo, reports, clk, cfg.Analytics.IPHashSecret, cfg.Analytics.MaxBatch)
-	astroSvc := service.NewAstrologyService(users, track, clk)
+	astroSvc := service.NewAstrologyService(users, track, clk, kv)
+	notesSvc := service.NewNoteService(txm, notesRepo, chatRepo, audit, sealer, clk, cfg.Analytics.IPHashSecret)
+	statsSvc := service.NewPsychicStatsService(repository.NewStatsRepository(db), kv, clk)
+	// Public directory snapshot and presence history, both driven by status changes.
+	catalogSvc := service.NewAdvisorCatalog(repository.NewCatalogRepository(db), psychicSvc.StatusesFor, clk)
+	presenceTracker := service.NewPresenceTracker(txm, repository.NewPresenceRepository(db), psychicSvc.StatusesFor, clk, nil)
+	waitlistRepo := repository.NewWaitlistRepository(db)
+	waitlistSvc := service.NewWaitlistService(txm, waitlistRepo, psychics, psychicSvc.StatusesFor,
+		func(ctx context.Context, id uuid.UUID) (domain.PresenceStatus, error) {
+			st, _, err := psychicSvc.Status(ctx, id)
+			return st, err
+		}, dispatcher, track, clk)
+	psychicSvc.OnDirectoryChange(catalogSvc.MarkStale)
+	psychicSvc.OnStatusChange(func(ctx context.Context, id uuid.UUID, st domain.PresenceStatus) {
+		catalogSvc.SetStatus(id, st)
+		presenceTracker.Observe(ctx, id, st)
+		if st == domain.PresenceOnline {
+			waitlistSvc.AdvisorOnline(ctx, id)
+		}
+	})
+	supportRepo := repository.NewSupportRepository(db)
+	supportSvc := service.NewSupportService(supportRepo, sealer, service.NewMailSupportNotifier(mailSvc, cfg.Mail.SupportInbox), clk,
+		cfg.Analytics.IPHashSecret)
 	gateway := service.NewRealtimeGateway(chatSvc, psychicSvc, presence)
+
+	// billing: saved-card providers (routing rules choose among them) and
+	// the membership service. Payments disabled ⇒ no provider is registered.
+	registry := payment.NewRegistry("")
+	if cfg.Payments.Provider != "disabled" {
+		proc := ov.PaymentProcessor
+		if proc == nil {
+			proc = payment.NewSandboxProcessor()
+		}
+		var providers []payment.Named
+		for _, name := range cfg.Payments.Providers {
+			switch name {
+			case "sandbox_a":
+				providers = append(providers, payment.NewSandboxA(proc, cfg.Payments.WebhookSecret, cfg.Payments.WebhookTolerance))
+			case "sandbox_b":
+				providers = append(providers, payment.NewSandboxB(proc))
+			}
+		}
+		registry = payment.NewRegistry(cfg.Payments.DefaultProvider, providers...)
+	}
+	billingSvc := service.NewBillingService(service.BillingDeps{Tx: txm, Repo: repository.NewBillingRepository(db), Users: users,
+		Wallets: wallets, Wallet: walletSvc, Credits: credits, Registry: registry, Legacy: provider, Sealer: sealer, Audit: audit,
+		Events: publisher, Notify: dispatcher, Tracker: track, Clock: clk},
+		service.BillingSettings{Currency: cfg.Payments.Currency, RenewalLease: cfg.Payments.RenewalLease, GracePeriod: cfg.Payments.GracePeriod,
+			IncompleteTTL: cfg.Payments.IncompleteTTL, MaxPaymentMethods: cfg.Payments.MaxPaymentMethods, IPHashSecret: cfg.Analytics.IPHashSecret})
+	creditSvc.WithBilling(billingSvc)
+	billingSvc.WithSettler(creditSvc)
+	waitlistSvc.SetPriority(billingSvc.HasWaitlistPriority) // members are told first
+	chatSvc.SetDiscounts(billingSvc.DiscountFor)            // member chat discount, snapshotted per session
+	// --- advisor settings: contact details, photo review (private bucket
+	// until approved), custom offering ---
+	advisorSvc := service.NewAdvisorService(service.AdvisorDeps{Tx: txm, Psychics: psychics,
+		Photos: repository.NewPhotoSubmissionRepository(db), PsychicSvc: psychicSvc, Audit: audit, Sealer: sealer,
+		Private: chatStore, Public: advisorStore, Notifier: dispatcher, Tracker: track, Clock: clk,
+		Settings: service.AdvisorSettings{IPHashSecret: cfg.Analytics.IPHashSecret,
+			Image: service.ImagePolicy{MaxBytes: cfg.Storage.MaxAdvisorImageBytes, MaxPixels: cfg.Storage.MaxImagePixels,
+				MaxSide: cfg.Storage.AdvisorImageMaxSide, Field: "photo"}}})
+	// --- end advisor settings ---
+	// --- identity: devices, settings, consents, exports, closure ---
+	sessionsRepo := repository.NewSessionRepository(db)
+	actionsRepo := repository.NewActionTokenRepository(db)
+	exportsRepo := repository.NewExportRepository(db)
+	consentsRepo := repository.NewConsentRepository(db)
+	authSvc.WithIdentity(sessionsRepo, actionsRepo)
+	consentSvc := service.NewConsentService(txm, consentsRepo, audit, clk, cfg.Analytics.IPHashSecret)
+	notesSvc.SetSharingPolicy(consentSvc.NoteSharing)
+	exportStore := ov.ExportStorage
+	if exportStore == nil {
+		bucket := cfg.Storage.ExportBucket
+		if bucket == "" {
+			bucket = cfg.Storage.ChatBucket
+		}
+		if exportStore, err = storage.NewBucket(cfg.Storage, bucket, ""); err != nil {
+			return nil, err
+		}
+	}
+	if _, off := exportStore.(storage.Disabled); off {
+		log.Warn("data export storage disabled: set R2_EXPORTS_PRIVATE (or R2_CHAT_IMAGES_PRIVATE) to enable exports")
+	}
+	eraser := service.NewAccountEraser(service.EraserDeps{Tx: txm, Users: users, Tokens: tokens, Psychics: psychics, Hasher: hasher,
+		Clock: clk, Notes: notesRepo, Push: repository.NewPushRepository(db), Actions: actionsRepo, Exports: exportsRepo,
+		Sessions: sessionsRepo, Consents: consentsRepo, Waitlist: waitlistRepo, Support: supportRepo, Advisor: advisorSvc, AvatarStore: store, ExportStore: exportStore,
+		Auth: authSvc, AdminAuth: adminAuthSvc, Chat: chatSvc, PsychicSvc: psychicSvc, Events: publisher, Mail: mailSvc})
+	eraser.SetBilling(billingSvc) // memberships end and saved cards are forgotten
+	adminSvc.SetEraser(eraser)
+	accountSvc := service.NewAccountService(service.AccountDeps{Tx: txm, Users: users, Accounts: repository.NewAccountRepository(db),
+		Tokens: tokens, Actions: actionsRepo, Psychics: psychics, Requests: requests, Audit: audit, Auth: authSvc, UserSvc: userSvc,
+		Consents: consentSvc, Payouts: withdrawalSvc, Chat: chatSvc, PsychicSvc: psychicSvc, Eraser: eraser, Mail: mailSvc,
+		Notifier: dispatcher, Events: publisher, Hasher: hasher, Sealer: sealer, Places: service.AstroPlaceLookup, Tracker: track,
+		Clock: clk, Settings: service.AccountSettings{FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret,
+			MinimumAge: cfg.Auth.MinimumAge, ResetTTL: cfg.Auth.PasswordResetTTL}})
+	exportSvc := service.NewExportService(service.ExportDeps{Tx: txm, Jobs: exportsRepo, Data: repository.NewExportDataRepository(db),
+		Users: users, Actions: actionsRepo, Audit: audit, Store: exportStore, Avatars: store, ChatImages: chatStore, Sealer: sealer,
+		Hasher: hasher, Notifier: dispatcher, Clock: clk, Settings: service.ExportSettings{IPHashSecret: cfg.Analytics.IPHashSecret}})
+	// --- end identity ---
 
 	rtServer := realtime.NewServer(hub, broker, presence, tickets, gateway, authSvc.AuthorizeRealtime, cfg.Realtime,
 		cfg.Security.AllowedOrigins, log.With(zap.String("component", "realtime")))
@@ -262,7 +435,11 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	services := handler.Services{Auth: authSvc, Users: userSvc, Wallet: walletSvc, Psychics: psychicSvc, Credits: creditSvc,
 		Chat: chatSvc, Gateway: gateway, Requests: requestSvc, Admin: adminSvc, Analytics: analyticsSvc, Astrology: astroSvc,
 		AdminAuth: adminAuthSvc, Growth: growthSvc, Insights: insightsSvc, Notifications: notificationSvc, Reviews: reviewSvc,
-		Withdrawals: withdrawalSvc, PsychicAnalytics: psychicAnalyticsSvc}
+		Withdrawals: withdrawalSvc, PsychicAnalytics: psychicAnalyticsSvc, Mail: mailSvc, Push: pushSvc, Notes: notesSvc,
+		PsychicStats: statsSvc, Billing: billingSvc, Catalog: catalogSvc, Waitlist: waitlistSvc,
+		Support: supportSvc,
+		Account: accountSvc, Consents: consentSvc, Exports: exportSvc,
+		Advisor: advisorSvc} // advisor settings
 	cookieNames := api.CookieNamesFor(cfg.Security)
 	health := func(r *http.Request) map[string]error {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -277,6 +454,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Secure: cfg.Security.CookieSecure, AccessTTL: cfg.Auth.AccessTokenTTL, RefreshTTL: cfg.Auth.RefreshTokenTTL},
 		rtServer, health, cfg.Payments.Currency, handler.Limits{AvatarBytes: cfg.Storage.MaxAvatarBytes,
 			AdvisorImageBytes: cfg.Storage.MaxAdvisorImageBytes, ChatImageBytes: cfg.Storage.MaxChatImageBytes}, cfg.Admin.SessionTTL)
+	h.SetCountryResolver(api.CountryResolver(cfg.HTTP)) // billing
 	var devObjects map[string]storage.ObjectStore
 	if cfg.Storage.Driver == "memory" && !cfg.IsProduction() {
 		devObjects = map[string]storage.ObjectStore{"avatars": store, "advisors": advisorStore}
@@ -290,11 +468,42 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		worker.Cleanup{Name: "old notifications", Run: func(ctx context.Context, now time.Time) (int64, error) {
 			return notificationsRepo.DeleteOlderThan(ctx, now.AddDate(0, 0, -180))
 		}},
+		worker.Cleanup{Name: "finished e-mail", Run: func(ctx context.Context, now time.Time) (int64, error) {
+			return mailSvc.PurgeFinished(ctx, now, cfg.Mail.Retention)
+		}},
+		worker.Cleanup{Name: "expired waitlist entries", Run: waitlistSvc.ExpireStale},
+		worker.Cleanup{Name: "finished waitlist entries", Run: waitlistSvc.PurgeFinished},
+		worker.Cleanup{Name: "advisor photo submissions", Run: advisorSvc.CleanupPhotos}, // advisor settings
+	).WithJobs(worker.Job{Name: MailJob, Every: cfg.Mail.PollInterval, Wake: mailSvc.Wake(), Run: func(ctx context.Context) error {
+		_, err := mailSvc.Drain(ctx)
+		return err
+	}}, worker.Job{Name: service.PresenceJob, Every: 30 * time.Second, Run: presenceTracker.Reconcile},
+		worker.Job{Name: service.WaitlistJob, Every: 15 * time.Second, Wake: waitlistSvc.Wake(), Run: waitlistSvc.RunDue}).WithTickJobs(worker.TickJob{Name: "billing", Run: func(ctx context.Context) error { // billing renewals & dunning
+		_, err := billingSvc.RunDue(ctx, cfg.Worker.BatchSize)
+		return err
+	}})
+
+	// --- identity: export builds, closure erasure, housekeeping ---
+	scheduler.WithJobs(
+		worker.Job{Name: ExportJob, Every: time.Minute, Wake: exportSvc.Wake(), Run: exportSvc.RunDue},
+		worker.Job{Name: ClosureJob, Every: 10 * time.Minute, Run: func(ctx context.Context) error {
+			_, err := accountSvc.ProcessClosures(ctx, 50)
+			return err
+		}},
+	).WithCleanups(
+		worker.Cleanup{Name: "expired exports", Run: exportSvc.PurgeExpired},
+		worker.Cleanup{Name: "account tokens", Run: func(ctx context.Context, now time.Time) (int64, error) {
+			return actionsRepo.DeleteExpired(ctx, now.Add(-24*time.Hour))
+		}},
 	)
+	// --- end identity ---
 
 	return &App{
 		Config: cfg, Log: log, DB: db, Redis: rdb, Router: router, Services: services, Hub: hub, Realtime: rtServer,
 		Scheduler: scheduler, Tracker: tracker, Clock: clk, Dispatcher: dispatcher,
+		Events: publisher, Broker: broker,
+		ExportStore: exportStore, // identity
+		Hasher:      hasher,
 	}, nil
 }
 
@@ -303,6 +512,7 @@ func (a *App) Start(ctx context.Context) {
 	ctx, a.cancel = context.WithCancel(ctx)
 	a.Tracker.Start()
 	a.Dispatcher.Start()
+	a.Services.Push.Start()
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
@@ -359,6 +569,8 @@ func (a *App) Shutdown(ctx context.Context) {
 	a.wg.Wait()
 	a.Services.Notifications.Wait()
 	a.Dispatcher.Stop(ctx)
+	// After the dispatcher: draining it may still queue pushes.
+	a.Services.Push.Stop(ctx)
 	a.Tracker.Stop(ctx)
 	_ = a.Redis.Close()
 	closeDB(a.DB)

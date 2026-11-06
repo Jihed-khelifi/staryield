@@ -13,10 +13,18 @@
 // it creates the account, or resets the password of an existing
 // administrator, and seeds nothing else. Its credentials must come from the
 // shell environment; the .env file is ignored for them.
+//
+// With -profile=large it then generates a deterministic synthetic
+// population for load and strain tests (about 200k clients, 2k advisors,
+// 100k conversations, 2M messages, 1M ledger rows by default; see the
+// -users, -psychics, … flags). Every synthetic account uses the
+// @load.staryield.test domain and the password Load!Test#2026. It refuses
+// to run twice unless -force is given; never run it against production.
 package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -38,7 +46,23 @@ func main() {
 	time.Local = time.UTC
 	envFile := flag.String("env-file", "", "path to a .env file (default ./.env if present); real environment variables win")
 	adminOnly := flag.Bool("admin-only", false, "only create the administrator from STARYIELD_SEED_ADMIN_EMAIL/STARYIELD_SEED_ADMIN_PASSWORD, or reset its password; seed nothing else")
+	profile := flag.String("profile", "default", "default (reference data and demo accounts) or large (plus a synthetic load-test population)")
+	large := seed.DefaultLargeOptions()
+	flag.IntVar(&large.Users, "users", large.Users, "large profile: clients")
+	flag.IntVar(&large.Psychics, "psychics", large.Psychics, "large profile: advisors")
+	flag.IntVar(&large.Conversations, "conversations", large.Conversations, "large profile: client–advisor conversations")
+	flag.IntVar(&large.MessagesPerConversation, "messages-per-conversation", large.MessagesPerConversation, "large profile: average messages per conversation")
+	flag.IntVar(&large.Reviews, "reviews", large.Reviews, "large profile: target number of reviews")
+	flag.IntVar(&large.LedgerRows, "ledger-rows", large.LedgerRows, "large profile: credit ledger rows")
+	flag.Uint64Var(&large.Seed, "seed", large.Seed, "large profile: random seed (same seed, same data)")
+	flag.IntVar(&large.BatchSize, "batch", large.BatchSize, "large profile: insert batch size")
+	flag.BoolVar(&large.Force, "force", false, "large profile: generate another population even if load data exists")
+	extend := flag.String("extend", "", "large profile: comma-separated generators to run on the existing population only (e.g. \"waiting lists,payment transactions\")")
 	flag.Parse()
+	if *profile != "default" && *profile != "large" {
+		fmt.Fprintln(os.Stderr, "-profile must be default or large")
+		os.Exit(2)
+	}
 	// -admin-only takes its credentials from the shell environment only, read
 	// before the .env file is loaded, so the example credentials committed in
 	// .env.example can never reach a production database by accident.
@@ -59,7 +83,15 @@ func main() {
 	if unknown := config.UnknownEnv(); len(unknown) > 0 {
 		log.Warn("ignoring unknown configuration variables (typo?)", zap.Strings("names", unknown))
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	timeout := 2 * time.Minute
+	if *profile == "large" {
+		if cfg.IsProduction() {
+			fmt.Fprintln(os.Stderr, "-profile=large is refused in production")
+			os.Exit(2)
+		}
+		timeout = 3 * time.Hour
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	db, err := database.Open(ctx, cfg.Database, log)
@@ -90,6 +122,31 @@ func main() {
 	}
 	if err := seed.Run(ctx, db, hasher, opts, log); err != nil {
 		log.Fatal("seed failed", zap.Error(err))
+	}
+	if *profile == "large" {
+		// Seal generated notes with the API's key so they read back.
+		if key, err := cfg.EncryptionKey(); err == nil {
+			if sealer, err := security.NewSealer(key); err == nil {
+				large.Sealer = sealer
+			}
+		}
+		if *extend != "" {
+			rep, err := seed.Extend(ctx, db, strings.Split(*extend, ","), large, log)
+			if err != nil {
+				log.Fatal("extend failed", zap.Error(err))
+			}
+			log.Info("large seed extended", zap.String("tag", rep.Tag), zap.Any("rows", rep.Counts), zap.Duration("elapsed", rep.Duration))
+			return
+		}
+		rep, err := seed.Large(ctx, db, hasher, large, log)
+		if errors.Is(err, seed.ErrAlreadySeeded) {
+			log.Warn("load data already present; nothing generated (use -force to add another population)")
+			return
+		}
+		if err != nil {
+			log.Fatal("large seed failed", zap.Error(err))
+		}
+		log.Info("large seed complete", zap.String("tag", rep.Tag), zap.Any("rows", rep.Counts), zap.Duration("elapsed", rep.Duration))
 	}
 	log.Info("seed complete")
 }

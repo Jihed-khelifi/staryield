@@ -63,6 +63,37 @@ func TestSanitizeProperties(t *testing.T) {
 	}
 }
 
+func TestSanitizeDropsPersonalData(t *testing.T) {
+	in := map[string]any{
+		"birth_date": "1990-05-01", "birth_time": "14:30", "birth_place_id": "gn:2988507",
+		"sun_sign": "Taurus", "moon_sign": "Leo", "rising_sign": "Virgo",
+		"place": "Paris", "place_id": "gn:2988507", "city": "Paris", "address": "1 rue X",
+		"latitude": 48.85, "longitude": 2.35, "lat": 48.85, "lon": 2.35, "lng": 2.35,
+		"email": "a@b.c", "phone": "+33", "query": "par", "q": "par", "ip": "203.0.113.9",
+		// Presence flags and coarse facts stay.
+		"has_time": true, "has_place": true, "house_system": "placidus", "kind": "natal", "sign": "aries",
+	}
+	out := Sanitize(in)
+	for k := range in {
+		_, kept := out[k]
+		if Personal(k) == kept {
+			t.Errorf("%q: personal=%v kept=%v", k, Personal(k), kept)
+		}
+	}
+	if len(out) != 5 {
+		t.Fatalf("kept %v", out)
+	}
+	if !Personal("birth_anything") || Personal("births") || Personal("has_birth_time") {
+		t.Fatal("only keys starting with birth_ are reserved by prefix")
+	}
+	// The recorder (and so every server Track call) applies it.
+	var rec Recorder
+	rec.Track(context.Background(), "astro.natal_computed", map[string]any{"birth_date": "1990-05-01", "has_time": false})
+	if _, ok := rec.Events[0].Properties["birth_date"]; ok || rec.Events[0].Properties["has_time"] != false {
+		t.Fatalf("recorded %v", rec.Events[0].Properties)
+	}
+}
+
 func TestAsyncTrackerBatchesAndFlushesOnStop(t *testing.T) {
 	store := &memStore{}
 	tr := NewAsyncTracker(Config{Enabled: true, BufferSize: 100, BatchSize: 10, FlushInterval: time.Hour, IPHashSecret: "s"}, store, zap.NewNop(), nil)

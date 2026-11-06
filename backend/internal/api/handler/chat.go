@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,20 +11,40 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/service"
 )
 
-// Conversations lists the inbox.
-func (h *Handler) Conversations(c echo.Context) error {
-	limit, err := limitParam(c, 50, 200)
-	if err != nil {
-		return err
+// seqParam parses an optional non-negative sequence number query parameter
+// (minimum min).
+func seqParam(c echo.Context, name string, min int64) (int64, bool, error) {
+	raw := c.QueryParam(name)
+	if raw == "" {
+		return 0, false, nil
 	}
-	out, err := h.svc.Chat.Conversations(c.Request().Context(), principal(c), limit)
-	if err != nil {
-		return err
+	n, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || n < min {
+		msg := "Use a whole number, 0 or more."
+		if min > 0 {
+			msg = "Use a positive whole number."
+		}
+		return 0, false, apperror.Validation(map[string]string{name: msg})
 	}
-	return ok(c, map[string]any{"items": orEmpty(out)})
+	return n, true, nil
 }
 
-// Messages returns a page of history.
+// Conversations lists one page of the inbox (?cursor=&limit=, at most 50).
+func (h *Handler) Conversations(c echo.Context) error {
+	limit, err := limitParam(c, 50, 50)
+	if err != nil {
+		return err
+	}
+	page, err := h.svc.Chat.Conversations(c.Request().Context(), principal(c), c.QueryParam("cursor"), limit)
+	if err != nil {
+		return err
+	}
+	page.Items = orEmpty(page.Items)
+	return ok(c, page)
+}
+
+// Messages returns a page of history: ?before_seq= (newest page when
+// absent), or the legacy opaque ?before= / ?cursor=.
 func (h *Handler) Messages(c echo.Context) error {
 	id, err := uuidParam(c, "id")
 	if err != nil {
@@ -33,38 +54,64 @@ func (h *Handler) Messages(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	page, err := h.svc.Chat.Messages(c.Request().Context(), principal(c), id, c.QueryParam("before"), limit)
+	beforeSeq, _, err := seqParam(c, "before_seq", 1)
 	if err != nil {
 		return err
 	}
+	cursor := c.QueryParam("before")
+	if cursor == "" {
+		cursor = c.QueryParam("cursor")
+	}
+	page, err := h.svc.Chat.Messages(c.Request().Context(), principal(c), id,
+		service.MessagesQuery{BeforeSeq: beforeSeq, Cursor: cursor, Limit: limit})
+	if err != nil {
+		return err
+	}
+	page.Items = orEmpty(page.Items)
 	return ok(c, page)
 }
 
-// MessagesSince returns messages after a timestamp (gap filling).
+// MessagesSince returns messages after ?after_seq= (gap filling), or after
+// the legacy RFC 3339 ?after= timestamp.
 func (h *Handler) MessagesSince(c echo.Context) error {
 	id, err := uuidParam(c, "id")
 	if err != nil {
 		return err
 	}
-	after, err := optionalTime(c, "after")
+	limit, err := limitParam(c, 200, 500)
 	if err != nil {
 		return err
 	}
-	if after == nil {
-		return apperror.Validation(map[string]string{"after": "This parameter is required."})
-	}
-	out, err := h.svc.Chat.MessagesSince(c.Request().Context(), principal(c), id, *after)
+	afterSeq, hasSeq, err := seqParam(c, "after_seq", 0)
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": orEmpty(out)})
+	q := service.SinceQuery{AfterSeq: afterSeq, Limit: limit}
+	if !hasSeq {
+		after, err := optionalTime(c, "after")
+		if err != nil {
+			return err
+		}
+		if after == nil {
+			return apperror.Validation(map[string]string{"after_seq": "This parameter is required."})
+		}
+		q.After = after
+	}
+	page, err := h.svc.Chat.MessagesSince(c.Request().Context(), principal(c), id, q)
+	if err != nil {
+		return err
+	}
+	page.Items = orEmpty(page.Items)
+	return ok(c, page)
 }
 
 type readRequest struct {
-	MessageID uuid.UUID `json:"message_id"`
+	MessageID *uuid.UUID `json:"message_id"`
+	Seq       *int64     `json:"seq"`
 }
 
-// MarkRead advances the read marker.
+// MarkRead advances the read position to {"seq"} or {"message_id"} and
+// returns the caller's read state.
 func (h *Handler) MarkRead(c echo.Context) error {
 	id, err := uuidParam(c, "id")
 	if err != nil {
@@ -74,10 +121,11 @@ func (h *Handler) MarkRead(c echo.Context) error {
 	if err := bind(c, &req); err != nil {
 		return err
 	}
-	if err := h.svc.Chat.MarkRead(c.Request().Context(), principal(c), id, req.MessageID); err != nil {
+	res, err := h.svc.Chat.MarkRead(c.Request().Context(), principal(c), id, service.ReadInput{Seq: req.Seq, MessageID: req.MessageID})
+	if err != nil {
 		return err
 	}
-	return noContent(c)
+	return ok(c, res)
 }
 
 // Thread returns the chatroom state with one advisor.
@@ -247,17 +295,23 @@ func (h *Handler) Typing(c echo.Context) error {
 	return noContent(c)
 }
 
-// SavedMessages lists bookmarks.
+// SavedMessages lists one page of bookmarks (?conversation_id=&cursor=&limit=,
+// most recently saved first; next_cursor only when another page exists).
 func (h *Handler) SavedMessages(c echo.Context) error {
 	conv, err := optionalUUID(c, "conversation_id")
 	if err != nil {
 		return err
 	}
-	out, err := h.svc.Chat.Bookmarks(c.Request().Context(), principal(c), conv)
+	limit, err := limitParam(c, service.BookmarksPageDefault, service.BookmarksPageMax)
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": orEmpty(out)})
+	page, err := h.svc.Chat.Bookmarks(c.Request().Context(), principal(c), conv, c.QueryParam("cursor"), limit)
+	if err != nil {
+		return err
+	}
+	page.Items = orEmpty(page.Items)
+	return ok(c, page)
 }
 
 // SaveMessage bookmarks a message.

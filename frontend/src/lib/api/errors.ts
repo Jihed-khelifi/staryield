@@ -37,7 +37,16 @@ export type ErrorCode =
   | "invalid_response"
   | "realtime_unavailable"
   | "step_up_required"
-  | "invalid_code";
+  | "invalid_code"
+  | "limit_reached"
+  // --- account settings & billing (identity module, §12) ---
+  | "version_conflict"
+  | "account_deactivated"
+  | "account_closure_pending"
+  | "closure_blocked"
+  | "export_in_progress"
+  | "subscription_exists"
+  | "payment_method_required";
 
 export class ApiError extends Error {
   readonly code: ErrorCode | string;
@@ -141,6 +150,15 @@ export const errorCopy: Record<string, string> = {
   realtime_unavailable: "Live updates are reconnecting…",
   step_up_required: "Please confirm your identity with a verification code to continue.",
   invalid_code: "This verification code is incorrect or has expired.",
+  limit_reached: "You have reached the limit for this. Remove older items to add new ones.",
+  // --- account settings & billing (identity module, §12) ---
+  version_conflict: "Your settings were changed on another device. Reload them and try again.",
+  account_deactivated: "This account is deactivated. Reactivate it to continue.",
+  account_closure_pending: "This account is scheduled for closure. Keep it to continue.",
+  closure_blocked: "Your account cannot be closed yet.",
+  export_in_progress: "Your previous export is still being prepared.",
+  subscription_exists: "You already have a membership.",
+  payment_method_required: "Add another card first: your membership renews with this one.",
 };
 
 /** The English copy for an error (translate with `text()`). */

@@ -30,6 +30,8 @@ type Scheduler struct {
 	log      *zap.Logger
 	wg       sync.WaitGroup
 	cleanups []Cleanup
+	jobs     []Job
+	tickJobs []TickJob // billing renewals, …
 }
 
 // Cleanup is an extra housekeeping job run with Maintenance.
@@ -38,11 +40,51 @@ type Cleanup struct {
 	Run  func(ctx context.Context, now time.Time) (int64, error)
 }
 
+// TickJob is an extra time-critical job run with Tick (e.g. membership
+// renewals); it must be safe to run on every instance concurrently.
+type TickJob struct {
+	Name string
+	Run  func(ctx context.Context) error
+}
+
+// WithTickJobs registers extra jobs run on every Tick.
+func (s *Scheduler) WithTickJobs(j ...TickJob) *Scheduler {
+	s.tickJobs = append(s.tickJobs, j...)
+	return s
+}
+
 // WithCleanups registers extra housekeeping jobs (expired admin sessions,
 // old notifications).
 func (s *Scheduler) WithCleanups(c ...Cleanup) *Scheduler {
 	s.cleanups = append(s.cleanups, c...)
 	return s
+}
+
+// Job is an extra background loop run every Every and, when Wake is set,
+// immediately whenever Wake fires (e.g. the e-mail outbox after an
+// enqueue). Jobs must be safe to run on several instances at once.
+type Job struct {
+	Name  string
+	Every time.Duration
+	Wake  <-chan struct{}
+	Run   func(ctx context.Context) error
+}
+
+// WithJobs registers extra background loops.
+func (s *Scheduler) WithJobs(j ...Job) *Scheduler {
+	s.jobs = append(s.jobs, j...)
+	return s
+}
+
+// RunJob runs a registered job once by name (tests drive the scheduler
+// explicitly).
+func (s *Scheduler) RunJob(ctx context.Context, name string) error {
+	for _, j := range s.jobs {
+		if j.Name == name {
+			return j.Run(ctx)
+		}
+	}
+	return fmt.Errorf("worker: no job named %q", name)
 }
 
 // New returns a scheduler.
@@ -57,7 +99,36 @@ func (s *Scheduler) Start(ctx context.Context) {
 	s.loop(ctx, "presence", s.cfg.PresenceSweep, func(ctx context.Context) error {
 		return s.chat.SweepPresence(ctx, 2000)
 	})
+	// Chat ordering: publish message events held back behind a gap that
+	// never closed (realtime.GapFlushAge).
+	s.loop(ctx, "chat-gaps", time.Second, s.FlushMessageGaps)
 	s.loop(ctx, "maintenance", s.cfg.MaintenanceTick, s.Maintenance)
+	for _, j := range s.jobs {
+		s.loopWake(ctx, j)
+	}
+}
+
+// loopWake is loop with an extra wake-up channel.
+func (s *Scheduler) loopWake(ctx context.Context, j Job) {
+	if j.Every <= 0 {
+		return
+	}
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		log := s.log.With(zap.String("job", j.Name))
+		t := time.NewTicker(j.Every)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			case <-j.Wake:
+			}
+			s.runOnce(ctx, log, j.Every, j.Run)
+		}
+	}()
 }
 
 // Wait blocks until all loops have exited.
@@ -118,7 +189,29 @@ func (s *Scheduler) Tick(ctx context.Context) error {
 	} else if n > 0 {
 		logger.FromContext(ctx).Info("chat sessions ended after grace period", zap.Int("count", n))
 	}
+	if err := s.FlushMessageGaps(ctx); err != nil {
+		errs = append(errs, err)
+	}
+	for _, j := range s.tickJobs {
+		if err := j.Run(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", j.Name, err))
+		}
+	}
 	return joinErrs(errs)
+}
+
+// FlushMessageGaps publishes chat message events whose predecessor never
+// arrived within realtime.GapFlushAge (clients then fill the hole through
+// the messages "since" endpoint).
+func (s *Scheduler) FlushMessageGaps(ctx context.Context) error {
+	n, err := s.chat.FlushMessageGaps(ctx)
+	if err != nil {
+		return fmt.Errorf("flush chat gaps: %w", err)
+	}
+	if n > 0 {
+		logger.FromContext(ctx).Warn("chat events published past a sequence gap", zap.Int("count", n))
+	}
+	return nil
 }
 
 // Maintenance runs slower housekeeping jobs.

@@ -62,6 +62,10 @@ export type Service = {
   description: string;
   price_credits: number;
   active: boolean;
+  /** Admin-curated ("standard") or the advisor's own offering ("custom"). */
+  kind?: "standard" | "custom";
+  /** Typical delivery time in days. */
+  delivery_days?: number;
 };
 
 export type Psychic = {
@@ -83,6 +87,54 @@ export type Psychic = {
   listed: boolean;
   featured?: boolean;
   services: Service[];
+};
+
+/** An advisor as shown on directory and home cards (GET /psychics). */
+export type AdvisorCard = Pick<
+  Psychic,
+  | "slug"
+  | "name"
+  | "headline"
+  | "image_url"
+  | "zodiac"
+  | "skills"
+  | "rating"
+  | "reviews_count"
+  | "readings_count"
+  | "years_experience"
+  | "rate_per_minute"
+  | "status"
+> & { featured: boolean };
+
+/** One numbered page of the advisor directory. */
+export type DirectoryPage = {
+  items: AdvisorCard[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+};
+
+export type DirectoryQuery = {
+  page?: number;
+  page_size?: number;
+  status?: PresenceStatus;
+  q?: string;
+  skill?: string;
+};
+
+/** A home-page advisor card: "chat" when the advisor can talk now. */
+export type FeaturedAdvisor = AdvisorCard & { cta: "chat" | "waitlist" };
+
+export type FeaturedList = { items: FeaturedAdvisor[]; generated_at: string };
+
+/** An advisor the signed-in client is waiting for (told once when online). */
+export type WaitlistEntry = {
+  slug: string;
+  name: string;
+  image_url: string;
+  status: PresenceStatus;
+  joined_at: string;
 };
 
 export type CreditPack = {
@@ -153,6 +205,15 @@ export type ChatSession = {
   free_minutes_used: number;
   credits_charged?: number;
   psychic_earnings?: number;
+  // --- FE-CHAT (wave 3): member discount (client) and live earnings (advisor) ---
+  /** The advisor's list rate; above rate_per_minute when a member discount applies. */
+  list_rate_per_minute?: number;
+  /** Client viewer: member discount in percent (absent without one). */
+  discount_pct?: number;
+  /** Advisor viewer: psychic_earnings in money (minor units of `currency`). */
+  psychic_earnings_cents?: number;
+  currency?: string;
+  // --- end FE-CHAT ---
   reconnects: number;
   server_time: string;
 };
@@ -188,6 +249,8 @@ export type ChatMessage = {
   client_msg_id?: string;
   created_at: string;
   saved?: boolean;
+  /** FE-CHAT (wave 3): position in the conversation (1, 2, 3, … without gaps). */
+  seq?: number;
 };
 
 export type Conversation = {
@@ -198,6 +261,14 @@ export type Conversation = {
   unread: number;
   open_session?: ChatSession;
   created_at: string;
+  // --- FE-CHAT (wave 3): seq read positions ---
+  last_activity_at?: string;
+  last_seq?: number;
+  /** How far the viewer has read. */
+  read_seq?: number;
+  /** How far the other participant has read ("Seen"). */
+  peer_read_seq?: number;
+  // --- end FE-CHAT ---
 };
 
 export type PsychicThread = {
@@ -208,6 +279,36 @@ export type PsychicThread = {
 };
 
 export type Page<T> = { items: T[]; next_cursor?: string };
+
+// --- FE-CHAT (wave 3): chat paging contracts (backend chat_views.go) ---
+/** One inbox page, newest activity first. */
+export type InboxPage = { items: Conversation[]; next_cursor?: string; has_more: boolean };
+/** One page of history in chronological order; older pages via before_seq=next_before_seq. */
+export type MessagePage = { items: ChatMessage[]; has_more: boolean; next_before_seq?: number; next_cursor?: string };
+/** Messages after a seq, oldest first (gap filling); last_seq is the conversation head. */
+export type SincePage = { items: ChatMessage[]; has_more: boolean; last_seq: number };
+/** The caller's read state after moving the read position. */
+export type ReadResult = { conversation_id: string; read_seq: number; unread: number };
+/** `session.billed`: per started minute, to each participant. */
+export type SessionBilledEvent = {
+  session_id: string;
+  minute: number;
+  free: boolean;
+  /** Client: credits paid; advisor: the list rate (0 for free minutes). */
+  charged: number;
+  next_billing_at: string;
+  active_seconds: number;
+  /** Client only. */
+  minutes_remaining?: number;
+  wallet?: Wallet;
+  /** Advisor only: live earnings so far. */
+  psychic_earnings?: number;
+  psychic_earnings_cents?: number;
+  currency?: string;
+};
+/** `message.read`: the other participant read up to read_seq. */
+export type MessageReadEvent = { conversation_id: string; reader_id: string; read_seq?: number; message_id?: string; read_at?: string };
+// --- end FE-CHAT ---
 
 export type LedgerEntry = {
   id: string;
@@ -357,6 +458,8 @@ export type NotificationKind =
   | "purchase.succeeded"
   | "credits.adjusted"
   | "withdrawal.updated"
+  | "photo.approved"
+  | "photo.rejected"
   | "broadcast";
 
 /** An in-app notification (§7.1). Named to avoid the DOM `Notification`. */
@@ -381,6 +484,51 @@ export type Review = {
   created_at: string;
 };
 
+/** An advisor's own note about a client (§9.5). */
+export type Note = {
+  id: string;
+  body: string;
+  shared: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+/** A note another advisor shared about the same client (read-only). */
+export type SharedNote = {
+  id: string;
+  body: string;
+  author: { name: string; slug: string; avatar_url?: string };
+  created_at: string;
+  updated_at: string;
+};
+
+/** A KPI share; `pct` is null when nobody qualified yet (§8.1). */
+export type StatsRatio = { pct: number | null; numerator: number; denominator: number };
+
+export type StatsKPIs = {
+  free_to_paid: StatsRatio;
+  paid_to_retained: StatsRatio;
+  paid_minutes: number;
+  retained_repeat_days: { median_days: number | null; sample: number };
+  active_hours: { hours: number; in_session_hours: number; tracked_since?: string };
+};
+
+/** "Advisor stats overview" cards for a window and the window before it. */
+export type StatsOverview = {
+  range: { from: string; to: string; tz: string };
+  kpis: StatsKPIs;
+  previous: StatsKPIs;
+};
+
+/** Withdrawable earnings for the advisor's header wallet pill. */
+export type PsychicBalance = {
+  available_credits: number;
+  available_cents: number;
+  currency: string;
+  reserved_credits: number;
+  lifetime_net_credits: number;
+};
+
 /** What an advisor sees about the client of a conversation (§9.3). */
 export type ClientProfile = {
   id: string;
@@ -391,7 +539,20 @@ export type ClientProfile = {
   country_code?: string;
   age?: number;
   member_since: string;
-  astro?: { sun_sign: string; moon_sign?: string; rising_sign?: string; life_path?: number; time_known: boolean };
+  astro?: {
+    sun_sign: string;
+    sun_sign_uncertain?: boolean;
+    moon_sign?: string;
+    rising_sign?: string;
+    life_path?: number;
+    time_known: boolean;
+    /** Natal planets; degree and house only when the birth time is known. */
+    placements?: { body: string; sign: string; degree?: number; house?: number; retrograde: boolean }[];
+  };
+  /** Whether the client chose to share their date and place of birth. */
+  birth_details_shared: boolean;
+  /** Only present when shared: never the birth time or coordinates. */
+  birth_details?: { date_of_birth: string; place?: string };
   horoscope?: { sign: string; date: string; text: string; focus: string; mood: string; affirmation: string };
   history: { sessions: number; minutes: number; first_session_at?: string; last_session_at?: string };
 };
@@ -467,3 +628,90 @@ export type Withdrawal = {
   requested_at: string;
   processed_at?: string;
 };
+
+// --- Support (contact form) ------------------------------------------------------
+
+/** Contact-form topic; mirrors the API's allow-list. */
+export type SupportTopic = "general" | "privacy" | "billing" | "advisor" | "technical";
+
+/** POST /api/v1/support/tickets body. */
+export type TicketInput = {
+  email: string;
+  topic: SupportTopic;
+  subject: string;
+  message: string;
+  consent: boolean;
+  name?: string;
+};
+
+/** What the sender gets back: a short reference such as SY-7K2M9Q. */
+export type TicketReceipt = { reference: string; topic: SupportTopic; created_at: string };
+
+// --- Advisor settings (§8.2) --------------------------------------------------------
+
+/** GET/PATCH /psychic/settings: the advisor's own settings (phone shown to its owner only). */
+export type AdvisorSettings = {
+  /** Increments on every save; send it back as `expected_version`. */
+  version: number;
+  /** E.164 ("+14155552671") or "". */
+  phone: string;
+  /** "+•••••••••71" or "". */
+  phone_masked: string;
+  headline: string;
+  about: string[];
+  philosophy: string;
+  /** The public profile's skills. */
+  modalities: string[];
+};
+
+export type AdvisorSettingsPatch = Partial<Pick<AdvisorSettings, "phone" | "headline" | "about" | "philosophy" | "modalities">> & {
+  expected_version?: number;
+};
+
+export type PhotoSubmissionStatus = "pending" | "approved" | "rejected";
+
+/** A profile photo the advisor submitted; private until an administrator approves it. */
+export type PhotoSubmission = {
+  id: string;
+  status: PhotoSubmissionStatus;
+  /** Why it was declined (rejected only). */
+  reason?: string;
+  width: number;
+  height: number;
+  bytes: number;
+  /** The private image can still be previewed (GET /psychic/photo/image). */
+  has_image: boolean;
+  submitted_at: string;
+  reviewed_at?: string;
+};
+
+export type PhotoLimits = { max_bytes: number; max_pixels: number; min_side: number; daily_uploads: number };
+
+/** GET /psychic/photo: the live public photo and the latest submission. */
+export type PhotoState = { image_url: string; submission: PhotoSubmission | null; limits: PhotoLimits };
+
+/** The advisor's own custom-request offering ("Customs"). */
+export type CustomService = {
+  id: string;
+  name: string;
+  description: string;
+  price_credits: number;
+  delivery_days: number;
+  /** False when the Staryield team has hidden it. */
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CustomServiceLimits = {
+  name_max: number;
+  description_max: number;
+  min_price_credits: number;
+  max_price_credits: number;
+  min_delivery_days: number;
+  max_delivery_days: number;
+};
+
+export type CustomServiceState = { service: CustomService | null; limits: CustomServiceLimits };
+
+export type CustomServiceInput = { name: string; price_credits: number; delivery_days: number; description?: string };

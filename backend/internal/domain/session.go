@@ -105,6 +105,12 @@ type Session struct {
 	ActiveSeconds     int64 `gorm:"not null"`
 	BilledMinutes     int   `gorm:"not null"`
 	FreeMinutesUsed   int   `gorm:"not null"`
+	// ListRatePerMinute is the advisor's rate when the session was
+	// requested; RatePerMinute is what the client pays per minute after a
+	// member discount of DiscountBps (platform-funded: advisor earnings use
+	// the list rate).
+	ListRatePerMinute int64 `gorm:"not null"`
+	DiscountBps       int   `gorm:"not null"`
 	CreditsCharged    int64 `gorm:"not null"`
 	PsychicEarnings   int64 `gorm:"not null"`
 	Reconnects        int   `gorm:"not null"`
@@ -113,6 +119,18 @@ type Session struct {
 }
 
 func (Session) TableName() string { return "chat_sessions" }
+
+// AdvisorGross is the credit amount the advisor's share is computed on:
+// the paid minutes at the list rate. A member discount lowers what the
+// client pays (CreditsCharged) but not the advisor's earnings; the
+// platform funds the difference. Free minutes earn nothing, as before.
+func (s *Session) AdvisorGross() int64 {
+	if s.ListRatePerMinute <= s.RatePerMinute || s.CreditsCharged == 0 {
+		return s.CreditsCharged
+	}
+	paid := int64(s.BilledMinutes - s.FreeMinutesUsed)
+	return max(paid*s.ListRatePerMinute, s.CreditsCharged)
+}
 
 // IsParticipant reports whether userID takes part in the session.
 func (s *Session) IsParticipant(userID uuid.UUID) bool {
@@ -135,6 +153,23 @@ func (s *Session) ElapsedActive(now time.Time) time.Duration {
 		d += now.Sub(*s.LastResumedAt)
 	}
 	return d
+}
+
+// TimePrecision is the database's timestamp precision. Billing boundaries are
+// compared at this precision so Go and SQL (which stores truncated
+// microseconds) always reach the same answer.
+const TimePrecision = time.Microsecond
+
+// MinuteStarted reports whether the next billing minute of an Active
+// session has started at now. A minute starts strictly after its boundary:
+// at exactly NextBillingAt the elapsed time is a whole number of minutes, so
+// a zero-length minute is never charged (BR-02, consistent with
+// StartedMinutes). The billing worker (ClaimDueBilling: next_billing_at <
+// now) and the end flow both use this boundary, at database precision, so
+// they always agree.
+func (s *Session) MinuteStarted(now time.Time) bool {
+	return s.Status == SessionActive && s.NextBillingAt != nil &&
+		s.NextBillingAt.Truncate(TimePrecision).Before(now.Truncate(TimePrecision))
 }
 
 // PaidCoverage returns how much active time the billed minutes cover.

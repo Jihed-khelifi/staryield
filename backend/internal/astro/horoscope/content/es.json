@@ -1,0 +1,224 @@
+{
+  "locale": "es",
+  "signs": {
+    "Aries": "Aries", "Taurus": "Tauro", "Gemini": "Géminis", "Cancer": "Cáncer", "Leo": "Leo", "Virgo": "Virgo",
+    "Libra": "Libra", "Scorpio": "Escorpio", "Sagittarius": "Sagitario", "Capricorn": "Capricornio", "Aquarius": "Acuario", "Pisces": "Piscis"
+  },
+  "elements": {"Fire": "de fuego", "Earth": "de tierra", "Air": "de aire", "Water": "de agua"},
+  "phases": {
+    "New Moon": "luna nueva", "Waxing Crescent": "luna creciente", "First Quarter": "cuarto creciente",
+    "Waxing Gibbous": "gibosa creciente", "Full Moon": "luna llena", "Waning Gibbous": "gibosa menguante",
+    "Last Quarter": "cuarto menguante", "Waning Crescent": "luna menguante"
+  },
+  "phase_names": {
+    "New Moon": "Luna nueva", "Waxing Crescent": "Luna creciente", "First Quarter": "Cuarto creciente",
+    "Waxing Gibbous": "Gibosa creciente", "Full Moon": "Luna llena", "Waning Gibbous": "Gibosa menguante",
+    "Last Quarter": "Cuarto menguante", "Waning Crescent": "Luna menguante"
+  },
+  "phase_nouns": {
+    "New Moon": "la luna nueva", "Waxing Crescent": "la luna creciente", "First Quarter": "el cuarto creciente",
+    "Waxing Gibbous": "la luna gibosa creciente", "Full Moon": "la luna llena", "Waning Gibbous": "la luna gibosa menguante",
+    "Last Quarter": "el cuarto menguante", "Waning Crescent": "la luna menguante"
+  },
+  "moods": {"Empowered": "Confianza", "Hopeful": "Esperanza", "Reflective": "Reflexión", "Calm": "Calma", "Curious": "Curiosidad"},
+  "compatibility_labels": {"High": "Alta", "Balanced": "Equilibrada", "Gentle": "Suave"},
+  "colors": ["Dorado", "Marfil", "Salvia", "Ámbar", "Crema", "Rosa", "Lavanda", "Verde azulado", "Azul medianoche", "Cobre", "Plateado", "Esmeralda",
+    "Coral", "Azul marino", "Oliva", "Ciruela", "Turquesa", "Burdeos", "Melocotón", "Celeste", "Carbón", "Menta", "Azafrán", "Índigo"],
+  "months": ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+  "months_short": ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"],
+  "openers": [
+    "Hoy le ofrece, {sign}, una suave oportunidad de notar lo que se siente más vivo en usted.",
+    "Hoy hay espacio, {sign}, para avanzar a un ritmo que le resulte amable.",
+    "Este día puede traer una invitación serena, {sign}, a escuchar lo que usted ya sabe.",
+    "Algo en el ambiente de hoy podría animarle a mirar situaciones conocidas con ojos nuevos.",
+    "Quizá descubra, {sign}, que los pequeños momentos tienen hoy más significado que de costumbre.",
+    "Hoy puede ser un suave recordatorio de que puede tomarse las cosas paso a paso.",
+    "El cielo de hoy pinta un cuadro reflexivo, {sign}, que usted es libre de interpretar a su manera.",
+    "Si hace una pausa hoy, quizá note un cambio sutil en su manera de ver las cosas.",
+    "Hoy puede sentirse como una página en blanco, {sign}, lista para lo que usted decida aportarle.",
+    "Una energía curiosa y abierta rodea el día y le invita a explorar en lugar de apresurarse.",
+    "Hoy podría ser un buen momento, {sign}, para conectar consigo antes de conectar con el mundo.",
+    "Puede que un hilo sereno recorra el día de hoy, {sign}, a la espera de que usted lo note."
+  ],
+  "moon_lines": [
+    "Hoy, {phase_noun} transita por {moon_sign} y resalta con suavidad {moon_theme}.",
+    "Con {phase_noun} en {moon_sign}, podría percibir con más claridad {moon_theme}.",
+    "La Luna descansa hoy en {moon_sign}, y su fase de {phase} suele verse como {phase_meaning}.",
+    "Mientras {phase_noun} avanza por {moon_sign}, quizá desee cultivar {moon_theme}.",
+    "Hoy, {phase_noun} en {moon_sign} tiñe el día, una combinación que muchos interpretan como {phase_meaning}.",
+    "El paso de la Luna por {moon_sign} coincide hoy con su fase de {phase} e invita con suavidad a acoger {moon_theme}.",
+    "Bajo {phase_noun} en {moon_sign}, el clima emocional podría favorecer {moon_theme}.",
+    "Hoy, {phase_noun} se instala en {moon_sign} y ofrece {phase_meaning}.",
+    "Hoy la Luna está en {moon_sign}, en su fase de {phase}, que puede ser {phase_meaning}."
+  ],
+  "moon_themes": {
+    "Aries": ["la valentía y los primeros pasos sinceros", "una energía nueva y una expresión directa"],
+    "Taurus": ["la comodidad, la paciencia y los placeres sencillos", "la estabilidad y el bienestar de los sentidos"],
+    "Gemini": ["la curiosidad y las conversaciones animadas", "el aprendizaje, las ideas y los vínculos lúdicos"],
+    "Cancer": ["el hogar, la pertenencia y el cuidado emocional", "la ternura y los vínculos que nutren"],
+    "Leo": ["la creatividad, la calidez y la expresión personal", "la generosidad y el juego sincero"],
+    "Virgo": ["las rutinas meditadas y el cuidado práctico", "la claridad, el orden y las pequeñas mejoras"],
+    "Libra": ["el equilibrio, la armonía y la colaboración", "la justicia, la belleza y la diplomacia amable"],
+    "Scorpio": ["la profundidad, la honestidad y la verdad emocional", "la intimidad y la transformación silenciosa"],
+    "Sagittarius": ["la exploración, el optimismo y el sentido", "la visión de conjunto y el espíritu de aventura"],
+    "Capricorn": ["la estructura, la paciencia y las metas a largo plazo", "la responsabilidad y el progreso constante"],
+    "Aquarius": ["la originalidad, la amistad y las perspectivas nuevas", "la comunidad y el pensamiento independiente"],
+    "Pisces": ["la intuición, la compasión y los sueños", "la imaginación y la reflexión serena"]
+  },
+  "phase_meanings": {
+    "New Moon": ["un momento sereno para fijar intenciones", "una invitación a empezar de nuevo con una página en blanco", "un tiempo para escuchar hacia dentro antes de actuar"],
+    "Waxing Crescent": ["un tiempo para cuidar los pequeños comienzos", "una invitación a dar un paso modesto hacia adelante", "una fase para generar impulso con suavidad"],
+    "First Quarter": ["un momento para afrontar los retos con flexibilidad", "una invitación a tomar una decisión meditada", "un tiempo para ajustar los planes con mente abierta"],
+    "Waxing Gibbous": ["un tiempo para refinar y pulir detalles", "una invitación a tener paciencia con lo que está creciendo", "una fase para pulir en lugar de empezar de cero"],
+    "Full Moon": ["un momento en que los sentimientos y las intuiciones pueden aclararse", "una invitación a celebrar el camino recorrido", "un momento para notar lo que ha salido a la luz"],
+    "Waning Gibbous": ["un tiempo para compartir lo aprendido", "una invitación a expresar gratitud", "una fase para integrar las ideas recientes"],
+    "Last Quarter": ["un momento para soltar lo que ya no encaja", "una invitación a despejar un poco de espacio", "un tiempo para revisar con honestidad y soltar"],
+    "Waning Crescent": ["un tiempo de descanso y reflexión serena", "una invitación a bajar el ritmo y recuperarse", "una fase para cerrar capítulos con suavidad"]
+  },
+  "element_lines": {
+    "Fire": [
+      "Su chispa natural quizá quiera adelantarse, y podría ayudarle canalizar esa calidez en un proyecto significativo.",
+      "Como signo de fuego, quizá sienta un impulso hacia la acción, y notar lo que de verdad le entusiasma puede orientar esa energía.",
+      "Su entusiasmo puede ser un regalo para quienes le rodean, sobre todo cuando lo comparte con paciencia.",
+      "Hoy podría tener la oportunidad de dar ejemplo, simplemente hablando con sinceridad de lo que le inspira.",
+      "Su valentía suele brillar más cuando sigue la curiosidad en lugar de la presión.",
+      "Un enfoque lúdico podría abrir puertas que el esfuerzo por sí solo no abriría.",
+      "Quizá disfrute convirtiendo una tarea rutinaria en una pequeña aventura creativa.",
+      "Su calidez puede iluminar una conversación, y escuchar con atención puede hacer ese brillo aún mayor.",
+      "Si aparece la inquietud, un paseo, una canción favorita o un poco de movimiento podrían ayudarle a convertirla en concentración."
+    ],
+    "Earth": [
+      "Su naturaleza centrada quizá aprecie hoy avances sencillos y tangibles, por pequeños que parezcan.",
+      "Como signo de tierra, quizá encuentre consuelo en rutinas que le dan estabilidad y una forma amable al día.",
+      "Puede haber una satisfacción tranquila en ocuparse de algo práctico, como ordenar un espacio o terminar una tarea pendiente.",
+      "Su paciencia es una verdadera fortaleza, y puede ayudarle a ver valor donde otros pasarían de largo.",
+      "Podría explorar qué se siente al descansar sin tener que ganárselo primero.",
+      "Hoy, las decisiones pequeñas y constantes pueden resultarle más nutritivas que los cambios drásticos.",
+      "Su fiabilidad suele ser un consuelo para los demás, y también está bien dejar que alguien le apoye.",
+      "Pasar unos momentos en la naturaleza, con texturas agradables o con una comida favorita podría ayudarle a sentirse más presente.",
+      "Su sabiduría práctica podría ayudarle a distinguir lo que importa ahora de lo que puede esperar."
+    ],
+    "Air": [
+      "Su mente curiosa podría encenderse ante ideas nuevas, y una conversación significativa podría despertar una comprensión fresca.",
+      "Como signo de aire, quizá disfrute uniendo puntos que otros pasan por alto.",
+      "Anotar un pensamiento pasajero podría ayudarle a ver una situación con más claridad.",
+      "Su don para tomar perspectiva podría ayudar hoy a alguien a sentirse comprendido.",
+      "Quizá descubra que hacer una pregunta abierta lleva a lugares más interesantes que tener la respuesta.",
+      "Un cambio de escenario, aunque sea pequeño, podría refrescar su forma de pensar.",
+      "Su lado sociable quizá disfrute contactando con alguien a quien quería escribir desde hace tiempo.",
+      "Equilibrar el tiempo con los demás y el tiempo a solas podría ayudar a que sus ideas tomen una forma clara.",
+      "Su ligereza puede transformar un momento tenso en uno más llevadero."
+    ],
+    "Water": [
+      "Su intuición podría estar especialmente afinada hoy y ofrecerle pistas discretas que vale la pena notar.",
+      "Como signo de agua, quizá perciba los estados de ánimo a su alrededor, así que puede ayudarle atender también a sus propios sentimientos.",
+      "Su capacidad de empatía es un don, y unos límites amables pueden ayudar a que sea sostenible.",
+      "Un momento de quietud, quizá cerca del agua o con música suave, podría ayudarle a reconectar consigo.",
+      "Su profundidad emocional puede ayudarle a comprender una situación de una manera que las palabras no logran captar del todo.",
+      "Permitir que los sentimientos vengan y se vayan, sin juzgarlos, podría traer una sensación de alivio.",
+      "Quizá le atraiga el consuelo de las personas y los lugares conocidos, algo que puede ser profundamente reparador.",
+      "Su imaginación podría ofrecer respuestas creativas a una pregunta que lleva tiempo consigo.",
+      "Tratarse con la misma ternura que dedica a los demás podría ser una práctica significativa hoy."
+    ]
+  },
+  "relation_lines": {
+    "same": [
+      "Como hoy la Luna está en un signo {element}, como el suyo, sus instintos y el ánimo del día podrían sentirse especialmente en sintonía.",
+      "Con la Luna en otro signo {element}, su ritmo natural podría resultarle un poco más fácil de seguir.",
+      "Que la Luna comparta su elemento puede facilitar más de lo habitual confiar en su propio ritmo.",
+      "Cuando la Luna recorre un signo {element} como el suyo, sentimientos y acciones pueden fluir en la misma dirección."
+    ],
+    "supportive": [
+      "La energía de la Luna, en un signo {moon_element}, suele apoyar su naturaleza {element}, lo que podría aligerar la colaboración.",
+      "Hay una mezcla favorable entre la Luna, en signo {moon_element}, y su naturaleza {element}, un fondo agradable para la conexión.",
+      "El tono de la Luna de hoy, en signo {moon_element}, puede complementar su temperamento {element}, como dos instrumentos que encuentran la misma tonalidad.",
+      "Su naturaleza {element} y la Luna en un signo {moon_element} podrían llevarse bien, lo que puede hacer que la cooperación resulte natural."
+    ],
+    "contrast": [
+      "El ánimo de la Luna, en signo {moon_element}, difiere de su naturaleza {element}, lo que puede ser una oportunidad interesante para ver las cosas desde otro ángulo.",
+      "La Luna de hoy, en signo {moon_element}, contrasta con su temperamento {element}, y ese contraste podría mostrarle algo nuevo sobre usted.",
+      "Con la Luna en un signo {moon_element}, su naturaleza {element} podría verse invitada a estirarse un poco, y usted decide hasta dónde le resulta cómodo.",
+      "Los tonos elementales distintos entre la Luna y su signo podrían traer un poco de fricción y, con ella, espacio para crecer."
+    ]
+  },
+  "generic_lines": [
+    "En sus relaciones, un poco más de paciencia podría convertir un intercambio corriente en uno significativo.",
+    "En el trabajo o en las tareas diarias, centrarse en una sola cosa a la vez puede resultar más satisfactorio que hacer malabares con muchas.",
+    "Puede ser un buen día para notar lo que le agota y lo que le restaura, sin necesidad de cambiarlo todo a la vez.",
+    "Una palabra amable, dada o recibida, podría tener más peso del que parece al principio.",
+    "Si tiene una decisión en mente, puede darse permiso para reunir más información antes de elegir.",
+    "Las actividades creativas, incluso las sencillas como garabatear o cocinar, podrían resultar especialmente gratificantes.",
+    "Quizá disfrute retomando una afición o un interés que antes le traía alegría.",
+    "Una comunicación honesta y amable podría ayudar a aclarar un pequeño malentendido.",
+    "Respirar despacio unas cuantas veces antes de responder podría darle espacio para contestar desde la calma.",
+    "Celebrar un pequeño logro, aunque sea en privado, podría levantarle el ánimo más de lo que imagina.",
+    "Alguien cercano podría agradecer saber cuánto significa para usted.",
+    "Dejar un poco de tiempo libre en su día podría abrir espacio a una inspiración inesperada."
+  ],
+  "closers": [
+    "Explore lo que este patrón podría significar para usted.",
+    "Tome lo que resuene con usted y deje el resto.",
+    "Su historia le pertenece, y esta es solo una perspectiva sobre la que reflexionar.",
+    "Tómelo como una suave invitación a reflexionar, no como una predicción.",
+    "Observe lo que le parece verdadero y confíe en su propio sentido del momento.",
+    "Considere esto una invitación a reflexionar, no un mapa que deba seguir.",
+    "Elija lo que elija, la amabilidad consigo es un buen punto de partida.",
+    "Reflexione sobre cómo se manifiesta esta energía en su vida, a su manera.",
+    "No hay una forma correcta o incorrecta de vivir el día, y sus decisiones siguen siendo suyas.",
+    "Sostenga estas ideas con ligereza y vea cuáles tienen sentido para usted."
+  ],
+  "generic_focus": [
+    "¿Cómo sería darse hoy la misma paciencia que ofrece a los demás?",
+    "¿Qué pequeño momento de hoy podría saborear un poco más despacio?",
+    "¿Dónde podría ayudarle una pausa amable a elegir con más claridad?",
+    "¿Qué podría soltar hoy para dejar espacio a la calma?",
+    "¿Quién en su vida se alegraría de saber de usted, y qué le gustaría decirle?",
+    "¿Qué tipo de apoyo necesita en este momento?",
+    "¿Qué parte de su día se parece más a usted, y cómo podría darle más espacio?",
+    "¿Qué está pidiendo en silencio su atención bajo el ajetreo?"
+  ],
+  "element_focus": {
+    "Fire": [
+      "¿Dónde podría ser más bienvenido hoy su entusiasmo?",
+      "¿Qué probaría si viviera el día como un juego?",
+      "¿Qué chispa de inspiración le gustaría seguir un poco más?",
+      "¿Cómo podría compartir su calidez guardando un poco para usted?"
+    ],
+    "Earth": [
+      "¿Qué ritual sencillo le ayuda a sentirse con los pies en la tierra, y podría hacerle espacio hoy?",
+      "¿Qué pequeño paso le parecería firme y satisfactorio ahora mismo?",
+      "¿Cómo sería el descanso si no tuviera que ganárselo?",
+      "¿Dónde podría confiar en el ritmo lento del crecimiento?"
+    ],
+    "Air": [
+      "¿Qué idea sigue volviendo a usted, y hacia dónde podría estar apuntando?",
+      "¿Qué pregunta le gustaría explorar con verdadera curiosidad?",
+      "¿De quién podría aprender algo nuevo hoy?",
+      "¿Cómo podría equilibrar la conexión con un poco de tiempo tranquilo?"
+    ],
+    "Water": [
+      "¿Qué le está diciendo hoy, con suavidad, su intuición?",
+      "¿Cómo puede honrar sus sentimientos sin necesidad de arreglarlos?",
+      "¿Dónde podría ayudarle a sentirse a gusto un límite más suave, o uno más firme?",
+      "¿Qué le reconforta, y cómo podría ofrecerse un poco de ello?"
+    ]
+  },
+  "affirmations": [
+    "Avanzo por el día a un ritmo que respeta mi energía.",
+    "Confío en mí para elegir lo que es bueno para mí.",
+    "Tengo derecho a crecer a mi propio ritmo.",
+    "Mis sentimientos son válidos, y puedo recibirlos con amabilidad.",
+    "Hago espacio para la alegría en los momentos pequeños y cotidianos.",
+    "Puedo acompañar a los demás mientras respeto mis propias necesidades.",
+    "Doy la bienvenida a la claridad y le doy tiempo para llegar.",
+    "Me abro a ver lo conocido con una luz nueva.",
+    "Suelto lo que ya no encaja, con suavidad y sin prisa.",
+    "Recibo con curiosidad todo lo que el día me ofrece.",
+    "Encuentro mi centro en el presente, y lo que soy es suficiente.",
+    "Mi voz importa, y la comparto con cuidado.",
+    "Celebro el camino que he recorrido.",
+    "Me trato con la misma compasión que ofrezco a los demás.",
+    "Confío en mi intuición para guiar mi próximo paso, con suavidad.",
+    "Me doy permiso para descansar y volver a empezar."
+  ]
+}

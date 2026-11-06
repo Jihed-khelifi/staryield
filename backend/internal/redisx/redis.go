@@ -4,6 +4,7 @@ package redisx
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -21,8 +22,15 @@ func (l zapRedisLogger) Printf(_ context.Context, format string, v ...any) {
 	l.log.Debug(fmt.Sprintf(format, v...), zap.String("component", "redis"))
 }
 
-// SetLogger installs log as the go-redis internal logger.
-func SetLogger(log *zap.Logger) { redis.SetLogger(zapRedisLogger{log: log}) }
+var setLoggerOnce sync.Once
+
+// SetLogger installs log as the go-redis internal logger. go-redis keeps one
+// unsynchronised process-wide logger, so only the first call takes effect:
+// replacing it while clients of another app instance in the same process
+// (tests, several replicas in one binary) are logging would be a data race.
+func SetLogger(log *zap.Logger) {
+	setLoggerOnce.Do(func() { redis.SetLogger(zapRedisLogger{log: log}) })
+}
 
 // New parses the URL, applies pool settings and verifies connectivity,
 // retrying with backoff for up to cfg.ConnectTimeout (bounded by ctx).

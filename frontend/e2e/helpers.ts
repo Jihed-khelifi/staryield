@@ -80,3 +80,25 @@ export async function expectImageLoaded(page: Page, selector: string) {
     .poll(async () => page.locator(selector).evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0).catch(() => false))
     .toBe(true);
 }
+
+/**
+ * Set the signed-in advisor's availability from the header menu
+ * (`availability-menu`), waiting for the API to save it. Does nothing when
+ * the advisor already has that availability.
+ */
+export async function setAvailability(page: Page, value: "online" | "away" | "offline") {
+  const trigger = page.getByTestId("availability-menu");
+  await expect(trigger).toBeVisible();
+  // A menu that is still closing (exit animation) would swallow the click.
+  await expect(page.getByRole("menu")).toHaveCount(0);
+  // The trigger shows the effective status; "busy" means online with a live chat.
+  const current = await trigger.getAttribute("data-status");
+  if (current === value || (value === "online" && current === "busy")) return;
+  await trigger.click();
+  const saved = page.waitForResponse((r) => r.url().endsWith("/api/v1/psychic/availability") && r.request().method() === "PATCH" && r.ok());
+  await page.getByTestId(`availability-${value}`).click();
+  await saved;
+  // Let the menu finish closing, so the next interaction does not race it.
+  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(trigger).toHaveAttribute("data-status", value === "online" ? /online|busy/ : value);
+}

@@ -20,6 +20,13 @@ type Store interface {
 	TTL(ctx context.Context, key string) (time.Duration, error)
 }
 
+// MultiGetter is implemented by stores that read several keys in one round
+// trip (used on the authentication hot path). found[i] reports whether
+// keys[i] exists.
+type MultiGetter interface {
+	MGet(ctx context.Context, keys ...string) (values []string, found []bool, err error)
+}
+
 // Redis implements Store.
 type Redis struct {
 	client *redis.Client
@@ -64,6 +71,28 @@ func (r *Redis) Incr(ctx context.Context, key string, ttl time.Duration) (int64,
 	return incrScript.Run(ctx, r.client, []string{r.prefix + key}, ttl.Milliseconds()).Int64()
 }
 
+// MGet implements MultiGetter with a single MGET.
+func (r *Redis) MGet(ctx context.Context, keys ...string) ([]string, []bool, error) {
+	values, found := make([]string, len(keys)), make([]bool, len(keys))
+	if len(keys) == 0 {
+		return values, found, nil
+	}
+	full := make([]string, len(keys))
+	for i, k := range keys {
+		full[i] = r.prefix + k
+	}
+	res, err := r.client.MGet(ctx, full...).Result()
+	if err != nil {
+		return nil, nil, err
+	}
+	for i, v := range res {
+		if s, ok := v.(string); ok {
+			values[i], found[i] = s, true
+		}
+	}
+	return values, found, nil
+}
+
 func (r *Redis) TTL(ctx context.Context, key string) (time.Duration, error) {
 	d, err := r.client.PTTL(ctx, r.prefix+key).Result()
 	if err != nil || d < 0 {
@@ -106,6 +135,18 @@ func (m *Memory) Get(_ context.Context, key string) (string, bool, error) {
 	defer m.mu.Unlock()
 	e, ok := m.live(key)
 	return e.value, ok, nil
+}
+
+// MGet implements MultiGetter.
+func (m *Memory) MGet(_ context.Context, keys ...string) ([]string, []bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	values, found := make([]string, len(keys)), make([]bool, len(keys))
+	for i, k := range keys {
+		e, ok := m.live(k)
+		values[i], found[i] = e.value, ok
+	}
+	return values, found, nil
 }
 
 func (m *Memory) Set(_ context.Context, key, value string, ttl time.Duration) error {

@@ -182,7 +182,12 @@ func (h *Handler) UpdateProfile(c echo.Context) error {
 	if err := bind(c, &req); err != nil {
 		return err
 	}
-	me, err := h.svc.Users.UpdateProfile(c.Request().Context(), principal(c).UserID, req)
+	// identity: the settings service saves the profile transactionally.
+	update := h.svc.Users.UpdateProfile
+	if h.svc.Account != nil {
+		update = h.svc.Account.UpdateProfile
+	}
+	me, err := update(c.Request().Context(), principal(c).UserID, req)
 	if err != nil {
 		return err
 	}

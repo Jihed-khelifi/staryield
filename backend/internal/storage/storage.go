@@ -240,3 +240,34 @@ func (m *Memory) Keys() []string {
 	}
 	return out
 }
+
+// Streamer is implemented by stores that can stream an object instead of
+// loading it into memory (large private downloads such as data exports).
+type Streamer interface {
+	Open(ctx context.Context, key string) (body io.ReadCloser, size int64, contentType string, err error)
+}
+
+// Open implements Streamer.
+func (r *R2) Open(ctx context.Context, key string) (io.ReadCloser, int64, string, error) {
+	if err := validateKey(key); err != nil {
+		return nil, 0, "", err
+	}
+	out, err := r.client.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(r.bucket), Key: aws.String(key)})
+	if err != nil {
+		var nsk *types.NoSuchKey
+		if errors.As(err, &nsk) {
+			return nil, 0, "", ErrNotFound
+		}
+		return nil, 0, "", fmt.Errorf("storage: r2 get: %w", err)
+	}
+	return out.Body, aws.ToInt64(out.ContentLength), aws.ToString(out.ContentType), nil
+}
+
+// Open implements Streamer.
+func (m *Memory) Open(ctx context.Context, key string) (io.ReadCloser, int64, string, error) {
+	b, ct, err := m.Get(ctx, key, 0)
+	if err != nil {
+		return nil, 0, "", err
+	}
+	return io.NopCloser(bytes.NewReader(b)), int64(len(b)), ct, nil
+}

@@ -4,6 +4,8 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { SunLogo } from "@/components/brand/sun-logo";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 
+const RAYS = "https://assets.staryield.net/assets/brand/auth-rays-92bd14a495.svg";
+
 export function RadiantPanel({
   children,
   className = "",
@@ -17,15 +19,13 @@ export function RadiantPanel({
       {className.includes("auth-panel") && (
         <LocaleSwitcher className="absolute right-4 top-4 z-10 rounded-full border border-gold/40 bg-cream/90 md:hidden" />
       )}
-      <div aria-hidden="true" className="radiant-rays">
-        <img src="https://assets.staryield.net/assets/figma/c8a2b.svg" alt="" />
-        <img src="https://assets.staryield.net/assets/figma/70ebb.svg" alt="" />
-      </div>
       <div className="radiant-brand">
+        {/* Revisions 2.0: one clean ray set, centred on the sun (Figma 6a3de). */}
+        <div aria-hidden="true" className="radiant-rays">
+          <img src={RAYS} alt="" />
+        </div>
         <SunLogo large />
-        <p className="font-display text-[40px] tracking-wide sm:text-5xl">
-          {text("Staryield ")}
-        </p>
+        <p className="radiant-wordmark font-display">{text("Staryield ")}</p>
       </div>
       {children}
     </section>

@@ -46,6 +46,32 @@ type Services struct {
 	Reviews          *service.ReviewService
 	Withdrawals      *service.WithdrawalService
 	PsychicAnalytics *service.PsychicAnalyticsService
+
+	// Delivery channels (M0): e-mail outbox and Web Push.
+	Mail *service.MailService
+	Push *service.PushService
+	// Notes are advisors' notes about their clients.
+	Notes *service.NoteService
+	// PsychicStats computes the advisor overview KPIs.
+	PsychicStats *service.PsychicStatsService
+	// billing
+	Billing *service.BillingService
+	// Catalog serves the public advisor directory and home selection.
+	Catalog *service.AdvisorCatalog
+	// Waitlist lets clients wait for an advisor to come online.
+	Waitlist *service.WaitlistService
+	// Support stores contact-form tickets.
+	Support *service.SupportService
+
+	// identity: account settings, consents and personal-data exports.
+	Account  *service.AccountService
+	Consents *service.ConsentService
+	Exports  *service.ExportService
+	// end identity
+
+	// Advisor serves the advisor settings page: contact details, photo
+	// review and the custom offering.
+	Advisor *service.AdvisorService
 }
 
 // Limits bounds request bodies per upload type.
@@ -78,6 +104,8 @@ type Handler struct {
 	maxAvatarBytes  int64
 	limits          Limits
 	adminSessionTTL time.Duration
+	// billing: trusted edge country of a request ("" when unknown).
+	countryOf func(*http.Request) string
 }
 
 // New returns a handler set.

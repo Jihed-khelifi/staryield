@@ -1,0 +1,445 @@
+/* ---------------------------------------------------------------------------
+   Advisor Settings (revisions 2.0, Figma 1219:1284; phones reflow to one
+   column with a save bar above the tab bar). Brand palette only. Figma's
+   #737373 labels on the cream cards (3.2:1) use --panel-muted (#555, 5.1:1)
+   and its white-on-gold "Save Changes" uses the CTA button (ink on amber).
+   --------------------------------------------------------------------------- */
+.advisor-settings {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 24px;
+  color: #1f1f1f;
+}
+.advisor-settings-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.advisor-settings-eyebrow.advisor-settings-eyebrow {
+  display: none;
+  /* The brand amber fails AA on cream; the darker gold of the same hue passes. */
+  color: var(--advisor-gold-text);
+}
+.advisor-settings-subtitle {
+  margin-top: 4px;
+  color: var(--panel-muted);
+  font-size: 14px;
+}
+.advisor-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.advisor-back-button.advisor-back-button {
+  height: auto;
+  min-height: 36px;
+  border: 1px solid var(--advisor-line);
+  border-radius: 8px;
+  background: var(--cream);
+  padding: 8px 16px;
+  color: #1f1f1f;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 400;
+}
+.advisor-back-button.advisor-back-button:hover {
+  background: var(--cream-soft);
+}
+.advisor-save-button.advisor-save-button,
+.advisor-savebar-button.advisor-savebar-button {
+  height: auto;
+  min-height: 36px;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 400;
+}
+.advisor-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 24px;
+}
+.advisor-settings-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Cards ------------------------------------------------------------------------- */
+.advisor-settings-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 20px;
+  border: 1px solid var(--advisor-line);
+  border-radius: 4px;
+  background: var(--cream);
+  padding: 24px;
+}
+.advisor-settings-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.advisor-settings-card-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  color: #1f1f1f;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.advisor-settings-card-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.advisor-settings-card-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.5;
+}
+.advisor-card-intro {
+  color: var(--panel-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.advisor-card-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid var(--advisor-line);
+  border-radius: 8px;
+  background: #f4eee4;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.advisor-icon-button {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--advisor-line);
+  border-radius: 8px;
+  color: var(--danger);
+}
+.advisor-icon-button:hover {
+  background: rgb(153 27 27 / 0.08);
+}
+.advisor-icon-button:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* Fields ------------------------------------------------------------------------ */
+.advisor-settings-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.advisor-field {
+  display: grid;
+  gap: 6px;
+}
+.advisor-label {
+  color: var(--panel-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+.advisor-field [data-slot="form-description"] {
+  color: var(--panel-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.advisor-input.advisor-input {
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #eee6d9;
+  padding: 0 12px;
+  color: #1f1f1f;
+  font-size: 14px;
+}
+.advisor-input.advisor-input:focus-visible {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgb(194 154 61 / 0.25);
+}
+.advisor-input.advisor-input::placeholder {
+  color: var(--placeholder);
+}
+textarea.advisor-input.advisor-input {
+  min-height: 96px;
+  padding: 8px 12px;
+}
+.advisor-textarea.advisor-textarea {
+  min-height: 160px;
+  font-size: 16px;
+  font-weight: 200;
+  line-height: 1.8;
+}
+.advisor-input-unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.advisor-input-unit > span {
+  flex-shrink: 0;
+  color: var(--panel-muted);
+  font-size: 13px;
+}
+.advisor-input-unit .advisor-input {
+  max-width: 180px;
+}
+
+/* Modalities: Figma chips (#eee6d9, ExtraLight 16px) with a − to remove and a + to add. */
+.advisor-chips li {
+  border: 0;
+  border-radius: 8px;
+  background: #eee6d9;
+  font-size: 16px;
+  font-weight: 200;
+}
+.advisor-chips input {
+  border-color: var(--advisor-line);
+  background: #f4eee4;
+}
+.advisor-chips button {
+  color: rgb(0 0 0 / 0.62);
+}
+
+/* Profile picture ------------------------------------------------------------- */
+.photo-field {
+  display: flex;
+  max-width: 100%;
+  align-items: flex-end;
+  gap: 12px;
+  border-radius: 8px;
+  background: #eee6d9;
+  padding: 12px 17px;
+}
+.photo-frame {
+  position: relative;
+  display: flex;
+  width: 132px;
+  height: 132px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--advisor-line);
+  border-radius: 8px;
+  background: #f4eee4;
+}
+.photo-frame[data-state="rejected"] img {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+.photo-frame-empty {
+  color: var(--panel-muted);
+}
+.photo-side {
+  display: flex;
+  min-width: 0;
+  min-height: 132px;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}
+.photo-hint {
+  color: var(--panel-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.photo-note {
+  color: var(--panel-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.photo-button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--advisor-line);
+  border-radius: 8px;
+  background: var(--cream);
+  padding: 6px 16px;
+  color: #1f1f1f;
+  font-size: 14px;
+  font-weight: 300;
+}
+.photo-button:hover:not(:disabled) {
+  background: var(--cream-soft);
+}
+.photo-button:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.photo-button:disabled {
+  opacity: 0.6;
+}
+.photo-review-chip {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.photo-review-chip[data-status="pending"] {
+  background: rgb(194 154 61 / 0.22);
+  color: var(--advisor-gold-text);
+}
+.photo-review-chip[data-status="rejected"] {
+  background: rgb(153 27 27 / 0.1);
+  color: var(--danger);
+}
+.photo-review-chip[data-status="approved"] {
+  background: rgb(74 93 35 / 0.12);
+  color: var(--success);
+}
+
+/* Crop dialog ----------------------------------------------------------------- */
+.photo-crop {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+.photo-crop-viewport {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--ink);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.photo-crop-viewport:active {
+  cursor: grabbing;
+}
+.photo-crop-viewport:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+.photo-crop-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.photo-crop-guide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.photo-crop-help {
+  max-width: 320px;
+  color: var(--panel-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+.photo-crop-zoom {
+  display: flex;
+  width: 100%;
+  max-width: 264px;
+  align-items: center;
+  gap: 8px;
+}
+.photo-crop-zoom input {
+  flex: 1;
+  accent-color: var(--amber);
+}
+
+/* Shared-section placeholders, footer, save bar --------------------------------- */
+.advisor-settings-slot {
+  border-style: dashed;
+}
+.advisor-settings-footer {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  color: var(--panel-muted);
+  font-size: 12px;
+}
+.advisor-settings-footer a {
+  color: var(--advisor-gold-text);
+  text-decoration: underline;
+}
+.advisor-savebar {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .advisor-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .advisor-settings {
+    gap: 20px;
+    padding-bottom: 72px;
+  }
+  .advisor-settings-eyebrow.advisor-settings-eyebrow {
+    display: block;
+  }
+  .advisor-settings-actions {
+    display: none;
+  }
+  .advisor-settings-card {
+    border-radius: 12px;
+    background: #faf6ea;
+    padding: 20px 16px;
+  }
+  .advisor-settings-card-title {
+    font-size: 18px;
+  }
+  .photo-field {
+    padding: 12px;
+  }
+  .photo-frame {
+    width: 104px;
+    height: 104px;
+  }
+  .photo-side {
+    min-height: 104px;
+  }
+  .advisor-savebar {
+    position: fixed;
+    right: 0;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    left: 0;
+    z-index: 29;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-top: 1px solid var(--advisor-line);
+    background: #faf5e9;
+    padding: 10px 16px;
+    box-shadow: 0 -6px 16px rgb(21 16 11 / 0.08);
+  }
+}

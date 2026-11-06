@@ -15,6 +15,7 @@ import type { User, Wallet } from "@/lib/api/types";
 import { track } from "@/lib/analytics";
 import { logger } from "@/lib/logger";
 import { RealtimeClient, type ConnectionState, type TransportKind } from "@/lib/realtime/client";
+import { clearOutbox } from "@/lib/chat/outbox";
 import { clearAttachmentCache } from "@/lib/chat/attachments";
 import { useToast } from "@/components/feedback/toast-provider";
 
@@ -31,8 +32,11 @@ type SessionContextValue = {
   setUser: (user: User) => void;
   setWallet: (wallet: Wallet) => void;
   reload: () => Promise<User | null>;
-  /** Revoke the session (or every session), clear client state and go to the locale home page. */
-  signOut: (opts?: { everywhere?: boolean }) => Promise<void>;
+  /**
+   * Revoke the session (or every session), clear client state and go to the
+   * locale home page (or `to`, a same-locale path such as the login page).
+   */
+  signOut: (opts?: { everywhere?: boolean; to?: string }) => Promise<void>;
 };
 
 const SessionContext = React.createContext<SessionContextValue | null>(null);
@@ -130,11 +134,31 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const offHello = client.on("hello", (e) => {
       if ((e.data as { reconnected?: boolean })?.reconnected) track("realtime_reconnected");
     });
+    const revocations: number[] = [];
     const offRevoked = client.on("auth.revoked", () => {
       if (signingOut.current) return;
-      toast.show({ tone: "info", message: text("You were signed out. Please sign in again.") });
-      setAuthHint(false);
-      clear();
+      // account settings: a password change revokes every connection, but this
+      // browser already holds the new session — keep it when it still works
+      // (at most a few times a minute, so a revoked session cannot loop).
+      const now = Date.now();
+      revocations.push(now);
+      while (revocations.length && now - revocations[0] > 60_000) revocations.shift();
+      void (revocations.length <= 3 ? meApi.get() : Promise.reject(new Error("revoked"))).then(
+        (me) => {
+          if (signingOut.current) return;
+          setUser(me);
+          client.start();
+        },
+        (raw: unknown) => {
+          if (signingOut.current) return;
+          // A failed refresh has already announced the expired session.
+          const code = toApiError(raw).code;
+          if (code !== "unauthenticated" && code !== "session_expired")
+            toast.show({ tone: "info", message: text("You were signed out. Please sign in again.") });
+          setAuthHint(false);
+          clear();
+        },
+      );
     });
     const offResync = client.on("resync_required", () => {
       void meApi.get().then((me) => setWallet(me.wallet ?? null)).catch(() => undefined);
@@ -148,14 +172,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       offResync();
       client.stop();
     };
-  }, [realtime, clear, text, toast]);
+  }, [realtime, clear, setUser, text, toast]);
 
   // Page-view analytics.
   React.useEffect(() => {
     track("page_view");
   }, [pathname]);
 
-  const signOut = React.useCallback(async (opts?: { everywhere?: boolean }) => {
+  const signOut = React.useCallback(async (opts?: { everywhere?: boolean; to?: string }) => {
     if (signingOut.current) return;
     signingOut.current = true;
     realtime?.stop();
@@ -170,12 +194,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       } catch {
         // Storage unavailable: nothing was persisted.
       }
+      // FE-CHAT (wave 3): unsent chat messages never outlive the session.
+      if (userId) clearOutbox(userId);
       clearAttachmentCache();
       // A full navigation (not router.push) drops every in-memory cache —
       // realtime, notifications, chat history — and lands signed out on the
       // home page, without racing pages that redirect anonymous visitors.
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.assign(`/${locale}`);
+      // Only same-locale paths (never another origin) are accepted as `to`.
+      const to = opts?.to && opts.to.startsWith(`/${locale}/`) && !opts.to.startsWith("//") ? opts.to : `/${locale}`;
+      window.location.assign(to);
     }
   }, [realtime, userId, locale]);
 

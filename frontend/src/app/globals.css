@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "./advisor.css";
+/* account settings, billing UI, top-up checkout and app-wide themes (FE-SETTINGS) */
+@import "./settings.css";
+/* FE-CALC: calculators, chart wheels, account overview and chart tab. */
+@import "./astro.css";
+@import "./advisor-settings.css"; /* advisor settings */
+/* FE-CHAT (wave 3): chatroom styles. */
+@import "./chat.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -19,6 +27,22 @@
   --gold: #aa8e62;
   --amber: #c29a3d;
   --gold-cta: #d9a036;
+  /* Lighter end of the Wellness Center "Gradient background" (revisions 2.0). */
+  --cream-soft: #f2e9db;
+  /* Form feedback on cream: both pass WCAG AA for text (success 5.0:1,
+     danger 5.7:1 on #e0d5c3). */
+  --success: #4a5d23;
+  --danger: #991b1b;
+
+  /* Effect styles (revisions 2.0). "CTA button glow" = DROP_SHADOW #C29A3D6B,
+     offset (0, 4), radius 15, spread 0. */
+  --shadow-cta-glow: 0 4px 15px 0 rgb(194 154 61 / 0.42);
+  /* Glass buttons ("get your astrological calculation", "Join Waiting
+     List"): translucent cream over a blurred backdrop, ink hairline. */
+  --glass-bg: rgb(224 213 195 / 0.2);
+  --glass-border: var(--deep-black);
+  /* Input sample text: Source Serif 4 Regular, #000000 at 16 % opacity. */
+  --placeholder: rgb(0 0 0 / 0.16);
 
   /* Hairline used on every card / column / divider in the design */
   --hairline: rgb(170 142 98 / 0.2);
@@ -69,6 +93,12 @@
   --color-amber: var(--amber);
   --color-gold-cta: var(--gold-cta);
   --color-hairline: var(--hairline);
+  --color-cream-soft: var(--cream-soft);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+
+  /* Effect styles → `shadow-glow` utility */
+  --shadow-glow: var(--shadow-cta-glow);
 
   /* shadcn semantic colors */
   --color-background: var(--background);
@@ -153,6 +183,75 @@
   background-blend-mode: overlay;
 }
 
+/* ---------------------------------------------------------------------------
+   Revisions 2.0 effect styles.
+   --------------------------------------------------------------------------- */
+
+/* "CTA button glow": every CTA button and highlighted call to action. */
+@utility glow {
+  box-shadow: var(--shadow-cta-glow);
+}
+
+/* Glass secondary buttons: translucent cream over a blurred backdrop. */
+@utility glass {
+  background-color: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  backdrop-filter: blur(8px) saturate(1.2);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: rgb(224 213 195 / 0.65);
+  }
+}
+
+/* Wellness Center "Gradient background": cream → #F2E9DB at 164.8°, with
+   the 20 % dot pattern (≈3.5 px light dots on a 24 px grid, sampled from
+   the Figma render). Pure CSS, so no image request is needed. */
+@utility wellness-bg {
+  background-color: var(--cream);
+  background-image:
+    radial-gradient(circle, rgb(255 255 255 / 0.22) 1.6px, transparent 2px),
+    linear-gradient(164.8deg, var(--cream) 11.1%, var(--cream-soft) 101.78%);
+  background-size:
+    24px 24px,
+    100% 100%;
+  background-position:
+    12px 4px,
+    0 0;
+  background-attachment: local, scroll;
+}
+
+/* Advisor cards: the aged-paper texture in overlay mode at 24 % opacity. */
+@utility texture-24 {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image: url("https://assets.staryield.net/assets/figma/fb9ee.jpg");
+    background-size: cover;
+    background-position: center;
+    mix-blend-mode: overlay;
+    opacity: 0.24;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+}
+
+/* Input sample text everywhere (Figma: Source Serif 4 Regular, #000 @ 16 %).
+   Every field keeps a visible label, so the faint sample text is never the
+   only description of a control. */
+::placeholder {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  color: var(--placeholder);
+  opacity: 1;
+}
+
 /* Shared Figma screen regions. */
 :root {
   --background: var(--cream);
@@ -215,8 +314,8 @@ input[type="checkbox"] {
   flex-shrink: 0;
 }
 .sun-logo-large {
-  width: 195px;
-  height: 195px;
+  width: var(--sun-size, 168px);
+  height: var(--sun-size, 168px);
 }
 .sun-shape {
   position: absolute;
@@ -291,6 +390,11 @@ input[type="checkbox"] {
   background-color: var(--cream);
   border: 1px solid var(--ink);
 }
+/* Footer / Corporate: 18 px faceless sun next to the 20 px wordmark. */
+.site-footer .sun-logo {
+  width: 18px;
+  height: 18px;
+}
 .footer-columns {
   display: grid;
   grid-template-columns: minmax(240px, 2fr) 1fr 1fr 1.2fr;
@@ -324,6 +428,35 @@ input[type="checkbox"] {
   min-width: 0;
   font: inherit;
 }
+/* Validation states (react-hook-form + yup). Invalid wins over valid; each
+   state also carries an icon/text in the markup so it never relies on
+   colour alone. */
+.field :is(input, select, textarea)[aria-invalid="true"],
+[data-slot="field"][data-invalid] :is(input, select, textarea, [role="combobox"]) {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgb(153 27 27 / 0.14);
+}
+.field[data-valid] :is(input, select, textarea),
+[data-slot="field"][data-valid]:not([data-invalid]) :is(input, select, textarea, [role="combobox"]) {
+  border-color: var(--success);
+}
+.field-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.field-message[data-tone="error"] {
+  color: var(--danger);
+}
+.field-message[data-tone="success"] {
+  color: var(--success);
+}
+.gold-button:not(:disabled),
+[data-slot="button"][data-variant="cta"]:not(:disabled) {
+  box-shadow: var(--shadow-cta-glow);
+}
 .radiant-panel {
   position: relative;
   isolation: isolate;
@@ -333,29 +466,43 @@ input[type="checkbox"] {
   flex-direction: column;
   align-items: center;
   min-height: 793px;
-  padding: 15px 20px 64px;
+  padding: 31px 20px 64px;
 }
+/* Radial lines (Figma 6a3de, 2357 px square): centred on the sun so every
+   logo page shares one ray origin. */
 .radiant-rays {
   position: absolute;
   pointer-events: none;
-  inset: 0;
   z-index: -1;
-  opacity: 0.5;
+  top: calc(var(--sun-size) / 2);
+  left: 50%;
+  width: 0;
+  height: 0;
 }
 .radiant-rays img {
   position: absolute;
   max-width: none;
-  width: auto;
-  height: auto;
-  top: -1300px;
-  left: calc(50% - 1400px);
+  width: 2357px;
+  height: 2357px;
+  top: -1178.6px;
+  left: -1178.6px;
+  filter: brightness(1.12);
+}
+.radiant-wordmark {
+  margin: 0;
+  text-transform: uppercase;
+  font-size: 48px;
+  line-height: 70px;
+  letter-spacing: 2.4px;
+  color: #000;
 }
 .radiant-brand {
   display: flex;
   flex-direction: column;
   align-items: center;
   position: relative;
-  margin-bottom: 52px;
+  --sun-size: 168px;
+  margin-bottom: 2px;
 }
 .auth-card {
   position: relative;
@@ -378,7 +525,7 @@ input[type="checkbox"] {
   box-shadow: none;
 }
 .auth-input::placeholder {
-  color: var(--sage);
+  color: var(--placeholder);
 }
 .auth-continue {
   height: 38px;
@@ -403,6 +550,60 @@ input[type="checkbox"] {
 }
 .offer-card .auth-continue {
   margin-bottom: 36px;
+}
+/* Sign-up / sign-in forms (components/forms/auth). */
+.auth-fields {
+  display: grid;
+}
+.auth-label {
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+.auth-input:focus-visible,
+.auth-date-parts input:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 40%, transparent);
+}
+[data-slot="field"][data-valid]:not([data-invalid]) .auth-input,
+[data-slot="field"][data-valid]:not([data-invalid]) .auth-date-parts input {
+  box-shadow: inset 0 0 0 1px var(--success);
+}
+[data-slot="field"][data-invalid] .auth-input,
+[data-slot="field"][data-invalid] .auth-date-parts input,
+.auth-date-parts input[aria-invalid="true"] {
+  box-shadow:
+    inset 0 0 0 1px var(--danger),
+    0 0 0 3px rgb(153 27 27 / 0.14);
+}
+.auth-password-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgb(0 0 0 / 0.55);
+}
+.auth-password-checks li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 150ms ease;
+}
+.auth-password-checks li[data-met] {
+  color: var(--success);
+}
+.auth-card-birth {
+  width: 600px;
+}
+.auth-date-parts input {
+  height: 39px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(193, 187, 169, 0.3);
+  font-family: var(--font-serif);
+  font-size: 18px;
+}
+.auth-date-parts input::placeholder {
+  color: var(--placeholder);
 }
 .calculator-card {
   width: 624px;
@@ -454,6 +655,21 @@ input[type="checkbox"] {
 .psychics-browse {
   padding: 44px 32px 64px;
 }
+/* Revisions 2.0: the browse page and every Wellness Center account view
+   (overview, chart, analytics, settings) sit on the gradient + dot pattern. */
+.dashboard-page:has(> .psychics-browse),
+.dashboard-page:has(> .account-wrap) {
+  background-color: var(--cream);
+  background-image:
+    radial-gradient(circle, rgb(255 255 255 / 0.22) 1.6px, transparent 2px),
+    linear-gradient(164.8deg, var(--cream) 11.1%, var(--cream-soft) 101.78%);
+  background-size:
+    24px 24px,
+    100% 100%;
+  background-position:
+    12px 4px,
+    0 0;
+}
 .advisor-grid {
   display: grid;
   grid-template-columns: repeat(3, 320px);
@@ -461,12 +677,15 @@ input[type="checkbox"] {
   gap: 24px;
   margin-top: 44px;
 }
+/* Figma 174:805: no fill — the aged-paper texture in overlay mode
+   (`texture-24` on the element) over the page gradient. */
 .advisor-card {
+  display: flex;
+  flex-direction: column;
   height: 498px;
   border: 1px solid var(--gold);
   border-radius: 16px;
   overflow: hidden;
-  background: #c1bba91c;
   box-shadow: 0 4px 12px #00000008;
 }
 .advisor-card-image {
@@ -476,20 +695,136 @@ input[type="checkbox"] {
   object-position: 50% 25%;
 }
 .advisor-card-copy {
-  padding: 32px 16px 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 35px 16px 0 17px;
+}
+.advisor-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.advisor-card-copy h2 {
+  color: #15100b;
+}
+.advisor-status-dot {
+  display: none;
+}
+.advisor-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.advisor-skills li {
+  font-size: 11px;
+  font-weight: 300;
+  color: var(--ink);
+}
+.advisor-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 11px;
+}
+.advisor-card-star {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin: 0 4px 2px 0;
+  vertical-align: middle;
+}
+.advisor-card-meta strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.advisor-card-headline {
+  display: -webkit-box;
+  margin-top: 14px;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+@media (min-width: 768px) {
+  /* Desktop card (Figma 408:1525): a status dot before the name, skill
+     chips, and the gold profile bar pinned near the bottom. */
+  .advisor-card-copy h2 {
+    font-size: 28px;
+  }
+  .advisor-card-head .status-pill {
+    display: none;
+  }
+  .advisor-status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin: 0 8px 4px 0;
+    vertical-align: middle;
+    border-radius: 4px;
+    background: var(--gold);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+  }
+  .advisor-status-dot.online {
+    background: var(--amber);
+    box-shadow: 0 0 0 3px rgb(194 154 61 / 0.28);
+  }
+  .advisor-status-dot.offline {
+    background: transparent;
+    border: 1.5px solid var(--gold);
+    box-shadow: none;
+  }
+  .advisor-skills li {
+    padding: 1px 8px;
+    border-radius: 4px;
+    background: rgb(151 143 110 / 0.3);
+    line-height: 13px;
+  }
+}
+@media (max-width: 767px) {
+  /* Mobile (Figma 867:16529): one line of skills, "·"-separated. */
+  .advisor-skills {
+    display: block;
+    margin-top: 8px;
+    overflow: hidden;
+    color: var(--sage);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .advisor-skills li {
+    display: inline;
+    color: inherit;
+  }
+  .advisor-skills li + li::before {
+    content: " · ";
+    white-space: pre;
+  }
+  .advisor-card-reviews {
+    font-weight: 600;
+  }
 }
 .advisor-profile-link {
-  display: block;
-  text-align: center;
-  margin: 36px -16px 0;
-  padding: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 29px;
+  margin: auto -16px 28px -17px;
   text-transform: uppercase;
+  letter-spacing: 0.65px;
   font-family: var(--font-display);
   font-size: 13px;
+  color: var(--ink);
   background: var(--amber)
     url("https://assets.staryield.net/assets/figma/fb9ee.jpg") center/cover;
   background-blend-mode: overlay;
-  border-top: 1px solid var(--gold);
+  border-top: 0.5px solid rgb(0 0 0 / 0.15);
+  box-shadow: var(--shadow-cta-glow);
 }
 .status-pill {
   border: 1px solid var(--gold);
@@ -624,52 +959,56 @@ html:not([lang="en"]) .figma-content > .figma-section {
   .footer-columns > div {
     grid-column: 1/-1;
   }
+  /* Revisions 2.0 mobile tab bar (Figma 867:16324): a floating pill, the
+     active tab is a cream capsule showing icon + label. */
   .mobile-navigation {
     display: flex;
     justify-content: space-around;
     align-items: center;
     position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    left: 12px;
+    right: 12px;
     z-index: 30;
-    height: calc(72px + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom);
-    border-top: 1px solid var(--gold);
-    background: #faf5e9;
+    height: 56px;
+    padding: 0 8px;
+    border: 1px solid rgb(194 154 61 / 0.35);
+    border-radius: 28px;
+    background: rgb(250 245 233 / 0.94);
+    box-shadow: 0 8px 24px rgb(23 21 15 / 0.12);
+    backdrop-filter: blur(8px);
   }
   .mobile-navigation a {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    gap: 2px;
+    min-width: 64px;
+    height: 44px;
+    border-radius: 22px;
     font-size: 12px;
-    padding: 8px;
+    padding: 0 12px;
+    color: #5e5a4b;
   }
   .mobile-navigation .active {
+    flex-direction: row;
+    gap: 8px;
     color: var(--ink);
     font-weight: 600;
-    position: relative;
+    background: #f3e9d2;
+    font-size: 13px;
   }
   .mobile-navigation .active svg {
-    color: var(--amber);
-  }
-  .mobile-navigation .active::after {
-    content: "";
-    position: absolute;
-    bottom: 1px;
-    left: calc(50% - 9px);
-    width: 18px;
-    height: 2px;
-    background: var(--amber);
+    color: var(--ink);
   }
   .dashboard-page {
-    padding-bottom: 72px;
+    padding-bottom: 88px;
     background-color: #f3ecda;
   }
   .radiant-panel {
     min-height: calc(100dvh - 68px);
-    padding: 40px 0 0;
+    padding: 56px 0 0;
   }
   .auth-panel {
     min-height: 100dvh;
@@ -682,17 +1021,18 @@ html:not([lang="en"]) .figma-content > .figma-section {
     display: none;
   }
   .radiant-brand {
-    margin-bottom: 60px;
+    --sun-size: 129px;
+    margin-bottom: 50px;
   }
   .sun-logo-large {
-    width: 142px;
-    height: 142px;
+    width: 129px;
+    height: 129px;
   }
   .radiant-brand > p {
-    font-size: 36px;
-  }
-  .radiant-rays img {
-    left: calc(50% - 1430px);
+    font-size: 31.74px;
+    line-height: 49px;
+    letter-spacing: 1.587px;
+    color: #3b3b3b;
   }
   .auth-card {
     border-radius: 24px 24px 0 0;
@@ -720,6 +1060,18 @@ html:not([lang="en"]) .figma-content > .figma-section {
   }
   .auth-legal {
     padding: 40px 0 70px;
+  }
+  .auth-card-birth {
+    width: 100%;
+  }
+  .auth-date-parts input {
+    height: 55px;
+    border-radius: 18px;
+    font-size: 16px;
+    background: #fffdf7;
+  }
+  .auth-password-checks {
+    grid-template-columns: minmax(0, 1fr);
   }
   .calculator-card {
     width: calc(100% - 32px);
@@ -790,8 +1142,11 @@ html:not([lang="en"]) .figma-content > .figma-section {
   .advisor-profile-link {
     margin: 20px 0 0;
     padding: 0;
+    height: auto;
     border: 0;
     background: none;
+    box-shadow: none;
+    letter-spacing: normal;
     font-family: var(--font-serif);
     font-size: 11px;
   }
@@ -1107,8 +1462,23 @@ html:not([lang="en"]) .figma-content > .figma-section {
 .checkout-overlay {
   position: fixed;
   inset: 0;
-  background: #000b;
   z-index: 60;
+}
+/* Modal backdrops ("Overlay / Top Up / With Backdrop"): the page behind a
+   dialog is blurred, not just dimmed. Browsers without backdrop-filter get a
+   darker scrim so the dialog still stands out. */
+[data-slot="dialog-overlay"][data-overlay="blur"] {
+  background: rgb(21 16 11 / 0.35);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+[data-slot="dialog-overlay"][data-overlay="dim"] {
+  background: rgb(21 16 11 / 0.7);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-slot="dialog-overlay"][data-overlay="blur"] {
+    background: rgb(21 16 11 / 0.7);
+  }
 }
 .checkout-card {
   position: fixed;
@@ -1410,10 +1780,8 @@ html:not([lang="en"]) .figma-content > .figma-section {
   transform: scale(calc(100cqw / 1404.082px));
   transform-origin: top left;
 }
-.theme-light {
-  --cream: #f4f0ea;
-  background: var(--cream-light);
-}
+/* Themes are app-wide now: html[data-theme] (settings.css). The old
+   dashboard-only .theme-light class is intentionally inert. */
 
 @media (max-width: 767px) {
   .account-affirmation-secondary {
@@ -1579,14 +1947,17 @@ html:not([lang="en"]) .figma-content > .figma-section {
   .advisor-card-copy h2 + span {
     color: white;
   }
-  .advisor-card-copy > p {
+  .advisor-card-headline {
     margin-top: 9px;
     font-size: 11px;
   }
-  .advisor-card-copy > p:first-of-type {
+  .advisor-skills {
     font-size: 10px;
   }
-  .advisor-card-copy > div:nth-child(3) {
+  .advisor-skills li {
+    font-size: inherit;
+  }
+  .advisor-card-meta {
     margin-top: 9px;
     font-size: 10px;
   }

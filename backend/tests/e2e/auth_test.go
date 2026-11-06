@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
@@ -161,12 +162,14 @@ func TestPasswordResetFlow(t *testing.T) {
 
 	// Unknown e-mail: same response, no mail.
 	anon.must(http.StatusAccepted, http.MethodPost, "/api/v1/auth/password/forgot", map[string]any{"email": uniq("ghost") + "@example.com"}, nil)
-	if len(e.mail.Sent()) != 0 {
+	if len(e.flushMail()) != 0 {
 		t.Fatal("mail sent for unknown account")
 	}
 	anon.must(http.StatusAccepted, http.MethodPost, "/api/v1/auth/password/forgot", map[string]any{"email": c.user.Email, "locale": "fr"}, nil)
-	sent := e.mail.Sent()
-	if len(sent) != 1 || !strings.Contains(sent[0].Text, "/fr/reset-password?token=") {
+	// The reset e-mail goes through the outbox (delivered by the worker).
+	sent := e.flushMail()
+	if len(sent) != 1 || !strings.Contains(sent[0].Text, "/fr/reset-password?token=") || sent[0].Category != "security" ||
+		!strings.Contains(sent[0].HTML, "/fr/reset-password?token=") || !strings.Contains(sent[0].Subject, "Réinitialisez") {
 		t.Fatalf("reset mail: %+v", sent)
 	}
 	token := strings.TrimSpace(sent[0].Text[strings.Index(sent[0].Text, "token=")+6:])
@@ -342,4 +345,35 @@ func TestRateLimitedAuthEndpoints(t *testing.T) {
 	if last.status != http.StatusTooManyRequests || last.errCode(t) != "rate_limited" || last.header.Get("Retry-After") == "" {
 		t.Fatalf("expected throttling: %d %s", last.status, last.body)
 	}
+}
+
+// Argon2 hashing is bounded: when every slot is busy, a login gets a
+// retryable 503 instead of queueing memory-hard work, and the busy answer
+// is the same for known and unknown accounts and never counts as a failure.
+func TestLoginWhileHashingIsSaturated(t *testing.T) {
+	e := newEnv(t, func(c *config.Config) {
+		c.Auth.LoginMaxFailures = 2
+		c.Auth.Argon2Concurrency = 1
+		c.Auth.PasswordHashWait = 50 * time.Millisecond
+	})
+	victim := e.registerClient()
+	visitor := e.client()
+
+	release, err := e.app.Hasher.Acquire(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		known := visitor.call(http.MethodPost, "/api/v1/auth/login", map[string]any{"email": victim.user.Email, "password": strongPassword})
+		unknown := visitor.call(http.MethodPost, "/api/v1/auth/login", map[string]any{"email": uniq("nobody") + "@example.com", "password": strongPassword})
+		for _, r := range []response{known, unknown} {
+			if r.status != http.StatusServiceUnavailable || r.errCode(t) != "service_unavailable" || r.header.Get("Retry-After") == "" {
+				t.Fatalf("saturated login: %d %s", r.status, r.body)
+			}
+		}
+	}
+	release()
+
+	// More busy answers than LoginMaxFailures, yet the account is not locked.
+	visitor.must(http.StatusOK, http.MethodPost, "/api/v1/auth/login", map[string]any{"email": victim.user.Email, "password": strongPassword}, nil)
 }

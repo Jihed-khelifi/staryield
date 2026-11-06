@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	netmail "net/mail"
 	"net/url"
 	"strings"
 	"time"
@@ -46,6 +47,7 @@ type Config struct {
 	Analytics      AnalyticsConfig      `env:"analytics"`
 	Log            LogConfig            `env:"log"`
 	Mail           MailConfig           `env:"mail"`
+	Push           PushConfig           `env:"push"`
 	Worker         WorkerConfig         `env:"worker"`
 	Admin          AdminConfig          `env:"admin"`
 	Links          LinksConfig          `env:"links"`
@@ -106,15 +108,20 @@ type RedisConfig struct {
 
 // AuthConfig controls credentials, tokens and password hashing.
 type AuthConfig struct {
-	JWTSecret          string        `env:"jwt_secret"`
-	JWTIssuer          string        `env:"jwt_issuer"`
-	JWTAudience        string        `env:"jwt_audience"`
-	AccessTokenTTL     time.Duration `env:"access_token_ttl"`
-	RefreshTokenTTL    time.Duration `env:"refresh_token_ttl"`
-	PasswordResetTTL   time.Duration `env:"password_reset_ttl"`
-	Argon2Memory       uint32        `env:"argon2_memory_kib"`
-	Argon2Iterations   uint32        `env:"argon2_iterations"`
-	Argon2Parallelism  uint8         `env:"argon2_parallelism"`
+	JWTSecret         string        `env:"jwt_secret"`
+	JWTIssuer         string        `env:"jwt_issuer"`
+	JWTAudience       string        `env:"jwt_audience"`
+	AccessTokenTTL    time.Duration `env:"access_token_ttl"`
+	RefreshTokenTTL   time.Duration `env:"refresh_token_ttl"`
+	PasswordResetTTL  time.Duration `env:"password_reset_ttl"`
+	Argon2Memory      uint32        `env:"argon2_memory_kib"`
+	Argon2Iterations  uint32        `env:"argon2_iterations"`
+	Argon2Parallelism uint8         `env:"argon2_parallelism"`
+	// Argon2Concurrency caps simultaneous password hashes (0 = about one
+	// per CPU); requests wait at most PasswordHashWait for a slot, then get
+	// a retryable 503. Bounds memory under login bursts.
+	Argon2Concurrency  int           `env:"argon2_concurrency"`
+	PasswordHashWait   time.Duration `env:"password_hash_wait"`
 	LoginMaxFailures   int           `env:"login_max_failures"`
 	LoginLockout       time.Duration `env:"login_lockout"`
 	MinimumAge         int           `env:"minimum_age"`
@@ -192,14 +199,16 @@ type RealtimeConfig struct {
 
 // RateLimitConfig controls request throttling.
 type RateLimitConfig struct {
-	Enabled  bool    `env:"enabled"`
-	FailOpen bool    `env:"fail_open"`
-	Global   Rule    `env:"global"`
-	Auth     Rule    `env:"auth"`
-	Writes   Rule    `env:"writes"`
-	Ingest   Rule    `env:"ingest"`
-	Upload   Rule    `env:"upload"`
-	Scale    float64 `env:"scale"`
+	Enabled  bool `env:"enabled"`
+	FailOpen bool `env:"fail_open"`
+	Global   Rule `env:"global"`
+	Auth     Rule `env:"auth"`
+	Writes   Rule `env:"writes"`
+	Ingest   Rule `env:"ingest"`
+	Upload   Rule `env:"upload"`
+	// Push bounds Web Push subscribe/unsubscribe calls per user.
+	Push  Rule    `env:"push"`
+	Scale float64 `env:"scale"`
 }
 
 // Rule is a token bucket: Rate tokens per Period, up to Burst.
@@ -233,6 +242,10 @@ type StorageConfig struct {
 	ChatBucket        string `env:"chat_bucket"`
 	MaxChatImageBytes int64  `env:"max_chat_image_bytes"`
 	ChatImageMaxSide  int    `env:"chat_image_max_side"`
+	// identity: ExportBucket (env R2_EXPORTS_PRIVATE) is the private bucket
+	// for personal-data export archives; empty uses ChatBucket (objects
+	// under exports/).
+	ExportBucket string `env:"export_bucket"`
 	// MaxImagePixels bounds decoded image size (decompression bombs).
 	MaxImagePixels int `env:"max_image_pixels"`
 }
@@ -244,6 +257,27 @@ type PaymentsConfig struct {
 	WebhookTolerance         time.Duration `env:"webhook_tolerance"`
 	AllowSandboxInProduction bool          `env:"allow_sandbox_in_production"`
 	Currency                 string        `env:"currency"`
+
+	// --- billing: Premium Membership, saved cards, provider routing ---
+	// Providers are the saved-card providers registered for routing, in
+	// fallback order (sandbox_a, sandbox_b; real adapters later). Ignored
+	// when provider=disabled.
+	Providers []string `env:"providers"`
+	// DefaultProvider serves payments no routing rule matches.
+	DefaultProvider string `env:"default_provider"`
+	// RenewalLease is how long a charge attempt in flight is leased before
+	// its outcome is reconciled with the provider.
+	RenewalLease time.Duration `env:"renewal_lease"`
+	// GracePeriod: a past-due membership expires this long after its unpaid
+	// period started.
+	GracePeriod time.Duration `env:"grace_period"`
+	// IncompleteTTL: a first membership charge still unresolved after this
+	// long expires the membership.
+	IncompleteTTL     time.Duration `env:"incomplete_ttl"`
+	MaxPaymentMethods int           `env:"max_payment_methods"`
+	// RateLimit bounds card attachments and subscription changes per user
+	// (card-testing protection); it always fails closed.
+	RateLimit Rule `env:"rate_limit"`
 }
 
 // AnalyticsConfig controls business event tracking.
@@ -262,10 +296,52 @@ type LogConfig struct {
 	Format string `env:"format"` // json | console
 }
 
-// MailConfig controls transactional e-mail.
+// MailConfig controls transactional e-mail. Messages go through the e-mail
+// outbox and are delivered by the background worker.
 type MailConfig struct {
-	Driver string `env:"driver"` // log | noop
-	From   string `env:"from"`
+	Driver string `env:"driver"` // cloudflare | log (development only) | noop
+	// From is the sender, "Name <address>" on a domain onboarded to the
+	// provider; FromName overrides the display name.
+	From     string `env:"from"`
+	FromName string `env:"from_name"`
+	ReplyTo  string `env:"reply_to"`
+	// Cloudflare Email Service (Email Sending REST API).
+	CloudflareAccountID string        `env:"cloudflare_account_id"`
+	CloudflareAPIToken  string        `env:"cloudflare_api_token"`
+	CloudflareBaseURL   string        `env:"cloudflare_base_url"`
+	Timeout             time.Duration `env:"timeout"`
+	// MaxAttempts bounds deliveries before a message is abandoned.
+	MaxAttempts int `env:"max_attempts"`
+	// DailyCap bounds e-mails per user per 24 hours (security mail exempt).
+	DailyCap int `env:"daily_cap"`
+	// AllowMarketing must stay false with Cloudflare Email Service, which is
+	// for transactional mail only.
+	AllowMarketing bool `env:"allow_marketing"`
+	// Retention keeps finished outbox rows (no bodies) for audits.
+	Retention time.Duration `env:"retention"`
+	// PollInterval is how often the outbox worker looks for due e-mail.
+	PollInterval time.Duration `env:"poll_interval"`
+	// SupportInbox receives contact-form requests (empty: not e-mailed).
+	SupportInbox string `env:"support_inbox"`
+}
+
+// PushConfig controls Web Push (VAPID). Push is off until both keys are set;
+// generate a pair with `go run ./cmd/vapid`.
+type PushConfig struct {
+	Enabled         bool          `env:"enabled"`
+	VAPIDPublicKey  string        `env:"vapid_public_key"`
+	VAPIDPrivateKey string        `env:"vapid_private_key"`
+	Subject         string        `env:"subject"`
+	TTL             time.Duration `env:"ttl"`
+	Timeout         time.Duration `env:"timeout"`
+	Workers         int           `env:"workers"`
+	QueueSize       int           `env:"queue_size"`
+	MaxPerUser      int           `env:"max_per_user"`
+}
+
+// Active reports whether push is enabled and configured.
+func (p PushConfig) Active() bool {
+	return p.Enabled && p.VAPIDPublicKey != "" && p.VAPIDPrivateKey != ""
 }
 
 // WorkerConfig controls background schedulers.
@@ -371,6 +447,7 @@ func defaults() Config {
 			Argon2Memory:       64 * 1024,
 			Argon2Iterations:   3,
 			Argon2Parallelism:  2,
+			PasswordHashWait:   3 * time.Second,
 			LoginMaxFailures:   5,
 			LoginLockout:       15 * time.Minute,
 			MinimumAge:         18,
@@ -430,6 +507,7 @@ func defaults() Config {
 			Writes:   Rule{Rate: 60, Period: time.Minute, Burst: 30},
 			Ingest:   Rule{Rate: 120, Period: time.Minute, Burst: 60},
 			Upload:   Rule{Rate: 10, Period: time.Hour, Burst: 5},
+			Push:     Rule{Rate: 30, Period: time.Hour, Burst: 10},
 			Scale:    1,
 		},
 		Storage: StorageConfig{
@@ -446,10 +524,16 @@ func defaults() Config {
 			ChatImageMaxSide:     2048,
 			MaxImagePixels:       40_000_000,
 		},
-		Payments:      PaymentsConfig{Provider: "sandbox", WebhookTolerance: 5 * time.Minute, Currency: "USD"},
-		Analytics:     AnalyticsConfig{Enabled: true, BufferSize: 10000, BatchSize: 200, FlushInterval: 2 * time.Second, MaxBatch: 50},
-		Log:           LogConfig{Level: "info", Format: "json"},
-		Mail:          MailConfig{Driver: "log", From: "Staryield <no-reply@staryield.net>"},
+		Payments: PaymentsConfig{Provider: "sandbox", WebhookTolerance: 5 * time.Minute, Currency: "USD",
+			Providers: []string{"sandbox_a", "sandbox_b"}, DefaultProvider: "sandbox_a", RenewalLease: 5 * time.Minute,
+			GracePeriod: 168 * time.Hour, IncompleteTTL: 24 * time.Hour, MaxPaymentMethods: 5,
+			RateLimit: Rule{Rate: 10, Period: time.Hour, Burst: 10}},
+		Analytics: AnalyticsConfig{Enabled: true, BufferSize: 10000, BatchSize: 200, FlushInterval: 2 * time.Second, MaxBatch: 50},
+		Log:       LogConfig{Level: "info", Format: "json"},
+		Mail: MailConfig{Driver: "log", From: "Staryield <no-reply@staryield.net>", Timeout: 15 * time.Second, MaxAttempts: 8,
+			DailyCap: 20, Retention: 720 * time.Hour, PollInterval: 2 * time.Second, SupportInbox: "support@staryield.net"},
+		Push: PushConfig{Enabled: true, Subject: "mailto:support@staryield.net", TTL: time.Hour, Timeout: 10 * time.Second,
+			Workers: 4, QueueSize: 10000, MaxPerUser: 10},
 		Worker:        WorkerConfig{Enabled: true, TickInterval: time.Second, PresenceSweep: 5 * time.Second, MaintenanceTick: 30 * time.Second, BatchSize: 100},
 		Admin:         AdminConfig{SessionTTL: 8 * time.Hour, IdleTimeout: 30 * time.Minute, StepUpWindow: 10 * time.Minute, ChallengeTTL: 5 * time.Minute, TOTPIssuer: "Staryield Admin"},
 		Links:         LinksConfig{PublicBaseURL: "http://localhost:3000/go", AllowedHosts: []string{}},
@@ -541,6 +625,67 @@ func splitList(in []string) []string {
 	return out
 }
 
+func (c *Config) validateMail(add func(string, ...any)) {
+	e := EnvVar
+	m := c.Mail
+	switch m.Driver {
+	case "log", "noop":
+	case "cloudflare":
+		if strings.TrimSpace(m.CloudflareAccountID) == "" || strings.TrimSpace(m.CloudflareAPIToken) == "" {
+			add("%s=cloudflare requires %s and %s", e("mail.driver"), e("mail.cloudflare_account_id"), e("mail.cloudflare_api_token"))
+		}
+		if m.AllowMarketing {
+			add("%s must be false with %s=cloudflare: Cloudflare Email Service is for transactional e-mail only",
+				e("mail.allow_marketing"), e("mail.driver"))
+		}
+	default:
+		add("%s must be cloudflare, log or noop", e("mail.driver"))
+	}
+	if _, err := netmail.ParseAddress(m.From); err != nil {
+		add("%s must be an e-mail address, optionally with a name (\"Staryield <no-reply@staryield.net>\")", e("mail.from"))
+	}
+	if strings.TrimSpace(m.ReplyTo) != "" {
+		if _, err := netmail.ParseAddress(m.ReplyTo); err != nil {
+			add("%s must be an e-mail address", e("mail.reply_to"))
+		}
+	}
+	if m.CloudflareBaseURL != "" {
+		u, err := url.Parse(m.CloudflareBaseURL)
+		if err != nil || u.Host == "" || (u.Scheme != "https" && !(u.Scheme == "http" && !c.IsProduction())) {
+			add("%s must be an https URL", e("mail.cloudflare_base_url"))
+		}
+	}
+	if m.Timeout <= 0 || m.PollInterval <= 0 {
+		add("%s and %s must be positive", e("mail.timeout"), e("mail.poll_interval"))
+	}
+	if m.MaxAttempts < 1 || m.MaxAttempts > 20 {
+		add("%s must be within 1..20", e("mail.max_attempts"))
+	}
+	if m.DailyCap < 1 {
+		add("%s must be >= 1", e("mail.daily_cap"))
+	}
+	if m.Retention < 24*time.Hour {
+		add("%s must be at least 24h", e("mail.retention"))
+	}
+}
+
+func (c *Config) validatePush(add func(string, ...any)) {
+	e := EnvVar
+	p := c.Push
+	if (p.VAPIDPublicKey == "") != (p.VAPIDPrivateKey == "") {
+		add("%s and %s must be set together (generate them with go run ./cmd/vapid)", e("push.vapid_public_key"), e("push.vapid_private_key"))
+	}
+	if !strings.HasPrefix(p.Subject, "mailto:") && !strings.HasPrefix(p.Subject, "https://") {
+		add("%s must be a mailto: or https:// URL", e("push.subject"))
+	}
+	if p.TTL <= 0 || p.TTL > 28*24*time.Hour || p.Timeout <= 0 {
+		add("%s must be within (0, 672h] and %s positive", e("push.ttl"), e("push.timeout"))
+	}
+	if p.Workers < 1 || p.QueueSize < 1 || p.MaxPerUser < 1 || p.MaxPerUser > 50 {
+		add("%s and %s must be >= 1 and %s within 1..50", e("push.workers"), e("push.queue_size"), e("push.max_per_user"))
+	}
+}
+
 // Validate checks invariants and production hardening requirements. Errors
 // name the environment variable to change.
 func (c *Config) Validate() error {
@@ -573,6 +718,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Auth.Argon2Memory < 8*1024 && c.App.Env != EnvTest {
 		add("%s must be >= 8192 outside tests", e("auth.argon2_memory_kib"))
+	}
+	if c.Auth.Argon2Concurrency < 0 || c.Auth.PasswordHashWait < 0 {
+		add("%s and %s must not be negative", e("auth.argon2_concurrency"), e("auth.password_hash_wait"))
 	}
 	if c.Auth.Argon2Iterations < 1 || c.Auth.Argon2Parallelism < 1 {
 		add("%s and %s must be >= 1", e("auth.argon2_iterations"), e("auth.argon2_parallelism"))
@@ -672,11 +820,39 @@ func (c *Config) Validate() error {
 	default:
 		add("%s %q is not supported", e("payments.provider"), c.Payments.Provider)
 	}
+	// billing: saved-card providers (ignored while payments are disabled).
+	if c.Payments.Provider != "disabled" {
+		known := map[string]bool{"sandbox_a": true, "sandbox_b": true}
+		listed := map[string]bool{}
+		for _, p := range c.Payments.Providers {
+			switch {
+			case !known[p]:
+				add("%s %q is not supported", e("payments.providers"), p)
+			case strings.HasPrefix(p, "sandbox") && c.IsProduction() && !c.Payments.AllowSandboxInProduction:
+				add("%s=%s is not allowed in production", e("payments.providers"), p)
+			}
+			listed[p] = true
+		}
+		if c.Payments.DefaultProvider != "" && !listed[c.Payments.DefaultProvider] {
+			add("%s must be one of %s", e("payments.default_provider"), e("payments.providers"))
+		}
+	}
+	if c.Payments.RenewalLease < time.Minute || c.Payments.GracePeriod <= 0 || c.Payments.IncompleteTTL <= 0 {
+		add("%s must be >= 1m, %s and %s positive", e("payments.renewal_lease"), e("payments.grace_period"), e("payments.incomplete_ttl"))
+	}
+	if c.Payments.MaxPaymentMethods < 1 || c.Payments.MaxPaymentMethods > 20 {
+		add("%s must be within 1..20", e("payments.max_payment_methods"))
+	}
+	if c.Payments.RateLimit.Rate < 1 || c.Payments.RateLimit.Period <= 0 || c.Payments.RateLimit.Burst < 1 {
+		add("%s must be a positive rate, period and burst", e("payments.rate_limit_rate"))
+	}
 	switch c.Log.Format {
 	case "json", "console":
 	default:
 		add("%s must be json or console", e("log.format"))
 	}
+	c.validateMail(add)
+	c.validatePush(add)
 
 	if c.IsProduction() {
 		if !c.Security.CookieSecure {
@@ -703,7 +879,7 @@ func (c *Config) Validate() error {
 			add("%s=memory is not allowed in production (use r2, or disabled to turn uploads off)", e("storage.driver"))
 		}
 		if c.Mail.Driver == "log" {
-			add("%s=log is not allowed in production (use noop)", e("mail.driver"))
+			add("%s=log is not allowed in production (use cloudflare, or noop to send nothing)", e("mail.driver"))
 		}
 		if strings.HasPrefix(c.Security.DataEncryptionKey, "dev-only") {
 			add("%s must be set in production", e("security.data_encryption_key"))

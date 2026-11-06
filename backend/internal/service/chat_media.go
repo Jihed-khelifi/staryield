@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -10,6 +11,8 @@ import (
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/apperror"
 	"github.com/Jihed-khelifi/staryield/backend/internal/astro"
+	"github.com/Jihed-khelifi/staryield/backend/internal/astro/horoscope"
+	"github.com/Jihed-khelifi/staryield/backend/internal/astro/tz"
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
 	"github.com/Jihed-khelifi/staryield/backend/internal/realtime"
 	"github.com/Jihed-khelifi/staryield/backend/internal/repository"
@@ -163,31 +166,26 @@ func (c *ChatService) SendImage(ctx context.Context, p reqctx.Principal, in Uplo
 		if s.Status != domain.SessionActive {
 			return apperror.InvalidState("This chat is not active.").WithDetails(map[string]any{"status": s.Status})
 		}
+		if cmid != nil {
+			// Retries serialise on the session lock: look again before
+			// assigning a sequence number.
+			if existing, err := c.chat.GetMessageByClientID(ctx, p.UserID, *cmid); err == nil {
+				msg = existing
+				return nil
+			} else if !isNotFound(err) {
+				return err
+			}
+		}
 		now := c.clock.Now()
 		sender := p.UserID
 		m := &domain.Message{ID: domain.NewID(), ConversationID: s.ConversationID, SessionID: s.ID, SenderID: &sender,
-			Kind: domain.MessageImage, Body: caption, ClientMsgID: cmid, CreatedAt: now}
-		created, err := c.chat.CreateMessage(ctx, m)
-		if err != nil {
+			Kind: domain.MessageImage, Body: caption, ClientMsgID: cmid, CreatedAt: now, UpdatedAt: now}
+		if _, err := c.chat.AppendMessage(ctx, m); err != nil {
 			return err
-		}
-		if !created {
-			existing, err := c.chat.GetMessageByClientID(ctx, p.UserID, *cmid)
-			if err != nil {
-				return err
-			}
-			msg = existing
-			return nil
 		}
 		a := &domain.Attachment{ID: domain.NewID(), MessageID: m.ID, ConversationID: s.ConversationID, UploaderID: p.UserID,
 			ObjectKey: key, ContentType: img.ContentType, Width: img.Width, Height: img.Height, Bytes: len(img.Data), CreatedAt: now}
 		if err := c.extras.Attachments.Create(ctx, a); err != nil {
-			return err
-		}
-		if err := c.chat.TouchConversation(ctx, s.ConversationID, m.ID, now); err != nil {
-			return err
-		}
-		if err := c.chat.MarkConversationRead(ctx, s.ConversationID, p.UserID == s.PsychicID, now); err != nil {
 			return err
 		}
 		msg, att, session = m, a, s
@@ -196,6 +194,15 @@ func (c *ChatService) SendImage(ctx context.Context, p reqctx.Principal, in Uplo
 	if err != nil || att == nil {
 		// Nothing references the object: remove it.
 		warnErr(ctx, "chat: delete orphaned image", c.extras.Store.Delete(ctx, key))
+	}
+	if errors.Is(err, repository.ErrDuplicate) && cmid != nil {
+		// Stored by a concurrent request: return the original message.
+		existing, gerr := c.chat.GetMessageByClientID(ctx, p.UserID, *cmid)
+		if gerr != nil {
+			return nil, apperror.Internal(gerr)
+		}
+		v := c.withAttachments(ctx, []MessageView{messageView(existing)})[0]
+		return &v, nil
 	}
 	if err != nil {
 		return nil, mapRepoErr(err, "Session")
@@ -207,8 +214,7 @@ func (c *ChatService) SendImage(ctx context.Context, p reqctx.Principal, in Uplo
 		v = c.withAttachments(ctx, []MessageView{v})[0]
 	}
 	if session != nil {
-		warnErr(ctx, "chat: publish image message", c.events.Publish(ctx, realtime.EventMessageCreated,
-			map[string]any{"message": v}, session.ClientID, session.PsychicID))
+		c.publishMessage(ctx, v, session.ClientID, session.PsychicID)
 		c.tracker.Track(ctx, "chat.image_sent", map[string]any{"session_id": session.ID, "bytes": len(img.Data), "role": string(p.Role)})
 	}
 	return &v, nil
@@ -250,16 +256,39 @@ func (c *ChatService) Attachment(ctx context.Context, p reqctx.Principal, id uui
 
 // ClientAstro is a client's astrological snapshot shown to their advisor.
 type ClientAstro struct {
-	SunSign    string `json:"sun_sign"`
-	MoonSign   string `json:"moon_sign,omitempty"`
-	RisingSign string `json:"rising_sign,omitempty"`
-	LifePath   int    `json:"life_path,omitempty"`
-	TimeKnown  bool   `json:"time_known"`
+	SunSign          string `json:"sun_sign"`
+	SunSignUncertain bool   `json:"sun_sign_uncertain"`
+	MoonSign         string `json:"moon_sign,omitempty"`
+	RisingSign       string `json:"rising_sign,omitempty"`
+	LifePath         int    `json:"life_path,omitempty"`
+	TimeKnown        bool   `json:"time_known"`
+	// Placements are the natal planets' signs. Degrees and houses are only
+	// given when the birth time is known (and houses with a birthplace);
+	// the Moon is left out when its sign is uncertain.
+	Placements []ClientPlacement `json:"placements,omitempty"`
 }
 
-// ClientHoroscope is the client's daily reading.
+// ClientPlacement is one natal planet in the client card.
+type ClientPlacement struct {
+	Body       string `json:"body"`
+	Sign       string `json:"sign"`
+	Degree     *int   `json:"degree,omitempty"`
+	House      int    `json:"house,omitempty"`
+	Retrograde bool   `json:"retrograde"`
+}
+
+// ClientBirthDetails are shown to advisors only when the client turned on
+// share_birth_details_with_advisors (off by default). They never include
+// the birth time or coordinates.
+type ClientBirthDetails struct {
+	DateOfBirth string `json:"date_of_birth"`
+	Place       string `json:"place,omitempty"`
+}
+
+// ClientHoroscope is the client's daily reading (in the advisor's language).
 type ClientHoroscope struct {
 	Sign        string `json:"sign"`
+	SignName    string `json:"sign_name"`
 	Date        string `json:"date"`
 	Text        string `json:"text"`
 	Focus       string `json:"focus"`
@@ -279,17 +308,21 @@ type ClientHistoryView struct {
 // includes contact details, balances, purchases or the exact birth place
 // and time.
 type ClientProfileView struct {
-	ID          uuid.UUID         `json:"id"`
-	Name        string            `json:"name"`
-	AvatarURL   string            `json:"avatar_url,omitempty"`
-	Online      bool              `json:"online"`
-	Locale      string            `json:"locale"`
-	CountryCode string            `json:"country_code,omitempty"`
-	Age         *int              `json:"age,omitempty"`
-	MemberSince time.Time         `json:"member_since"`
-	Astro       *ClientAstro      `json:"astro,omitempty"`
-	Horoscope   *ClientHoroscope  `json:"horoscope,omitempty"`
-	History     ClientHistoryView `json:"history"`
+	ID          uuid.UUID    `json:"id"`
+	Name        string       `json:"name"`
+	AvatarURL   string       `json:"avatar_url,omitempty"`
+	Online      bool         `json:"online"`
+	Locale      string       `json:"locale"`
+	CountryCode string       `json:"country_code,omitempty"`
+	Age         *int         `json:"age,omitempty"`
+	MemberSince time.Time    `json:"member_since"`
+	Astro       *ClientAstro `json:"astro,omitempty"`
+	// BirthDetailsShared tells the advisor whether the client chose to share
+	// their date and place of birth (BirthDetails is set only then).
+	BirthDetailsShared bool                `json:"birth_details_shared"`
+	BirthDetails       *ClientBirthDetails `json:"birth_details,omitempty"`
+	Horoscope          *ClientHoroscope    `json:"horoscope,omitempty"`
+	History            ClientHistoryView   `json:"history"`
 }
 
 // ageOn returns completed years between birth and now.
@@ -329,8 +362,18 @@ func (c *ChatService) ClientProfile(ctx context.Context, p reqctx.Principal, con
 			age := ageOn(*prof.BirthDate, now)
 			v.Age = &age
 			v.Astro = clientAstro(prof)
-			if h, err := astro.Daily(v.Astro.SunSign, now); err == nil {
-				v.Horoscope = &ClientHoroscope{Sign: h.Sign, Date: h.Date, Text: h.Text, Focus: h.Focus, Mood: h.Mood, Affirmation: h.Affirmation}
+			if prof.ShareBirthDetailsWithAdvisors {
+				place := strings.TrimSpace(prof.BirthPlaceLabel)
+				if place == "" {
+					place = strings.TrimSpace(prof.BirthPlace)
+				}
+				v.BirthDetailsShared = true
+				v.BirthDetails = &ClientBirthDetails{DateOfBirth: prof.BirthDate.Format("2006-01-02"), Place: place}
+			}
+			if v.Astro.SunSign != "" {
+				if h, err := horoscope.Daily(horoscope.Request{Sign: v.Astro.SunSign, Date: now.UTC(), Locale: LocaleFrom(ctx)}); err == nil {
+					v.Horoscope = &ClientHoroscope{Sign: h.Sign, SignName: h.SignName, Date: h.Date, Text: h.Text, Focus: h.Focus, Mood: h.Mood, Affirmation: h.Affirmation}
+				}
 			}
 		}
 	}
@@ -346,35 +389,60 @@ func (c *ChatService) ClientProfile(ctx context.Context, p reqctx.Principal, con
 	return v, nil
 }
 
-// clientAstro computes sun, moon and rising signs. The moon sign needs the
-// birth time (it changes sign every ~2.5 days) and the rising sign also the
-// birth place; only what can be known is returned.
+// clientAstro computes the client's sun, moon and rising signs with the same
+// engine as their own chart (the sun sign comes from the Sun's actual
+// longitude). Only what can be known is returned: the Moon's sign when it
+// cannot have changed during the possible birth window, and the rising sign
+// only with both a birth time and a birthplace. A birth time without a place
+// is never interpreted as UTC.
 func clientAstro(prof *domain.Profile) *ClientAstro {
 	b := *prof.BirthDate
-	out := &ClientAstro{SunSign: astro.SunSignForDate(int(b.Month()), b.Day()), LifePath: astro.LifePath(b.Year(), int(b.Month()), b.Day()),
-		TimeKnown: prof.BirthTime != ""}
-	if prof.BirthTime == "" {
-		return out
-	}
-	tz := "UTC"
-	var place *astro.Place
-	if prof.BirthPlaceID != "" {
+	date := time.Date(b.Year(), b.Month(), b.Day(), 0, 0, 0, 0, time.UTC)
+	out := &ClientAstro{LifePath: astro.LifePath(b.Year(), int(b.Month()), b.Day())}
+
+	var zone *time.Location
+	var where *astro.GeoLocation
+	switch {
+	case prof.BirthLatitude != nil && prof.BirthLongitude != nil && prof.BirthTimezone != "":
+		if l, err := tz.Load(prof.BirthTimezone); err == nil {
+			zone, where = l, &astro.GeoLocation{Latitude: *prof.BirthLatitude, Longitude: *prof.BirthLongitude}
+		}
+	case prof.BirthPlaceID != "":
 		if pl, ok := astro.PlaceByID(prof.BirthPlaceID); ok {
-			place, tz = &pl, pl.TimeZone
+			if l, err := tz.Load(pl.TimeZone); err == nil {
+				loc := astro.LocationOf(pl)
+				zone, where = l, &loc
+			}
 		}
 	}
-	instant, err := astro.LocalBirthInstant(b, prof.BirthTime, tz)
+	req := astro.ChartRequest{Loc: where}
+	if h, m, err := tz.ParseClock(prof.BirthTime); err == nil && zone != nil {
+		req.Instant, _ = tz.Resolve(date, h, m, zone, where.Longitude)
+		req.TimeKnown = true
+	} else {
+		req.Instant, req.WindowStart, req.WindowEnd = astro.BirthWindow(date, 0, 0, false, zone)
+	}
+	chart, err := astro.ComputeChart(req)
 	if err != nil {
+		out.SunSign = astro.SunSignAt(req.Instant)
 		return out
 	}
-	var loc *astro.GeoLocation
-	if place != nil {
-		l := place.Location()
-		loc = &l
+	out.SunSign, out.SunSignUncertain, out.TimeKnown = chart.SunSign, chart.SunSignUncertain, req.TimeKnown
+	if !chart.MoonSignUncertain {
+		out.MoonSign = chart.MoonSign
 	}
-	chart := astro.ComputeChart(instant, loc)
-	out.MoonSign = chart.MoonSign
 	out.RisingSign = chart.RisingSign
+	for _, pos := range chart.Positions {
+		if pos.Body == string(astro.Moon) && chart.MoonSignUncertain {
+			continue
+		}
+		pl := ClientPlacement{Body: pos.Body, Sign: pos.Sign, Retrograde: pos.Retrograde}
+		if req.TimeKnown {
+			d := pos.Degree
+			pl.Degree, pl.House = &d, pos.House
+		}
+		out.Placements = append(out.Placements, pl)
+	}
 	return out
 }
 

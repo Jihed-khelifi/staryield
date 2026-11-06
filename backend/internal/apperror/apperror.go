@@ -40,6 +40,8 @@ const (
 	CodeTimeout             Code = "timeout"
 	CodeUnavailable         Code = "service_unavailable"
 	CodeFeatureUnavailable  Code = "feature_unavailable"
+	CodeLimitReached        Code = "limit_reached"
+	CodeAdvisorAvailable    Code = "advisor_available"
 	CodeInternal            Code = "internal_error"
 )
 

@@ -30,6 +30,8 @@ import (
 type PlaceInfo struct {
 	ID          string
 	Name        string
+	Admin1      string // region, such as "Île-de-France"
+	Label       string // "Paris, Île-de-France, France"
 	Country     string
 	CountryCode string
 	Latitude    float64
@@ -226,12 +228,18 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, in Pr
 		if id == "" {
 			profile["birth_place_id"], profile["birth_place"] = "", ""
 			profile["birth_latitude"], profile["birth_longitude"], profile["birth_timezone"] = nil, nil, ""
+			profile["birth_admin1"], profile["birth_place_source"] = "", ""
 			profile["country_code"] = ""
 		} else if place, ok := s.lookup(id); !ok {
 			fields["birth_place_id"] = "Choose a birth place from the list."
 		} else {
-			profile["birth_place_id"], profile["birth_place"] = place.ID, place.Name+", "+place.Country
+			label := place.Label
+			if label == "" {
+				label = place.Name + ", " + place.Country
+			}
+			profile["birth_place_id"], profile["birth_place"] = place.ID, truncateRunes(label, 120)
 			profile["birth_latitude"], profile["birth_longitude"], profile["birth_timezone"] = place.Latitude, place.Longitude, place.TimeZone
+			profile["birth_admin1"], profile["birth_place_source"] = place.Admin1, "geonames"
 			profile["country_code"] = strings.ToUpper(place.CountryCode)
 		}
 	}

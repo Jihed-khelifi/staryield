@@ -290,6 +290,23 @@ func (s *CustomRequestService) finish(ctx context.Context, r *domain.CustomReque
 	return &v, nil
 }
 
+// deliveryWindow is how long the advisor has to deliver once an order is
+// accepted: the platform deadline, or the offering's advertised delivery
+// time when that is longer (advisors may offer up to 60 days), so an order
+// never expires before the delivery time the client was shown.
+func (s *CustomRequestService) deliveryWindow(ctx context.Context, serviceID uuid.UUID) time.Duration {
+	window := s.cfg.DeliveryTimeout
+	svc, err := s.psychics.GetServiceAny(ctx, serviceID)
+	if err != nil {
+		warnErr(ctx, "requests: service for delivery window", err)
+		return window
+	}
+	if advertised := time.Duration(svc.DeliveryDays) * 24 * time.Hour; advertised > window {
+		window = advertised
+	}
+	return window
+}
+
 // Accept is the psychic accepting an order.
 func (s *CustomRequestService) Accept(ctx context.Context, psychicID, id uuid.UUID) (*CustomRequestView, error) {
 	r, changed, err := s.transition(ctx, id, asPsychic(psychicID), func(ctx context.Context, r *domain.CustomRequest, now time.Time) (bool, error) {
@@ -302,7 +319,7 @@ func (s *CustomRequestService) Accept(ctx context.Context, psychicID, id uuid.UU
 		if !now.Before(r.AcceptBy) {
 			return false, apperror.InvalidState("This request has expired.")
 		}
-		deliverBy := now.Add(s.cfg.DeliveryTimeout)
+		deliverBy := now.Add(s.deliveryWindow(ctx, r.ServiceID))
 		r.Status, r.AcceptedAt, r.DeliverBy = domain.RequestAccepted, &now, &deliverBy
 		return true, nil
 	})

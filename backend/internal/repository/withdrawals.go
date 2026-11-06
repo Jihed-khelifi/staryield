@@ -110,13 +110,19 @@ func (r *GormWithdrawalRepository) List(ctx context.Context, f WithdrawalFilter)
 }
 
 func (r *GormWithdrawalRepository) Balance(ctx context.Context, psychicID uuid.UUID) (PayoutBalance, error) {
+	db := database.Conn(ctx, r.db)
 	var b PayoutBalance
-	err := database.Conn(ctx, r.db).Raw(`
-		SELECT
-		  (SELECT COALESCE(sum(net_credits), 0) FROM psychic_earnings WHERE psychic_id = ?) AS lifetime_net,
-		  (SELECT COALESCE(sum(amount_credits), 0) FROM withdrawals WHERE psychic_id = ? AND status IN ('pending', 'approved')) AS reserved,
-		  (SELECT COALESCE(sum(amount_credits), 0) FROM withdrawals WHERE psychic_id = ? AND status = 'paid') AS paid`,
-		psychicID, psychicID, psychicID).Scan(&b).Error
+	if err := db.Model(&domain.Earning{}).Select("COALESCE(sum(net_credits), 0)").
+		Where("psychic_id = ?", psychicID).Scan(&b.LifetimeNet).Error; err != nil {
+		return b, err
+	}
+	if err := db.Model(&domain.Withdrawal{}).Select("COALESCE(sum(amount_credits), 0)").
+		Where("psychic_id = ? AND status IN ?", psychicID, []domain.WithdrawalStatus{domain.WithdrawalPending, domain.WithdrawalApproved}).
+		Scan(&b.Reserved).Error; err != nil {
+		return b, err
+	}
+	err := db.Model(&domain.Withdrawal{}).Select("COALESCE(sum(amount_credits), 0)").
+		Where("psychic_id = ? AND status = ?", psychicID, domain.WithdrawalPaid).Scan(&b.Paid).Error
 	return b, err
 }
 

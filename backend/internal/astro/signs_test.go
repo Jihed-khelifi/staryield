@@ -5,32 +5,6 @@ import (
 	"testing"
 )
 
-func TestSunSignForDate(t *testing.T) {
-	tests := []struct {
-		month, day int
-		want       string
-	}{
-		{1, 1, "Capricorn"}, {1, 19, "Capricorn"}, {1, 20, "Aquarius"},
-		{2, 18, "Aquarius"}, {2, 19, "Pisces"},
-		{3, 20, "Pisces"}, {3, 21, "Aries"},
-		{4, 19, "Aries"}, {4, 20, "Taurus"},
-		{5, 20, "Taurus"}, {5, 21, "Gemini"},
-		{6, 20, "Gemini"}, {6, 21, "Cancer"},
-		{7, 22, "Cancer"}, {7, 23, "Leo"},
-		{8, 22, "Leo"}, {8, 23, "Virgo"},
-		{9, 22, "Virgo"}, {9, 23, "Libra"},
-		{10, 22, "Libra"}, {10, 23, "Scorpio"},
-		{11, 21, "Scorpio"}, {11, 22, "Sagittarius"},
-		{12, 21, "Sagittarius"}, {12, 22, "Capricorn"}, {12, 31, "Capricorn"},
-		{0, 10, ""}, {13, 10, ""}, {5, 0, ""}, {5, 32, ""},
-	}
-	for _, tt := range tests {
-		if got := SunSignForDate(tt.month, tt.day); got != tt.want {
-			t.Errorf("SunSignForDate(%d, %d) = %q, want %q", tt.month, tt.day, got, tt.want)
-		}
-	}
-}
-
 func TestSignForLongitude(t *testing.T) {
 	tests := []struct {
 		lon  float64

@@ -5,7 +5,7 @@
  */
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
-import { CLIENT, advisor, expectImageLoaded, expectNoHorizontalScroll, pngFixture, signedInPage } from "./helpers";
+import { CLIENT, advisor, expectImageLoaded, expectNoHorizontalScroll, pngFixture, setAvailability, signedInPage } from "./helpers";
 
 const THEO = advisor("theo");
 const LINK = "https://staryield.net/en/psychics";
@@ -24,17 +24,16 @@ test.describe.serial("live chat between a client and an advisor", () => {
 
   test.afterAll(async () => {
     // Leave the advisor offline for the next run.
+    await psychic.setViewportSize({ width: 1440, height: 900 }).catch(() => undefined);
     await psychic.goto("/en/profile").catch(() => undefined);
-    await psychic.getByText("● Offline", { exact: true }).click().catch(() => undefined);
+    await setAvailability(psychic, "offline").catch(() => undefined);
     await clientCtx?.close();
     await psychicCtx?.close();
   });
 
   test("the advisor goes online and opens the chatroom", async () => {
     await psychic.goto("/en/profile");
-    const availability = psychic.waitForResponse((r) => r.url().endsWith("/api/v1/psychic/availability") && r.ok());
-    await psychic.getByText("● Online", { exact: true }).click();
-    await availability;
+    await setAvailability(psychic, "online");
     await psychic.getByRole("link", { name: "Chatroom", exact: true }).first().click();
     await psychic.waitForURL(/\/en\/chatroom/);
   });

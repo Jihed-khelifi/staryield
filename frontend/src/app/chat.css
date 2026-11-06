@@ -1,0 +1,557 @@
+/* ---------------------------------------------------------------------------
+   FE-CHAT (wave 3): chatroom per the revisions PDF (input colours, right
+   panel colour) and Figma — desktop client 163:600, advisor 1172:1191,
+   phone 867:16787 (chat) and 1261:1537 (switcher). Scoped under
+   .chat-workspace so it wins over the older chat rules in globals.css.
+   Deliberate contrast fixes (WCAG 2.1 AA) are marked "a11y".
+   Font stacks are written out: the next/font variables they use live on
+   <body>, so the :root --font-ui/--font-serif/--font-display aliases do not
+   resolve.
+   --------------------------------------------------------------------------- */
+
+/* Columns ------------------------------------------------------------------- */
+.chat-workspace .chat-inbox-column,
+.chat-workspace .chat-column {
+  border-color: var(--sage);
+  background: rgb(193 187 169 / 0.4);
+}
+/* "Changed chatroom right side frame color" (PDF p.5): #d3cbb9, lighter frame. */
+.chat-workspace .chat-detail-column {
+  border-color: #dcd8ca;
+  border-radius: 18px;
+  background: #d3cbb9;
+}
+/* Advisor POV (1172:1191): all three columns on #d3cbb9 with a gold hairline. */
+.chat-workspace[data-role="psychic"] .chat-inbox-column,
+.chat-workspace[data-role="psychic"] .chat-column,
+.chat-workspace[data-role="psychic"] .chat-detail-column {
+  border-color: rgb(170 142 98 / 0.2);
+  border-radius: 12px;
+  background: #d3cbb9;
+}
+
+/* Header ---------------------------------------------------------------------- */
+.chat-workspace .chat-status-dot {
+  display: none;
+}
+.chat-workspace .chat-reader-status {
+  /* a11y: the header's 80 % opacity put the status line under 4.5:1 on sage. */
+  opacity: 1;
+  color: var(--ink);
+}
+.chat-workspace .chat-header-earnings {
+  /* a11y: rgba(0,0,0,.41) on sage is 2.3:1; ink at 85 % is 4.8:1. */
+  color: rgb(21 16 11 / 0.85);
+}
+.chat-workspace .rate-price-list {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* Feed ------------------------------------------------------------------------- */
+.chat-workspace .chat-feed-scroll {
+  /* Scroll position is kept by hand when older pages are prepended. */
+  overflow-anchor: none;
+}
+.chat-workspace .chat-session-notice-star {
+  color: var(--amber);
+}
+.chat-workspace .message-bubble {
+  background: var(--cream);
+}
+.chat-workspace .message-meta {
+  /* a11y: was 60 % opacity (4.3:1); an opaque #4e473f (the 72 % ink tone) reads 6.3:1 on cream. */
+  color: #4e473f;
+}
+.chat-workspace .message-bubble-pending .message-meta {
+  color: #3d372f;
+}
+.chat-workspace .message-bubble-pending {
+  /* Not opacity (it lowers text contrast below AA): a dashed edge marks "not delivered yet". */
+  box-shadow: 0 0 0 1px rgb(21 16 11 / 0.35);
+  border-style: dashed;
+}
+.chat-workspace .message-bubble-failed {
+  box-shadow: 0 0 0 1px #7a2e1d;
+}
+.chat-workspace .message-failure {
+  color: #7a2e1d;
+}
+.chat-workspace .message-failure button {
+  font-weight: 600;
+}
+.chat-workspace .message-failure button:focus-visible,
+.chat-workspace .chat-load-older:focus-visible,
+.chat-workspace .chat-jump-latest:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.chat-workspace .chat-jump-latest {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: var(--ink);
+  padding: 6px 12px;
+  box-shadow: 0 4px 15px rgb(21 16 11 / 0.25);
+  color: var(--cream-light);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.chat-workspace .chat-jump-count {
+  border-radius: 999px;
+  background: var(--amber);
+  padding: 0 6px;
+  color: var(--ink);
+  font-size: 11px;
+}
+
+/* Composer: "Changed colors for text input in chatroom to increase
+   visibility" (PDF p.5) — cream field with the paper texture at 29 %. */
+.chat-workspace .composer {
+  border-top-color: var(--sage);
+}
+.chat-workspace[data-role="psychic"] .composer {
+  border-top-color: rgb(170 142 98 / 0.2);
+}
+.chat-workspace .composer-field {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-end;
+  gap: 4px;
+  border-radius: 8px;
+  background: #e0d5c3;
+}
+.chat-workspace .composer-field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background-image: url("https://assets.staryield.net/assets/figma/fb9ee.jpg");
+  background-position: center;
+  background-size: cover;
+  mix-blend-mode: overlay;
+  opacity: 0.29;
+  pointer-events: none;
+}
+.chat-workspace .composer-field:focus-within {
+  box-shadow: 0 0 0 2px rgb(194 154 61 / 0.55);
+}
+.chat-workspace .composer-input {
+  background: transparent;
+  color: #000;
+}
+.chat-workspace .composer-input:focus-visible {
+  outline: none;
+}
+.chat-workspace .composer-input::placeholder {
+  color: #000;
+  opacity: 1;
+}
+.chat-workspace .composer-input:disabled::placeholder {
+  color: rgb(0 0 0 / 0.72);
+}
+.chat-workspace .composer-note {
+  color: #000;
+  font-family: var(--font-source-serif), Georgia, serif;
+}
+
+/* Right panel: the advisor's details beside the client (163:600) --------------- */
+.reader-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 54px 24px 16px;
+}
+.reader-panel-name {
+  color: #303d33;
+  font-family: var(--font-source-serif), Georgia, serif;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 36px;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.reader-panel-rating {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgb(194 154 61 / 0.18);
+  border-radius: 12px;
+  padding: 4px 8px;
+  color: #46533f;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+.reader-panel-meta {
+  margin-top: 10px;
+  /* a11y: #697063 is 3.2:1 on #d3cbb9; #4f5849 is 4.6:1. */
+  color: #4f5849;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 18px;
+}
+.reader-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.reader-panel-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* a11y: #64705d is 3.2:1; #4f5849 is 4.6:1. */
+  color: #4f5849;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+}
+.reader-panel-label::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: rgb(26 26 26 / 0.1);
+}
+.reader-panel-body {
+  color: #495147;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 22px;
+}
+.reader-panel-profile {
+  display: inline-flex;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  border: 1px solid #cdd4c2;
+  border-radius: 15px;
+  padding: 0 16px;
+  color: #000;
+  font-family: "Castellar", var(--font-cinzel), serif;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.reader-panel-profile:hover {
+  background: rgb(255 255 255 / 0.25);
+}
+.reader-panel-profile:focus-visible,
+.reader-saved-remove:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.reader-saved .panel-heading {
+  color: #1a1a1a;
+}
+.reader-saved-card {
+  border-radius: 8px;
+  background: var(--cream);
+  padding: 12px;
+}
+.reader-saved-quote {
+  color: #1a1a1a;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.reader-saved-meta {
+  color: #555;
+  font-size: 10px;
+}
+.reader-saved-remove {
+  border-radius: 4px;
+  /* a11y: rgba(0,0,0,.5) is 3.7:1 on cream; 70 % ink is 6.3:1. */
+  color: rgb(21 16 11 / 0.7);
+  font-size: 10px;
+  text-decoration: underline;
+}
+.chat-panel-pager {
+  padding-top: 8px;
+}
+.chat-panel-pager p {
+  font-size: 12px;
+}
+.chat-panel-pager button {
+  height: 32px;
+  font-size: 12px;
+}
+
+/* Phone tools row and switcher (only below md) --------------------------------- */
+.chat-session-tools {
+  display: none;
+}
+.chat-switcher-head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 16px 0;
+}
+.chat-switcher-notice {
+  display: flex;
+  gap: 6px;
+  border-radius: 16px;
+  background: rgb(255 255 255 / 0.33);
+  padding: 8px 10px;
+  color: #17150f;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+.chat-switcher-current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  background: var(--cream);
+  padding: 12px;
+  color: #17150f;
+}
+.chat-switcher-current .chat-switcher-avatar,
+.chat-switcher-sheet [data-variant="cards"] .conversation-row [data-slot="avatar"] {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #fbf6e9;
+  border-radius: 6px;
+}
+.chat-switcher-eyebrow {
+  color: #17150f;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.55px;
+  text-transform: uppercase;
+}
+.chat-switcher-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+.chat-switcher-meta {
+  font-size: 11px;
+}
+.chat-switcher-sheet {
+  background: var(--cream);
+  color: var(--ink);
+}
+.chat-switcher-sheet [data-variant="cards"] ul {
+  padding: 8px 16px 12px;
+}
+.chat-switcher-sheet [data-variant="cards"] .conversation-row {
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  background: transparent;
+  padding: 10px;
+}
+.chat-switcher-sheet [data-variant="cards"] .conversation-row:hover {
+  background: rgb(151 143 110 / 0.18);
+}
+.chat-switcher-sheet [data-variant="cards"] .conversation-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+.chat-switcher-sheet [data-variant="cards"] .conversation-preview {
+  /* a11y: #5e5a4b is 4.8:1 on cream; the darker tone keeps AA on the offline card tint too. */
+  color: #45412f;
+  font-family: var(--font-source-serif), Georgia, serif;
+  font-size: 11px;
+  opacity: 1;
+}
+.chat-switcher-sheet [data-variant="cards"] .conversation-row[data-status="offline"] {
+  background: rgb(205 205 205 / 0.24);
+}
+.chat-switcher-sheet [data-variant="cards"] .conversation-row[data-status="offline"] .conversation-name {
+  /* a11y: rgba(23,21,15,.58) is 3.9:1 on cream; .7 is 5.6:1. */
+  color: rgb(23 21 15 / 0.7);
+}
+.chat-switcher-foot {
+  padding: 4px 12px 12px;
+}
+.chat-switcher-foot .chat-leave-button {
+  width: 100%;
+  height: 35px;
+  border-radius: 14px;
+  background: rgb(251 246 233 / 0.2);
+  color: #17150f;
+  font-family: var(--font-source-serif), Georgia, serif;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+@media (max-width: 767px) {
+  .chat-switcher-sheet {
+    width: 100%;
+    max-width: 100%;
+  }
+  .chat-workspace .chat-column {
+    position: relative;
+    isolation: isolate;
+    background: var(--cream);
+  }
+  .chat-workspace .chat-column::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image: url("https://assets.staryield.net/assets/figma/fb9ee.jpg");
+    background-position: center;
+    background-size: cover;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+  }
+  .chat-workspace .chat-header {
+    height: 66px;
+    border-bottom: 1px solid var(--gold);
+    background: linear-gradient(to bottom, var(--sage), #d5cca7);
+    padding: 0 14px;
+  }
+  .chat-workspace .chat-header-avatar [data-slot="avatar"] {
+    width: 42px;
+    height: 42px;
+    border: 1px solid #fbf6e9;
+    border-radius: 6px;
+  }
+  .chat-workspace .chat-header-name {
+    color: #17150f;
+    font-size: 17px;
+  }
+  .chat-workspace .chat-reader-status {
+    color: #302b20;
+    font-family: var(--font-source-serif), Georgia, serif;
+    font-size: 9px;
+    font-weight: 600;
+    opacity: 1;
+  }
+  .chat-workspace .chat-status-dot {
+    display: inline;
+  }
+  .chat-workspace .chat-header-rate {
+    display: none;
+  }
+  .chat-workspace .chat-end-button {
+    /* a11y: the gold "End chat" is 1.2:1 on the header gradient; ink keeps the weight. */
+    color: var(--ink);
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .chat-workspace .chat-header-clock {
+    color: #302b20;
+    font-family: var(--font-source-serif), Georgia, serif;
+    font-size: 10px;
+  }
+  .chat-session-tools {
+    display: flex;
+    height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+  }
+  .chat-credit-pill {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    border: 1px solid rgb(151 143 110 / 0.27);
+    border-radius: 999px;
+    background: rgb(251 246 233 / 0.2);
+    padding: 6px 10px;
+    color: #17150f;
+    font-family: var(--font-source-serif), Georgia, serif;
+    white-space: nowrap;
+  }
+  .chat-credit-pill strong {
+    font-size: 11px;
+  }
+  .chat-credit-pill span {
+    color: #5e5a4b;
+    font-size: 9px;
+    font-weight: 600;
+  }
+  .chat-tools-button {
+    display: inline-flex;
+    min-height: 36px;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 6px 10px;
+    color: #17150f;
+    font-family: var(--font-source-serif), Georgia, serif;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .chat-credit-pill:focus-visible,
+  .chat-tools-button:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+  .chat-workspace .chat-feed-list {
+    gap: 8px;
+    padding: 12px;
+  }
+  .chat-workspace .chat-session-notice {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    background: rgb(255 255 255 / 0.33);
+    color: #5e5a4b;
+    font-family: var(--font-source-serif), Georgia, serif;
+    font-size: 8px;
+    font-weight: 600;
+  }
+  .chat-workspace .message-bubble {
+    border: 1px solid transparent;
+    background: #fbf6e9;
+    color: #17150f;
+  }
+  .chat-workspace [data-testid="chat-message"]:not([data-mine]) .message-bubble {
+    border-color: rgb(151 143 110 / 0.27);
+  }
+  .chat-workspace .message-meta {
+    color: #5e5a4b;
+    font-size: 8px;
+  }
+  .chat-workspace .composer {
+    border-top: 0;
+    background: var(--cream);
+    padding: 8px 12px 7px;
+  }
+  .chat-workspace .composer-field {
+    min-height: 38px;
+    align-items: center;
+    border-radius: 12px;
+    background: rgb(251 246 233 / 0.66);
+    padding-right: 6px;
+  }
+  .chat-workspace .composer-field::before {
+    display: none;
+  }
+  .chat-workspace .composer-input::placeholder {
+    color: #5e5a4b;
+  }
+  .chat-workspace .composer-send {
+    width: 27px;
+    height: 27px;
+    margin-bottom: 0;
+    border-radius: 999px;
+    background: rgb(194 154 61 / 0.31);
+  }
+  .chat-workspace .composer-note {
+    color: #5e5a4b;
+    font-size: 8px;
+  }
+}

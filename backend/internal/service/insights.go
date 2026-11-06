@@ -92,7 +92,7 @@ func (s *InsightsService) Audience(ctx context.Context, r Range) (*Audience, err
 	}
 	signs := map[string]int64{}
 	for _, d := range days {
-		if sign := astro.SunSignForDate(d.Month, d.Day); sign != "" {
+		if sign := astro.TypicalSunSign(d.Month, d.Day); sign != "" { // aggregate: birth years are not grouped
 			signs[sign] += d.Count
 		}
 	}

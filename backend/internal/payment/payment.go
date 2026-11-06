@@ -39,6 +39,11 @@ type CheckoutRequest struct {
 	Currency    string
 	Description string
 	Email       string
+	// PaymentToken is a single-use token from the provider's hosted fields
+	// (one-off charge without saving the card); empty for hosted checkout.
+	PaymentToken string
+	// IdempotencyKey de-duplicates the charge at the provider.
+	IdempotencyKey string
 }
 
 // CheckoutResult is the provider response.
@@ -49,12 +54,21 @@ type CheckoutResult struct {
 	FailureCode string
 }
 
-// WebhookEvent is a verified provider notification.
+// WebhookEvent is a verified provider notification. Legacy credit-purchase
+// events: payment.succeeded | payment.failed | payment.refunded. Saved-card
+// providers: charge.succeeded | charge.failed | charge.refunded |
+// charge.disputed (matched by provider_ref or idempotency_key).
 type WebhookEvent struct {
-	Type        string `json:"type"` // payment.succeeded | payment.failed | payment.refunded
-	ProviderRef string `json:"provider_ref"`
-	PurchaseID  string `json:"purchase_id"`
-	FailureCode string `json:"failure_code,omitempty"`
+	ID             string `json:"id,omitempty"`
+	Type           string `json:"type"`
+	ProviderRef    string `json:"provider_ref"`
+	PurchaseID     string `json:"purchase_id"`
+	IdempotencyKey string `json:"idempotency_key,omitempty"`
+	AmountCents    int64  `json:"amount_cents,omitempty"`
+	FailureCode    string `json:"failure_code,omitempty"`
+	// RefundRef is the provider's id of the refund (charge.refunded), used
+	// to recognise refunds the platform issued itself.
+	RefundRef string `json:"refund_ref,omitempty"`
 }
 
 // Provider is a payment gateway.
@@ -121,6 +135,15 @@ func (s *Sandbox) Checkout(_ context.Context, req CheckoutRequest) (CheckoutResu
 // "t=<unix>,v1=<hex hmac-sha256(secret, t + "." + body)>".
 func (s *Sandbox) VerifyWebhook(header string, body []byte, now time.Time) (*WebhookEvent, error) {
 	return VerifySignedPayload(s.secret, s.tolerance, header, body, now)
+}
+
+// Refund implements Refunder: the hosted-checkout sandbox approves every
+// refund of a positive amount (it keeps no charge history).
+func (s *Sandbox) Refund(_ context.Context, req RefundRequest) (RefundResult, error) {
+	if req.AmountCents <= 0 {
+		return RefundResult{}, ErrRefundTooLarge
+	}
+	return RefundResult{ProviderRef: "re_sbx_" + security.MustRandomToken(12)}, nil
 }
 
 // Sign produces a signature header for body at t (tests and tooling).

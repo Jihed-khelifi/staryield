@@ -3,7 +3,7 @@
  * mapping, heatmap levels, score normalisation and withdrawal validation.
  * Kept free of React and Chart.js so they are unit-testable.
  */
-import type { AnalyticsInterval, HourLevel, PsychicAnalytics, WithdrawalMethod } from "@/lib/api/types";
+import type { AnalyticsInterval, HourLevel, PsychicAnalytics } from "@/lib/api/types";
 
 export type RangeKey = "7d" | "30d" | "90d" | "12m";
 export const RANGE_KEYS: RangeKey[] = ["7d", "30d", "90d", "12m"];
@@ -168,40 +168,4 @@ export function creditsValue(credits: number, centsPerCredit: number, currency: 
 export function splitDuration(seconds: number): { minutes: number; seconds: number } {
   const s = Math.max(0, Math.round(seconds || 0));
   return { minutes: Math.floor(s / 60), seconds: s % 60 };
-}
-
-// --- withdrawals --------------------------------------------------------------
-
-export type WithdrawalDraft = { amount: string; method: WithdrawalMethod | ""; destination: string };
-export type FieldError = { message: string; values?: Record<string, string | number> };
-export type WithdrawalErrors = Partial<Record<keyof WithdrawalDraft, FieldError>>;
-
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const ACCOUNT = /^[A-Za-z0-9][A-Za-z0-9 \-./]{6,}[A-Za-z0-9]$/;
-
-/** Validate the withdrawal form (English copy keys; the server re-validates). */
-export function validateWithdrawal(
-  draft: WithdrawalDraft,
-  payout: Pick<PsychicAnalytics["payout"], "available_credits" | "min_withdrawal_credits">,
-): { errors: WithdrawalErrors; value?: { amount_credits: number; method: WithdrawalMethod; destination: string } } {
-  const errors: WithdrawalErrors = {};
-  const raw = draft.amount.trim();
-  const amount = Number(raw);
-  if (!raw) errors.amount = { message: "Enter an amount." };
-  else if (!/^\d+$/.test(raw) || !Number.isSafeInteger(amount)) errors.amount = { message: "Enter a whole number of credits." };
-  else if (amount < payout.min_withdrawal_credits)
-    errors.amount = { message: "The minimum withdrawal is {min} credits.", values: { min: payout.min_withdrawal_credits } };
-  else if (amount > payout.available_credits)
-    errors.amount = { message: "You can withdraw at most {max} credits.", values: { max: payout.available_credits } };
-
-  if (draft.method !== "bank_transfer" && draft.method !== "paypal") errors.method = { message: "Choose a payout method." };
-
-  const destination = draft.destination.trim();
-  if (!destination) errors.destination = { message: "Enter where we should send the money." };
-  else if (destination.length > 200) errors.destination = { message: "Keep this under 200 characters." };
-  else if (draft.method === "paypal" && !EMAIL.test(destination)) errors.destination = { message: "Enter the email address of your PayPal account." };
-  else if (draft.method === "bank_transfer" && !ACCOUNT.test(destination)) errors.destination = { message: "Enter a valid IBAN or account number." };
-
-  if (Object.keys(errors).length > 0) return { errors };
-  return { errors, value: { amount_credits: amount, method: draft.method as WithdrawalMethod, destination } };
 }

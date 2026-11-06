@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/Jihed-khelifi/staryield/backend/internal/i18n"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -50,6 +51,11 @@ type Client struct {
 	Locale string
 	Log    *zap.Logger
 
+	// identity: Family is the signed-in device (refresh-token family) the
+	// connection belongs to; zero when unknown. Signing that device out
+	// closes it.
+	Family uuid.UUID
+
 	send      chan outFrame
 	done      chan struct{}
 	closeOnce sync.Once
@@ -62,6 +68,10 @@ type Client struct {
 	lastID    string
 	maxPend   int
 	dropped   atomic.Int64
+
+	// subscribed records that the connection holds a broker subscription
+	// reference that must be released when it closes.
+	subscribed bool
 }
 
 func newClient(userID uuid.UUID, role, transport string, buffer int, replaying bool, log *zap.Logger) *Client {
@@ -310,6 +320,19 @@ func (h *Hub) Dispatch(d Delivery) {
 		}
 		return
 	}
+	// identity: "revoke:<family>" signs one device out: only its
+	// connections close.
+	if fam, ok := strings.CutPrefix(d.Control, ControlRevoke+":"); ok {
+		if id, err := uuid.Parse(fam); err == nil {
+			for _, c := range clients {
+				if c.Family == id {
+					c.SendEvent(EventAuthRevoked, "", map[string]string{"reason": "device_signed_out"}, nil)
+					c.Close(CloseUnauthorized, "session revoked")
+				}
+			}
+		}
+		return
+	}
 	for _, c := range clients {
 		c.deliver(d)
 	}
@@ -373,6 +396,37 @@ func (p *Publisher) Publish(ctx context.Context, eventType string, data any, use
 	return errors.Join(errs...)
 }
 
+// PublishOrdered sends a durable conversation event that must reach clients
+// in seq order (message.created). The broker holds an event back until its
+// predecessor has been published, or until FlushGaps gives up on the gap.
+// Failures are logged and returned; clients detect missing seqs and fill
+// them through the API.
+func (p *Publisher) PublishOrdered(ctx context.Context, conversationID uuid.UUID, seq int64, eventType string, data any, userIDs ...uuid.UUID) error {
+	payload, err := encode(eventType, data, p.now())
+	if err != nil {
+		return err
+	}
+	users := make([]uuid.UUID, 0, len(userIDs))
+	for _, u := range userIDs {
+		if u != uuid.Nil {
+			users = append(users, u)
+		}
+	}
+	if _, err := p.broker.PublishOrdered(ctx, OrderedPublish{ConversationID: conversationID, Seq: seq, UserIDs: users,
+		Payload: payload, Now: p.now()}); err != nil {
+		logger.FromContext(ctx).Error("realtime: ordered publish failed", zap.Error(err), zap.String("type", eventType),
+			zap.String("conversation_id", conversationID.String()), zap.Int64("seq", seq))
+		return err
+	}
+	return nil
+}
+
+// FlushGaps publishes conversation events held back for longer than maxAge
+// because a predecessor never arrived (e.g. its publisher crashed).
+func (p *Publisher) FlushGaps(ctx context.Context, maxAge time.Duration) (int, error) {
+	return p.broker.FlushGaps(ctx, p.now().Add(-maxAge))
+}
+
 // Ephemeral sends a non-durable event (typing, presence) to each user.
 func (p *Publisher) Ephemeral(ctx context.Context, eventType string, data any, userIDs ...uuid.UUID) error {
 	payload, err := encode(eventType, data, p.now())
@@ -405,4 +459,10 @@ func (p *Publisher) Broadcast(ctx context.Context, eventType string, data any) e
 // Revoke closes every realtime connection of userID on all instances.
 func (p *Publisher) Revoke(ctx context.Context, userID uuid.UUID) error {
 	return p.broker.Control(ctx, userID, ControlRevoke)
+}
+
+// RevokeFamily closes the realtime connections of one signed-in device
+// (refresh-token family) of userID on all instances (identity).
+func (p *Publisher) RevokeFamily(ctx context.Context, userID, family uuid.UUID) error {
+	return p.broker.Control(ctx, userID, ControlRevoke+":"+family.String())
 }

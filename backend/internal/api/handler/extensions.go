@@ -185,6 +185,15 @@ func (h *Handler) psychicAnalytics(c echo.Context, id uuid.UUID) error {
 	return ok(c, out)
 }
 
+// MyBalance returns the advisor's withdrawable earnings (header wallet pill).
+func (h *Handler) MyBalance(c echo.Context) error {
+	out, err := h.svc.Withdrawals.BalanceView(c.Request().Context(), principal(c).UserID)
+	if err != nil {
+		return err
+	}
+	return ok(c, out)
+}
+
 // MyWithdrawals lists the advisor's payout requests.
 func (h *Handler) MyWithdrawals(c echo.Context) error {
 	limit, err := limitParam(c, 20, 100)

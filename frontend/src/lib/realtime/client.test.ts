@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const ticket = vi.fn();
 vi.mock("@/lib/api/endpoints", () => ({
   realtimeApi: { ticket: () => ticket(), presence: vi.fn() },
-  chatApi: { send: vi.fn(), typing: vi.fn(), markRead: vi.fn() },
+  chatApi: { send: vi.fn(), typing: vi.fn(), markRead: vi.fn(), markReadSeq: vi.fn() },
 }));
 vi.mock("@/lib/api/client", () => ({ refreshSession: vi.fn(async () => true) }));
 
@@ -209,6 +209,94 @@ describe("RealtimeClient", () => {
     window.dispatchEvent(new Event("online"));
     await flush();
     expect(MockWebSocket.instances).toHaveLength(2);
+    rt.stop();
+  });
+
+  // --- FE-CHAT (wave 3) ---
+  it("resumes from the stream tail when nothing arrived before a drop", async () => {
+    vi.useFakeTimers();
+    const rt = await client();
+    rt.start();
+    await vi.advanceTimersByTimeAsync(0);
+    latest().open();
+    latest().hello({ stream_tail: "500-3" });
+    expect(sessionStorage.getItem("staryield.rt.last:user-1")).toBe("500-3");
+    latest().close(1006, "");
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(latest().url).toContain("resume=500-3");
+    rt.stop();
+  });
+
+  it("never moves an existing resume point back to the tail", async () => {
+    sessionStorage.setItem("staryield.rt.last:user-1", "100-0");
+    const rt = await client();
+    rt.start();
+    await flush();
+    latest().open();
+    latest().hello({ resumed: true, stream_tail: "900-0" });
+    expect(sessionStorage.getItem("staryield.rt.last:user-1")).toBe("100-0");
+    rt.stop();
+  });
+
+  it("surfaces the session view of an automatic re-join as session.rejoined", async () => {
+    vi.useFakeTimers();
+    const rt = await client();
+    const rejoined = vi.fn();
+    rt.on("session.rejoined", (e) => rejoined(e.data));
+    rt.start();
+    await vi.advanceTimersByTimeAsync(0);
+    latest().open();
+    latest().hello();
+    void rt.joinSession("s1").catch(() => undefined);
+    latest().close(1006, "");
+    await vi.advanceTimersByTimeAsync(1_000);
+    const second = latest();
+    second.open();
+    second.hello({ resumed: true, reconnected: true });
+    const join = second.frames().find((f) => f.type === "session.join")!;
+    second.push({ type: "ack", ref: join.ref, data: { id: "s1", status: "active" } });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(rejoined).toHaveBeenCalledWith({ id: "s1", status: "active" });
+    rt.stop();
+  });
+
+  it("reconnects at once on demand (Retry now)", async () => {
+    vi.useFakeTimers();
+    const rt = await client();
+    rt.start();
+    await vi.advanceTimersByTimeAsync(0);
+    latest().open();
+    latest().hello();
+    latest().close(1006, "");
+    expect(rt.connection.state).toBe("reconnecting");
+    rt.reconnect();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(MockWebSocket.instances).toHaveLength(2);
+    rt.stop();
+  });
+
+  it("sends read receipts by seq over the REST fallback", async () => {
+    const { chatApi } = await import("@/lib/api/endpoints");
+    vi.mocked(chatApi.markReadSeq).mockResolvedValue({ conversation_id: "c1", read_seq: 7, unread: 0 });
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "EventSource",
+      class {
+        static CLOSED = 2;
+        readyState = 0;
+        close() {}
+      },
+    );
+    const rt = await client();
+    rt.start();
+    for (let i = 0; i < 3; i++) {
+      await vi.advanceTimersByTimeAsync(0);
+      latest().close(1006, "handshake failed");
+      await vi.advanceTimersByTimeAsync(31_000);
+    }
+    expect(rt.connection.transport).toBe("sse");
+    await expect(rt.request("message.read", { conversation_id: "c1", seq: 7 })).resolves.toMatchObject({ read: true, read_seq: 7 });
+    expect(chatApi.markReadSeq).toHaveBeenCalledWith("c1", 7);
     rt.stop();
   });
 });

@@ -1,0 +1,26 @@
+GeoNames gazetteer extract
+==========================
+
+Files: places.tsv.gz, countries.tsv, VERSION (and ../legacy_gen.go)
+
+Source: GeoNames (https://www.geonames.org/), export dump of 2026-11-04:
+cities5000.zip, admin1CodesASCII.txt, countryInfo.txt and
+alternateNamesV2.zip from https://download.geonames.org/export/dump/.
+
+License: Creative Commons Attribution 4.0 International
+(https://creativecommons.org/licenses/by/4.0/). Attribution shown to users:
+"Place data © GeoNames (geonames.org), CC BY 4.0" (geo.Attribution, returned by
+GET /api/v1/astrology/places).
+
+Changes: reduced to identifier, name, ASCII name, country, first-level region
+name, coordinates (4 decimals), population, IANA time zone and up to six
+English/French/Spanish alternate names for places of 15,000+ inhabitants.
+
+Regenerate (from backend/internal/astro/geo):
+
+    curl -O https://download.geonames.org/export/dump/cities5000.zip
+    curl -O https://download.geonames.org/export/dump/admin1CodesASCII.txt
+    curl -O https://download.geonames.org/export/dump/countryInfo.txt
+    curl -O https://download.geonames.org/export/dump/alternateNamesV2.zip
+    go run ./gen -src . -altnames alternateNamesV2.zip -out data \
+        -legacy-out legacy_gen.go -version YYYY-MM-DD

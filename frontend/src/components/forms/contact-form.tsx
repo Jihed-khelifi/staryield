@@ -1,176 +1,225 @@
 "use client";
-import { useState } from "react";
-import { Upload } from "lucide-react";
+
+import * as React from "react";
 import Link from "next/link";
+import { CheckCircle2 } from "lucide-react";
+
 import { useI18n } from "@/i18n/i18n-provider";
+import { supportApi } from "@/lib/api/endpoints";
+import type { TicketReceipt } from "@/lib/api/types";
+import { useSession } from "@/lib/auth/session-provider";
+import { applyApiError } from "@/lib/forms/server-errors";
+import { keepFocusOnPress } from "@/lib/forms/submit-press";
+import { useSchemaForm } from "@/lib/forms/use-schema-form";
+import { contactSchema, isSupportTopic, SUPPORT_TOPICS, supportTopicLabels, type ContactValues } from "@/lib/schemas/contact";
 import { PublicFrame } from "@/components/layout/public-frame";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FieldRow } from "@/components/ui/field";
+import { Form, FormControl, FormField, FormItem, FormMessage, FormRootError } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
+const MESSAGE_MAX = 5000;
+
+function blank(email = ""): ContactValues {
+  return { topic: "general", subject: "", email, message: "", consent: false };
+}
+
+/** Support portal: sends a ticket and shows its reference (SY-XXXXXX). */
 export function ContactForm() {
   const { text, locale } = useI18n();
-  const [description, setDescription] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [error, setError] = useState("");
-  function selectFiles(selected: File[]) {
-    if (
-      selected.length > 5 ||
-      selected.reduce((total, file) => total + file.size, 0) > 45 * 1024 * 1024
-    ) {
-      setError("Choose up to 5 files totaling no more than 45 MB.");
-      return;
+  const { user } = useSession();
+  const form = useSchemaForm(contactSchema, { defaultValues: blank() });
+  const [receipt, setReceipt] = React.useState<(TicketReceipt & { email: string }) | null>(null);
+  const consentId = React.useId();
+
+  // ?topic=privacy (linked from the Privacy Notice) preselects the topic;
+  // signed-in visitors get their account email prefilled.
+  React.useEffect(() => {
+    const topic = new URLSearchParams(window.location.search).get("topic");
+    if (isSupportTopic(topic)) form.setValue("topic", topic);
+  }, [form]);
+  React.useEffect(() => {
+    if (user?.email && !form.getValues("email")) form.setValue("email", user.email);
+  }, [user?.email, form]);
+
+  async function submit(values: ContactValues) {
+    try {
+      const res = await supportApi.createTicket({
+        topic: values.topic,
+        subject: values.subject.trim(),
+        email: values.email.trim(),
+        message: values.message.trim(),
+        consent: values.consent,
+      });
+      setReceipt({ ...res, email: values.email.trim() });
+    } catch (err) {
+      applyApiError(form, err, { text });
     }
-    if (
-      selected.some(
-        (file) =>
-          !["image/svg+xml", "image/png", "image/jpeg", "image/gif"].includes(
-            file.type,
-          ),
-      )
-    ) {
-      setError("Choose SVG, PNG, JPG, or GIF files.");
-      return;
-    }
-    setFiles(selected);
-    setError("");
   }
+
   return (
     <PublicFrame>
       <section className="contact-page">
         <p className="eyebrow text-center">{text("Support portal")}</p>
-        <h1 className="mt-4 text-center font-display text-[44px]">
-          {text("Contact us ")}
-        </h1>
+        <h1 className="mt-4 text-center font-display text-[44px]">{text("Contact us ")}</h1>
         <div className="mx-auto my-6 h-px w-24 bg-gold" />
-        <form
-          className="contact-card paper-page"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setError(
-              "Your request has not been sent. The support service is not connected yet.",
-            );
-          }}
-        >
-          <p className="mb-7 border-b border-gold/30 pb-6 font-light leading-relaxed">
-            {text(
-              "Have questions about your spiritual readings, natal chart accuracy, or billing? Our dedicated support circle is here to offer guidance and align your technical path. ",
-            )}
-          </p>
-          <label className="field">
-            {text("Subject")}{" "}
-            <Input
-              placeholder={text("Enter your subject")}
-              required
-              name="subject"
-            />
-          </label>
-          <label className="field mt-6">
-            {text("Email")}{" "}
-            <Input
-              type="email"
-              autoComplete="email"
-              name="email"
-              placeholder={text("example@email.com")}
-              required
-            />
-          </label>
-          <label className="field mt-6">
-            {text("Describe your issue ")}
-            <Textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder={text("Describe your issue in detail…")}
-              minLength={10}
-              maxLength={5000}
-              name="description"
-              required
-              className="min-h-36 resize-y bg-white"
-            />
-            <span className="text-xs font-light">
-              {description.length}
-              {text(
-                "/5000 — Please describe your situation in as much detail as possible so we can help you quickly and accurately. ",
-              )}
-            </span>
-          </label>
-          <div className="mt-6">
-            <p className="mb-2 text-sm">{text("Attachments (optional)")}</p>
-            <label
-              className="attachment-dropzone"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                selectFiles(Array.from(event.dataTransfer.files));
-              }}
-            >
-              <Upload size={20} className="mx-auto text-gold" />
-              <p className="mt-3">
-                <span className="text-amber underline">
-                  {text("Click to upload")}
-                </span>{" "}
-                {text("or drag and drop ")}
-              </p>
-              <p className="mt-3 text-xs font-light">
-                {text("SVG, PNG, JPG, GIF (max. 45MB total) ")}
-              </p>
-              <input
-                className="sr-only"
-                type="file"
-                multiple
-                accept="image/svg+xml,image/png,image/jpeg,image/gif"
-                onChange={(event) =>
-                  selectFiles(Array.from(event.target.files ?? []))
-                }
-              />
-            </label>
-            <p className="mt-2 text-xs font-light">
-              {text("Upload files to support your request (Maximum 5 files) ")}
+        {receipt ? (
+          <div className="contact-card paper-page" role="status" data-testid="contact-success">
+            <CheckCircle2 aria-hidden className="mx-auto size-10 text-success" />
+            <h2 className="mt-4 text-center text-2xl font-medium">{text("Your request was sent")}</h2>
+            <p className="mt-3 text-center font-light">
+              {text("Your reference is {value0}. Keep it handy if you write to us again about this request.", {
+                value0: receipt.reference,
+              })}
             </p>
-            {files.map((file) => (
-              <div
-                key={file.name}
-                className="mt-2 flex justify-between gap-4 text-sm"
+            <p className="mt-2 text-center text-sm font-light">
+              {text("We will reply to {value0}.", { value0: receipt.email })}
+            </p>
+            <p className="mt-6 text-center font-display text-2xl tracking-wider" data-testid="contact-reference">
+              {receipt.reference}
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-gold bg-cream"
+                onClick={() => {
+                  form.reset(blank(user?.email ?? ""));
+                  setReceipt(null);
+                }}
               >
-                <span className="truncate">{text(file.name)}</span>
-                <button
-                  type="button"
-                  aria-label={text("Remove {value0}", { value0: file.name })}
-                  onClick={() =>
-                    setFiles(files.filter((item) => item !== file))
-                  }
-                >
-                  {text("Remove ")}
-                </button>
-              </div>
-            ))}
+                {text("Send another request")}
+              </Button>
+              <Button asChild className="gold-button">
+                <Link href={`/${locale}/faq`}>{text("Browse the FAQ")}</Link>
+              </Button>
+            </div>
           </div>
-          <label className="mt-7 flex items-start gap-3 text-xs">
-            <input type="checkbox" required />
-            <span>
-              {text("I accept Staryield’s")}{" "}
-              <Link className="underline" href={`/${locale}/terms`}>
-                {text("Terms of Use ")}
-              </Link>{" "}
-              {text("and")}{" "}
-              <Link className="underline" href={`/${locale}/privacy`}>
-                {text("Privacy Policy ")}
-              </Link>{" "}
-              {text(
-                "to the extent they apply to the processing of this request. ",
-              )}
-            </span>
-          </label>
-          <p role="alert" className="mt-4 text-sm text-red-800">
-            {text(error)}
-          </p>
-          <Button
-            type="submit"
-            className="gold-button mx-auto mt-6 flex h-12 w-full max-w-sm"
-          >
-            {text("Submit ")}
-          </Button>
-        </form>
+        ) : (
+          <Form {...form}>
+            <form className="contact-card paper-page" onSubmit={form.handleSubmit(submit)} noValidate data-testid="contact-form">
+              <p className="mb-7 border-b border-gold/30 pb-6 font-light leading-relaxed">
+                {text(
+                  "Have questions about your spiritual readings, natal chart accuracy, or billing? Our dedicated support circle is here to offer guidance and align your technical path. "
+                )}
+              </p>
+              <FormRootError className="mb-6" />
+              <div className="grid gap-6">
+                <FormField
+                  control={form.control}
+                  name="topic"
+                  render={({ field }) => (
+                    <FormItem>
+                      <span className="text-sm" id={`${consentId}-topic`}>
+                        {text("Topic")}
+                      </span>
+                      {/* Radix echoes "" through its hidden <select> when the value
+                          changes before the options mount (e.g. ?topic=): ignore it. */}
+                      <Select
+                        name={field.name}
+                        value={field.value}
+                        onValueChange={(value) => {
+                          if (isSupportTopic(value)) field.onChange(value);
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger aria-labelledby={`${consentId}-topic`} onBlur={field.onBlur} ref={field.ref} className="bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {SUPPORT_TOPICS.map((topic) => (
+                            <SelectItem key={topic} value={topic}>
+                              {text(supportTopicLabels[topic])}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FieldRow control={form.control} name="subject" label={text("Subject")} maxLength={120}>
+                  {(field) => <Input {...field} placeholder={text("Enter your subject")} maxLength={160} className="bg-white" />}
+                </FieldRow>
+                <FieldRow control={form.control} name="email" label={text("Email")}>
+                  {(field) => (
+                    <Input
+                      {...field}
+                      type="email"
+                      autoComplete="email"
+                      inputMode="email"
+                      placeholder={text("example@email.com")}
+                      maxLength={254}
+                      className="bg-white"
+                    />
+                  )}
+                </FieldRow>
+                <FieldRow
+                  control={form.control}
+                  name="message"
+                  label={text("Describe your issue")}
+                  description={text("Please describe your situation in as much detail as possible so we can help you quickly and accurately.")}
+                  maxLength={MESSAGE_MAX}
+                >
+                  {(field) => (
+                    <Textarea
+                      {...field}
+                      placeholder={text("Describe your issue in detail…")}
+                      rows={6}
+                      className="min-h-36 resize-y bg-white"
+                    />
+                  )}
+                </FieldRow>
+                <FormField
+                  control={form.control}
+                  name="consent"
+                  render={({ field }) => (
+                    <FormItem className="gap-1">
+                      <div className="flex items-start gap-3 text-xs">
+                        <FormControl>
+                          <Checkbox
+                            ref={field.ref}
+                            name={field.name}
+                            checked={field.value}
+                            onCheckedChange={(checked) => field.onChange(checked === true)}
+                            onBlur={field.onBlur}
+                            aria-labelledby={consentId}
+                            className="mt-0.5"
+                          />
+                        </FormControl>
+                        <span id={consentId}>
+                          {text("I accept Staryield’s")}{" "}
+                          <Link className="underline" href={`/${locale}/terms`}>
+                            {text("Terms of Use ")}
+                          </Link>{" "}
+                          {text("and")}{" "}
+                          <Link className="underline" href={`/${locale}/privacy`}>
+                            {text("Privacy Policy ")}
+                          </Link>{" "}
+                          {text("to the extent they apply to the processing of this request. ")}
+                        </span>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <Button
+                type="submit"
+                onMouseDown={keepFocusOnPress}
+                className="gold-button mx-auto mt-8 flex h-12 w-full max-w-sm"
+                disabled={form.formState.isSubmitting}
+                aria-busy={form.formState.isSubmitting}
+              >
+                {text(form.formState.isSubmitting ? "Sending…" : "Submit ")}
+              </Button>
+            </form>
+          </Form>
+        )}
       </section>
     </PublicFrame>
   );

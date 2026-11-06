@@ -1,36 +1,71 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { chatApi } from "@/lib/api/endpoints";
 import { errorMessage, toApiError, type ApiError } from "@/lib/api/errors";
 import { newId } from "@/lib/api/client";
-import type { ChatMessage, ChatSession, Conversation, Participant, Psychic, Review, SessionSummary } from "@/lib/api/types";
+import type {
+  ChatMessage,
+  ChatSession,
+  Conversation,
+  MessageReadEvent,
+  Participant,
+  Psychic,
+  Review,
+  SessionBilledEvent,
+  SessionSummary,
+} from "@/lib/api/types";
 import { imageSize, seedAttachment } from "@/lib/chat/attachments";
+import { outboxMessage } from "@/lib/chat/outbox";
 import { track } from "@/lib/analytics";
 import { useRealtimeEvent, useRealtimeEvents, useSession } from "@/lib/auth/session-provider";
 import { loginUrl } from "@/lib/navigation";
 import { logger } from "@/lib/logger";
+import { usePagedList } from "@/lib/use-paged-list";
+import { announce } from "@/components/feedback/live-region";
+import { ErrorState } from "@/components/feedback/error-state";
 import { useToast } from "@/components/feedback/toast-provider";
-import { ChatFeed } from "@/components/chat/chat-feed";
-import { ChatHeader } from "@/components/chat/chat-header";
+import { ChatFeed, type Announcement } from "@/components/chat/chat-feed";
+import { ChatHeader, useEarningsLabel } from "@/components/chat/chat-header";
+import { SessionTools, SwitcherHeader } from "@/components/chat/chat-mobile";
 import { ConversationList } from "@/components/chat/conversation-list";
 import { MessageComposer, type ComposerSubmit } from "@/components/chat/message-composer";
 import { ReaderPanel } from "@/components/chat/reader-panel";
 import { ClientPanel } from "@/components/chat/client-panel";
+import { RatePrice } from "@/components/chat/rate-price";
+import { SAVED_PAGE_SIZE } from "@/components/chat/saved-list";
 import { ReviewDialog } from "@/components/reviews/review-form";
 import { SessionPanel } from "@/components/chat/session-panel";
+import { useConversationTimeline } from "@/components/chat/use-conversation-timeline";
+import { useInbox, withMessage } from "@/components/chat/use-inbox";
+import { useOutbox } from "@/components/chat/use-outbox";
 import {
   elapsedSeconds,
   isOpen,
   mergeMessages,
   newClientMsgId,
+  newestIncomingSeq,
   secondsUntil,
+  sessionEarnings,
+  sessionRate,
   snapshot,
   type SessionSnapshot,
   type UiMessage,
 } from "@/components/chat/chat-model";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 type SessionEvent = { session: ChatSession; summary?: SessionSummary };
@@ -47,6 +82,11 @@ const SESSION_EVENTS = [
   "session.ended",
 ] as const;
 
+/** Read receipts wait this long, so a burst of messages costs one request. */
+const READ_DEBOUNCE_MS = 600;
+/** Screen-reader announcements kept in the live log. */
+const LOG_SIZE = 5;
+
 export function ChatroomShell({ initialReader, initialReview }: { initialReader?: string; initialReview?: string }) {
   const { text, t, locale } = useI18n();
   const router = useRouter();
@@ -55,20 +95,13 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const role = user?.role === "psychic" ? "psychic" : "client";
   const meId = user?.id ?? "";
 
-  const [conversations, setConversations] = React.useState<Conversation[]>([]);
-  const [inboxError, setInboxError] = React.useState<ApiError | null>(null);
   const [slug, setSlug] = React.useState<string | undefined>(initialReader);
   const [activeConvId, setActiveConvId] = React.useState<string | null>(null);
   const [counterpart, setCounterpart] = React.useState<Participant | null>(null);
   const [psychic, setPsychic] = React.useState<Psychic | null>(null);
   const [snap, setSnap] = React.useState<SessionSnapshot | null>(null);
   const [summary, setSummary] = React.useState<SessionSummary | null>(null);
-  const [messages, setMessages] = React.useState<UiMessage[]>([]);
-  const [cursor, setCursor] = React.useState<string | undefined>();
-  const [loadingMore, setLoadingMore] = React.useState(false);
-  const [saved, setSaved] = React.useState<ChatMessage[]>([]);
   const [typing, setTyping] = React.useState(false);
-  const [seenUpTo, setSeenUpTo] = React.useState<string | undefined>();
   const [threadError, setThreadError] = React.useState<ApiError | null>(null);
   const [actionError, setActionError] = React.useState<ApiError | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -76,6 +109,15 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const [otherSession, setOtherSession] = React.useState<ChatSession | null>(null);
   const [inboxOpen, setInboxOpen] = React.useState(false);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const [pendingSwitch, setPendingSwitch] = React.useState<Conversation | null>(null);
+  // Read positions of the conversation on screen (mine and the other side's).
+  const [reads, setReads] = React.useState<{ conv: string | null; mine: number; peer: number }>({ conv: null, mine: 0, peer: 0 });
+  const [images, setImages] = React.useState<UiMessage[]>([]);
+  const [savedOverride, setSavedOverride] = React.useState<Record<string, boolean>>({});
+  const [log, setLog] = React.useState<Announcement[]>([]);
+  const [scrollToken, setScrollToken] = React.useState(0);
+  const [atBottom, setAtBottom] = React.useState(true);
+  const [visible, setVisible] = React.useState(true);
   // Deep link from the `chat.review_prompt` notification (clients only). The
   // prop can change without a remount (client navigation to the same reader).
   const [dismissedReview, setDismissedReview] = React.useState<string | null>(null);
@@ -85,83 +127,96 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const [, setTick] = React.useState(0);
   const requestKey = React.useRef(newId());
   const typingTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const readTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const session = snap?.session ?? null;
+  // The open session of the conversation on screen (messages go to it).
+  const liveSession = session && isOpen(session) && (!activeConvId || session.conversation_id === activeConvId) ? session : null;
 
   // --- authentication gate --------------------------------------------------
   React.useEffect(() => {
     if (status === "anonymous") router.replace(loginUrl(locale));
   }, [status, locale, router]);
 
-  // --- loading ---------------------------------------------------------------
-  // Effects only start requests; state changes happen in their callbacks.
-  const [inboxNonce, setInboxNonce] = React.useState(0);
-  const [threadNonce, setThreadNonce] = React.useState(0);
-  const loadInbox = React.useCallback(() => setInboxNonce((n) => n + 1), []);
+  // --- inbox (cursor pages) ----------------------------------------------------
   const activeConvRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     activeConvRef.current = activeConvId;
   });
+  const inbox = useInbox(status === "authenticated", {
+    onFirstPage: (items) => {
+      if (role === "client") {
+        setSlug((cur) => cur ?? items[0]?.counterpart.slug);
+      } else if (items.length > 0 && !activeConvRef.current) {
+        const live = items.find((c) => isOpen(c.open_session)) ?? items[0];
+        setActiveConvId(live.id);
+        setCounterpart(live.counterpart);
+        setSnap(live.open_session ? snapshot(live.open_session) : null);
+        setReads({ conv: live.id, mine: live.read_seq ?? 0, peer: live.peer_read_seq ?? 0 });
+      }
+    },
+  });
 
-  const fetchMessages = React.useCallback((convId: string, signal?: AbortSignal) => {
-    Promise.all([chatApi.messages(convId, undefined, signal), chatApi.saved(convId)]).then(
-      ([page, savedItems]) => {
-        if (signal?.aborted) return;
-        setMessages(page.items);
-        setCursor(page.next_cursor);
-        setSaved(savedItems);
-        setThreadError(null);
-      },
-      (err) => {
-        const e = toApiError(err);
-        if (!signal?.aborted && e.code !== "aborted") setThreadError(e);
-      },
-    );
+  // --- history (strict seq order, gap filling) --------------------------------
+  const counterpartName = counterpart?.name ?? "";
+  const pushLog = React.useCallback((entries: Announcement[]) => {
+    if (entries.length) setLog((cur) => [...cur, ...entries].slice(-LOG_SIZE));
   }, []);
+  const thread = useConversationTimeline(activeConvId, {
+    onBackfilled: (fresh) => {
+      // Messages that arrived while disconnected: announce what came in.
+      const incoming = fresh.filter((m) => m.sender_id && m.sender_id !== meId && m.kind !== "system");
+      if (incoming.length === 1) pushLog([{ id: `b-${incoming[0].id}`, text: describeIncoming(incoming[0]) }]);
+      else if (incoming.length > 1)
+        pushLog([{ id: `b-${incoming.at(-1)!.id}`, text: text("{value0} new messages from {value1}", { value0: incoming.length, value1: counterpartName }) }]);
+    },
+  });
+  const timeline = thread.timeline;
+  const { receive, fillGaps } = thread;
 
-  // Inbox (and the default conversation when none is selected).
+  function describeIncoming(m: ChatMessage): string {
+    const body = m.kind === "image" ? m.body.trim() || text("Photo") : m.body;
+    return text("{value0}: {value1}", { value0: counterpartName, value1: body.length > 280 ? `${body.slice(0, 280)}…` : body });
+  }
+
+  // --- outbox (text messages survive refresh and offline spells) --------------
+  const outbox = useOutbox({
+    userId: meId,
+    session: liveSession,
+    realtime,
+    connection: connection.state,
+    onDelivered: (message) => receive([message]),
+    onFailed: () => announce(text("A message was not delivered. You can retry it."), "assertive"),
+  });
+  // Entries the server already confirmed (seen in history or events) leave the outbox.
+  const confirmedIds = React.useMemo(() => {
+    const ids: string[] = [];
+    for (const m of timeline.messages) if (m.client_msg_id && m.sender_id === meId) ids.push(m.client_msg_id);
+    return ids;
+  }, [timeline.messages, meId]);
   React.useEffect(() => {
-    if (status !== "authenticated") return;
-    const ctrl = new AbortController();
-    chatApi.conversations(ctrl.signal).then(
-      (list) => {
-        setConversations(list);
-        setInboxError(null);
-        if (role === "client") {
-          setSlug((cur) => cur ?? list[0]?.counterpart.slug);
-        } else if (list.length > 0 && !activeConvRef.current) {
-          const live = list.find((c) => isOpen(c.open_session)) ?? list[0];
-          setActiveConvId(live.id);
-          setCounterpart(live.counterpart);
-          setSnap(live.open_session ? snapshot(live.open_session) : null);
-        }
-      },
-      (err) => {
-        const e = toApiError(err);
-        if (!ctrl.signal.aborted && e.code !== "aborted") setInboxError(e);
-      },
-    );
-    return () => ctrl.abort();
-  }, [status, role, inboxNonce]);
+    if (outbox.entries.length) outbox.confirm(confirmedIds);
+  }, [confirmedIds, outbox]);
 
-  // Client: the conversation with the selected advisor (may not exist yet).
+  // --- saved messages (cursor pages of five) -----------------------------------
+  const saved = usePagedList<ChatMessage>(
+    (cursor, signal) => chatApi.savedPage(activeConvId ?? undefined, cursor, SAVED_PAGE_SIZE, signal),
+    [activeConvId ?? ""],
+    { enabled: Boolean(activeConvId) },
+  );
+
+  // --- client: the conversation with the selected advisor ----------------------
+  const [threadNonce, setThreadNonce] = React.useState(0);
   React.useEffect(() => {
     if (status !== "authenticated" || role !== "client" || !slug) return;
     const ctrl = new AbortController();
     chatApi.thread(slug, ctrl.signal).then(
-      (thread) => {
+      (res) => {
         setThreadError(null);
-        setPsychic(thread.psychic);
-        setCounterpart({ id: thread.psychic.id, role: "psychic", name: thread.psychic.name, avatar_url: thread.psychic.image_url, slug: thread.psychic.slug, status: thread.psychic.status });
-        setActiveConvId(thread.conversation?.id ?? null);
-        setSnap(thread.open_session ? snapshot(thread.open_session) : null);
-        setOtherSession(thread.client_open_session ?? null);
-        if (thread.conversation) fetchMessages(thread.conversation.id, ctrl.signal);
-        else {
-          setMessages([]);
-          setSaved([]);
-          setCursor(undefined);
-        }
+        setPsychic(res.psychic);
+        setCounterpart({ id: res.psychic.id, role: "psychic", name: res.psychic.name, avatar_url: res.psychic.image_url, slug: res.psychic.slug, status: res.psychic.status });
+        setActiveConvId(res.conversation?.id ?? null);
+        setSnap(res.open_session ? snapshot(res.open_session) : null);
+        setOtherSession(res.client_open_session ?? null);
+        if (res.conversation) setReads((r) => mergeReads(r, res.conversation!.id, res.conversation!.read_seq, res.conversation!.peer_read_seq));
         track("chat_opened", { slug });
       },
       (err) => {
@@ -170,15 +225,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
       },
     );
     return () => ctrl.abort();
-  }, [status, role, slug, threadNonce, fetchMessages]);
-
-  // Psychic: messages of the selected conversation.
-  React.useEffect(() => {
-    if (role !== "psychic" || !activeConvId) return;
-    const ctrl = new AbortController();
-    fetchMessages(activeConvId, ctrl.signal);
-    return () => ctrl.abort();
-  }, [role, activeConvId, threadNonce, fetchMessages]);
+  }, [status, role, slug, threadNonce]);
 
   const openConversation = (conv: Conversation) => {
     setInboxOpen(false);
@@ -195,6 +242,24 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     setActiveConvId(conv.id);
     setCounterpart(conv.counterpart);
     setSnap(conv.open_session ? snapshot(conv.open_session) : null);
+    setReads({ conv: conv.id, mine: conv.read_seq ?? 0, peer: conv.peer_read_seq ?? 0 });
+    setLog([]);
+  };
+
+  // Clients in a live chat confirm before switching advisors (Figma 1261:1537).
+  const selectConversation = (conv: Conversation) => {
+    if (role === "client" && liveSession && conv.counterpart.slug && conv.counterpart.slug !== slug) {
+      setPendingSwitch(conv);
+      return;
+    }
+    openConversation(conv);
+  };
+  const confirmSwitch = async () => {
+    const target = pendingSwitch;
+    setPendingSwitch(null);
+    if (!target || !liveSession) return;
+    const ended = await act(() => (liveSession.status === "requested" ? chatApi.cancel(liveSession.id) : chatApi.end(liveSession.id).then((sum) => sum.session)));
+    if (ended) openConversation(target);
   };
 
   // --- presence: join the open session while this view is mounted ----------
@@ -225,32 +290,37 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     return () => window.clearInterval(id);
   }, [openSessionId]);
 
+  // Read receipts only go out while the page is visible.
+  React.useEffect(() => {
+    const onVisibility = () => setVisible(document.visibilityState === "visible");
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
   // --- realtime events -------------------------------------------------------
-  const upsertConversationSession = (s: ChatSession) =>
-    setConversations((list) => {
-      const found = list.some((c) => c.id === s.conversation_id);
-      if (!found) {
-        loadInbox();
-        return list;
-      }
-      return list.map((c) => (c.id === s.conversation_id ? { ...c, open_session: isOpen(s) ? s : undefined } : c));
-    });
+  const upsertConversationSession = (s: ChatSession) => {
+    if (!inbox.items.some((c) => c.id === s.conversation_id)) {
+      inbox.refresh();
+      return;
+    }
+    inbox.patch((list) => list.map((c) => (c.id === s.conversation_id ? { ...c, open_session: isOpen(s) ? s : undefined } : c)));
+  };
 
   const onSession = (type: string, data: SessionEvent) => {
     const s = data.session;
     upsertConversationSession(s);
     if (role === "psychic" && type === "session.requested" && (!session || !isOpen(session))) {
       toast.show({ tone: "info", message: text("{value0} would like to start a live chat.", { value0: s.client.name }) });
-      const conv = conversations.find((c) => c.id === s.conversation_id);
-      openConversation(conv ? { ...conv, open_session: s } : { id: s.conversation_id, counterpart: s.client, unread: 0, open_session: s, created_at: s.requested_at });
+      const conv = inbox.items.find((c) => c.id === s.conversation_id);
+      // The client just sent a request, so they are connected (a stale inbox row may still say offline).
+      const requester = { ...(conv?.counterpart ?? s.client), status: "online" as const };
+      openConversation(conv ? { ...conv, counterpart: requester, open_session: s } : { id: s.conversation_id, counterpart: requester, unread: 0, open_session: s, created_at: s.requested_at });
       return;
     }
     const sameConversation = s.conversation_id === activeConvId || (!activeConvId && role === "client" && s.psychic.slug === slug);
     if (!sameConversation) return;
-    if (!activeConvId) {
-      setActiveConvId(s.conversation_id);
-      fetchMessages(s.conversation_id);
-    }
+    if (!activeConvId) setActiveConvId(s.conversation_id);
+    if (role === "psychic" && isOpen(s)) setCounterpart((c) => (c && c.id === s.client.id && c.status !== "online" ? { ...c, status: "online" } : c));
     setSnap(snapshot(s));
     if (data.summary) setSummary(data.summary);
     if (type === "session.started") setLowBalance(null);
@@ -261,47 +331,57 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   };
   useRealtimeEvents<SessionEvent>(SESSION_EVENTS, onSession);
 
-  useRealtimeEvent<{ session_id: string; minute: number; active_seconds: number; next_billing_at: string; minutes_remaining?: number }>(
-    "session.billed",
-    (b) => {
-      setSnap((cur) =>
-        cur && cur.session.id === b.session_id
-          ? { session: { ...cur.session, billed_minutes: b.minute, active_seconds: b.active_seconds, next_billing_at: b.next_billing_at, server_time: new Date().toISOString() }, receivedAt: Date.now() }
-          : cur,
+  // Automatic re-join after a reconnect returns the fresh (often resumed) session.
+  useRealtimeEvent<ChatSession>("session.rejoined", (view) => {
+    if (view?.id && view.id === session?.id) setSnap(snapshot(view));
+  });
+
+  useRealtimeEvent<SessionBilledEvent>("session.billed", (b) => {
+    setSnap((cur) =>
+      cur && cur.session.id === b.session_id
+        ? {
+            session: {
+              ...cur.session,
+              billed_minutes: b.minute,
+              active_seconds: b.active_seconds,
+              next_billing_at: b.next_billing_at,
+              server_time: new Date().toISOString(),
+              // Advisors: live earnings so far.
+              ...(typeof b.psychic_earnings === "number"
+                ? { psychic_earnings: b.psychic_earnings, psychic_earnings_cents: b.psychic_earnings_cents, currency: b.currency ?? cur.session.currency }
+                : {}),
+            },
+            receivedAt: Date.now(),
+          }
+        : cur,
+    );
+    if (role === "psychic" && typeof b.psychic_earnings !== "number" && b.session_id === session?.id) {
+      // Older servers do not send earnings with the minute: read them.
+      chatApi.session(b.session_id).then(
+        (view) => setSnap((cur) => (cur && cur.session.id === view.id ? snapshot(view) : cur)),
+        (err) => logger.debug("earnings refresh failed", { code: String(toApiError(err).code) }),
       );
-      if (typeof b.minutes_remaining === "number" && b.minutes_remaining >= 2) setLowBalance(null);
-    },
-  );
+    }
+    if (typeof b.minutes_remaining === "number" && b.minutes_remaining >= 2) setLowBalance(null);
+  });
   useRealtimeEvent<{ session_id: string; minutes_remaining: number }>("session.low_balance", (d) => {
     if (d.session_id === session?.id) setLowBalance(d.minutes_remaining);
   });
 
   useRealtimeEvent<{ message: ChatMessage }>("message.created", ({ message }) => {
     if (message.conversation_id === activeConvId) {
-      setMessages((m) => mergeMessages(m, [message]));
+      receive([message]);
       if (message.sender_id && message.sender_id !== meId) {
         setTyping(false);
-        scheduleRead(message);
+        if (message.kind !== "system") pushLog([{ id: message.id, text: describeIncoming(message) }]);
       }
+    } else if (!activeConvId && role === "client" && liveSession?.conversation_id === message.conversation_id) {
+      setActiveConvId(message.conversation_id);
     }
-    setConversations((list) => {
-      if (!list.some((c) => c.id === message.conversation_id)) {
-        loadInbox();
-        return list;
-      }
-      return list
-        .map((c) =>
-          c.id === message.conversation_id
-            ? {
-                ...c,
-                last_message: message,
-                last_message_at: message.created_at,
-                unread: c.id === activeConvId || message.sender_id === meId || message.kind === "system" ? 0 : c.unread + 1,
-              }
-            : c,
-        )
-        .sort((a, b) => (b.last_message_at ?? "").localeCompare(a.last_message_at ?? ""));
-    });
+    if (message.sender_id === meId && message.client_msg_id) outbox.confirm([message.client_msg_id]);
+    const next = withMessage(inbox.items, message, { meId, activeId: activeConvId });
+    if (next) inbox.patch(() => next);
+    else inbox.refresh();
   });
 
   useRealtimeEvent<{ session_id: string; user_id: string; typing: boolean }>("typing", (d) => {
@@ -311,52 +391,76 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     if (d.typing) typingTimer.current = setTimeout(() => setTyping(false), 5000);
   });
 
-  useRealtimeEvent<{ conversation_id: string; reader_id: string; read_at: string }>("message.read", (d) => {
-    if (d.conversation_id === activeConvId && d.reader_id !== meId) setSeenUpTo(d.read_at);
+  useRealtimeEvent<MessageReadEvent>("message.read", (d) => {
+    if (d.conversation_id !== activeConvId || d.reader_id === meId) return;
+    let seq = d.read_seq ?? 0;
+    // Older receipts name a message instead of a seq.
+    if (!seq && d.message_id) seq = timeline.messages.find((m) => m.id === d.message_id)?.seq ?? 0;
+    if (seq) setReads((r) => mergeReads(r, d.conversation_id, undefined, seq));
   });
 
   // Advisors: live online/offline presence of their clients (§9.4).
   useRealtimeEvent<{ user_id: string; online: boolean }>("presence.updated", (d) => {
     if (role !== "psychic" || !d?.user_id) return;
     const status = d.online ? "online" : "offline";
-    setConversations((list) => list.map((c) => (c.counterpart.id === d.user_id ? { ...c, counterpart: { ...c.counterpart, status } } : c)));
+    inbox.patch((list) => list.map((c) => (c.counterpart.id === d.user_id ? { ...c, counterpart: { ...c.counterpart, status } } : c)));
     setCounterpart((c) => (c && c.id === d.user_id ? { ...c, status } : c));
   });
 
   useRealtimeEvent<{ slug: string; status: Psychic["status"] }>("psychic.status_changed", (d) => {
-    if (role === "client" && d.slug === psychic?.slug) {
+    if (role !== "client") return;
+    inbox.patch((list) => list.map((c) => (c.counterpart.slug === d.slug ? { ...c, counterpart: { ...c.counterpart, status: d.status } } : c)));
+    if (d.slug === psychic?.slug) {
       setPsychic((p) => (p ? { ...p, status: d.status } : p));
       setCounterpart((c) => (c ? { ...c, status: d.status } : c));
     }
   });
 
-  // After a reconnect without replay, refetch the authoritative state.
-  const resync = React.useCallback(() => {
-    loadInbox();
-    setThreadNonce((n) => n + 1);
-  }, [loadInbox]);
-  useRealtimeEvent("resync_required", resync);
+  // After a reconnect (or when the server lost events): fetch what was missed
+  // once over REST, and refresh session state when nothing was replayed.
+  const resync = React.useCallback(
+    (full: boolean) => {
+      fillGaps();
+      inbox.refresh();
+      if (!full) return;
+      if (role === "client") setThreadNonce((n) => n + 1);
+      else if (openSessionId)
+        chatApi.session(openSessionId).then(
+          (view) => setSnap(snapshot(view)),
+          (err) => logger.debug("session refresh failed", { code: String(toApiError(err).code) }),
+        );
+    },
+    [fillGaps, inbox, role, openSessionId],
+  );
+  useRealtimeEvent("resync_required", () => resync(true));
   useRealtimeEvent<{ reconnected?: boolean; resumed?: boolean }>("hello", (d) => {
-    if (d.reconnected && !d.resumed) resync();
+    if (d.reconnected) resync(!d.resumed);
   });
 
-  // --- read receipts ---------------------------------------------------------
-  function scheduleRead(message: ChatMessage) {
-    if (readTimer.current) clearTimeout(readTimer.current);
-    readTimer.current = setTimeout(() => {
-      if (document.visibilityState !== "visible" || !realtime) return;
-      realtime
-        .request("message.read", { conversation_id: message.conversation_id, message_id: message.id })
-        .then(() => setConversations((list) => list.map((c) => (c.id === message.conversation_id ? { ...c, unread: 0 } : c))))
-        .catch((err) => logger.debug("mark read failed", { code: String(toApiError(err).code) }));
-    }, 600);
-  }
-
+  // --- read receipts (by seq) ------------------------------------------------
+  const conversationRow = inbox.items.find((c) => c.id === activeConvId);
+  const myRead = Math.max(reads.conv === activeConvId ? reads.mine : 0, conversationRow?.read_seq ?? 0);
+  const peerRead = Math.max(reads.conv === activeConvId ? reads.peer : 0, conversationRow?.peer_read_seq ?? 0);
+  const newestIncoming = newestIncomingSeq(timeline.messages, meId);
   React.useEffect(() => {
-    const lastFromOther = [...messages].reverse().find((m) => m.sender_id && m.sender_id !== meId && !m.pending);
-    if (lastFromOther) scheduleRead(lastFromOther);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeConvId, messages.length > 0]);
+    if (!activeConvId || !visible || !atBottom || newestIncoming <= myRead) return;
+    const conv = activeConvId;
+    const seq = newestIncoming;
+    const timer = setTimeout(() => {
+      const sent = realtime
+        ? realtime.request<{ read_seq?: number; unread?: number }>("message.read", { conversation_id: conv, seq })
+        : chatApi.markReadSeq(conv, seq);
+      sent.then(
+        (res) => {
+          const readSeq = res?.read_seq ?? seq;
+          setReads((r) => mergeReads(r, conv, readSeq, undefined));
+          inbox.patch((list) => list.map((c) => (c.id === conv ? { ...c, unread: res?.unread ?? 0, read_seq: Math.max(c.read_seq ?? 0, readSeq) } : c)));
+        },
+        (err) => logger.debug("mark read failed", { code: String(toApiError(err).code) }),
+      );
+    }, READ_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [activeConvId, visible, atBottom, newestIncoming, myRead, realtime, inbox]);
 
   // --- actions ---------------------------------------------------------------
   async function act<T>(fn: () => Promise<T>, after?: (v: T) => void) {
@@ -385,51 +489,32 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
       setSnap(snapshot(s));
       if (!activeConvId) {
         setActiveConvId(s.conversation_id);
-        loadInbox();
+        inbox.refresh();
       }
     }
   }
 
-  function send(body: string, retryOf?: UiMessage) {
-    if (!session || session.status !== "active") return;
-    const cmid = retryOf?.client_msg_id ?? newClientMsgId();
-    const local: UiMessage = retryOf
-      ? { ...retryOf, pending: "sending" }
-      : {
-          id: cmid,
-          client_msg_id: cmid,
-          conversation_id: session.conversation_id,
-          session_id: session.id,
-          sender_id: meId,
-          kind: "text",
-          body,
-          created_at: new Date().toISOString(),
-          pending: "sending",
-        };
-    setMessages((m) => mergeMessages(m, [local]));
-    const payload = { session_id: session.id, body: local.body, client_msg_id: cmid };
-    const sent = realtime
-      ? realtime.request<{ message: ChatMessage }>("message.send", payload)
-      : chatApi.send(session.id, local.body, cmid);
-    sent
-      .then(({ message }) =>
-        setMessages((m) => mergeMessages(m.filter((x) => !(x.pending && x.client_msg_id === cmid)), [{ ...message, pending: undefined }])),
-      )
-      .catch((err) => {
-        const e = toApiError(err);
-        setMessages((m) => m.map((x) => (x.client_msg_id === cmid && x.pending ? { ...x, pending: "failed" } : x)));
-        if (e.code !== "realtime_unavailable" && e.code !== "timeout") toast.showError(e);
-        logger.warn("message send failed", e, { code: String(e.code) });
-      });
+  // Stable identity: the composer stops its typing indicator whenever this changes.
+  const typingSessionId = session?.id;
+  const onTyping = React.useCallback(
+    (isTyping: boolean) => {
+      if (typingSessionId) realtime?.send("typing", { session_id: typingSessionId, typing: isTyping });
+    },
+    [realtime, typingSessionId],
+  );
+
+  function send(body: string) {
+    if (!liveSession || liveSession.status !== "active") return;
+    if (outbox.send(body)) setScrollToken((n) => n + 1);
   }
 
-  /** Upload an image message with the same optimistic pending/failed/retry flow as text. */
+  /** Upload an image message with an optimistic pending/failed/retry flow (kept in memory: files are not persisted). */
   async function sendImage(file: File, caption: string, retryOf?: UiMessage) {
-    if (!session || session.status !== "active") return;
-    const current = session;
+    if (!liveSession || liveSession.status !== "active") return;
+    const current = liveSession;
     const cmid = retryOf?.client_msg_id ?? newClientMsgId();
     let local: UiMessage;
-    if (retryOf) local = { ...retryOf, pending: "sending" };
+    if (retryOf) local = { ...retryOf, pending: "sending", failure: undefined };
     else {
       const size = await imageSize(file);
       local = {
@@ -446,16 +531,18 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
         localFile: file,
       };
     }
-    setMessages((m) => mergeMessages(m, [local]));
+    setImages((list) => mergeMessages(list, [local]));
+    setScrollToken((n) => n + 1);
     try {
       const { message } = await chatApi.uploadAttachment(current.id, file, caption || undefined, cmid);
       const attachment = message.attachments?.[0];
       // Show our own copy instead of downloading it again (GIFs are stored as their first frame).
       if (attachment && file.type !== "image/gif") seedAttachment(attachment.id, file);
-      setMessages((m) => mergeMessages(m.filter((x) => !(x.pending && x.client_msg_id === cmid)), [{ ...message, pending: undefined }]));
+      receive([message]);
+      setImages((list) => list.filter((x) => x.client_msg_id !== cmid));
     } catch (err) {
       const e = toApiError(err);
-      setMessages((m) => m.map((x) => (x.client_msg_id === cmid && x.pending ? { ...x, pending: "failed" } : x)));
+      setImages((list) => list.map((x) => (x.client_msg_id === cmid ? { ...x, pending: "failed", failure: String(e.code) } : x)));
       if (e.code !== "network_error" && e.code !== "timeout") toast.showError(e);
       logger.warn("image upload failed", e, { code: String(e.code) });
     }
@@ -471,95 +558,149 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
       if (m.localFile) void sendImage(m.localFile, m.body, m);
       return;
     }
-    send(m.body, m);
+    if (m.client_msg_id && !outbox.retry(m.client_msg_id)) {
+      toast.show({ tone: "info", message: text("Start a live chat to send messages") });
+    }
   }
 
-  async function toggleBookmark(m: UiMessage) {
-    if (m.pending || (m.kind !== "text" && m.kind !== "image")) return;
-    const isSaved = saved.some((s) => s.id === m.id);
+  function discard(m: UiMessage) {
+    if (!m.client_msg_id) return;
+    if (m.kind === "image") setImages((list) => list.filter((x) => x.client_msg_id !== m.client_msg_id));
+    else outbox.discard(m.client_msg_id);
+  }
+
+  const isSaved = (m: ChatMessage) => savedOverride[m.id] ?? Boolean(m.saved);
+  async function setBookmark(id: string, value: boolean) {
     try {
-      if (isSaved) {
-        await chatApi.unsave(m.id);
-        setSaved((s) => s.filter((x) => x.id !== m.id));
-      } else {
-        await chatApi.save(m.id);
-        setSaved((s) => [m, ...s]);
-      }
+      if (value) await chatApi.save(id);
+      else await chatApi.unsave(id);
+      setSavedOverride((o) => ({ ...o, [id]: value }));
+      // Newest saves come first: start from the first page again.
+      if (value) saved.reset();
+      else saved.reload();
     } catch (err) {
       toast.showError(err);
     }
   }
+  function toggleBookmark(m: UiMessage) {
+    if (m.pending || (m.kind !== "text" && m.kind !== "image")) return;
+    void setBookmark(m.id, !isSaved(m));
+  }
 
   // --- render ------------------------------------------------------------------
+  const localMessages = React.useMemo(() => {
+    const queued = outbox.entries.filter((e) => e.conversation_id === activeConvId).map(outboxMessage);
+    return [...queued, ...images.filter((m) => m.conversation_id === activeConvId)];
+  }, [outbox.entries, images, activeConvId]);
+  const messages = React.useMemo(() => mergeMessages(timeline.messages, localMessages), [timeline.messages, localMessages]);
+  const savedIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    for (const m of messages) if (isSaved(m)) ids.add(m.id);
+    return ids;
+    // isSaved reads savedOverride.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, savedOverride]);
+
+  const rateView = sessionRate(session, psychic?.rate_per_minute ?? 0);
+  const earnings = role === "psychic" ? sessionEarnings(session) : null;
+  const earned = useEarningsLabel(earnings && session && session.status !== "requested" ? earnings : null);
+
   if (status !== "authenticated" || !user) {
     return (
       <main className="chat-workspace grid min-h-0 flex-1 place-items-center px-8">
-        <p className="text-sm" role="status">{text("Loading your conversations…")}</p>
+        <p className="text-sm" role="status">
+          {text("Loading your conversations…")}
+        </p>
       </main>
     );
   }
 
-  const savedIds = new Set(saved.map((s) => s.id));
-  const rate = session?.rate_per_minute ?? psychic?.rate_per_minute ?? 0;
   const deadline = session?.status === "disconnected" ? session.grace_expires_at : session?.expires_at;
   const secondsLeft = secondsUntil(deadline, snap);
   const elapsed = elapsedSeconds(snap);
   const returnPath = `/${locale}/chatroom${slug ? `?reader=${slug}` : ""}`;
-  const composerDisabled = session?.status !== "active";
+  const composerDisabled = liveSession?.status !== "active";
   const free = wallet?.free_minutes ?? 0;
-  const note =
-    role === "client"
-      ? free > 0
-        ? text("{value0} free minutes, then {value1} credits/min", { value0: free, value1: rate })
-        : text("{value0} credits/min · balance {value1}", { value0: rate, value1: (wallet?.balance ?? 0).toLocaleString(locale) })
-      : t("chatroom.composer.label");
-
-  const inbox = inboxError ? (
-    <div className="p-4 text-sm" role="alert">
-      <p>{text(errorMessage(inboxError))}</p>
-      <button type="button" className="mt-2 underline" onClick={loadInbox}>
-        {text("Try again")}
-      </button>
-    </div>
-  ) : (
-    <ConversationList conversations={conversations} viewerRole={role} activeId={activeConvId} onSelect={openConversation} />
-  );
-  const removeSaved = (id: string) => {
-    const m = saved.find((s) => s.id === id);
-    if (m) void toggleBookmark(m as UiMessage);
-  };
-  const panel = counterpart ? (
-    role === "psychic" ? (
-      <ClientPanel
-        key={activeConvId ?? "none"}
-        conversationId={activeConvId}
-        counterpart={counterpart}
-        online={counterpart.status ? counterpart.status !== "offline" : undefined}
-        saved={saved}
-        onRemove={removeSaved}
-      />
+  const rateNode = rateView.rate > 0 ? <RatePrice rate={rateView} /> : null;
+  const note: React.ReactNode =
+    role === "client" ? (
+      free > 0 ? (
+        <>
+          {text("{value0} free minutes, then", { value0: free })} {rateNode}
+        </>
+      ) : (
+        <>
+          {rateNode} · {text("balance {value0}", { value0: (wallet?.balance ?? 0).toLocaleString(locale) })}
+        </>
+      )
     ) : (
-      <ReaderPanel counterpart={counterpart} psychic={psychic} saved={saved} onRemove={removeSaved} />
-    )
-  ) : null;
+      t("chatroom.composer.label")
+    );
 
+  const listProps = {
+    conversations: inbox.items,
+    viewerRole: role,
+    activeId: activeConvId,
+    onSelect: selectConversation,
+    status: inbox.status,
+    error: inbox.error,
+    onRetry: inbox.refresh,
+    hasMore: inbox.hasMore,
+    loadingMore: inbox.loadingMore,
+    moreError: inbox.moreError,
+    onLoadMore: inbox.loadMore,
+  } as const;
+  const removeSaved = (id: string) => void setBookmark(id, false);
+  // Advisors get the client panel as a column (xl+) or as tabs in the details sheet.
+  const renderPanel = (variant: "column" | "tabs") =>
+    counterpart ? (
+      role === "psychic" ? (
+        <ClientPanel
+          key={activeConvId ?? "none"}
+          variant={variant}
+          conversationId={activeConvId}
+          counterpart={counterpart}
+          online={counterpart.status ? counterpart.status !== "offline" : undefined}
+          saved={saved}
+          onRemove={removeSaved}
+        />
+      ) : (
+        <ReaderPanel counterpart={counterpart} psychic={psychic} saved={saved} onRemove={removeSaved} />
+      )
+    ) : null;
+
+  const queued = outbox.entries.filter((e) => e.state !== "failed").length;
   const connectionBanner =
-    connection.state === "offline"
-      ? text("You are offline. Messages will be sent when your connection returns.")
-      : connection.state === "reconnecting" || connection.state === "connecting"
-        ? text("Reconnecting to live chat…")
-        : "";
+    connection.state === "offline" ? (
+      <>
+        {text("You are offline. Messages will be sent when your connection returns.")}
+        {queued ? <> {text("{value0} waiting to send.", { value0: queued })}</> : null}
+      </>
+    ) : connection.state === "reconnecting" || connection.state === "connecting" ? (
+      <>
+        {text("Reconnecting to live chat…")}
+        {queued ? <> {text("{value0} waiting to send.", { value0: queued })}</> : null}{" "}
+        {connection.state === "reconnecting" ? (
+          <button type="button" className="underline" onClick={() => realtime?.reconnect()}>
+            {text("Retry now")}
+          </button>
+        ) : null}
+      </>
+    ) : null;
 
   return (
     <main
       aria-label={text("Chatroom")}
+      data-role={role}
       className="chat-workspace grid min-h-0 flex-1 gap-4 px-8 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_280px]"
     >
-      <aside className="hidden min-h-0 overflow-hidden rounded-xl border border-border bg-[#d3cbb9] lg:block">{inbox}</aside>
+      <aside className="chat-inbox-column hidden min-h-0 overflow-hidden rounded-xl border lg:block" aria-label={t("chatroom.inbox.title")}>
+        <ConversationList {...listProps} />
+      </aside>
       {/* overflow-clip (not hidden): the column can never be scrolled by scrollIntoView or focus. */}
-      <section className="flex min-h-0 flex-col overflow-clip rounded-xl border border-border bg-[#d3cbb9]">
+      <section className="chat-column flex min-h-0 flex-col overflow-clip rounded-xl border">
         {connectionBanner ? (
-          <p className="chat-connection-banner" role="status">
+          <p className="chat-connection-banner" role="status" data-testid="connection-banner" data-state={connection.state}>
             {connectionBanner}
           </p>
         ) : null}
@@ -570,7 +711,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
               viewerRole={role}
               session={session}
               elapsedSeconds={elapsed}
-              rate={rate || undefined}
+              rate={rateView.rate > 0 ? rateView : null}
+              earnings={earnings}
               onOpenInbox={() => setInboxOpen(true)}
               onOpenDetails={() => setDetailsOpen(true)}
               ending={busy}
@@ -582,6 +724,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                 })
               }
             />
+            <SessionTools role={role} wallet={wallet} earned={earned} returnPath={returnPath} onOpenDetails={() => setDetailsOpen(true)} />
             {otherSession && role === "client" ? (
               <p className="chat-connection-banner" role="status">
                 {text("You already have a live chat with {value0}.", { value0: otherSession.psychic.name })}{" "}
@@ -598,10 +741,17 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                 </a>
               </p>
             ) : null}
-            {threadError ? (
+            {threadError || thread.error ? (
               <div className="p-6 text-sm" role="alert">
-                <p>{text(errorMessage(threadError))}</p>
-                <button type="button" className="mt-2 underline" onClick={resync}>
+                <p>{text(errorMessage((threadError ?? thread.error)!))}</p>
+                <button
+                  type="button"
+                  className="mt-2 underline"
+                  onClick={() => {
+                    if (threadError) setThreadNonce((n) => n + 1);
+                    thread.reload();
+                  }}
+                >
                   {text("Try again")}
                 </button>
               </div>
@@ -612,24 +762,19 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                 authorName={counterpart.name}
                 typing={typing && session?.status === "active"}
                 savedIds={savedIds}
-                seenUpTo={seenUpTo}
-                hasMore={Boolean(cursor)}
-                loadingMore={loadingMore}
-                onLoadMore={async () => {
-                  if (!activeConvId || !cursor) return;
-                  setLoadingMore(true);
-                  try {
-                    const page = await chatApi.messages(activeConvId, cursor);
-                    setMessages((m) => mergeMessages(m, page.items));
-                    setCursor(page.next_cursor);
-                  } catch (err) {
-                    toast.showError(err);
-                  } finally {
-                    setLoadingMore(false);
-                  }
-                }}
+                peerReadSeq={peerRead}
+                status={thread.status}
+                hasOlder={timeline.hasOlder}
+                loadingOlder={thread.loadingOlder}
+                olderError={thread.olderError}
+                onLoadOlder={() => void thread.loadOlder()}
                 onBookmark={toggleBookmark}
                 onRetry={retry}
+                onDiscard={discard}
+                connected={connection.state === "open"}
+                announcements={log}
+                scrollToken={scrollToken}
+                onAtBottomChange={setAtBottom}
               >
                 <SessionPanel
                   role={role}
@@ -637,7 +782,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                   session={session}
                   summary={summary}
                   wallet={wallet}
-                  rate={rate}
+                  rate={rateView.rate}
+                  rateView={rateView}
                   secondsLeft={secondsLeft}
                   busy={busy}
                   error={actionError}
@@ -648,40 +794,89 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                   onDecline={() => session && void act(() => chatApi.decline(session.id), (s) => setSnap(snapshot(s)))}
                   onDismissSummary={() => setSummary(null)}
                   onReviewed={(review: Review) => setSummary((sum) => (sum ? { ...sum, review, can_review: false } : sum))}
+                  onAdvisorAvailable={() => {
+                    setPsychic((p) => (p ? { ...p, status: "online" } : p));
+                    setCounterpart((c) => (c ? { ...c, status: "online" } : c));
+                  }}
                 />
               </ChatFeed>
             )}
             <MessageComposer
               onSend={submit}
-              onTyping={(isTyping) => session && realtime?.send("typing", { session_id: session.id, typing: isTyping })}
+              onTyping={onTyping}
               disabled={composerDisabled}
               disabledReason={text(session?.status === "disconnected" ? "Paused while reconnecting…" : "Start a live chat to send messages")}
               note={note}
             />
           </>
+        ) : inbox.status === "error" && inbox.error ? (
+          // No conversation to show because the inbox failed: retry from here (phones have no inbox column).
+          <div className="grid flex-1 place-items-center p-6">
+            <ErrorState error={inbox.error} onRetry={inbox.refresh} title={text("Your conversations could not be loaded.")} className="w-full max-w-md bg-cream/60" />
+          </div>
+        ) : inbox.status === "loading" ? (
+          <div className="grid flex-1 place-items-center p-8 text-center text-sm">
+            <p role="status">{text("Loading your conversations…")}</p>
+          </div>
         ) : (
           <div className="grid flex-1 place-items-center p-8 text-center text-sm">
-            <p>{text(role === "psychic" ? "Chat requests from clients appear here while you are online." : "Choose an advisor to start a conversation.")}</p>
+            <div className="flex flex-col items-center gap-3">
+              <p>{text(role === "psychic" ? "Chat requests from clients appear here while you are online." : "Choose an advisor to start a conversation.")}</p>
+              {role === "client" ? (
+                <Button asChild variant="cta" className="px-5">
+                  <Link href={`/${locale}/psychics`}>{text("Browse all advisors")}</Link>
+                </Button>
+              ) : null}
+            </div>
           </div>
         )}
       </section>
-      <aside className="hidden min-h-0 overflow-y-auto rounded-xl border border-border bg-[#a9a185] xl:block">{panel}</aside>
+      <aside className={`chat-detail-column hidden min-h-0 overflow-y-auto rounded-xl border xl:block`}>{renderPanel("column")}</aside>
       <Sheet open={inboxOpen} onOpenChange={setInboxOpen}>
-        <SheetContent side="left" className="w-[280px] gap-0 bg-cream p-0">
+        <SheetContent side="left" className="chat-switcher-sheet gap-0 p-0" data-testid="chat-switcher">
           <SheetHeader className="pb-0">
             <SheetTitle>{t("chatroom.inbox.title")}</SheetTitle>
           </SheetHeader>
-          <div className="min-h-0 flex-1">{inbox}</div>
+          <SwitcherHeader
+            role={role}
+            counterpart={counterpart}
+            rate={rateView.rate > 0 ? rateView : null}
+            liveWith={role === "client" && liveSession && liveSession.status !== "requested" ? (counterpart?.name ?? null) : null}
+          />
+          <div className="relative min-h-0 flex-1">
+            <ConversationList {...listProps} variant="cards" excludeId={activeConvId} className="absolute inset-0 h-auto" />
+          </div>
+          <div className="chat-switcher-foot">
+            <Button asChild variant="ghost" className="chat-leave-button">
+              <Link href={role === "client" ? `/${locale}/psychics` : `/${locale}/profile`}>{text("Leave Chatroom")}</Link>
+            </Button>
+          </div>
         </SheetContent>
       </Sheet>
       <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <SheetContent side="right" className="w-[300px] gap-0 overflow-y-auto bg-sage p-0">
+        <SheetContent side="right" className="chat-details-sheet w-[300px] gap-0 overflow-y-auto p-0">
           <SheetHeader className="pb-0">
             <SheetTitle className="sr-only">{text(counterpart?.name ?? "")}</SheetTitle>
           </SheetHeader>
-          {panel}
+          {renderPanel("tabs")}
         </SheetContent>
       </Sheet>
+      <AlertDialog open={Boolean(pendingSwitch)} onOpenChange={(open) => !open && setPendingSwitch(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{text("Switch to {value0}?", { value0: pendingSwitch?.counterpart.name ?? "" })}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {text("Confirming ends your paid session with {value0}. The next advisor's rate applies; your free trial does not restart.", {
+                value0: counterpart?.name ?? "",
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{text("Keep chatting")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void confirmSwitch()}>{text("End chat and switch")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {initialReview && role === "client" ? (
         <ReviewDialog
           key={initialReview}
@@ -696,4 +891,16 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
       ) : null}
     </main>
   );
+}
+
+/** Read positions only move forward (receipts can arrive out of order). */
+function mergeReads(
+  r: { conv: string | null; mine: number; peer: number },
+  conv: string,
+  mine: number | undefined,
+  peer: number | undefined,
+): { conv: string | null; mine: number; peer: number } {
+  const base = r.conv === conv ? r : { conv, mine: 0, peer: 0 };
+  const next = { conv, mine: Math.max(base.mine, mine ?? 0), peer: Math.max(base.peer, peer ?? 0) };
+  return next.mine === r.mine && next.peer === r.peer && r.conv === conv ? r : next;
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useI18n } from "@/i18n/i18n-provider";
 import { SunLogo } from "@/components/brand/sun-logo";
+import { visibleSocialLinks } from "@/config/social";
 const groups = [
   {
     name: "Platform",
@@ -70,31 +71,23 @@ export function SiteFooter() {
             "© 2026 STARYIELD. All rights reserved. For entertainment and alignment audits only. ",
           )}
         </p>
-        <div
-          className="flex items-center gap-4"
-          aria-label={text("Social platforms")}
-        >
-          <span
-            aria-label={text("LinkedIn")}
-            className="text-base font-semibold"
-          >
-            in
-          </span>
-          {[
-            ["Instagram", "a5ec5.svg"],
-            ["TikTok", "0487b.svg"],
-            ["YouTube", "07613.svg"],
-            ["X", "5d5a7.svg"],
-          ].map(([name, file]) => (
-            <img
-              key={name}
-              alt={text(name)}
-              width={20}
-              height={20}
-              src={`https://assets.staryield.net/assets/figma/${file}`}
-            />
-          ))}
-        </div>
+        <nav aria-label={text("Social platforms")} data-testid="social-links">
+          <ul className="flex items-end gap-1.25">
+            {visibleSocialLinks().map((link) => (
+              <li key={link.id}>
+                <a
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={text("Staryield on {value0} (opens in a new tab)", { value0: link.label })}
+                  className="block rounded-sm p-0.5 hover:opacity-70"
+                >
+                  <img src={link.icon} alt="" width={link.size} height={link.size} />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </div>
     </footer>
   );

@@ -98,6 +98,20 @@ type Dispatcher struct {
 	wg      sync.WaitGroup
 	dropped atomic.Int64
 	written atomic.Int64
+	// processed counts notifications fully handled (persisted, published and
+	// fanned out to e-mail and push).
+	processed atomic.Int64
+	channels  *NotificationChannels
+}
+
+// Processed returns how many notifications were fully handled (tests wait on
+// it before inspecting e-mail and push).
+func (d *Dispatcher) Processed() int64 { return d.processed.Load() }
+
+// WithChannels fans persisted notifications out to e-mail and Web Push.
+func (d *Dispatcher) WithChannels(c *NotificationChannels) *Dispatcher {
+	d.channels = c
+	return d
 }
 
 // NewDispatcher returns a dispatcher; call Start to begin delivery.
@@ -225,6 +239,8 @@ func (d *Dispatcher) deliver(batch []domain.Notification) {
 			d.log.Warn("notifications: publish failed", zap.Error(err))
 		}
 	}
+	d.channels.Deliver(ctx, rows)
+	d.processed.Add(int64(len(rows)))
 }
 
 // NotificationService serves a user's notifications and admin broadcasts.
@@ -239,6 +255,14 @@ type NotificationService struct {
 	log        *zap.Logger
 	wg         sync.WaitGroup
 	maxTargets int
+	channels   *NotificationChannels
+}
+
+// WithChannels fans broadcasts out to e-mail and Web Push (marketing
+// category: only recipients who opted in).
+func (s *NotificationService) WithChannels(c *NotificationChannels) *NotificationService {
+	s.channels = c
+	return s
 }
 
 // NewNotificationService wires the notification service.
@@ -534,6 +558,7 @@ func (s *NotificationService) deliverBroadcast(ctx context.Context, b *domain.Br
 			v := notificationView(&rows[i])
 			warnErr(ctx, "broadcast: publish", s.events.Publish(ctx, EventNotificationCreated, map[string]any{"notification": v}, rows[i].UserID))
 		}
+		s.channels.Deliver(ctx, rows)
 		sent += len(rows)
 	}
 	sentAt := s.clock.Now()

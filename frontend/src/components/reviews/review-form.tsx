@@ -6,13 +6,17 @@ import { CircleX } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { chatApi, reviewsApi } from "@/lib/api/endpoints";
-import { errorMessage, toApiError, type ApiError } from "@/lib/api/errors";
+import { errorMessage, toApiError } from "@/lib/api/errors";
 import type { Review } from "@/lib/api/types";
+import { applyApiError } from "@/lib/forms/server-errors";
+import { keepFocusOnPress } from "@/lib/forms/submit-press";
+import { useSchemaForm } from "@/lib/forms/use-schema-form";
+import { REVIEW_COMMENT_MAX, reviewSchema, type ReviewValues } from "@/lib/schemas/review";
 import { useAsync } from "@/lib/use-async";
 import { Button } from "@/components/ui/button";
+import { FieldRow } from "@/components/ui/field";
+import { Form, FormField, FormRootError } from "@/components/ui/form";
 import { StarDisplay, StarRatingInput } from "@/components/reviews/star-rating";
-
-const COMMENT_MAX = 1000;
 
 /** "Thank you" state once a session has been rated. */
 export function ReviewThanks({ review }: { review: Review }) {
@@ -37,32 +41,19 @@ export function ReviewForm({
   onSubmitted: (review: Review) => void;
 }) {
   const { text } = useI18n();
-  const [rating, setRating] = React.useState(0);
-  const [comment, setComment] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [apiError, setApiError] = React.useState<ApiError | null>(null);
+  const form = useSchemaForm(reviewSchema, { defaultValues: { rating: 0, comment: "" } });
   const [conflict, setConflict] = React.useState(false);
   const id = React.useId();
+  const busy = form.formState.isSubmitting;
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setApiError(null);
-    if (rating < 1 || rating > 5) {
-      setError(text("Choose a rating from 1 to 5 stars."));
-      return;
-    }
-    setBusy(true);
+  async function submit(values: ReviewValues) {
     try {
-      const review = await reviewsApi.submit(sessionId, rating, comment.trim() || undefined);
+      const review = await reviewsApi.submit(sessionId, values.rating, values.comment?.trim() || undefined);
       onSubmitted(review);
     } catch (err) {
-      const e2 = toApiError(err);
-      if (e2.code === "conflict") setConflict(true);
-      else setApiError(e2);
-    } finally {
-      setBusy(false);
+      const e = toApiError(err);
+      if (e.code === "conflict") setConflict(true);
+      else applyApiError(form, err, { text });
     }
   }
 
@@ -75,43 +66,45 @@ export function ReviewForm({
   }
 
   return (
-    <form className="review-form" onSubmit={submit} noValidate data-testid="review-form">
-      <StarRatingInput
-        name={`rating-${id}`}
-        value={rating}
-        onChange={(n) => {
-          setRating(n);
-          setError(null);
-        }}
-        legend={text("How was your chat with {value0}?", { value0: advisorName })}
-        disabled={busy}
-        invalid={Boolean(error)}
-      />
-      <label className="field mt-3 text-xs">
-        {text("Add a comment (optional)")}
-        <textarea
-          rows={3}
-          maxLength={COMMENT_MAX}
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          disabled={busy}
-          placeholder={text("What did you appreciate about this reading?")}
+    <Form {...form}>
+      <form className="review-form" onSubmit={form.handleSubmit(submit)} noValidate data-testid="review-form">
+        <FormField
+          control={form.control}
+          name="rating"
+          render={({ field, fieldState }) => (
+            <div>
+              <StarRatingInput
+                name={`rating-${id}`}
+                value={field.value ?? 0}
+                onChange={(n) => field.onChange(n)}
+                legend={text("How was your chat with {value0}?", { value0: advisorName })}
+                disabled={busy}
+                invalid={Boolean(fieldState.error)}
+              />
+              {fieldState.error ? (
+                <p role="alert" className="field-message mt-2" data-tone="error">
+                  {fieldState.error.message}
+                </p>
+              ) : null}
+            </div>
+          )}
         />
-        {comment.length >= COMMENT_MAX * 0.8 ? (
-          <span className="self-end font-ui text-[10px] opacity-70">
-            {comment.length}/{COMMENT_MAX}
-          </span>
-        ) : null}
-      </label>
-      {error || apiError ? (
-        <p role="alert" className="mt-2 text-xs text-red-800">
-          {error ?? text(errorMessage(apiError))}
-        </p>
-      ) : null}
-      <Button type="submit" className="gold-button mt-3" disabled={busy} aria-busy={busy}>
-        {text(busy ? "Sending…" : "Submit review")}
-      </Button>
-    </form>
+        <FieldRow control={form.control} name="comment" label={text("Add a comment (optional)")} maxLength={REVIEW_COMMENT_MAX} className="mt-3 text-xs" showValid={false}>
+          {(field) => (
+            <textarea
+              {...field}
+              rows={3}
+              disabled={busy}
+              placeholder={text("What did you appreciate about this reading?")}
+            />
+          )}
+        </FieldRow>
+        <FormRootError className="mt-2" />
+        <Button type="submit" className="gold-button mt-3" disabled={busy} aria-busy={busy} onMouseDown={keepFocusOnPress}>
+          {text(busy ? "Sending…" : "Submit review")}
+        </Button>
+      </form>
+    </Form>
   );
 }
 

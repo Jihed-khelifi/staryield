@@ -1,0 +1,560 @@
+/* ---------------------------------------------------------------------------
+   Advisor (psychic) surfaces, revisions 2.0:
+     header actions + avatar menu ..... Figma 1174:2963, 1174:2294 header
+     stats overview ................... Figma 1174:2294
+     chat client panel ................ Figma 1172:1191, 1172:1613, 1174:1858
+     notes from other psychics ........ Figma 1174:2449
+   Brand palette only. Where a Figma text colour would fail WCAG AA on its
+   background (gold #AA9063 labels, white on sage), a darker shade of the
+   same hue is used instead.
+   --------------------------------------------------------------------------- */
+:root {
+  --advisor-line: #aa9063;
+  /* #AA9063 darkened to 4.8:1 on cream for 14px labels. */
+  --advisor-gold-text: #6b5630;
+  --panel-bg: #d3cbb9;
+  --panel-card: #e0d5c3;
+  --panel-text: #1a1a1a;
+  /* #555 on the cream cards (5.1:1). */
+  --panel-muted: #555555;
+  /* rgba(0,0,0,.55) in the design; .62 keeps 4.5:1 on the panel background. */
+  --panel-secondary: rgb(0 0 0 / 0.62);
+}
+
+/* Header: availability, avatar menu ------------------------------------------ */
+.availability-trigger {
+  display: inline-flex;
+  min-width: 100px;
+  height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border: 1px solid var(--advisor-line);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.availability-trigger:hover,
+.availability-trigger[data-state="open"] {
+  background: rgb(170 144 99 / 0.14);
+}
+.availability-trigger:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.availability-trigger[aria-busy="true"] {
+  opacity: 0.7;
+}
+.availability-trigger-label {
+  font-size: 14px;
+}
+.advisor-menu {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--advisor-line);
+  border-radius: 12px;
+  background-color: var(--cream-light);
+  color: var(--ink);
+  box-shadow: 0 12px 32px rgb(21 16 11 / 0.22);
+}
+.advisor-menu::before,
+.advisor-dialog::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: url("https://assets.staryield.net/assets/figma/fb9ee.jpg") center / cover;
+  mix-blend-mode: overlay;
+  opacity: 0.61;
+  pointer-events: none;
+}
+.advisor-menu-header {
+  background: var(--sage);
+  padding: 14px 20px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.advisor-menu-note {
+  padding: 12px 20px 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.advisor-menu-item {
+  gap: 12px;
+  border-radius: 0;
+  padding: 16px 20px;
+  color: var(--ink);
+  font-size: 14px;
+  cursor: pointer;
+}
+.advisor-menu-item[data-slot="dropdown-menu-radio-item"] {
+  padding-right: 40px;
+}
+.advisor-menu-item + .advisor-menu-item,
+.advisor-menu-note + [role="group"] > .advisor-menu-item:first-child {
+  border-top: 1px solid var(--advisor-line);
+}
+.advisor-menu-item:focus,
+.advisor-menu-item:focus *,
+.advisor-menu-item[data-highlighted],
+.advisor-menu-item[data-highlighted] * {
+  background-color: transparent;
+  color: var(--ink);
+}
+.advisor-menu-item:focus,
+.advisor-menu-item[data-highlighted] {
+  background-color: rgb(194 154 61 / 0.16);
+}
+.advisor-menu-item svg {
+  width: 18px;
+  height: 18px;
+}
+@media (max-width: 767px) {
+  .availability-trigger {
+    min-width: 0;
+    height: 34px;
+    gap: 4px;
+    padding: 0 8px;
+  }
+  .availability-trigger-label {
+    font-size: 13px;
+  }
+}
+@media (max-width: 374px) {
+  .availability-trigger > svg {
+    display: none;
+  }
+}
+
+/* Stats overview ---------------------------------------------------------------- */
+.advisor-overview {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 24px;
+}
+.advisor-overview-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.advisor-title {
+  color: var(--panel-text);
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+.kpi-card {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--advisor-line);
+  border-radius: 12px;
+  background: rgb(244 240 234 / 0.4);
+  padding: 20px;
+}
+.kpi-card::before,
+.overview-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: url("https://assets.staryield.net/assets/figma/fb9ee.jpg") center / cover;
+  mix-blend-mode: overlay;
+  opacity: 0.54;
+  pointer-events: none;
+}
+.kpi-label {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--advisor-gold-text);
+  font-family: var(--font-display);
+  font-size: 14px;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+.kpi-value {
+  margin: 14px 0 0;
+  color: var(--panel-text);
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.kpi-value[data-empty] {
+  color: var(--panel-muted);
+  font-size: 16px;
+  font-weight: 400;
+}
+.kpi-card dd {
+  margin: 0;
+}
+.kpi-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  color: var(--panel-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.kpi-tip {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  margin: -4px -6px 0 0;
+  border-radius: 999px;
+  color: var(--advisor-gold-text);
+}
+.kpi-tip:hover,
+.kpi-tip[data-state="open"] {
+  background: rgb(170 144 99 / 0.16);
+}
+.kpi-tip:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 1px;
+}
+.kpi-tip-content {
+  z-index: 70;
+  max-width: 260px;
+  border-radius: 8px;
+  background: var(--ink);
+  padding: 8px 12px;
+  color: var(--cream-light);
+  font-size: 12px;
+  line-height: 1.45;
+  box-shadow: 0 8px 24px rgb(21 16 11 / 0.25);
+}
+.overview-card {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--advisor-line);
+  border-radius: 12px;
+  background: rgb(244 240 234 / 0.3);
+  padding: 24px;
+}
+.overview-card-title {
+  margin-bottom: 20px;
+  color: var(--panel-text);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+.overview-review {
+  border-radius: 8px;
+  background: var(--panel-card);
+  padding: 12px;
+  color: var(--panel-text);
+}
+.overview-review-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.overview-review-rating svg {
+  color: var(--amber);
+}
+@media (max-width: 1279px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .advisor-title {
+    font-size: 24px;
+  }
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .kpi-card {
+    padding: 14px 12px;
+  }
+  .kpi-label {
+    font-size: 12px;
+  }
+  .kpi-value {
+    font-size: 24px;
+  }
+  .overview-card {
+    padding: 16px 12px;
+  }
+}
+
+/* Chat: client panel ------------------------------------------------------------ */
+.client-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 40px 16px 24px;
+  color: var(--panel-text);
+}
+.client-panel[data-variant="tabs"] {
+  padding-top: 24px;
+}
+.client-panel[data-variant="tabs"] .panel-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.client-identity-name {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.client-identity-place {
+  margin-top: 8px;
+  color: var(--panel-secondary);
+  font-size: 13px;
+}
+.client-identity-meta {
+  margin-top: 4px;
+  color: var(--panel-secondary);
+  font-size: 12px;
+}
+.panel-section {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+.panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--panel-text);
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.panel-heading::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: rgb(26 26 26 / 0.1);
+}
+.panel-heading-icon {
+  display: inline-flex;
+}
+.placement-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 8px;
+}
+.placement {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.placement-glyph {
+  width: 22px;
+  flex-shrink: 0;
+  /* rgba(26,26,26,.5) in the design; .7 keeps the glyphs legible (4.5:1). */
+  color: rgb(26 26 26 / 0.7);
+  font-size: 20px;
+  line-height: 1;
+  text-align: center;
+}
+.panel-expand {
+  align-self: flex-end;
+  margin-left: auto;
+  display: block;
+  margin-top: 6px;
+  border-radius: 4px;
+  color: var(--panel-muted);
+  font-size: 10px;
+  line-height: 1.6;
+  text-align: right;
+}
+.panel-expand:hover {
+  color: var(--panel-text);
+  text-decoration: underline;
+}
+.panel-expand:focus-visible,
+.note-action:focus-visible,
+.panel-icon-button:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.panel-card {
+  border-radius: 8px;
+  background: var(--panel-card);
+  padding: 12px;
+}
+.panel-card[aria-busy="true"] {
+  opacity: 0.7;
+}
+.panel-card-body {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.panel-card-meta {
+  color: var(--panel-muted);
+  font-size: 10px;
+}
+.panel-muted {
+  color: var(--panel-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.panel-icon-button {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  margin: -4px -6px 0 0;
+  border-radius: 999px;
+  color: var(--panel-muted);
+}
+.panel-icon-button:hover {
+  background: rgb(26 26 26 / 0.08);
+  color: var(--panel-text);
+}
+.note-shared-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--advisor-line);
+  border-radius: 999px;
+  padding: 0 6px;
+  color: var(--advisor-gold-text);
+  font-size: 10px;
+  line-height: 16px;
+}
+.note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+}
+.note-action {
+  min-height: 24px;
+  border-radius: 4px;
+  color: var(--panel-muted);
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.note-action:hover {
+  color: var(--panel-text);
+}
+.note-composer {
+  display: grid;
+  gap: 8px;
+}
+.note-input {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  resize: vertical;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--panel-card);
+  padding: 10px 12px;
+  color: var(--panel-text);
+  font-family: var(--font-serif);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.note-input::placeholder {
+  color: var(--panel-muted);
+}
+.note-input:focus-visible {
+  border-color: var(--amber);
+  outline: 2px solid rgb(194 154 61 / 0.35);
+}
+.note-input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.pager-compact [data-slot="button"],
+.pager-compact button {
+  height: 28px;
+  padding-inline: 8px;
+  font-size: 12px;
+}
+.pager-compact p {
+  font-size: 11px;
+}
+
+/* Dialog: notes from other psychics ------------------------------------------- */
+.advisor-dialog {
+  isolation: isolate;
+  overflow: hidden auto;
+  border-color: var(--advisor-line);
+  background-color: var(--cream-light);
+}
+.advisor-dialog-title {
+  background: var(--sage);
+  padding: 16px 56px 16px 24px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.3;
+  text-align: center;
+  text-transform: uppercase;
+}
+.other-notes > li + li {
+  border-top: 1px solid var(--advisor-line);
+}
+.other-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px 28px;
+}
+.other-note-author {
+  color: var(--panel-secondary);
+  font-size: 14px;
+  font-weight: 200;
+}
+
+/* Chat composer for advisors: cream with the aged paper at ~40 % ------------- */
+.chat-workspace[data-role="psychic"] .composer-input {
+  background:
+    linear-gradient(rgb(224 213 195 / 0.6), rgb(224 213 195 / 0.6)),
+    url("https://assets.staryield.net/assets/figma/fb9ee.jpg") center / cover,
+    var(--cream);
+  background-blend-mode: normal, overlay, normal;
+}

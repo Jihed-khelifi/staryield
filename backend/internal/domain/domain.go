@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // Role is a user's RBAC role.
@@ -58,12 +59,24 @@ type User struct {
 	LastLoginAt     *time.Time
 	StatusReason    string `gorm:"not null"`
 	StatusChangedAt *time.Time
-	DeletedAt       *time.Time
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	// DeactivatedBy is "self" when the user paused their own account (they
+	// reactivate by signing in again), "admin" for staff action, else "".
+	DeactivatedBy string `gorm:"not null"`
+	// ClosureScheduledAt is when a self-service account closure takes effect
+	// (the grace period during which it can still be cancelled).
+	ClosureScheduledAt *time.Time
+	DeletedAt          *time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 func (User) TableName() string { return "users" }
+
+// Deactivation sources (User.DeactivatedBy).
+const (
+	DeactivatedBySelf  = "self"
+	DeactivatedByAdmin = "admin"
+)
 
 // Active reports whether the account may sign in.
 func (u *User) Active() bool { return u.Status == UserActive }
@@ -88,10 +101,41 @@ type Profile struct {
 	NotifyEvents    bool   `gorm:"not null"`
 	NotifyChart     bool   `gorm:"not null"`
 	CountryCode     string `gorm:"not null"`
-	UpdatedAt       time.Time
+	// Timezone is the account's IANA zone ("" follows the browser).
+	Timezone string `gorm:"not null"`
+	// HouseSystem is the preferred natal-chart house system.
+	HouseSystem HouseSystem `gorm:"not null;default:placidus"`
+	// NotifyEmail, NotifyPush and NotifyMarketing choose delivery channels;
+	// in-app notifications are always recorded. NotifyEmail defaults to on
+	// (the database default applies when the row is created).
+	NotifyEmail     bool `gorm:"not null;default:true"`
+	NotifyPush      bool `gorm:"not null"`
+	NotifyMarketing bool `gorm:"not null"`
+	// BirthPlaceLabel is the birthplace as displayed to the user.
+	BirthPlaceLabel string `gorm:"not null"`
+	// ShareBirthDetailsWithAdvisors is the client's consent for advisors to
+	// see their date of birth and birthplace.
+	ShareBirthDetailsWithAdvisors bool `gorm:"not null"`
+	CreatedAt                     time.Time
+	UpdatedAt                     time.Time
 }
 
 func (Profile) TableName() string { return "user_profiles" }
+
+// HouseSystem names a natal-chart house system.
+type HouseSystem string
+
+// House systems.
+const (
+	HousePlacidus  HouseSystem = "placidus"
+	HouseWholeSign HouseSystem = "whole_sign"
+	HouseEqual     HouseSystem = "equal"
+)
+
+// Valid reports whether h is a supported house system.
+func (h HouseSystem) Valid() bool {
+	return h == HousePlacidus || h == HouseWholeSign || h == HouseEqual
+}
 
 // RefreshToken is a rotating, single-use refresh credential. Tokens issued
 // from the same login share a FamilyID; reuse of a rotated token revokes the
@@ -108,6 +152,7 @@ type RefreshToken struct {
 	UserAgent    string `gorm:"not null"`
 	IPHash       string `gorm:"not null"`
 	CreatedAt    time.Time
+	UpdatedAt    time.Time
 	LastUsedAt   *time.Time
 }
 
@@ -121,6 +166,7 @@ type PasswordResetToken struct {
 	ExpiresAt time.Time `gorm:"not null"`
 	UsedAt    *time.Time
 	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (PasswordResetToken) TableName() string { return "password_reset_tokens" }
@@ -242,6 +288,17 @@ type Psychic struct {
 	FeaturedRank    int          `gorm:"not null"`
 	ImageKey        string       `gorm:"not null"`
 	RatingSum       float64      `gorm:"not null"`
+	// PhoneSealed is the advisor's phone number sealed with security.Sealer
+	// (never returned to clients).
+	PhoneSealed string `gorm:"not null"`
+	// LastOnlineAt is when the advisor was last seen online.
+	LastOnlineAt *time.Time
+	// PhotoReviewStatus moderates advisor-uploaded photos: the state of the
+	// latest submission ("approved" when none is pending or rejected).
+	PhotoReviewStatus string `gorm:"not null;default:approved"`
+	// SettingsVersion increments on every save of the advisor-editable
+	// profile (optimistic concurrency for PATCH /psychic/settings).
+	SettingsVersion int `gorm:"not null;default:1"`
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	Services        []PsychicService `gorm:"foreignKey:PsychicID;references:UserID"`
@@ -249,18 +306,39 @@ type Psychic struct {
 
 func (Psychic) TableName() string { return "psychics" }
 
+// Advisor photo review states (Psychic.PhotoReviewStatus).
+const (
+	PhotoApproved = "approved"
+	PhotoPending  = "pending"
+	PhotoRejected = "rejected"
+)
+
+// ServiceKind distinguishes admin-curated services from the advisor's own
+// custom offering.
+type ServiceKind string
+
+// Service kinds.
+const (
+	ServiceStandard ServiceKind = "standard"
+	ServiceCustom   ServiceKind = "custom"
+)
+
 // PsychicService is a pre-priced custom request listed on a profile.
+// Removed services are soft-deleted, so orders keep referencing them.
 type PsychicService struct {
-	ID           uuid.UUID `gorm:"type:uuid;primaryKey"`
-	PsychicID    uuid.UUID `gorm:"type:uuid;not null"`
-	Name         string    `gorm:"not null"`
-	Subtitle     string    `gorm:"not null"`
-	Description  string    `gorm:"not null"`
-	PriceCredits int64     `gorm:"not null"`
-	Active       bool      `gorm:"not null"`
-	SortOrder    int       `gorm:"not null"`
+	ID           uuid.UUID   `gorm:"type:uuid;primaryKey"`
+	PsychicID    uuid.UUID   `gorm:"type:uuid;not null"`
+	Name         string      `gorm:"not null"`
+	Subtitle     string      `gorm:"not null"`
+	Description  string      `gorm:"not null"`
+	PriceCredits int64       `gorm:"not null"`
+	Active       bool        `gorm:"not null"`
+	SortOrder    int         `gorm:"not null"`
+	Kind         ServiceKind `gorm:"not null;default:standard"`
+	DeliveryDays int         `gorm:"not null;default:7"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	DeletedAt    gorm.DeletedAt
 }
 
 func (PsychicService) TableName() string { return "psychic_services" }
@@ -272,6 +350,7 @@ type Wallet struct {
 	Balance     int64     `gorm:"not null"`
 	Held        int64     `gorm:"not null"`
 	FreeMinutes int       `gorm:"not null"`
+	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
 
@@ -369,11 +448,35 @@ type Conversation struct {
 	LastMessageAt     *time.Time
 	ClientLastReadAt  *time.Time
 	PsychicLastReadAt *time.Time
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	// LastSeq is the sequence number of the newest message; read positions
+	// and unread counters are kept per participant (0007_chat_ordering).
+	LastSeq        int64     `gorm:"not null"`
+	ClientReadSeq  int64     `gorm:"not null"`
+	PsychicReadSeq int64     `gorm:"not null"`
+	ClientUnread   int       `gorm:"not null"`
+	PsychicUnread  int       `gorm:"not null"`
+	LastActivityAt time.Time `gorm:"not null"`
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 func (Conversation) TableName() string { return "conversations" }
+
+// ReadSeq returns the participant's read position.
+func (c *Conversation) ReadSeq(userID uuid.UUID) int64 {
+	if userID == c.PsychicID {
+		return c.PsychicReadSeq
+	}
+	return c.ClientReadSeq
+}
+
+// UnreadFor returns the participant's unread counter.
+func (c *Conversation) UnreadFor(userID uuid.UUID) int {
+	if userID == c.PsychicID {
+		return c.PsychicUnread
+	}
+	return c.ClientUnread
+}
 
 // IsParticipant reports whether userID belongs to the conversation.
 func (c *Conversation) IsParticipant(userID uuid.UUID) bool {
@@ -400,23 +503,29 @@ const (
 
 // Message is a persisted chat message (the session transcript).
 type Message struct {
-	ID             uuid.UUID   `gorm:"type:uuid;primaryKey"`
-	ConversationID uuid.UUID   `gorm:"type:uuid;not null"`
-	SessionID      uuid.UUID   `gorm:"type:uuid;not null"`
-	SenderID       *uuid.UUID  `gorm:"type:uuid"`
-	Kind           MessageKind `gorm:"not null"`
-	Body           string      `gorm:"not null"`
-	ClientMsgID    *string
-	CreatedAt      time.Time
+	ID             uuid.UUID `gorm:"type:uuid;primaryKey"`
+	ConversationID uuid.UUID `gorm:"type:uuid;not null"`
+	SessionID      uuid.UUID `gorm:"type:uuid;not null"`
+	// Seq orders messages within the conversation (1, 2, 3, … without gaps).
+	Seq         int64       `gorm:"not null"`
+	SenderID    *uuid.UUID  `gorm:"type:uuid"`
+	Kind        MessageKind `gorm:"not null"`
+	Body        string      `gorm:"not null"`
+	ClientMsgID *string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 func (Message) TableName() string { return "chat_messages" }
 
-// SavedMessage is a bookmarked message.
+// SavedMessage is a bookmarked message. Removing a bookmark soft-deletes it;
+// saving it again revives the same row.
 type SavedMessage struct {
 	UserID    uuid.UUID `gorm:"type:uuid;primaryKey"`
 	MessageID uuid.UUID `gorm:"type:uuid;primaryKey"`
 	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt
 }
 
 func (SavedMessage) TableName() string { return "saved_messages" }

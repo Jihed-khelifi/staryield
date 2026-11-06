@@ -32,6 +32,11 @@ export const notificationTemplates = {
   creditsRemovedTitle: "Balance adjusted",
   creditsRemovedBody: "{amount} credits were removed from your balance.",
   withdrawalTitle: "Withdrawal update",
+  photoApprovedTitle: "Photo approved",
+  photoApprovedBody: "Your new profile photo is now on your profile.",
+  photoRejectedTitle: "Photo not approved",
+  photoRejectedBody: "Your new profile photo was not approved: {reason}",
+  photoRejectedNoReason: "Your new profile photo was not approved. Upload another one from your settings.",
   fallbackTitle: "Notification",
   someone: "A client",
 } as const;
@@ -121,6 +126,13 @@ export function notificationText(n: AppNotification, locale: string, text: Trans
     case "withdrawal.updated": {
       const template = withdrawalStatusCopy[str(d.status)] ?? withdrawalStatusCopy.pending;
       return { title: text(T.withdrawalTitle), body: text(template, { amount: fmt(num(d.amount_credits) ?? 0) }) };
+    }
+    // advisor settings: photo review decisions.
+    case "photo.approved":
+      return { title: text(T.photoApprovedTitle), body: text(T.photoApprovedBody) };
+    case "photo.rejected": {
+      const reason = str(d.reason).trim();
+      return { title: text(T.photoRejectedTitle), body: reason ? text(T.photoRejectedBody, { reason }) : text(T.photoRejectedNoReason) };
     }
     case "broadcast":
       return { title: pickLocalized(d.title, locale) || text(T.fallbackTitle), body: pickLocalized(d.body, locale) };

@@ -9,7 +9,8 @@ export type AsyncState<T> = {
   error: ApiError | null;
   loading: boolean;
   reload: () => void;
-  setData: (value: T | null) => void;
+  /** Replace the data, or update it from the latest value (live patches). */
+  setData: (value: T | null | ((current: T | null) => T | null)) => void;
 };
 
 type Result<T> = { key: string; data: T | null; error: ApiError | null };
@@ -45,7 +46,11 @@ export function useAsync<T>(load: (signal: AbortSignal) => Promise<T>, deps: unk
   }, [key, enabled]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
-  const setData = useCallback((data: T | null) => setResult((r) => ({ ...r, data })), []);
+  const setData = useCallback(
+    (value: T | null | ((current: T | null) => T | null)) =>
+      setResult((r) => ({ ...r, data: typeof value === "function" ? (value as (current: T | null) => T | null)(r.data) : value })),
+    [],
+  );
   const current = result.key === key;
   return {
     data: result.data,

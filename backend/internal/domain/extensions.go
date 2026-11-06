@@ -19,6 +19,7 @@ type Attachment struct {
 	Height         int       `gorm:"not null"`
 	Bytes          int       `gorm:"not null"`
 	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 func (Attachment) TableName() string { return "chat_attachments" }
@@ -101,6 +102,7 @@ type Notification struct {
 	BroadcastID *uuid.UUID `gorm:"type:uuid"`
 	ReadAt      *time.Time
 	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 func (Notification) TableName() string { return "notifications" }
@@ -205,6 +207,7 @@ type AdminMFA struct {
 	LastUsedStep   int64      `gorm:"not null"`
 	RecoveryHashes StringList `gorm:"type:jsonb;not null"`
 	EnabledAt      time.Time  `gorm:"not null"`
+	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
 
@@ -223,6 +226,7 @@ type AdminSession struct {
 	MFAAt        time.Time `gorm:"column:mfa_at;not null"`
 	RevokedAt    *time.Time
 	RevokeReason string `gorm:"not null"`
+	UpdatedAt    time.Time
 }
 
 func (AdminSession) TableName() string { return "admin_sessions" }

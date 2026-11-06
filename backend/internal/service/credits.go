@@ -47,13 +47,22 @@ type PurchaseView struct {
 	CreatedAt     time.Time   `json:"created_at"`
 	CompletedAt   *time.Time  `json:"completed_at,omitempty"`
 	Wallet        *WalletView `json:"wallet,omitempty"`
+	// NextAction asks the client to complete a provider step (3-D Secure).
+	NextAction *payment.NextAction `json:"next_action,omitempty"`
 }
 
-// PurchaseInput starts a purchase.
+// PurchaseInput starts a purchase. Without a payment method or token the
+// legacy hosted checkout is used.
 type PurchaseInput struct {
 	PackID         uuid.UUID
 	IdempotencyKey string
 	ReceiptEmail   string
+	// Billing: pay with a saved card, or a fresh provider token.
+	PaymentMethodID *uuid.UUID
+	PaymentToken    string
+	Provider        string
+	SaveMethod      bool
+	TrustedCountry  string
 }
 
 // CreditService sells credit packs (FR-05).
@@ -67,12 +76,49 @@ type CreditService struct {
 	tracker  analytics.Tracker
 	clock    clock.Clock
 	notify   Notifier
+	billing  *BillingService
 }
 
 // WithNotifier enables purchase notifications.
 func (s *CreditService) WithNotifier(n Notifier) *CreditService {
 	s.notify = n
 	return s
+}
+
+// WithBilling enables saved-card / token purchases and mirrors every
+// purchase into the money ledger (payment_transactions).
+func (s *CreditService) WithBilling(b *BillingService) *CreditService {
+	s.billing = b
+	return s
+}
+
+// settle mirrors a purchase's final state in the money ledger.
+func (s *CreditService) settle(ctx context.Context, purchaseID uuid.UUID, status domain.TransactionStatus, providerRef, code string) {
+	if s.billing == nil {
+		return
+	}
+	warnErr(ctx, "credits: mirror purchase in ledger", s.billing.SettlePurchaseTransaction(ctx, purchaseID, status, providerRef, code))
+}
+
+// CompletePurchase credits a purchase whose charge succeeded asynchronously
+// (billing reconciliation or webhook). Implements PurchaseSettler.
+func (s *CreditService) CompletePurchase(ctx context.Context, purchaseID uuid.UUID, providerRef string) error {
+	_, err := s.complete(ctx, purchaseID, providerRef)
+	return err
+}
+
+// FailPurchase marks a pending purchase failed. Implements PurchaseSettler.
+func (s *CreditService) FailPurchase(ctx context.Context, purchaseID uuid.UUID, code string) error {
+	return mapRepoErr(s.tx.WithinTx(ctx, func(ctx context.Context) error {
+		p, err := s.credits.GetPurchaseForUpdate(ctx, purchaseID)
+		if err != nil {
+			return err
+		}
+		if p.Status != domain.PurchasePending {
+			return nil
+		}
+		return s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": truncateString(code, 64)})
+	}), "Purchase")
 }
 
 // NewCreditService wires the credit service.
@@ -107,7 +153,13 @@ func (s *CreditService) Packs(ctx context.Context) ([]PackView, error) {
 // Purchase charges the provider and credits the wallet on success. Replays
 // with the same idempotency key return the original purchase.
 func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in PurchaseInput) (*PurchaseView, error) {
-	if _, off := s.provider.(payment.Disabled); off {
+	pay := PurchasePayment{PaymentMethodID: in.PaymentMethodID, Token: strings.TrimSpace(in.PaymentToken), Provider: in.Provider,
+		SaveMethod: in.SaveMethod, IdempotencyKey: in.IdempotencyKey, TrustedCountry: in.TrustedCountry}
+	if pay.UsesBilling() {
+		if s.billing == nil {
+			return nil, apperror.FeatureUnavailable("Saved cards are not available yet.")
+		}
+	} else if _, off := s.provider.(payment.Disabled); off {
 		return nil, apperror.FeatureUnavailable("Credit purchases are not available yet.")
 	}
 	if !ValidIdempotencyKey(in.IdempotencyKey) {
@@ -130,10 +182,19 @@ func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in Purch
 	if err != nil || !pack.Active {
 		return nil, apperror.NotFound("Credit pack")
 	}
+	var src *PurchaseSource
+	providerName := s.provider.Name()
+	if pay.UsesBilling() {
+		pay.Currency = pack.Currency
+		if src, err = s.billing.ResolvePurchaseSource(ctx, userID, pay); err != nil {
+			return nil, err
+		}
+		providerName = src.Provider
+	}
 	now := s.clock.Now()
 	p := &domain.CreditPurchase{
 		ID: domain.NewID(), UserID: userID, PackID: pack.ID, Credits: pack.Credits, PriceCents: pack.PriceCents,
-		Currency: pack.Currency, Status: domain.PurchasePending, Provider: s.provider.Name(),
+		Currency: pack.Currency, Status: domain.PurchasePending, Provider: providerName,
 		IdempotencyKey: in.IdempotencyKey, ReceiptEmail: email, CreatedAt: now, UpdatedAt: now,
 	}
 	if err := s.credits.CreatePurchase(ctx, p); err != nil {
@@ -144,19 +205,39 @@ func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in Purch
 		}
 		return nil, apperror.Internal(err)
 	}
+	if s.billing != nil {
+		if err := s.billing.RecordPurchaseTransaction(ctx, p, pack.Name, src); err != nil {
+			_ = s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": "ledger_error"})
+			return nil, apperror.Internal(err)
+		}
+	}
 	s.tracker.Track(ctx, "credits.purchase_started", map[string]any{"pack_id": pack.ID, "credits": pack.Credits, "amount_cents": pack.PriceCents, "currency": pack.Currency})
 
-	cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-	res, err := s.provider.Checkout(cctx, payment.CheckoutRequest{
-		PurchaseID: p.ID, UserID: userID, AmountCents: p.PriceCents, Currency: p.Currency,
-		Description: pack.Name, Email: email,
-	})
-	cancel()
-	if err != nil {
-		logger.FromContext(ctx).Error("payment: checkout failed", zap.Error(err), zap.String("purchase_id", p.ID.String()))
-		_ = s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": "provider_error"})
-		s.tracker.Track(ctx, "credits.purchase_failed", map[string]any{"reason": "provider_error"})
-		return nil, apperror.Unavailable(err)
+	var res payment.CheckoutResult
+	var next *payment.NextAction
+	if src != nil {
+		charge, err := s.billing.ChargePurchase(ctx, p, src)
+		if err != nil {
+			_ = s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": "provider_error"})
+			s.settle(ctx, p.ID, domain.TxFailed, "", "provider_error")
+			return nil, err
+		}
+		res = payment.CheckoutResult{Status: charge.Status, ProviderRef: charge.ProviderRef, FailureCode: charge.FailureCode}
+		next = charge.NextAction
+	} else {
+		cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		res, err = s.provider.Checkout(cctx, payment.CheckoutRequest{
+			PurchaseID: p.ID, UserID: userID, AmountCents: p.PriceCents, Currency: p.Currency,
+			Description: pack.Name, Email: email,
+		})
+		cancel()
+		if err != nil {
+			logger.FromContext(ctx).Error("payment: checkout failed", zap.Error(err), zap.String("purchase_id", p.ID.String()))
+			_ = s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": "provider_error"})
+			s.settle(ctx, p.ID, domain.TxFailed, "", "provider_error")
+			s.tracker.Track(ctx, "credits.purchase_failed", map[string]any{"reason": "provider_error"})
+			return nil, apperror.Unavailable(err)
+		}
 	}
 	switch res.Status {
 	case payment.CheckoutSucceeded:
@@ -164,18 +245,29 @@ func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in Purch
 			return nil, err
 		}
 	case payment.CheckoutFailed:
-		_ = s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": res.FailureCode, "provider_ref": res.ProviderRef})
+		upd := map[string]any{"status": domain.PurchaseFailed, "failure_reason": truncateString(res.FailureCode, 64)}
+		if res.ProviderRef != "" {
+			upd["provider_ref"] = res.ProviderRef
+		}
+		_ = s.credits.UpdatePurchase(ctx, p.ID, upd)
+		s.settle(ctx, p.ID, domain.TxFailed, res.ProviderRef, res.FailureCode)
 		s.tracker.Track(ctx, "credits.purchase_failed", map[string]any{"reason": res.FailureCode})
 		return nil, (&apperror.Error{Code: apperror.CodePaymentFailed, Status: http.StatusPaymentRequired,
 			Message: "Your payment was declined. No credits were added."}).WithDetails(map[string]any{"purchase_id": p.ID, "reason": res.FailureCode})
 	case payment.CheckoutPending:
-		_ = s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"provider_ref": res.ProviderRef})
+		if res.ProviderRef != "" {
+			_ = s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"provider_ref": res.ProviderRef})
+		}
 	}
 	final, err := s.credits.GetPurchaseByKey(ctx, userID, in.IdempotencyKey)
 	if err != nil {
 		return nil, apperror.Internal(err)
 	}
-	return s.withWallet(ctx, final)
+	v, err := s.withWallet(ctx, final)
+	if v != nil {
+		v.NextAction = next
+	}
+	return v, err
 }
 
 func (s *CreditService) withWallet(ctx context.Context, p *domain.CreditPurchase) (*PurchaseView, error) {
@@ -216,6 +308,9 @@ func (s *CreditService) complete(ctx context.Context, purchaseID uuid.UUID, prov
 	})
 	if err != nil {
 		return false, mapRepoErr(err, "Purchase")
+	}
+	if credited != nil || (purchase != nil && purchase.Status == domain.PurchaseSucceeded) {
+		s.settle(ctx, purchaseID, domain.TxSucceeded, providerRef, "")
 	}
 	if credited != nil {
 		ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: purchase.UserID, Role: domain.RoleClient})
@@ -259,7 +354,10 @@ func (s *CreditService) HandleWebhook(ctx context.Context, signature string, bod
 		return err
 	case "payment.failed":
 		if p.Status == domain.PurchasePending {
-			return mapRepoErr(s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": evt.FailureCode}), "Purchase")
+			if err := s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": evt.FailureCode}); err != nil {
+				return mapRepoErr(err, "Purchase")
+			}
+			s.settle(ctx, p.ID, domain.TxFailed, evt.ProviderRef, evt.FailureCode)
 		}
 		return nil
 	case "payment.refunded":
@@ -272,7 +370,8 @@ func (s *CreditService) HandleWebhook(ctx context.Context, signature string, bod
 // refund reverses a succeeded purchase, removing at most the credits still
 // available (spent credits cannot be clawed back below zero).
 func (s *CreditService) refund(ctx context.Context, purchaseID uuid.UUID) error {
-	return mapRepoErr(s.tx.WithinTx(ctx, func(ctx context.Context) error {
+	refunded := false
+	err := mapRepoErr(s.tx.WithinTx(ctx, func(ctx context.Context) error {
 		p, err := s.credits.GetPurchaseForUpdate(ctx, purchaseID)
 		if err != nil {
 			return err
@@ -296,8 +395,13 @@ func (s *CreditService) refund(ctx context.Context, purchaseID uuid.UUID) error 
 				return err
 			}
 		}
+		refunded = true
 		return s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseRefunded})
 	}), "Purchase")
+	if err == nil && refunded {
+		s.settle(ctx, purchaseID, domain.TxRefunded, "", "")
+	}
+	return err
 }
 
 // Purchases lists the caller's purchases.

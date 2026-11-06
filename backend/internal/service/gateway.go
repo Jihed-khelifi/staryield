@@ -68,8 +68,9 @@ type (
 		Typing    bool      `json:"typing"`
 	}
 	readFrame struct {
-		ConversationID uuid.UUID `json:"conversation_id"`
-		MessageID      uuid.UUID `json:"message_id"`
+		ConversationID uuid.UUID  `json:"conversation_id"`
+		MessageID      *uuid.UUID `json:"message_id"`
+		Seq            *int64     `json:"seq"`
 	}
 )
 
@@ -143,10 +144,19 @@ func (g *RealtimeGateway) HandleFrame(ctx context.Context, c *realtime.Client, f
 		if err := decodeStrict(data, &f); err != nil {
 			return nil, err
 		}
-		if err := requireID(f.MessageID, "message_id"); err != nil {
+		if err := requireID(f.ConversationID, "conversation_id"); err != nil {
 			return nil, err
 		}
-		return map[string]bool{"read": true}, g.chat.MarkRead(ctx, p, f.ConversationID, f.MessageID)
+		if f.MessageID != nil {
+			if err := requireID(*f.MessageID, "message_id"); err != nil {
+				return nil, err
+			}
+		}
+		res, err := g.chat.MarkRead(ctx, p, f.ConversationID, ReadInput{Seq: f.Seq, MessageID: f.MessageID})
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"read": true, "read_seq": res.ReadSeq, "unread": res.Unread}, nil
 	}
 	logger.FromContext(ctx).Debug("realtime: unknown frame", zap.String("type", frameType))
 	return nil, apperror.BadRequest("Unknown frame type.")

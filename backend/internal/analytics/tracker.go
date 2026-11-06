@@ -10,6 +10,7 @@ package analytics
 import (
 	"context"
 	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -205,11 +206,31 @@ const (
 
 var propKey = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
-// SanitizeProperties keeps scalar values with safe keys and bounded sizes.
-func SanitizeProperties(in map[string]any) domain.JSONMap {
+// personalKeys name properties that would carry birth data, places,
+// coordinates, contact details or search text. They are dropped whatever
+// their value, so a careless Track call (server or client) cannot record
+// them. Keys starting with "birth_" are dropped too.
+var personalKeys = map[string]bool{
+	"sun_sign": true, "moon_sign": true, "rising_sign": true,
+	"place": true, "place_id": true, "city": true, "address": true,
+	"latitude": true, "longitude": true, "lat": true, "lon": true, "lng": true,
+	"email": true, "phone": true, "query": true, "q": true, "ip": true,
+}
+
+// Personal reports whether a property key is reserved for personal data.
+func Personal(key string) bool {
+	return personalKeys[key] || strings.HasPrefix(key, "birth_")
+}
+
+// SanitizeProperties is Sanitize (kept for existing callers).
+func SanitizeProperties(in map[string]any) domain.JSONMap { return Sanitize(in) }
+
+// Sanitize keeps scalar values with safe keys and bounded sizes, and drops
+// the reserved user_id and every Personal key.
+func Sanitize(in map[string]any) domain.JSONMap {
 	out := domain.JSONMap{}
 	for k, v := range in {
-		if len(out) >= maxProps || !propKey.MatchString(k) || k == "user_id" {
+		if len(out) >= maxProps || !propKey.MatchString(k) || k == "user_id" || Personal(k) {
 			continue
 		}
 		switch val := v.(type) {

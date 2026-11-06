@@ -20,9 +20,29 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/retry"
 )
 
+// Option customises Open.
+type Option func(*options)
+
+type options struct{ now func() time.Time }
+
+// WithClock makes GORM's automatic timestamps (created_at, updated_at,
+// soft-delete deleted_at) follow now instead of the wall clock, so the
+// application clock — a fake one in tests — governs every timestamp.
+func WithClock(now func() time.Time) Option {
+	return func(o *options) {
+		if now != nil {
+			o.now = now
+		}
+	}
+}
+
 // Open connects to PostgreSQL and verifies connectivity, retrying with
 // backoff for up to cfg.ConnectTimeout (bounded by ctx).
-func Open(ctx context.Context, cfg config.DatabaseConfig, log *zap.Logger) (*gorm.DB, error) {
+func Open(ctx context.Context, cfg config.DatabaseConfig, log *zap.Logger, opts ...Option) (*gorm.DB, error) {
+	o := options{now: time.Now}
+	for _, opt := range opts {
+		opt(&o)
+	}
 	// Log where we connect (never the credentials) so a misconfigured DSN is
 	// obvious from the first line of the deploy logs.
 	pc, err := pgconn.ParseConfig(cfg.DSN)
@@ -32,10 +52,11 @@ func Open(ctx context.Context, cfg config.DatabaseConfig, log *zap.Logger) (*gor
 	log.Info("database: connecting", zap.String("host", pc.Host), zap.Uint16("port", pc.Port),
 		zap.String("database", pc.Database), zap.Bool("tls", pc.TLSConfig != nil))
 
+	now := o.now
 	db, err := gorm.Open(postgres.New(postgres.Config{DSN: cfg.DSN}), &gorm.Config{
 		DisableAutomaticPing:                     true,
 		Logger:                                   NewGormLogger(log, cfg.SlowQuery),
-		NowFunc:                                  func() time.Time { return time.Now().UTC().Truncate(time.Microsecond) },
+		NowFunc:                                  func() time.Time { return now().UTC().Truncate(time.Microsecond) },
 		SkipDefaultTransaction:                   true,
 		PrepareStmt:                              false,
 		DisableForeignKeyConstraintWhenMigrating: true,
