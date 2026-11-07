@@ -20,6 +20,7 @@ import { Account, type AccountView } from "@/components/account/account";
 import { CreditCheckout } from "@/components/account/credit-checkout";
 // account settings: one-time e-mail link pages (tokens are read client-side, then stripped).
 import { EmailLinkPage, type EmailLinkAction } from "@/components/account/email-link-page";
+import { LinkTicketPage, MyTicketPage, SupportRequestsPage } from "@/components/support/support-pages";
 import { isLocale } from "@/i18n/config";
 import advisors from "@/data/advisors.json";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -62,6 +63,17 @@ const calculatorKinds: CalculatorKind[] = [
 ];
 type RouteProps = { params: Promise<{ lang: string; screen: string[] }> };
 
+const supportReference = /^SY-[A-Za-z0-9]{4,16}$/;
+
+/** The support desk routes: list, signed-in thread and the anonymous private link. */
+function supportRoute(screen: string[]): { kind: "list" } | { kind: "mine" | "link"; reference: string } | null {
+  if (screen[0] !== "support") return null;
+  if (screen.length === 2 && screen[1] === "requests") return { kind: "list" };
+  if (screen.length === 3 && screen[1] === "requests" && supportReference.test(screen[2])) return { kind: "mine", reference: screen[2] };
+  if (screen.length === 2 && supportReference.test(screen[1])) return { kind: "link", reference: screen[1] };
+  return null;
+}
+
 export async function generateMetadata({
   params,
 }: RouteProps): Promise<Metadata> {
@@ -97,6 +109,7 @@ export async function generateMetadata({
     "confirm-email": "Confirm your email",
     "cancel-email-change": "Email change",
     "keep-account": "Keep your account",
+    "support/requests": "Support requests",
   };
   const advisor =
     screen[0] === "psychics"
@@ -108,6 +121,17 @@ export async function generateMetadata({
   // sent as a referrer.
   if (route in emailLinks)
     return { title, referrer: "no-referrer", robots: { index: false, follow: false } };
+  // Support desk (requester side): signed-in pages and the private link are never indexed;
+  // the private link also never leaks its URL as a referrer.
+  const support = supportRoute(screen);
+  if (support) {
+    const title = text(support.kind === "list" ? "Support requests" : "Support request");
+    return support.kind === "link"
+      ? { title, referrer: "no-referrer", robots: { index: false, follow: false } }
+      : { title, robots: { index: false, follow: false } };
+  }
+  // The directory is for signed-in customers (visitors are redirected home).
+  if (route === "psychics") return { title, robots: { index: false } };
   return {
     title:
       screen.at(-1) === "results" ? `${title} — ${text("Results")}` : title,
@@ -142,6 +166,10 @@ export default async function ScreenPage({ params }: RouteProps) {
   if (route in accounts) return <Account key={route} view={accounts[route]} />;
   if (route in emailLinks) return <EmailLinkPage key={route} action={emailLinks[route]} />;
   if (route === "contact") return <ContactForm />;
+  const support = supportRoute(screen);
+  if (support?.kind === "list") return <SupportRequestsPage />;
+  if (support?.kind === "mine") return <MyTicketPage key={route} reference={support.reference} />;
+  if (support?.kind === "link") return <LinkTicketPage key={route} reference={support.reference} />;
   if (route === "psychics") return <PsychicsBrowse />;
   // Advisors come from the API; any well-formed slug is resolved client-side
   // (unknown slugs render the not-found state).

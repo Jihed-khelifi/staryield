@@ -53,6 +53,8 @@ type Config struct {
 	Links          LinksConfig          `env:"links"`
 	Reviews        ReviewsConfig        `env:"reviews"`
 	Notifications  NotificationsConfig  `env:"notifications"`
+	// revisions 3.0: support desk
+	Support SupportConfig `env:"support"`
 }
 
 // AppConfig holds process-wide identity settings.
@@ -360,6 +362,19 @@ type AdminConfig struct {
 	StepUpWindow time.Duration `env:"step_up_window"`
 	ChallengeTTL time.Duration `env:"challenge_ttl"`
 	TOTPIssuer   string        `env:"totp_issuer"`
+	// ConsoleURL is the admin console origin used in support e-mails
+	// (revisions 3.0: support desk).
+	ConsoleURL string `env:"console_url"`
+}
+
+// SupportConfig controls the support desk (revisions 3.0).
+type SupportConfig struct {
+	// Retention: closed tickets (and their messages) are deleted this long
+	// after they were closed.
+	Retention time.Duration `env:"retention"`
+	// LinkTTL is how long a ticket's private link stays valid; every e-mailed
+	// link extends it.
+	LinkTTL time.Duration `env:"link_ttl"`
 }
 
 // LinksConfig controls marketing short links.
@@ -471,7 +486,7 @@ func defaults() Config {
 		},
 		Billing: BillingConfig{
 			PsychicSharePercent:  60,
-			SignupFreeMinutes:    3,
+			SignupFreeMinutes:    5, // revisions 3.0: fallback of the site setting (was 3)
 			MaxAdminAdjustment:   100000,
 			PayoutCentsPerCredit: 2,
 			MinWithdrawalCredits: 2500,
@@ -535,7 +550,8 @@ func defaults() Config {
 		Push: PushConfig{Enabled: true, Subject: "mailto:support@staryield.net", TTL: time.Hour, Timeout: 10 * time.Second,
 			Workers: 4, QueueSize: 10000, MaxPerUser: 10},
 		Worker:        WorkerConfig{Enabled: true, TickInterval: time.Second, PresenceSweep: 5 * time.Second, MaintenanceTick: 30 * time.Second, BatchSize: 100},
-		Admin:         AdminConfig{SessionTTL: 8 * time.Hour, IdleTimeout: 30 * time.Minute, StepUpWindow: 10 * time.Minute, ChallengeTTL: 5 * time.Minute, TOTPIssuer: "Staryield Admin"},
+		Admin:         AdminConfig{SessionTTL: 8 * time.Hour, IdleTimeout: 30 * time.Minute, StepUpWindow: 10 * time.Minute, ChallengeTTL: 5 * time.Minute, TOTPIssuer: "Staryield Admin", ConsoleURL: "http://localhost:3002"},
+		Support:       SupportConfig{Retention: 17520 * time.Hour, LinkTTL: 720 * time.Hour},
 		Links:         LinksConfig{PublicBaseURL: "http://localhost:3000/go", AllowedHosts: []string{}},
 		Reviews:       ReviewsConfig{Window: 168 * time.Hour},
 		Notifications: NotificationsConfig{BufferSize: 10000, BatchSize: 200, FlushInterval: 250 * time.Millisecond},
@@ -554,6 +570,7 @@ func (c *Config) normalize() {
 	c.Storage.AdvisorPublicBaseURL = strings.TrimRight(c.Storage.AdvisorPublicBaseURL, "/")
 	c.HTTP.TrustedProxies = splitList(c.HTTP.TrustedProxies)
 	c.App.FrontendURL = strings.TrimRight(c.App.FrontendURL, "/")
+	c.Admin.ConsoleURL = strings.TrimRight(strings.TrimSpace(c.Admin.ConsoleURL), "/") // revisions 3.0: support desk
 	c.Storage.PublicBaseURL = strings.TrimRight(c.Storage.PublicBaseURL, "/")
 	if c.Storage.R2Endpoint == "" && c.Storage.R2AccountID != "" {
 		c.Storage.R2Endpoint = fmt.Sprintf("https://%s.r2.cloudflarestorage.com", c.Storage.R2AccountID)
@@ -666,6 +683,22 @@ func (c *Config) validateMail(add func(string, ...any)) {
 	}
 	if m.Retention < 24*time.Hour {
 		add("%s must be at least 24h", e("mail.retention"))
+	}
+}
+
+// validateSupport checks the support desk settings (revisions 3.0: support desk).
+func (c *Config) validateSupport(add func(string, ...any)) {
+	e := EnvVar
+	if c.Support.Retention < 24*time.Hour {
+		add("%s must be at least 24h", e("support.retention"))
+	}
+	if c.Support.LinkTTL < time.Hour || c.Support.LinkTTL > 365*24*time.Hour {
+		add("%s must be within 1h..8760h", e("support.link_ttl"))
+	}
+	u, err := url.Parse(c.Admin.ConsoleURL)
+	local := err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1")
+	if err != nil || u.Host == "" || (u.Scheme != "https" && !(u.Scheme == "http" && (!c.IsProduction() || local))) {
+		add("%s must be an https URL (http is allowed for localhost and outside production)", e("admin.console_url"))
 	}
 }
 
@@ -852,6 +885,7 @@ func (c *Config) Validate() error {
 		add("%s must be json or console", e("log.format"))
 	}
 	c.validateMail(add)
+	c.validateSupport(add) // revisions 3.0: support desk
 	c.validatePush(add)
 
 	if c.IsProduction() {

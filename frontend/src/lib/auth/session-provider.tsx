@@ -16,6 +16,7 @@ import { track } from "@/lib/analytics";
 import { logger } from "@/lib/logger";
 import { RealtimeClient, type ConnectionState, type TransportKind } from "@/lib/realtime/client";
 import { clearOutbox } from "@/lib/chat/outbox";
+import { clearDrafts } from "@/lib/chat/drafts";
 import { clearAttachmentCache } from "@/lib/chat/attachments";
 import { useToast } from "@/components/feedback/toast-provider";
 
@@ -196,6 +197,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
       // FE-CHAT (wave 3): unsent chat messages never outlive the session.
       if (userId) clearOutbox(userId);
+      // revisions 3.0: composer drafts (private reading content) go with it.
+      if (userId) clearDrafts(userId);
       clearAttachmentCache();
       // A full navigation (not router.push) drops every in-memory cache —
       // realtime, notifications, chat history — and lands signed out on the

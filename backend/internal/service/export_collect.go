@@ -169,6 +169,9 @@ func (s *ExportService) collect(ctx context.Context, userID uuid.UUID) (*ExportB
 	if err := s.collectActivity(ctx, b, u, rows, capped); err != nil {
 		return nil, err
 	}
+	if err := s.collectSupport(ctx, b, u.ID, rows, capped); err != nil { // revisions 3.0: support desk
+		return nil, err
+	}
 	if p != nil && p.AvatarKey != "" && s.d.Avatars != nil {
 		if data, _, err := s.d.Avatars.Get(ctx, p.AvatarKey, 4<<20); err == nil {
 			b.Blobs = append(b.Blobs, ExportBlob{Path: "profile/avatar.jpg", Data: data})

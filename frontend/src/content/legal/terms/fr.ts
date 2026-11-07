@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-04",
-    "effective": "2026-11-04",
-    "lastUpdated": "2026-11-04",
+    "version": "2026-11-07",
+    "effective": "2026-11-07",
+    "lastUpdated": "2026-11-07",
     "badge": "ACCORD DU SYSTÈME STARYIELD",
     "title": "Conditions d'utilisation"
   },
@@ -390,6 +390,10 @@ const content: LegalDocumentContent = {
           "text": "Les services de support client sont fournis à la discrétion de la Société. Bien que nous puissions aider les utilisateurs, il n'y a aucune obligation de fournir une assistance ou de répondre aux demandes de renseignements. Si vous avez besoin d'aide, contactez le [centre d'assistance](/contact) et nous vous répondrons dans la mesure du possible."
         },
         {
+          "type": "p",
+          "text": "Lorsque vous nous contactez, nous répondons par e-mail et, si vous êtes connecté, dans la section Demandes d’assistance de votre compte. Nous envoyons par e-mail un lien privé pour chaque demande : toute personne qui détient le lien peut lire cette demande et y répondre, veuillez donc le garder confidentiel. Une demande clôturée ne peut plus recevoir de réponse ; si vous avez encore besoin d’aide, envoyez une nouvelle demande. Consultez notre [Politique de confidentialité](/privacy#support-requests) pour savoir comment les demandes d’assistance sont conservées."
+        },
+        {
           "type": "h3",
           "id": "live-readings-messages-and-images",
           "n": "4.11",
@@ -641,6 +645,14 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Nous pouvons proposer un essai gratuit ou un abonnement à une offre de lancement pour le Service selon les conditions spécifiées lors de votre inscription à l'offre. Un essai gratuit vous donne accès au Service pendant une période donnée ; une offre de lancement vous donne accès au Service à un tarif réduit pendant une durée limitée. Sauf si vous annulez avant la fin de l’essai gratuit ou de l’offre de lancement, ou sauf indication contraire, votre accès au Service continuera automatiquement et les frais applicables vous seront facturés. Il est de votre responsabilité de savoir quand l’essai gratuit ou l’offre de lancement prendra fin. Nous nous réservons le droit, à notre entière discrétion, de modifier ou de mettre fin à tout essai gratuit ou offre de lancement, à votre accès au Service pendant la période d'essai gratuit ou de lancement, ou à l'une de ces conditions sans préavis et sans aucune responsabilité. Nous nous réservons le droit de limiter votre capacité à profiter de plusieurs essais gratuits et/ou offres de lancement."
+        },
+        {
+          "type": "p",
+          "text": "Minutes offertes de bienvenue. Les nouveaux comptes clients peuvent recevoir un certain nombre de minutes de chat offertes à l’inscription. Staryield fixe ce nombre, peut le modifier ou désactiver l’offre à tout moment, et une modification ne s’applique qu’aux comptes créés ensuite. Les minutes offertes sont réservées aux nouveaux comptes, n’ont aucune valeur monétaire, ne peuvent être ni transférées, ni échangées, ni remboursées, et sont utilisées avant les Crédits de votre Solde."
+        },
+        {
+          "type": "p",
+          "text": "Accès gratuit promotionnel (« mode gratuit »). Il peut nous arriver de rendre les chats en direct gratuits pour tous pendant une période limitée. Le mode gratuit peut commencer ou s’arrêter à tout moment, avec ou sans date de fin annoncée. Un chat que vous demandez pendant le mode gratuit reste gratuit jusqu’à sa fin, même si le mode gratuit s’arrête entre-temps. Les conseillers restent rémunérés par Staryield pour les chats tenus pendant le mode gratuit. Le mode gratuit ne s’applique ni aux demandes personnalisées ni à l’achat de Crédits, qui sont tarifés et facturés comme d’habitude, et aucune minute offerte ni aucun Crédit n’est consommé tant que votre chat est gratuit."
         },
         {
           "type": "h4",

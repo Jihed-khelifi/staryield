@@ -195,30 +195,66 @@ test.describe("contact form", { tag: "@responsive" }, () => {
 });
 
 test.describe("custom request order sheet", { tag: "@responsive" }, () => {
-  test("a time needs a date, past dates and long notes are refused", async ({ page }) => {
+  test("framed as ordering a service; the time needs a date; past dates and long notes are refused", async ({ page }) => {
     await signIn(page, CLIENT.email, CLIENT.password);
     await page.goto("/en/psychics/theo");
-    await page.getByRole("button", { name: /Book Session/ }).first().click();
+    await expect(page.getByRole("button", { name: /Book Session/ })).toHaveCount(0);
+    await page.getByRole("button", { name: /Order service/ }).first().click();
     const form = page.getByRole("dialog").getByTestId("order-form");
+    await expect(form.getByRole("button", { name: "Send request" })).toBeVisible();
+    await expect(form.getByTestId("order-how-it-works")).toContainText("Your credits are held until it is delivered.");
     const date = form.getByLabel("Preferred date");
+    const time = form.getByLabel("Preferred time");
     await expect(date).toHaveAttribute("min", await localDay(page));
 
     let ordered = false;
     page.on("request", (r) => {
       if (r.url().endsWith("/api/v1/custom-requests") && r.method() === "POST") ordered = true;
     });
-    await form.getByLabel("Preferred time").fill("18:30");
-    await form.getByRole("button", { name: "Request a session" }).click();
-    await expect(form.getByText("Choose a date for this time.")).toBeVisible();
+    // The time stays disabled until a date is picked, with a helper that does not move the row.
+    await expect(time).toBeDisabled();
+    await expect(form.getByText("Pick a date first.")).toBeVisible();
     await date.fill(await localDay(page, -1));
+    await form.getByRole("button", { name: "Send request" }).click();
     await expect(form.getByText("Choose today or a later date.")).toBeVisible();
     await date.fill(await localDay(page, 3));
-    await expect(form.getByText("Choose a date for this time.")).toHaveCount(0);
+    await expect(time).toBeEnabled();
+    await expect(form.getByText("Pick a date first.")).toHaveCount(0);
+    await time.fill("18:30");
     await form.getByRole("textbox", { name: "What would you like to explore?" }).fill("x".repeat(2001));
-    await form.getByRole("button", { name: "Request a session" }).click();
+    await form.getByRole("button", { name: "Send request" }).click();
     await expect(form.getByText("Use at most 2000 characters.")).toBeVisible();
     await expect(form.getByText("2001/2000")).toBeVisible();
     expect(ordered).toBe(false);
     await expectAccessible(page, '[data-testid="order-form"]');
+  });
+
+  test("preferred date and time share one row on desktop and stack on phones, aligned at the top", async ({ page }) => {
+    await signIn(page, CLIENT.email, CLIENT.password);
+    await page.goto("/en/psychics/theo");
+    await page.getByRole("button", { name: /Order service/ }).first().click();
+    const form = page.getByRole("dialog").getByTestId("order-form");
+    const date = form.getByLabel("Preferred date");
+    const time = form.getByLabel("Preferred time");
+    const [dateBox, timeBox] = [await date.boundingBox(), await time.boundingBox()];
+    expect(dateBox && timeBox).toBeTruthy();
+    // Same size either way.
+    expect(Math.abs(dateBox!.height - timeBox!.height)).toBeLessThanOrEqual(1);
+    expect(Math.abs(dateBox!.width - timeBox!.width)).toBeLessThanOrEqual(1);
+    const stacked = (page.viewportSize()?.width ?? 1440) < 640;
+    if (stacked) {
+      expect(timeBox!.y).toBeGreaterThan(dateBox!.y + dateBox!.height - 1);
+    } else {
+      // One row: same top edge, and the label lines match too.
+      expect(Math.abs(dateBox!.y - timeBox!.y)).toBeLessThanOrEqual(1);
+      expect(timeBox!.x).toBeGreaterThan(dateBox!.x + dateBox!.width - 1);
+      const labels = [await form.locator("label", { hasText: "Preferred date" }).boundingBox(), await form.locator("label", { hasText: "Preferred time" }).boundingBox()];
+      expect(Math.abs(labels[0]!.y - labels[1]!.y)).toBeLessThanOrEqual(1);
+    }
+    // Picking a date (which hides the helper) does not move the inputs.
+    await date.fill(await localDay(page, 2));
+    const after = await time.boundingBox();
+    expect(Math.abs(after!.y - timeBox!.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs((await date.boundingBox())!.y - dateBox!.y)).toBeLessThanOrEqual(1);
   });
 });

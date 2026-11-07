@@ -13,7 +13,7 @@
  * stay so shared links keep working.
  */
 import type { AttributionInput } from "@/lib/api/types";
-import { track } from "@/lib/analytics";
+import { analyticsAnonymousId, track } from "@/lib/analytics";
 
 export const ATTRIBUTION_KEY = "staryield.attribution";
 export const ATTRIBUTION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -163,7 +163,8 @@ export function captureAttribution(env: AttributionEnv | null = defaultEnv()): {
   }
 
   const properties: Record<string, string | boolean> = { has_click: Boolean(params.click_id) };
-  for (const key of ["utm_source", "utm_medium", "utm_campaign", "utm_content"] as const) {
+  // utm_term and click_id feed the visitor roll-up (§17): first touch only.
+  for (const key of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "click_id"] as const) {
     if (params[key]) properties[key] = params[key]!;
   }
   env.track("campaign_landing", properties);
@@ -179,11 +180,16 @@ export function attributionForSignup(now = Date.now()): AttributionInput | undef
     storage = null;
   }
   const value = loadAttribution(storage, now);
-  if (!value) return undefined;
   const out: AttributionInput = {};
-  for (const key of [...UTM_KEYS, "click_id", "referrer", "landing_path", "first_seen_at"] as const) {
-    const v = value[key];
-    if (typeof v === "string" && v) out[key] = v;
+  if (value) {
+    for (const key of [...UTM_KEYS, "click_id", "referrer", "landing_path", "first_seen_at"] as const) {
+      const v = value[key];
+      if (typeof v === "string" && v) out[key] = v;
+    }
   }
+  // Links the visitor to the new account (§17): sent even without a UTM
+  // touch, and never when the visitor opted out of analytics.
+  const anonymousId = analyticsAnonymousId();
+  if (anonymousId) out.anonymous_id = anonymousId;
   return Object.keys(out).length > 0 ? out : undefined;
 }

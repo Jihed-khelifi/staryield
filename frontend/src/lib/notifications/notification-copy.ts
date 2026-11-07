@@ -37,6 +37,9 @@ export const notificationTemplates = {
   photoRejectedTitle: "Photo not approved",
   photoRejectedBody: "Your new profile photo was not approved: {reason}",
   photoRejectedNoReason: "Your new profile photo was not approved. Upload another one from your settings.",
+  supportRepliedTitle: "Support replied to your request",
+  supportRepliedBody: "{reference}: {subject}",
+  supportRepliedNoSubject: "We answered your request {reference}.",
   fallbackTitle: "Notification",
   someone: "A client",
 } as const;
@@ -133,6 +136,17 @@ export function notificationText(n: AppNotification, locale: string, text: Trans
     case "photo.rejected": {
       const reason = str(d.reason).trim();
       return { title: text(T.photoRejectedTitle), body: reason ? text(T.photoRejectedBody, { reason }) : text(T.photoRejectedNoReason) };
+    }
+    // support desk: a staff reply to the customer's request (§16.3).
+    case "support.replied": {
+      const reference = str(d.reference).trim();
+      const subject = str(d.subject).trim();
+      const body = !reference
+        ? ""
+        : subject
+          ? text(T.supportRepliedBody, { reference, subject })
+          : text(T.supportRepliedNoSubject, { reference });
+      return { title: text(T.supportRepliedTitle), body };
     }
     case "broadcast":
       return { title: pickLocalized(d.title, locale) || text(T.fallbackTitle), body: pickLocalized(d.body, locale) };

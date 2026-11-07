@@ -7,6 +7,7 @@ import { LockKeyhole } from "lucide-react";
 import { useI18n } from "@/i18n/i18n-provider";
 import type { NatalResult, SunSignResult } from "@/lib/api/astrology";
 import { useSession } from "@/lib/auth/session-provider";
+import { usePsychicsHref } from "@/lib/psychics-link";
 import { formatDateParts, romanNumeral } from "@/lib/calculators";
 import { LIFE_PATH_COPY, NUMBER_CARDS } from "@/lib/astro/life-path-copy";
 import { SIGN_FACTS, SIGN_INSIGHT, isSign } from "@/lib/astro/zodiac";
@@ -85,7 +86,8 @@ function StarHeading({ children, size = "md" }: { children: React.ReactNode; siz
 
 /** Natal chart: the data-driven Twelve Houses spread (Figma 482:2010). */
 export function NatalResultView({ result }: { result: NatalResult }) {
-  const { text, locale } = useI18n();
+  const { text } = useI18n();
+  const psychicsHref = usePsychicsHref();
   const spread = result.tarot;
   const chart = result.chart;
   const system = chart.house_system_used || spread?.house_system || "";
@@ -131,7 +133,7 @@ export function NatalResultView({ result }: { result: NatalResult }) {
         <h2 className="max-w-[1000px] font-display text-[19px] leading-[1.5] tracking-[0.48px] text-black uppercase md:text-[24px]">
           {text("Get a better understanding of what this spread means with the guidance of one of our amazing psychics!")}
         </h2>
-        <Link href={`/${locale}/psychics`} className="calc-cta-link">
+        <Link href={psychicsHref} className="calc-cta-link">
           {text("Click here!")}
         </Link>
       </section>
@@ -220,6 +222,7 @@ export function SunSignResultView({ result, onAddTime }: { result: SunSignResult
 /** Path of Life: the three numbers, computed in the browser (Figma 482:2164). */
 export function LifePathResultView({ result }: { result: LifePathResult }) {
   const { text, locale } = useI18n();
+  const psychicsHref = usePsychicsHref();
   const numbers: Record<(typeof NUMBER_CARDS)[number]["key"], number> = {
     lifePath: result.lifePath.number,
     personalYear: result.cycles.personalYear,
@@ -287,7 +290,7 @@ export function LifePathResultView({ result }: { result: LifePathResult }) {
           )}
         </p>
         <div className="pt-3">
-          <Link href={`/${locale}/psychics`} className="calc-cta-link">
+          <Link href={psychicsHref} className="calc-cta-link">
             {text("Click here!")}
           </Link>
         </div>

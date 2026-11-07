@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { PublicFrame } from "@/components/layout/public-frame";
+import { usePsychicsPath } from "@/lib/psychics-link";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -13,8 +14,9 @@ import { Button } from "@/components/ui/button";
  */
 export default function NotFound() {
   const { text, locale } = useI18n();
+  const psychics = usePsychicsPath();
   const links: [string, string][] = [
-    ["Psychics", "/psychics"],
+    ["Psychics", psychics],
     ["Natal Chart", "/calculators/natal-chart"],
     ["Path of Life", "/calculators/path-of-life"],
     ["Astrology", "/calculators/astrology"],

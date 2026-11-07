@@ -407,7 +407,10 @@ input[type="checkbox"] {
   text-transform: uppercase;
   font-size: 11px;
   font-weight: 600;
-  color: var(--amber);
+  /* a11y: bright gold (--amber) on cream is 1.8:1, and the identity manual
+     keeps gold tones off small copy; the darker gold of the same hue reads
+     4.8:1 (same token as the advisor pages). */
+  color: var(--advisor-gold-text, #6b5630);
   letter-spacing: 2px;
 }
 .field {
@@ -1230,6 +1233,13 @@ html:not([lang="en"]) .figma-content > .figma-section {
   .figma-content [data-name="Layout / Our Psychics"] + div {
     flex-wrap: wrap;
   }
+}
+/* Home "Psychics" section (header/footer links go here for visitors): clear the sticky chrome and scroll smoothly. */
+html {
+  scroll-behavior: smooth;
+}
+#psychics {
+  scroll-margin-top: 96px;
 }
 @media (prefers-reduced-motion: reduce) {
   *,

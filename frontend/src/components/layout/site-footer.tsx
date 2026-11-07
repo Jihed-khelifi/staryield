@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { useI18n } from "@/i18n/i18n-provider";
+import { usePsychicsPath } from "@/lib/psychics-link";
 import { SunLogo } from "@/components/brand/sun-logo";
 import { visibleSocialLinks } from "@/config/social";
 const groups = [
@@ -36,6 +37,7 @@ const groups = [
 ];
 export function SiteFooter() {
   const { text, locale } = useI18n();
+  const psychics = usePsychicsPath();
   return (
     <footer className="site-footer paper-page">
       <div className="footer-columns">
@@ -54,13 +56,16 @@ export function SiteFooter() {
           <nav key={group.name} aria-label={text(group.name)}>
             <h2 className="mb-4 text-lg">{text(group.name.toUpperCase())}</h2>
             <ul className="space-y-3 text-sm font-light">
-              {group.links.map(([label, href]) => (
-                <li key={href}>
+              {group.links.map(([label, path]) => {
+                const href = path === "/psychics" ? psychics : path;
+                return (
+                <li key={path}>
                   <Link className="hover:underline" href={`/${locale}${href}`}>
                     {text(label)}
                   </Link>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </nav>
         ))}

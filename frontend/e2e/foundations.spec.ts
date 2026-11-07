@@ -16,7 +16,7 @@ test.describe("site foundations", { tag: "@responsive" }, () => {
     await expect(page).toHaveTitle(/Page not found/);
     await expect(page.getByRole("link", { name: "Back to home" })).toHaveAttribute("href", "/en");
     const helpful = page.getByRole("navigation", { name: "Helpful links" });
-    await expect(helpful.getByRole("link", { name: "Psychics" })).toHaveAttribute("href", "/en/psychics");
+    await expect(helpful.getByRole("link", { name: "Psychics" })).toHaveAttribute("href", "/en#psychics");
     await expectNoA11yViolations(page, ['[data-testid="not-found"]']);
 
     await page.goto("/fr/cette-page-nexiste-pas");
@@ -54,7 +54,7 @@ test.describe("site foundations", { tag: "@responsive" }, () => {
     // Public frame (header + footer) and app frame (header only).
     for (const [path, regions] of [
       ["/en", ["header", "footer"]],
-      ["/en/psychics", ["header"]],
+      ["/en/psychics/ramone", ["header"]],
     ] as const) {
       await page.goto(path);
       for (const region of regions) {
@@ -69,7 +69,7 @@ test.describe("site foundations", { tag: "@responsive" }, () => {
   });
 
   test("public pages fit the viewport without horizontal scrolling", async ({ page }) => {
-    for (const path of ["/en", "/en/psychics", "/en/login", "/en/this-page-does-not-exist"]) {
+    for (const path of ["/en", "/en/psychics/ramone", "/en/login", "/en/this-page-does-not-exist"]) {
       await page.goto(path);
       await expectNoHorizontalScroll(page);
     }

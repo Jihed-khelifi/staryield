@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-04",
-    "effective": "2026-11-04",
-    "lastUpdated": "2026-11-04",
+    "version": "2026-11-07",
+    "effective": "2026-11-07",
+    "lastUpdated": "2026-11-07",
     "badge": "ACUERDO DE PRIVACIDAD DE STARYIELD",
     "title": "Política de Privacidad"
   },
@@ -224,6 +224,58 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Solicitudes relativas a la cuenta. Cuando cambia su dirección de correo electrónico, descarga sus datos o desactiva o cierra su cuenta, conservamos un registro de la solicitud y le enviamos mensajes de confirmación, tal como se describe en la [Sección 5](#your-privacy-rights)."
+        },
+        {
+          "type": "h3",
+          "id": "support-requests",
+          "n": "2.9",
+          "title": "Solicitudes de soporte"
+        },
+        {
+          "type": "p",
+          "text": "Cuando nos escribes a través del [formulario de contacto](/contact), guardamos tu solicitud (tema, asunto, mensaje y la dirección de correo que nos diste), las respuestas de nuestro equipo de soporte y las notas internas que el equipo escribe sobre ella. Los mensajes, las respuestas y las notas se cifran en reposo, y la dirección de correo también se guarda como huella con clave para poder encontrar tus solicitudes."
+        },
+        {
+          "type": "p",
+          "text": "Si has iniciado sesión, la solicitud se vincula a tu cuenta y puedes seguirla, y leer nuestras respuestas, en [Solicitudes de soporte](/support/requests) desde el menú de tu cuenta; además te avisamos en la aplicación y con una notificación push cuando respondemos. Si no has iniciado sesión, te enviamos por correo un enlace privado a tu solicitud. El código secreto está en la parte del enlace posterior al «#», que los navegadores no envían a los servidores ni a otros sitios web; nuestra página lo usa solo para abrir tu solicitud y lo quita de la barra de direcciones. El enlace funciona 30 días y permite a quien lo tenga leer y responder esa solicitud, así que guárdalo para ti."
+        },
+        {
+          "type": "p",
+          "text": "Las solicitudes de soporte se incluyen en la exportación de tus datos. Una solicitud cerrada y sus mensajes se eliminan 24 meses después de cerrarse, y las solicitudes vinculadas a tu cuenta se eliminan cuando se borra tu cuenta."
+        },
+        {
+          "type": "h3",
+          "id": "calculator-usage-measurement",
+          "n": "2.10",
+          "title": "Medición del uso de las calculadoras"
+        },
+        {
+          "type": "p",
+          "text": "Para contar cuántas personas distintas abren y usan nuestras calculadoras, nuestro sitio guarda un identificador aleatorio en el almacenamiento local de tu navegador (no se deriva de tu nombre, correo electrónico ni dirección IP) y registra qué páginas de calculadora abres, si inicias un cálculo y si ves un resultado. Si creas una cuenta, este identificador se vincula a ella al registrarte, solo cuando las analíticas están permitidas, lo que nos permite saber qué visitantes se hicieron miembros. Junto con el identificador conservamos los datos de campaña y de enlace corto de tu primera visita (parámetros UTM y código de clic, véase el [Apartado 2.6](#marketing-attribution))."
+        },
+        {
+          "type": "p",
+          "text": "Estos registros se conservan 25 meses y se usan solo de forma agregada para entender cómo funcionan las calculadoras. No se registra nada si tu navegador envía una señal Do Not Track o Global Privacy Control, o si desactivas las analíticas en tus [preferencias de privacidad](/profile/settings)."
+        },
+        {
+          "type": "h3",
+          "id": "chat-notifications-and-drafts",
+          "n": "2.11",
+          "title": "Notificaciones de chat y borradores"
+        },
+        {
+          "type": "p",
+          "text": "Las notificaciones push sobre mensajes de chat nuevos nunca incluyen el texto del mensaje: solo te avisan de que ha llegado un mensaje nuevo. Un mensaje que has escrito pero no enviado se guarda como borrador únicamente en tu dispositivo, en el almacenamiento local de tu navegador, hasta 7 días; los borradores nunca se nos envían."
+        },
+        {
+          "type": "h3",
+          "id": "free-access-periods",
+          "n": "2.12",
+          "title": "Periodos de acceso gratuito"
+        },
+        {
+          "type": "p",
+          "text": "Cuando hacemos gratis el chat en vivo para todos durante un tiempo limitado («modo gratuito», véanse los [Términos de uso](/terms#free-trials-and-promotional-offers)), los chats solicitados en ese periodo se registran como sesiones patrocinadas, con sus minutos y los créditos que cubre Staryield. Usamos estos registros para facturar las sesiones a Staryield y calcular las ganancias de los asesores y las estadísticas de la plataforma, sobre la base de nuestro contrato con los asesores y de nuestro interés legítimo en gestionar los Servicios."
         }
       ]
     },
@@ -577,6 +629,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Plazos de conservación adicionales. Los mensajes y las imágenes de los chats se conservan mientras la conversación exista en su cuenta. Las notificaciones dentro de la aplicación se eliminan a los 180 días. El contenido de los correos transaccionales se elimina de nuestra cola de envío una vez enviado el mensaje. Las exportaciones de datos se eliminan 7 días después de estar listas. Las notas de los asesores se conservan hasta que su autor las elimina o hasta que se elimina la cuenta del cliente o la del asesor. Los registros de los dispositivos con sesión iniciada se conservan hasta que la sesión caduca o se cierra, y durante un periodo limitado posterior por motivos de seguridad. Los registros de consentimiento se conservan como prueba de sus decisiones mientras exista su cuenta y en la medida en que lo exija la ley. Los registros de clics de marketing se conservan de forma seudonimizada para los informes de campañas. Cuando cierra su cuenta, esta se desactiva de inmediato y, tras un periodo de gracia de 30 días, borramos los datos personales que le identifican y solo conservamos los registros seudonimizados necesarios por motivos contables, de prevención del fraude y de cumplimiento legal. Los registros de pagos, de membresías y de pagos a los asesores se conservan durante el tiempo que exijan las leyes contables y fiscales."
+        },
+        {
+          "type": "p",
+          "text": "Las solicitudes de soporte y sus mensajes se eliminan 24 meses después de cerrarse la solicitud. Los registros de uso de las calculadoras, con su identificador aleatorio de navegador y los datos de campaña de la primera visita, se eliminan a los 25 meses. Los borradores de chat permanecen en tu dispositivo hasta 7 días."
         }
       ]
     },

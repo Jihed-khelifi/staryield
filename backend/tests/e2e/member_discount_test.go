@@ -15,6 +15,7 @@ import (
 // never sees the client's discount.
 func TestMemberChatDiscountIsPlatformFunded(t *testing.T) {
 	e := newEnv(t)
+	e.pinSignupFreeMinutes(3) // revisions 3.0: these assertions are written for 3 promotional minutes
 	e.ensurePacks()
 	_, version := e.billingPlan(999, func(v *service.PlanVersionInput) { v.ChatDiscountBps = 2000 }) // 20 %
 	psychic := e.createPsychic(100)

@@ -2,6 +2,7 @@
 import { useI18n } from "@/i18n/i18n-provider";
 /* Figma 342:1455 — reusable responsive content regions. */
 /* eslint-disable @next/next/no-img-element */
+import { useSignupFreeMinutes } from "@/lib/site-config/site-config-provider";
 import { ContentLink } from "@/components/content/content-link";
 const assetPathPrefix = "https://assets.staryield.net/assets/figma";
 const imgMediaReviews = `${assetPathPrefix}/fb9ee.jpg`;
@@ -12,6 +13,7 @@ const imgContainerCheck = `${assetPathPrefix}/ceeda.svg`;
 const imgDividerHorizontal1 = `${assetPathPrefix}/5455a.svg`;
 export default function ScreenDesktopReviews() {
   const { text } = useI18n();
+  const freeMinutes = useSignupFreeMinutes();
   return (
     <div
       className="figma-content flex w-full flex-col items-center bg-cream"
@@ -946,18 +948,21 @@ export default function ScreenDesktopReviews() {
               {text("Start First Reading ")}
             </p>
           </span>
-          <p
-            className="[word-break:break-word] font-serif font-normal leading-[0] relative shrink-0 text-[#2f241c] text-[22px] text-center w-[540.545px]"
-            data-node-id="342:1626"
-          >
-            <span className="leading-[normal]">{text(`Try `)}</span>
-            <span className="font-serif font-bold leading-[normal] text-[#c29a3d]">
-              {text("free minutes ")}
-            </span>
-            <span className="leading-[normal]">
-              {text(` of chat and see for yourself`)}
-            </span>
-          </p>
+          {freeMinutes > 0 ? (
+            <p
+              className="[word-break:break-word] font-serif font-normal leading-[0] relative shrink-0 text-[#2f241c] text-[22px] text-center w-[540.545px]"
+              data-node-id="342:1626"
+              data-testid="reviews-free-minutes"
+            >
+              <span className="leading-[normal]">{text(`Try `)}</span>
+              <span className="font-serif font-bold leading-[normal] text-[#c29a3d]">
+                {text("{value0} free minutes ", { value0: freeMinutes })}
+              </span>
+              <span className="leading-[normal]">
+                {text(` of chat and see for yourself`)}
+              </span>
+            </p>
+          ) : null}
         </div>
       </ContentLink>
       <div

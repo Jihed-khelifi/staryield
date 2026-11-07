@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import { ChartColumn, LogOut, Settings, UserRound } from "lucide-react";
+import { ChartColumn, LifeBuoy, LogOut, Settings, UserRound } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { useSession } from "@/lib/auth/session-provider";
@@ -22,6 +22,7 @@ export function useAccountLinks() {
   const links: { label: string; href: string; icon: typeof UserRound }[] = [
     { label: "Profile", href: "/profile", icon: UserRound },
     { label: "Settings", href: "/profile/settings", icon: Settings },
+    { label: "Support requests", href: "/support/requests", icon: LifeBuoy },
   ];
   if (user?.role === "psychic") links.push({ label: "Analytics", href: "/profile/analytics", icon: ChartColumn });
   return links;

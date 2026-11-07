@@ -4,6 +4,8 @@ import { useI18n } from "@/i18n/i18n-provider";
 /* Figma 461:1616 — reusable responsive content regions. */
 /* eslint-disable @next/next/no-img-element */
 import { ContentLink } from "@/components/content/content-link";
+import { PSYCHICS_SECTION_ID } from "@/lib/psychics-link";
+import { useScrollToPsychics } from "@/components/content/use-scroll-to-psychics";
 import { FeaturedAdvisors } from "@/components/content/featured-advisors";
 const assetPathPrefix = "https://assets.staryield.net/assets/figma";
 const imgMediaHome = `${assetPathPrefix}/fb9ee.jpg`;
@@ -16,6 +18,7 @@ const imgContainerCheck1 = `${assetPathPrefix}/4cf6a.svg`;
 const imgDividerHorizontal2 = `${assetPathPrefix}/90584.svg`;
 export default function ScreenDesktopHome() {
   const { text } = useI18n();
+  useScrollToPsychics();
   return (
     <div
       className="figma-content flex w-full flex-col items-center bg-cream"
@@ -178,6 +181,7 @@ export default function ScreenDesktopHome() {
       </section>
       <section
         className="bg-[var(--sage)] border border-[#978f6e] border-solid content-stretch flex flex-col gap-[48px] items-center px-6 md:px-10 lg:px-20 py-14 lg:py-[100px] relative shrink-0 w-full figma-section"
+        id={PSYCHICS_SECTION_ID}
         data-node-id="461:1669"
         data-name="Section / Our Psychics"
       >
@@ -198,12 +202,14 @@ export default function ScreenDesktopHome() {
               {text("Vetted Specialists ")}
             </p>
           </div>
-          <p
-            className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[32px] text-center text-white tracking-[1.6px] whitespace-nowrap"
+          <h2
+            id="psychics-heading"
+            tabIndex={-1}
+            className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[32px] text-center text-white tracking-[1.6px] whitespace-nowrap outline-none focus-visible:underline"
             data-node-id="461:1673"
           >
             {text("Psychic readings built around your journey ")}
-          </p>
+          </h2>
           <p
             className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[16px] text-center text-white w-[620px]"
             data-node-id="461:1674"

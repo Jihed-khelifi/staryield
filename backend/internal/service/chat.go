@@ -56,9 +56,14 @@ type ChatService struct {
 	clock        clock.Clock
 	cfg          ChatSettings
 	extras       ChatExtras
+	// unread is the optional unread cache and message push (revisions 3.0: chat unread).
+	unread *chatUnread
 	// discountFor returns a client's member chat discount in basis points
 	// (billing); nil means no discounts.
 	discountFor func(ctx context.Context, clientID uuid.UUID) int
+	// revisions 3.0: site settings. freeModeActive reports whether chats
+	// requested now are free (SiteService.FreeModeActive); nil means never.
+	freeModeActive func(ctx context.Context) bool
 }
 
 // SetDiscounts installs the member discount lookup (billing.DiscountFor).
@@ -142,7 +147,10 @@ func (c *ChatService) RequestSession(ctx context.Context, clientID uuid.UUID, ps
 		discount = c.discountFor(ctx, clientID)
 	}
 	rate := domain.ApplyDiscount(psychic.RatePerMinute, discount)
-	if w.FreeMinutes <= 0 && w.Balance < rate {
+	// revisions 3.0: site settings. A chat requested while free mode is
+	// active is sponsored for its whole life and needs no credits.
+	sponsored := c.freeModeActive != nil && c.freeModeActive(ctx)
+	if !sponsored && w.FreeMinutes <= 0 && w.Balance < rate {
 		return nil, apperror.InsufficientCredits(rate, w.Balance)
 	}
 
@@ -150,6 +158,7 @@ func (c *ChatService) RequestSession(ctx context.Context, clientID uuid.UUID, ps
 	s := &domain.Session{
 		ID: domain.NewID(), ClientID: clientID, PsychicID: psychic.UserID, Status: domain.SessionRequested,
 		RatePerMinute: rate, ListRatePerMinute: psychic.RatePerMinute, DiscountBps: discount, RequestKey: requestKey, RequestedAt: now,
+		Sponsored: sponsored, // revisions 3.0: site settings
 		ExpiresAt: now.Add(c.cfg.RequestTimeout), CreatedAt: now, UpdatedAt: now,
 	}
 	err = c.tx.WithinTx(ctx, func(ctx context.Context) error {
@@ -521,6 +530,9 @@ func (c *ChatService) accrueActive(s *domain.Session, now time.Time) {
 // at time due, saving s. When the client cannot pay, the session ends
 // immediately (BR-03). Free promotional minutes are used first.
 func (c *ChatService) billMinuteLocked(ctx context.Context, s *domain.Session, due, now time.Time, post *afterCommit) error {
+	if s.Sponsored { // revisions 3.0: site settings (free mode), see chat_sponsored.go
+		return c.billSponsoredMinuteLocked(ctx, s, due, post)
+	}
 	minute := s.BilledMinutes + 1
 	w, free, err := c.wallet.UseFreeMinute(ctx, s.ClientID)
 	if err != nil {
@@ -555,7 +567,7 @@ func (c *ChatService) billMinuteLocked(ctx context.Context, s *domain.Session, d
 	wallet := walletView(w)
 	post.add(func(ctx context.Context) {
 		remaining := int64(wallet.FreeMinutes) + wallet.Balance/max(snapshot.RatePerMinute, 1)
-		billed := map[string]any{"session_id": snapshot.ID, "minute": minute, "free": free, "charged": charged,
+		billed := map[string]any{"session_id": snapshot.ID, "minute": minute, "free": free, "charged": charged, "sponsored": false,
 			"next_billing_at": next, "active_seconds": int64(snapshot.ElapsedActive(c.clock.Now()) / time.Second)}
 		clientPayload := map[string]any{"wallet": wallet, "minutes_remaining": remaining}
 		for k, v := range billed {

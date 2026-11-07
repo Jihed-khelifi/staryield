@@ -118,7 +118,7 @@ func NewRouter(d Deps) *echo.Echo {
 	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
 		AllowOrigins:     corsOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Content-Type", mw.CSRFHeader, mw.HeaderRequestID, "Idempotency-Key", "Authorization", "Last-Event-ID", "X-Locale"},
+		AllowHeaders:     []string{"Content-Type", mw.CSRFHeader, mw.HeaderRequestID, "Idempotency-Key", "Authorization", "Last-Event-ID", "X-Locale", "X-Support-Token"}, // revisions 3.0: support desk (private link)
 		ExposeHeaders:    []string{mw.HeaderRequestID, "Retry-After", mw.CSRFHeader, "RateLimit-Remaining"},
 		AllowCredentials: true,
 		MaxAge:           600,
@@ -202,7 +202,24 @@ func NewRouter(d Deps) *echo.Echo {
 	supportIPRL := mw.RateLimit(limiter, rule("support_ip", config.Rule{Rate: 5, Period: time.Hour, Burst: 5}, scale), mw.ByIP, cfg.RateLimit.FailOpen)
 	supportUserRL := mw.RateLimit(limiter, rule("support_user", config.Rule{Rate: 5, Period: time.Hour, Burst: 5}, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
 	v1.POST("/support/tickets", h.CreateSupportTicket, optional, supportIPRL, supportUserRL)
+	// revisions 3.0: support desk. Requesters read and answer their tickets
+	// signed in (/me/support/tickets…, matched on user_id only) or through the
+	// private link e-mailed to them (X-Support-Token; the same 404 for every
+	// failure). Replies are limited per user (or per IP), link lookups per IP.
+	supportReplyRL := mw.RateLimit(limiter, rule("support_reply", config.Rule{Rate: 20, Period: time.Hour, Burst: 20}, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
+	supportLinkRL := mw.RateLimit(limiter, rule("support_link", config.Rule{Rate: 30, Period: time.Minute, Burst: 30}, scale), mw.ByIP, false)
+	v1.GET("/support/tickets/:reference", h.SupportTicketByLink, supportLinkRL)
+	v1.POST("/support/tickets/:reference/messages", h.ReplySupportTicketByLink, supportLinkRL, supportReplyRL)
+	// end revisions 3.0: support desk
 	v1.POST("/webhooks/payments", h.PaymentWebhook)
+	// revisions 3.0: site settings. Public configuration (promo banners,
+	// sign-up offer, free mode): cacheable, per IP, fails open so the site
+	// never breaks because of the limiter. The bucket is generous because the
+	// web app's server renders reach it from a few shared edge addresses (it
+	// also caches the answer per isolate); the reply comes from memory.
+	siteRL := mw.RateLimit(limiter, rule("site", config.Rule{Rate: 3000, Period: time.Minute, Burst: 600}, scale), mw.ByIP, true)
+	v1.GET("/site/config", h.SiteConfig, siteRL)
+	// --- end site settings ---
 
 	// Signed-in user.
 	me := v1.Group("/me", authed)
@@ -215,6 +232,11 @@ func NewRouter(d Deps) *echo.Echo {
 	me.GET("/horoscope", h.MyHoroscope)
 	me.GET("/waitlist", h.MyWaitlist)
 	me.GET("/numerology", h.MyNumerology)
+	// revisions 3.0: support desk
+	me.GET("/support/tickets", h.MySupportTickets)
+	me.GET("/support/tickets/:reference", h.MySupportTicket)
+	me.POST("/support/tickets/:reference/messages", h.ReplyMySupportTicket, supportReplyRL)
+	// end revisions 3.0: support desk
 	me.GET("/notifications", h.Notifications)
 	me.GET("/notifications/unread-count", h.UnreadNotifications)
 	me.POST("/notifications/read", h.MarkNotificationsRead, writeRL)
@@ -288,6 +310,7 @@ func NewRouter(d Deps) *echo.Echo {
 	// Live chat (FR-09–FR-12).
 	ch := v1.Group("/chat", authed)
 	ch.GET("/conversations", h.Conversations)
+	ch.GET("/unread-count", h.ChatUnreadCount) // revisions 3.0: chat unread
 	ch.GET("/conversations/:id/messages", h.Messages)
 	ch.GET("/conversations/:id/messages/since", h.MessagesSince)
 	ch.GET("/conversations/:id/client", h.ClientProfile, psychic)
@@ -445,7 +468,19 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.GET("/analytics/funnel", h.AdminFunnel)
 	ad.GET("/analytics/top", h.AdminTopEvents)
 	ad.GET("/analytics/events", h.AdminEvents)
+	// revisions 3.0: calculator analytics
+	ad.GET("/analytics/calculators", h.AdminCalculators)
+	ad.GET("/analytics/calculators/conversions", h.AdminCalculatorConversions)
 	ad.GET("/audit-logs", h.AdminAudit)
+
+	// revisions 3.0: support desk. The queue and the counters are metadata;
+	// reading a ticket and answering it need a fresh step-up (they decrypt).
+	ad.GET("/support/tickets", h.AdminSupportTickets)
+	ad.GET("/support/summary", h.AdminSupportSummary)
+	ad.GET("/support/tickets/:id", h.AdminSupportTicket, stepUp)
+	ad.POST("/support/tickets/:id/messages", h.AdminSupportReply, stepUp, adminRL)
+	ad.PATCH("/support/tickets/:id", h.AdminSupportUpdate, adminRL)
+	// end revisions 3.0: support desk
 
 	// --- advisor settings: photo review (step-up; previews and decisions
 	// are audited). Unreviewed photos are only ever streamed from here.
@@ -454,6 +489,20 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.POST("/photo-submissions/:id/approve", h.AdminApprovePhoto, stepUp, adminRL)
 	ad.POST("/photo-submissions/:id/reject", h.AdminRejectPhoto, stepUp, adminRL)
 	// --- end advisor settings ---
+
+	// revisions 3.0: site settings. Reads are open to every admin; each write
+	// needs a fresh TOTP step-up and is audited by the service.
+	ad.GET("/site/banners", h.AdminSiteBanners)
+	ad.POST("/site/banners", h.AdminCreateSiteBanner, stepUp, adminRL)
+	ad.PUT("/site/banners/order", h.AdminReorderSiteBanners, stepUp, adminRL)
+	ad.PATCH("/site/banners/settings", h.AdminUpdateBannerSettings, stepUp, adminRL)
+	ad.PATCH("/site/banners/:id", h.AdminUpdateSiteBanner, stepUp, adminRL)
+	ad.DELETE("/site/banners/:id", h.AdminDeleteSiteBanner, stepUp, adminRL)
+	ad.GET("/site/signup-offer", h.AdminSignupOffer)
+	ad.PUT("/site/signup-offer", h.AdminUpdateSignupOffer, stepUp, adminRL)
+	ad.GET("/site/free-mode", h.AdminFreeMode)
+	ad.PUT("/site/free-mode", h.AdminUpdateFreeMode, stepUp, adminRL)
+	// --- end site settings ---
 
 	// billing: plans (immutable versions), routing, memberships, payments.
 	ad.GET("/billing/plans", h.AdminBillingPlans)

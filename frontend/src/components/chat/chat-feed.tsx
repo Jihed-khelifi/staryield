@@ -98,6 +98,20 @@ export function ChatFeed({
     geometry.current = { firstKey, height: el.scrollHeight };
   });
 
+  // The visible area changed (phone keyboard, rotation, composer growing): stay on the latest message if the reader was there.
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let height = el.clientHeight;
+    const ro = new ResizeObserver(() => {
+      if (el.clientHeight === height) return;
+      height = el.clientHeight;
+      if (atBottomRef.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // The viewer sent something: show it, wherever they were.
   React.useEffect(() => {
     if (!scrollToken) return;

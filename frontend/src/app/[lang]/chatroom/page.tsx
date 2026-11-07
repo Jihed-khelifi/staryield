@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 
 import { isLocale, localePath, locales } from "@/i18n/config";
@@ -7,6 +7,17 @@ import { AppFrame } from "@/components/layout/app-frame";
 import { ChatroomShell } from "@/components/chat/chatroom-shell";
 
 type PageParams = { params: Promise<{ lang: string }> };
+
+/**
+ * Phones shrink the layout when the keyboard opens (the composer stays above
+ * it) instead of panning the page; iOS Safari, which ignores this, is covered
+ * by the `useVisualViewport` hook in the chatroom.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
+};
 
 export async function generateMetadata({
   params,
@@ -35,7 +46,7 @@ export default async function ChatroomPage({
   const { reader, review } = await searchParams;
 
   return (
-    <AppFrame fill>
+    <AppFrame fill wide mobileNav={false}>
       <ChatroomShell
         key={reader ?? "inbox"}
         initialReader={reader && /^[a-z0-9-]{1,64}$/.test(reader) ? reader : undefined}

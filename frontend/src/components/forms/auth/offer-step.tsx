@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/i18n-provider";
 import { track } from "@/lib/analytics";
 import { useSession } from "@/lib/auth/session-provider";
+import { useSignupFreeMinutes } from "@/lib/site-config/site-config-provider";
 
 import { AuthCard, AuthShell } from "./auth-card";
 
@@ -14,6 +15,7 @@ export function OfferStep() {
   const { text, locale } = useI18n();
   const router = useRouter();
   const { status } = useSession();
+  const freeMinutes = useSignupFreeMinutes();
 
   React.useEffect(() => {
     track("signup_step_viewed", { step: "offer" });
@@ -36,7 +38,11 @@ export function OfferStep() {
           router.push(`/${locale}/psychics`);
         }}
       >
-        <p className="mt-2 text-center font-light">{text("First 3 minutes are on us! ")}</p>
+        {freeMinutes > 0 ? (
+          <p className="mt-2 text-center font-light" data-testid="offer-free-minutes">
+            {text("First {value0} minutes are on us!", { value0: freeMinutes })}
+          </p>
+        ) : null}
       </AuthCard>
     </AuthShell>
   );

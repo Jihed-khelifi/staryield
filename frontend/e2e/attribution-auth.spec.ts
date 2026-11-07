@@ -21,14 +21,14 @@ test.describe("short links and campaign attribution", () => {
 
   test("UTM landing keeps the first touch, strips sy_click and is sent with sign-up", async ({ page }) => {
     const click = randomUUID();
-    await page.goto(`/en/psychics?utm_source=e2e&utm_medium=test&utm_campaign=e2e-spring&utm_content=hero&sy_click=${click}`);
+    await page.goto(`/en/calculators/natal-chart?utm_source=e2e&utm_medium=test&utm_campaign=e2e-spring&utm_content=hero&sy_click=${click}`);
 
     // sy_click (and only it) is removed from the address bar.
     await expect.poll(() => new URL(page.url()).searchParams.has("sy_click")).toBe(false);
     expect(new URL(page.url()).searchParams.get("utm_campaign")).toBe("e2e-spring");
 
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("staryield.attribution") ?? "null"));
-    expect(stored).toMatchObject({ click_id: click, utm_source: "e2e", utm_medium: "test", utm_campaign: "e2e-spring", utm_content: "hero", landing_path: "/en/psychics" });
+    expect(stored).toMatchObject({ click_id: click, utm_source: "e2e", utm_medium: "test", utm_campaign: "e2e-spring", utm_content: "hero", landing_path: "/en/calculators/natal-chart" });
     expect(Date.parse(stored.first_seen_at)).not.toBeNaN();
 
     // A later landing does not replace the first touch.
@@ -48,7 +48,10 @@ test.describe("short links and campaign attribution", () => {
     await page.locator("form button[type=submit]").click();
     const body = (await register).postDataJSON();
     expect(body.email).toBe(email);
-    expect(body.attribution).toMatchObject({ click_id: click, utm_source: "e2e", utm_campaign: "e2e-spring", landing_path: "/en/psychics" });
+    expect(body.attribution).toMatchObject({ click_id: click, utm_source: "e2e", utm_campaign: "e2e-spring", landing_path: "/en/calculators/natal-chart" });
+    // §17: the analytics browser id links the new account to its calculator visits.
+    expect(body.attribution.anonymous_id).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(body.attribution.anonymous_id).toBe(await page.evaluate(() => localStorage.getItem("staryield.aid")));
     await page.waitForURL(/\/en\/signup\/birth$/);
   });
 });

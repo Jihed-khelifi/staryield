@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-04",
-    "effective": "2026-11-04",
-    "lastUpdated": "2026-11-04",
+    "version": "2026-11-07",
+    "effective": "2026-11-07",
+    "lastUpdated": "2026-11-07",
     "badge": "ACUERDO DEL SISTEMA STARYIELD",
     "title": "Términos de uso"
   },
@@ -390,6 +390,10 @@ const content: LegalDocumentContent = {
           "text": "Los servicios de atención al cliente se brindan a discreción de la Compañía. Si bien podemos ayudar a los usuarios, no existe la obligación de brindar soporte o responder a consultas. Si necesita ayuda, comuníquese con el [centro de soporte](/contact) y le responderemos lo más razonablemente posible."
         },
         {
+          "type": "p",
+          "text": "Cuando nos contactas, respondemos por correo electrónico y, si has iniciado sesión, en la sección Solicitudes de soporte de tu cuenta. Enviamos por correo un enlace privado para cada solicitud: cualquiera que tenga el enlace puede leer y responder esa solicitud, así que mantenlo en confidencialidad. Una solicitud cerrada ya no puede responderse; si todavía necesitas ayuda, envía una nueva solicitud. Consulta nuestra [Política de privacidad](/privacy#support-requests) para saber cómo se conservan las solicitudes de soporte."
+        },
+        {
           "type": "h3",
           "id": "live-readings-messages-and-images",
           "n": "4.11",
@@ -641,6 +645,14 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Podemos ofrecer una prueba gratuita o una suscripción de oferta introductoria para el Servicio de acuerdo con los términos especificados cuando se registra para la oferta. Una prueba gratuita le brinda acceso al Servicio por un período de tiempo; una oferta introductoria le brinda acceso al Servicio a una tarifa reducida durante un período de tiempo limitado. A menos que cancele antes del final de la prueba gratuita o de la oferta introductoria, o a menos que se indique lo contrario, su acceso al Servicio continuará automáticamente y se le facturarán las tarifas aplicables. Es su responsabilidad saber cuándo finalizará la prueba gratuita o la oferta de lanzamiento. Nos reservamos el derecho, a nuestra absoluta discreción, de modificar o cancelar cualquier prueba gratuita u oferta introductoria, su acceso al Servicio durante la prueba gratuita o el período introductorio, o cualquiera de estos términos sin previo aviso y sin responsabilidad. Nos reservamos el derecho de limitar su capacidad para aprovechar múltiples pruebas gratuitas y/u ofertas introductorias."
+        },
+        {
+          "type": "p",
+          "text": "Minutos gratuitos de bienvenida. Las cuentas de clientes nuevas pueden recibir una cantidad de minutos de chat gratuitos al registrarse. Staryield fija la cantidad, puede cambiarla o desactivar la oferta en cualquier momento, y un cambio se aplica solo a las cuentas creadas después. Los minutos gratuitos son solo para cuentas nuevas, no tienen valor en efectivo, no pueden transferirse, canjearse ni reembolsarse, y se usan antes que cualquier Crédito de tu Saldo."
+        },
+        {
+          "type": "p",
+          "text": "Acceso gratuito promocional («modo gratuito»). De vez en cuando podemos hacer gratis los chats en vivo para todos durante un periodo limitado. El modo gratuito puede empezar o terminar en cualquier momento, con o sin fecha de fin anunciada. Un chat que solicites mientras el modo gratuito está activo sigue siendo gratis hasta que ese chat termine, aunque el modo gratuito acabe entretanto. Los asesores siguen cobrando de Staryield por los chats realizados durante el modo gratuito. El modo gratuito no se aplica a las solicitudes personalizadas ni a la compra de Créditos, que se tarifican y cobran como siempre, y no se consume ningún minuto gratuito ni Crédito mientras tu chat es gratis."
         },
         {
           "type": "h4",

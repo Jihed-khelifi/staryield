@@ -60,6 +60,9 @@ var channelPolicies = map[string]ChannelPolicy{
 	NotifySubscriptionPaymentFailed: {Email: true, Category: domain.EmailBilling, Push: true},
 	NotifySubscriptionCanceled:      {Email: true, Category: domain.EmailBilling, Push: true},
 	// account.* kinds: in-app only here (their e-mails are sent directly).
+	// revisions 3.0: support desk. The reply e-mail is sent by the support
+	// desk itself (it carries the private link); the notification is in-app + push.
+	NotifySupportReplied: {Push: true},
 }
 
 // PolicyFor returns the channel policy of a kind (zero value: in-app only).

@@ -21,6 +21,24 @@ import (
 //
 // Adding a raw query means adding it here, in review, with that guarantee.
 var allowedRawSQL = map[string]int{
+	// revisions 3.0: calculator analytics. Multi-row INSERT … ON CONFLICT
+	// upserts of the visitor roll-up, UPDATE … FROM (VALUES …) user links and
+	// report aggregates (CTEs, FILTER, LATERAL, DISTINCT ON, date_trunc with a
+	// unit from the calUnits allow-list). Every value is bound as a parameter;
+	// the only spliced fragments are constants and the dim/column allow-lists.
+	"calculators.go:GormCalculatorRepository.ByLink":          1,
+	"calculators.go:GormCalculatorRepository.BySource":        1,
+	"calculators.go:GormCalculatorRepository.Conversions":     1,
+	"calculators.go:GormCalculatorRepository.DeleteOlderThan": 1,
+	"calculators.go:GormCalculatorRepository.LinkSignup":      1,
+	"calculators.go:GormCalculatorRepository.PurgeForUser":    2,
+	"calculators.go:GormCalculatorRepository.Series":          1,
+	"calculators.go:GormCalculatorRepository.SignupSeries":    1,
+	"calculators.go:GormCalculatorRepository.dimRows":         1,
+	"calculators.go:GormCalculatorRepository.linkVisitors":    1,
+	"calculators.go:GormCalculatorRepository.resolveLandings": 2,
+	"calculators.go:GormCalculatorRepository.upsertVisitors":  1,
+	"calculators.go:GormCalculatorRepository.upsertVisits":    1,
 	// Product analytics and admin reports (time buckets from validIntervals).
 	"analytics.go:GormAnalyticsRepository.Funnel":     1,
 	"analytics.go:GormAnalyticsRepository.Timeseries": 1,
@@ -64,6 +82,15 @@ var allowedRawSQL = map[string]int{
 	"insights.go:GormInsightsRepository.TopUsers":              1,
 	"insights.go:GormInsightsRepository.UserDevices":           1,
 	"insights.go:GormInsightsRepository.UserStats":             1,
+	// revisions 3.0: site settings. Sponsored (free mode) chat totals; every
+	// value is a bound parameter.
+	"analytics.go:GormReportRepository.SponsoredUsage": 1,
+	"site.go:GormSiteRepository.SponsoredEarnings":     1,
+	"site.go:GormSiteRepository.SponsoredTotals":       1,
+	// revisions 3.0: support desk. Index-only counters in one statement and a
+	// batched DELETE ... FOR UPDATE SKIP LOCKED; every value is bound, no identifiers.
+	"support.go:GormSupportRepository.DeleteClosed": 1,
+	"support.go:GormSupportRepository.Summary":      1,
 }
 
 // rawSQLInventory returns "file:Receiver.Func" → number of .Raw/.Exec calls

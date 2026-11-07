@@ -100,6 +100,8 @@ func TestExplainHotQueries(t *testing.T) {
 	ctx := context.Background()
 
 	ids := pickIDs(t, live)
+	calc := pickCalculatorSample(live) // revisions 3.0: calculator analytics
+	sup := pickSupportIDs(live)        // revisions 3.0: support desk
 	checks := []queryCheck{
 		{"notes: own list", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
 			_, _ = repository.NewNoteRepository(d).ListByAuthor(ctx, ids.noteAuthor, ids.noteClient, nil, 6)
@@ -174,10 +176,37 @@ func TestExplainHotQueries(t *testing.T) {
 		{"advisor photos: review queue", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
 			_, _ = repository.NewPhotoSubmissionRepository(d).AdminList(ctx, repository.PhotoAdminFilter{Status: domain.PhotoPending, Limit: 21})
 		}},
+		// revisions 3.0: chat unread
+		{"chat: unread totals (advisor)", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _, _ = repository.NewChatRepository(d).UnreadTotals(ctx, ids.busyPsychic, true)
+		}},
+		{"chat: unread totals (client)", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _, _ = repository.NewChatRepository(d).UnreadTotals(ctx, ids.sessionClient, false)
+		}},
 		{"advisor photos: current submission", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
 			_, _ = repository.NewPhotoSubmissionRepository(d).Current(ctx, ids.sessionPsychic)
 		}},
+		// revisions 3.0: site settings. Free-mode statistics and the
+		// overview's sponsored block read chat_sessions through the partial
+		// index on sponsored chats; the banner list is a handful of rows.
+		{"site: sponsored totals", 50 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewSiteRepository(d).SponsoredTotals(ctx, monthAgo())
+		}},
+		{"site: sponsored earnings", 50 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewSiteRepository(d).SponsoredEarnings(ctx, monthAgo())
+		}},
+		{"reports: sponsored usage", 50 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewReportRepository(d).SponsoredUsage(ctx, monthAgo(), time.Now())
+		}},
+		{"site: banner list", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewSiteRepository(d).Banners(ctx)
+		}},
+		{"site: settings", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewSiteRepository(d).Settings(ctx)
+		}},
 	}
+	checks = append(checks, calculatorChecks(calc)...)
+	checks = append(checks, supportChecks(sup)...) // revisions 3.0: support desk
 
 	var lines []string
 	for _, qc := range checks {
@@ -214,7 +243,7 @@ func TestExplainHotQueries(t *testing.T) {
 				label += " using " + n.Index
 			}
 			nodes = append(nodes, label)
-			if n.NodeType == "Seq Scan" && n.Relation != "" {
+			if n.NodeType == "Seq Scan" && n.Relation != "" && !seqScanAllowed[qc.name] {
 				if rows := estimatedRows(live, n.Relation); rows > seqScanRowLimit {
 					t.Errorf("%s: sequential scan on %s (~%d rows)\n%s", qc.name, n.Relation, rows, sql)
 				}
@@ -286,4 +315,151 @@ func pickIDs(t *testing.T, db *gorm.DB) sampleIDs {
 		ids.waitingUser = one.A
 	}
 	return ids
+}
+
+// revisions 3.0: chat unread. The unread totals must be answered by the
+// partial indexes of migration 0019 (an index-only scan), not by walking the
+// user's conversations. Sequential scans are disabled for the check so the
+// assertion also holds on a small development database, where the planner
+// would legitimately pick a table scan.
+func TestExplainChatUnreadUsesPartialIndex(t *testing.T) {
+	cfg := LoadConfig()
+	live, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{Logger: logger.Discard})
+	if err != nil {
+		t.Fatalf("database %s: %v", cfg.DSN, err)
+	}
+	dry, rec := newDryDB(t, cfg.DSN)
+	ctx := context.Background()
+	ids := pickIDs(t, live)
+	for _, tc := range []struct {
+		name      string
+		asPsychic bool
+		user      uuid.UUID
+		index     string
+	}{
+		{"client", false, ids.sessionClient, "conversations_client_unread_idx"},
+		{"advisor", true, ids.busyPsychic, "conversations_psychic_unread_idx"},
+	} {
+		_, _, _ = repository.NewChatRepository(dry).UnreadTotals(ctx, tc.user, tc.asPsychic)
+		sql := rec.take()
+		if sql == "" {
+			t.Fatalf("%s: no SQL captured", tc.name)
+		}
+		var raw string
+		err := live.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Exec("SET LOCAL enable_seqscan = off").Error; err != nil {
+				return err
+			}
+			return tx.Raw("EXPLAIN (FORMAT JSON) " + sql).Row().Scan(&raw)
+		})
+		if err != nil {
+			t.Fatalf("%s: explain: %v\n%s", tc.name, err, sql)
+		}
+		var out []explainOut
+		if err := json.Unmarshal([]byte(raw), &out); err != nil || len(out) == 0 {
+			t.Fatalf("%s: parse plan: %v", tc.name, err)
+		}
+		var usedIndex, indexOnly bool
+		walk(out[0].Plan, func(n planNode) {
+			if n.Index == tc.index {
+				usedIndex = true
+			}
+			if n.NodeType == "Index Only Scan" {
+				indexOnly = true
+			}
+		})
+		if !usedIndex || !indexOnly {
+			t.Errorf("%s: want an index-only scan of %s, plan: %s", tc.name, tc.index, raw)
+		}
+	}
+}
+
+// --- revisions 3.0: calculator analytics ------------------------------------
+
+type calculatorSample struct {
+	last          time.Time // the newest calculator day
+	link          uuid.UUID
+	cursorAt      time.Time // a sign-up from the middle of the list
+	cursorUser    uuid.UUID
+	hasConversion bool
+}
+
+// pickCalculatorSample anchors the report windows on the newest data (the
+// large seed is relative to the day it was generated) and picks a link and a
+// mid-list conversions cursor.
+func pickCalculatorSample(db *gorm.DB) calculatorSample {
+	s := calculatorSample{last: time.Now().UTC(), link: uuid.New()}
+	var day *time.Time
+	if db.Raw(`SELECT max(day)::timestamptz FROM calculator_visits`).Row().Scan(&day) == nil && day != nil {
+		s.last = day.UTC()
+	}
+	var one struct{ A uuid.UUID }
+	if db.Table("web_visitors").Select("link_id AS a").Where("link_id IS NOT NULL").Group("link_id").Order("count(*) DESC").Limit(1).Scan(&one).Error == nil && one.A != uuid.Nil {
+		s.link = one.A
+	}
+	var cur struct {
+		At   time.Time
+		User uuid.UUID
+	}
+	if db.Raw(`SELECT signed_up_at AS at, user_id AS "user" FROM web_visitors WHERE signed_up_at IS NOT NULL ORDER BY signed_up_at DESC, user_id DESC OFFSET 2000 LIMIT 1`).
+		Scan(&cur).Error == nil && cur.User != uuid.Nil {
+		s.cursorAt, s.cursorUser, s.hasConversion = cur.At, cur.User, true
+	}
+	return s
+}
+
+func calculatorChecks(s calculatorSample) []queryCheck {
+	day := func(d time.Time) time.Time { return time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.UTC) }
+	month := repository.CalculatorFilter{FromDay: day(s.last).AddDate(0, 0, -29), ToDay: day(s.last).AddDate(0, 0, 1)}
+	year := repository.CalculatorFilter{FromDay: day(s.last).AddDate(0, 0, -364), ToDay: day(s.last).AddDate(0, 0, 1)}
+	instagram := "instagram"
+	filtered := month
+	filtered.Kind, filtered.Source = "natal-chart", &instagram
+	byLink := month
+	byLink.LinkID = &s.link
+	checks := []queryCheck{
+		{"calculators: totals (30 days)", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).Totals(ctx, month)
+		}},
+		{"calculators: by kind (30 days)", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).ByDimension(ctx, month, "kind")
+		}},
+		{"calculators: by locale (30 days)", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).ByDimension(ctx, month, "locale")
+		}},
+		{"calculators: by source (30 days)", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).BySource(ctx, month, 50)
+		}},
+		{"calculators: by link (30 days)", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).ByLink(ctx, month, 50)
+		}},
+		{"calculators: visitor series (30 days)", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).Series(ctx, month, "day")
+		}},
+		{"calculators: filtered series", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).Series(ctx, filtered, "day")
+		}},
+		{"calculators: sign-up series (30 days)", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).SignupSeries(ctx, month, "week")
+		}},
+		{"calculators: filtered totals", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).Totals(ctx, filtered)
+		}},
+		{"calculators: link totals", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).Totals(ctx, byLink)
+		}},
+		{"calculators: conversions page 1 (12 months)", 250 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).Conversions(ctx, year, nil, 26)
+		}},
+		{"calculators: conversions page 1 (30 days)", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).Conversions(ctx, month, nil, 26)
+		}},
+	}
+	if s.hasConversion {
+		cursor := &repository.Cursor{At: s.cursorAt, ID: s.cursorUser.String()}
+		checks = append(checks, queryCheck{"calculators: conversions deep page", 250 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).Conversions(ctx, year, cursor, 26)
+		}})
+	}
+	return checks
 }

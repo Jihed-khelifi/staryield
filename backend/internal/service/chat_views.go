@@ -56,6 +56,13 @@ type SessionView struct {
 	Currency             string    `json:"currency,omitempty"`
 	Reconnects           int       `json:"reconnects"`
 	ServerTime           time.Time `json:"server_time"`
+	// revisions 3.0: site settings. A sponsored chat was requested while
+	// free mode was active: the platform pays, the wallet is untouched.
+	// SponsoredCredits is what the client would have paid (the advisor
+	// sees the list-rate equivalent instead).
+	Sponsored        bool  `json:"sponsored"`
+	SponsoredMinutes int   `json:"sponsored_minutes"`
+	SponsoredCredits int64 `json:"sponsored_credits"`
 }
 
 // SessionSummary is the end-of-session recap (sequence step 18). For the
@@ -201,6 +208,7 @@ func (c *ChatService) sessionView(ctx context.Context, ps *participants, s *doma
 		EndedAt: s.EndedAt, SettledAt: s.SettledAt, NextBillingAt: s.NextBillingAt,
 		ActiveSeconds: int64(s.ElapsedActive(now) / time.Second), BilledMinutes: s.BilledMinutes,
 		FreeMinutesUsed: s.FreeMinutesUsed, Reconnects: s.Reconnects, ServerTime: now,
+		Sponsored: s.Sponsored, SponsoredMinutes: s.SponsoredMinutes, SponsoredCredits: s.SponsoredCredits, // revisions 3.0
 	}
 	if s.Status == domain.SessionRequested || s.Status == domain.SessionAccepted {
 		v.ExpiresAt = ptr(s.ExpiresAt)
@@ -212,6 +220,7 @@ func (c *ChatService) sessionView(ctx context.Context, ps *participants, s *doma
 		// The advisor sees their own rate; a client's membership discount
 		// is the client's business (the platform funds it).
 		v.RatePerMinute = v.ListRatePerMinute
+		v.SponsoredCredits = int64(s.SponsoredMinutes) * v.ListRatePerMinute // revisions 3.0
 	}
 	if w.Admin || w.ID == s.PsychicID {
 		earned := s.PsychicEarnings

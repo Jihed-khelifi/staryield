@@ -42,6 +42,7 @@ type Services struct {
 	AdminAuth        *service.AdminAuthService
 	Growth           *service.GrowthService
 	Insights         *service.InsightsService
+	Calculators      *service.CalculatorService // revisions 3.0: calculator analytics
 	Notifications    *service.NotificationService
 	Reviews          *service.ReviewService
 	Withdrawals      *service.WithdrawalService
@@ -72,6 +73,10 @@ type Services struct {
 	// Advisor serves the advisor settings page: contact details, photo
 	// review and the custom offering.
 	Advisor *service.AdvisorService
+
+	// revisions 3.0: site settings. Site serves the public configuration
+	// (promo banners, sign-up offer, free mode) and its admin console.
+	Site *service.SiteService
 }
 
 // Limits bounds request bodies per upload type.

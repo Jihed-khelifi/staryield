@@ -155,6 +155,7 @@ func hasNotification(t *testing.T, c *client, broadcastID uuid.UUID) bool {
 
 func TestPsychicAnalyticsAndWithdrawals(t *testing.T) {
 	e := newEnv(t, func(c *config.Config) { c.Billing.MinWithdrawalCredits = 10 })
+	e.pinSignupFreeMinutes(3) // revisions 3.0: these assertions are written for 3 promotional minutes
 	admin := e.createAdmin()
 	client, psychic, cws, _, s := startedSession(t, e, 40, 600)
 	// Five billed minutes, the first three free (sign-up offer), then end:

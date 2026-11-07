@@ -143,6 +143,8 @@ test.describe("waiting list @responsive", () => {
     }
     await expect(button).toHaveText("Join Waiting List");
     await expect(button).toHaveAttribute("data-variant", "glass");
+    // The button is disabled (dimmed) while a join/leave request is in flight: check the settled state.
+    await expect(button).toBeEnabled();
     await expectNoA11yViolations(page, ["[data-testid=profile-ctas]"]);
 
     const joined = page.waitForResponse((r) => r.url().endsWith(`/psychics/${SOLOMON.slug}/waitlist`) && r.request().method() === "POST" && r.ok());

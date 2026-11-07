@@ -60,6 +60,7 @@ func startedSessionWith(t *testing.T, e *env, psychic *client, credits int64) (c
 
 func TestLiveChatFullLifecycle(t *testing.T) {
 	e := newEnv(t)
+	e.pinSignupFreeMinutes(3) // revisions 3.0: these assertions are written for 3 promotional minutes
 	const rate = 40
 	client, psychic, cws, pws, s := startedSession(t, e, rate, 250)
 
@@ -242,6 +243,7 @@ func TestLiveChatFullLifecycle(t *testing.T) {
 
 func TestCreditsExhaustedEndsSession(t *testing.T) {
 	e := newEnv(t)
+	e.pinSignupFreeMinutes(3) // revisions 3.0: these assertions are written for 3 promotional minutes
 	const rate = 100
 	client, _, cws, pws, s := startedSession(t, e, rate, 250)
 	// 3 free minutes, then 2 paid minutes (250 credits / 100), then the

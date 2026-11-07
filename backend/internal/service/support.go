@@ -50,25 +50,45 @@ type TicketReceipt struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// SupportNotifier is told about new tickets: MailSupportNotifier e-mails
-// the support inbox and acknowledges the request to the sender.
+// SupportNotifier is told about ticket events: MailSupportNotifier e-mails
+// the support inbox and acknowledges the request to the sender (with the
+// private link), e-mails staff replies to the requester and requester replies
+// to the team.
 type SupportNotifier interface {
-	TicketCreated(ctx context.Context, t *domain.SupportTicket, email, message string)
+	// TicketCreated acknowledges a new request; link is the private link.
+	TicketCreated(ctx context.Context, t *domain.SupportTicket, email, message, link string)
+	// StaffReplied e-mails a public staff reply to the requester. It returns
+	// an error when the e-mail could not be queued.
+	StaffReplied(ctx context.Context, t *domain.SupportTicket, email, body, link string, messageID uuid.UUID) error
+	// CustomerReplied e-mails a requester's reply to the team (to).
+	CustomerReplied(ctx context.Context, t *domain.SupportTicket, to, body, consoleLink string, messageID uuid.UUID, reopened bool)
 }
 
 // NoopSupportNotifier discards notifications.
 type NoopSupportNotifier struct{}
 
 // TicketCreated implements SupportNotifier.
-func (NoopSupportNotifier) TicketCreated(context.Context, *domain.SupportTicket, string, string) {}
+func (NoopSupportNotifier) TicketCreated(context.Context, *domain.SupportTicket, string, string, string) {
+}
 
-// SupportService stores contact-form requests.
+// StaffReplied implements SupportNotifier.
+func (NoopSupportNotifier) StaffReplied(context.Context, *domain.SupportTicket, string, string, string, uuid.UUID) error {
+	return nil
+}
+
+// CustomerReplied implements SupportNotifier.
+func (NoopSupportNotifier) CustomerReplied(context.Context, *domain.SupportTicket, string, string, string, uuid.UUID, bool) {
+}
+
+// SupportService stores contact-form requests and runs the support desk
+// (admin queue, requester views, replies, maintenance).
 type SupportService struct {
 	repo     repository.SupportRepository
 	sealer   *security.Sealer
 	notify   SupportNotifier
 	clock    clock.Clock
 	ipSecret string
+	desk     SupportDeskDeps // revisions 3.0: support desk (see WithDesk)
 }
 
 // NewSupportService wires the support service.
@@ -150,7 +170,14 @@ func (s *SupportService) Create(ctx context.Context, p reqctx.Principal, in Tick
 	t := &domain.SupportTicket{ID: domain.NewID(), Name: clean.name, Topic: clean.topic, Subject: clean.subject,
 		MessageChars: utf8.RuneCountInString(clean.message), Locale: normalizeLocale(meta.Locale), Status: domain.SupportOpen,
 		EmailHash: security.Keyed(s.ipSecret, "support-email:"+clean.email, 0), IPHash: security.Keyed(s.ipSecret, meta.IP, 32),
-		CreatedAt: now, UpdatedAt: now}
+		CreatedAt: now, UpdatedAt: now,
+		// revisions 3.0: support desk
+		Priority: domain.SupportNormal, Version: 1, MessageCount: 1, LastMessageAt: now, LastCustomerMessageAt: now,
+		EmailMasked: MaskEmail(clean.email)}
+	token, err := s.issueToken(t, now)
+	if err != nil {
+		return nil, apperror.Internal(err)
+	}
 	if p.UserID != uuid.Nil {
 		id := p.UserID
 		t.UserID = &id
@@ -174,6 +201,7 @@ func (s *SupportService) Create(ctx context.Context, p reqctx.Principal, in Tick
 	if err != nil {
 		return nil, apperror.Internal(err)
 	}
-	s.notify.TicketCreated(ctx, t, clean.email, clean.message)
+	s.invalidateSummary(ctx) // revisions 3.0: support desk
+	s.notify.TicketCreated(ctx, t, clean.email, clean.message, s.ticketLink(t.Locale, t.Reference, token))
 	return &TicketReceipt{Reference: t.Reference, Topic: string(t.Topic), CreatedAt: t.CreatedAt}, nil
 }

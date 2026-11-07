@@ -12,6 +12,7 @@ import (
 
 func TestPsychicBalanceForTheWalletPill(t *testing.T) {
 	e := newEnv(t)
+	e.pinSignupFreeMinutes(3) // revisions 3.0: these assertions are written for 3 promotional minutes
 	client, psychic, cws, _, s := startedSession(t, e, 40, 250)
 
 	var empty service.PsychicBalanceView

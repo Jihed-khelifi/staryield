@@ -73,7 +73,7 @@ test.describe("CTA glow", { tag: "@responsive" }, () => {
     const shadow = await page.evaluate(() => {
       const probe = document.createElement("div");
       probe.style.boxShadow = "var(--shadow-cta-glow)";
-      document.body.append(probe);
+      document.body.appendChild(probe);
       const value = getComputedStyle(probe).boxShadow;
       probe.remove();
       return value;

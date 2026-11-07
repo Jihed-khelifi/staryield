@@ -7,6 +7,15 @@ import { expect, type Page } from "@playwright/test";
  * are covered as they are migrated.
  */
 export async function expectNoA11yViolations(page: Page, include: string[] = ["body"]) {
+  // Pages fade in after a navigation or reload (.app-route-motion): colour
+  // contrast is only meaningful once finite animations have settled.
+  await page
+    .waitForFunction(
+      () => document.getAnimations().every((a) => a.playState !== "running" || a.effect?.getComputedTiming().iterations === Infinity),
+      undefined,
+      { timeout: 5_000 },
+    )
+    .catch(() => undefined);
   let builder = new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]);
   for (const selector of include) builder = builder.include(selector);
   const { violations } = await builder.analyze();

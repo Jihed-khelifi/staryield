@@ -194,6 +194,18 @@ type Overview struct {
 	PsychicNetCredits    int64             `json:"psychic_net_credits"`
 	PlatformCommission   int64             `json:"platform_commission_credits"`
 	TopPsychics          []PsychicEarnings `json:"top_psychics"`
+	// revisions 3.0: site settings. Chats sponsored by free mode: kept out
+	// of revenue and credits_spent (they never touch a wallet).
+	Sponsored SponsoredUsage `json:"sponsored"`
+}
+
+// SponsoredUsage totals the sponsored (free mode) chats of a period: chats
+// that billed at least one sponsored minute, those minutes and the credits
+// the clients would have paid.
+type SponsoredUsage struct {
+	Sessions int64 `json:"sessions"`
+	Minutes  int64 `json:"minutes"`
+	Credits  int64 `json:"credits"`
 }
 
 // PsychicEarnings ranks psychics by earnings.
@@ -332,7 +344,19 @@ func (r *GormReportRepository) Overview(ctx context.Context, from, to time.Time)
 		GROUP BY p.user_id, p.name, p.slug ORDER BY net_credits DESC LIMIT 10`, from, to).Scan(&o.TopPsychics).Error; err != nil {
 		return nil, err
 	}
+	if o.Sponsored, err = r.SponsoredUsage(ctx, from, to); err != nil { // revisions 3.0: site settings
+		return nil, err
+	}
 	return o, nil
+}
+
+// SponsoredUsage totals the sponsored chats requested in [from, to).
+func (r *GormReportRepository) SponsoredUsage(ctx context.Context, from, to time.Time) (SponsoredUsage, error) {
+	var u SponsoredUsage
+	err := database.Conn(ctx, r.db).Raw(`SELECT count(*) AS sessions, COALESCE(sum(sponsored_minutes), 0) AS minutes,
+		COALESCE(sum(sponsored_credits), 0) AS credits
+		FROM chat_sessions WHERE sponsored AND sponsored_minutes > 0 AND requested_at >= ? AND requested_at < ?`, from, to).Scan(&u).Error
+	return u, err
 }
 
 func (r *GormReportRepository) Daily(ctx context.Context, from, to time.Time) ([]DailyMetric, error) {

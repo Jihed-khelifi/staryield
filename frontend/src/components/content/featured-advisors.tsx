@@ -14,6 +14,7 @@ import { useAsync } from "@/lib/use-async";
 import { formatRating } from "@/lib/format";
 import { loginUrl } from "@/lib/navigation";
 import { track } from "@/lib/analytics";
+import { FreeChatBadge } from "@/components/billing/free-chat-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -101,6 +102,7 @@ function FeaturedCard({ advisor, joined, pending, onJoin, onLeave }: CardProps) 
           {text(badgeCopy[advisor.status])}
         </span>
       </div>
+      <FreeChatBadge />
       <div className="flex w-full flex-col gap-1 text-black">
         <h3 id={nameId} className="font-serif text-[22px] font-semibold">
           {text(advisor.name)}

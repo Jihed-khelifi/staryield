@@ -75,6 +75,8 @@ describe("ContactForm", () => {
     });
     expect(within(success).getByTestId("contact-reference").textContent).toBe("SY-7K3M9Q");
     expect(success.textContent).toContain("We will reply to jane@example.com.");
+    expect(within(success).getByTestId("contact-private-link").textContent).toBe("We e-mailed you a private link to follow your request");
+    expect(within(success).queryByTestId("contact-follow")).toBeNull();
     expect(within(success).getByRole("link", { name: "Browse the FAQ" }).getAttribute("href")).toBe("/en/faq");
     expect(await axeViolations()).toEqual([]);
 
@@ -93,6 +95,18 @@ describe("ContactForm", () => {
     await fill(u, { email: "" });
     await u.click(submit());
     await waitFor(() => expect(createTicket).toHaveBeenCalledWith(expect.objectContaining({ topic: "privacy", email: "member@example.com" })));
+  });
+
+  it("links signed-in senders to the request in their support requests", async () => {
+    const u = userEvent.setup();
+    session.current = { status: "authenticated", user: { id: "u1", email: "member@example.com", role: "client" } };
+    createTicket.mockResolvedValue({ reference: "SY-AB2CD3", topic: "general", created_at: "2026-11-05T10:00:00Z" });
+    renderWithI18n(<ContactForm />);
+    await fill(u, { email: "" });
+    await u.click(submit());
+    const success = await screen.findByTestId("contact-success");
+    expect(within(success).getByRole("link", { name: "your support requests" }).getAttribute("href")).toBe("/en/support/requests/SY-AB2CD3");
+    expect(within(success).queryByTestId("contact-private-link")).toBeNull();
   });
 
   it("ignores unknown topics", () => {

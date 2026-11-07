@@ -6,6 +6,7 @@ import { FiImage, FiSend, FiX } from "react-icons/fi";
 import { useI18n } from "@/i18n/i18n-provider";
 import { MESSAGE_MAX_LENGTH } from "@/lib/schemas/message-schema";
 import { ACCEPT_ATTRIBUTE, attachmentProblemCopy, firstFile, validateAttachment } from "@/lib/chat/attachments";
+import { clearDraft, draftKey, loadDraft, pruneDrafts, saveDraft } from "@/lib/chat/drafts";
 import { insertAtCaret } from "@/lib/chat/message-format";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,11 @@ const TYPING_IDLE_MS = 3000;
 const MAX_LINES = 6;
 /** Show the character counter from 80% of the limit. */
 const COUNTER_FROM = Math.floor(MESSAGE_MAX_LENGTH * 0.8);
+
+/** Typing pauses this long before the draft is written to storage. */
+export const DRAFT_DEBOUNCE_MS = 400;
+/** How long the "Draft saved" hint stays visible. */
+const DRAFT_HINT_MS = 2200;
 
 export type ComposerSubmit = { body: string; file?: File };
 
@@ -42,6 +48,9 @@ export function MessageComposer({
   disabled = false,
   disabledReason,
   allowAttachments = true,
+  userId,
+  draftId,
+  draftFallbackId,
 }: {
   onSend: (message: ComposerSubmit) => void;
   onTyping?: (typing: boolean) => void;
@@ -50,10 +59,31 @@ export function MessageComposer({
   disabled?: boolean;
   disabledReason?: string;
   allowAttachments?: boolean;
+  /** Drafts are kept per user and per `draftId` (conversation id, or an advisor slug before one exists). */
+  userId?: string;
+  draftId?: string | null;
+  /** A second key to read from when `draftId` has no draft (the slug key used before the conversation existed). */
+  draftFallbackId?: string | null;
 }) {
   const { t, text, locale } = useI18n();
   const touch = useMediaQuery("(hover: none) and (pointer: coarse)");
-  const [value, setValue] = React.useState("");
+  const draftsOn = Boolean(userId && draftId);
+  const readDraft = React.useCallback(
+    () => (userId && draftId ? loadDraft(userId, draftId) || (draftFallbackId ? loadDraft(userId, draftFallbackId) : "") : ""),
+    [userId, draftId, draftFallbackId],
+  );
+  const [value, setValue] = React.useState(readDraft);
+  // Switching conversation restores that conversation's draft (adjusted during render).
+  const [loadedFor, setLoadedFor] = React.useState(`${userId}|${draftId}`);
+  if (loadedFor !== `${userId}|${draftId}`) {
+    setLoadedFor(`${userId}|${draftId}`);
+    setValue(readDraft());
+  }
+  const [draftHint, setDraftHint] = React.useState(false);
+  const valueRef = React.useRef(value);
+  React.useEffect(() => {
+    valueRef.current = value;
+  });
   const [file, setFile] = React.useState<File | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [dragging, setDragging] = React.useState(false);
@@ -100,6 +130,52 @@ export function MessageComposer({
     el.style.height = `${Math.min(content, max)}px`;
     el.style.overflowY = content > max ? "auto" : "hidden";
   }, []);
+
+  // Debounced save; a blank value removes the draft. Skipped until the restored value is in place.
+  React.useEffect(() => {
+    if (!userId || !draftId || loadedFor !== `${userId}|${draftId}`) return;
+    const stored = loadDraft(userId, draftId);
+    if (stored === value) return;
+    const timer = window.setTimeout(() => {
+      const kept = saveDraft(userId, draftId, value);
+      if (kept) {
+        if (draftFallbackId) clearDraft(userId, draftFallbackId);
+        setDraftHint(true);
+      }
+    }, DRAFT_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [value, userId, draftId, draftFallbackId, loadedFor]);
+  React.useEffect(() => {
+    if (!draftHint) return;
+    const timer = window.setTimeout(() => setDraftHint(false), DRAFT_HINT_MS);
+    return () => window.clearTimeout(timer);
+  }, [draftHint]);
+  // A reload or tab switch right after typing must not lose the text.
+  React.useEffect(() => {
+    if (!userId || !draftId) return;
+    pruneDrafts(userId);
+    const flush = () => {
+      if (document.visibilityState === "hidden") saveDraft(userId, draftId, valueRef.current);
+    };
+    const flushNow = () => void saveDraft(userId, draftId, valueRef.current);
+    document.addEventListener("visibilitychange", flush);
+    window.addEventListener("pagehide", flushNow);
+    return () => {
+      document.removeEventListener("visibilitychange", flush);
+      window.removeEventListener("pagehide", flushNow);
+    };
+  }, [userId, draftId]);
+  // Another tab edited this draft: follow it unless the user is typing here.
+  React.useEffect(() => {
+    if (!userId || !draftId) return;
+    const key = draftKey(userId, draftId);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== key || document.activeElement === textareaRef.current) return;
+      setValue(loadDraft(userId, draftId));
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [userId, draftId]);
 
   const placeholder = disabled && disabledReason ? disabledReason : file ? text("Add a caption…") : t("chatroom.composer.placeholder");
 
@@ -166,6 +242,12 @@ export function MessageComposer({
     }
     stopTyping();
     onSend(file ? { body, file } : { body });
+    // Sent: the draft is done (the outbox keeps the message itself).
+    if (userId && draftId) {
+      clearDraft(userId, draftId);
+      if (draftFallbackId) clearDraft(userId, draftFallbackId);
+    }
+    setDraftHint(false);
     setValue("");
     setFile(null);
     setError(null);
@@ -313,6 +395,11 @@ export function MessageComposer({
         <p className="composer-note font-ui text-[10px] text-ink" data-testid="composer-note">
           {note}
         </p>
+        {draftsOn && draftHint && value.trim() ? (
+          <span className="composer-draft-hint" role="status" data-testid="draft-saved">
+            {text("Draft saved")}
+          </span>
+        ) : null}
         {showCounter ? (
           <span
             id={counterId}

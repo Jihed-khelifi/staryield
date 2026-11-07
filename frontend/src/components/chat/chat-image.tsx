@@ -1,18 +1,20 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 import * as React from "react";
-import { Dialog } from "radix-ui";
-import { ImageOff, X } from "lucide-react";
+import { ImageOff } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import type { ChatAttachment } from "@/lib/api/types";
 import { acquireAttachment, releaseAttachment } from "@/lib/chat/attachments";
 import { logger } from "@/lib/logger";
 import { toApiError } from "@/lib/api/errors";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
+import { ChatImageViewer } from "@/components/chat/chat-image-viewer";
 
 const MAX_W = 260;
 const MAX_H = 320;
+const MAX_H_PHONE = 260;
 
 type Source = { url: string | null; failed: boolean; retry: () => void };
 
@@ -83,20 +85,38 @@ export function ChatImage({ attachment, file, alt, caption, compact = false, cla
   const [loaded, setLoaded] = React.useState<string | null>(null);
   const [natural, setNatural] = React.useState<{ w: number; h: number } | null>(null);
   const [open, setOpen] = React.useState(false);
-  const size = displaySize(attachment?.width || natural?.w, attachment?.height || natural?.h, compact ? 72 : MAX_W, compact ? 72 : MAX_H);
+  const frameRef = React.useRef<HTMLButtonElement>(null);
+  const [broken, setBroken] = React.useState<string | null>(null);
+  const phone = useMediaQuery("(max-width: 767px)");
+  // Phones: a shorter cap keeps tall photos from filling the screen. The frame keeps the stored aspect ratio, so nothing shifts when the pixels arrive.
+  const size = displaySize(attachment?.width || natural?.w, attachment?.height || natural?.h, compact ? 72 : MAX_W, compact ? 72 : phone ? MAX_H_PHONE : MAX_H);
   const ready = Boolean(url && loaded === url);
 
   const frameStyle: React.CSSProperties = compact ? { width: 72, height: 72 } : { width: size.width, aspectRatio: String(size.ratio) };
 
-  if (remote.failed && !local) {
+  if ((remote.failed && !local) || (url && broken === url)) {
     return (
-      <div className={cn("chat-image-frame chat-image-error", className)} style={frameStyle} role="img" aria-label={text("Image unavailable")}>
+      <div className={cn("chat-image-frame chat-image-error", className)} style={frameStyle} data-testid="chat-image-error">
         <ImageOff size={18} aria-hidden />
         {!compact ? (
-          <button type="button" className="font-ui text-[11px] underline" onClick={remote.retry}>
-            {text("Retry")}
-          </button>
-        ) : null}
+          <>
+            <span className="font-ui text-[11px]" role="status">
+              {text("This image couldn't be loaded.")}
+            </span>
+            <button
+              type="button"
+              className="font-ui text-[11px] font-semibold underline"
+              onClick={() => {
+                setBroken(null);
+                remote.retry();
+              }}
+            >
+              {text("Retry")}
+            </button>
+          </>
+        ) : (
+          <span className="sr-only">{text("Image unavailable")}</span>
+        )}
       </div>
     );
   }
@@ -104,6 +124,7 @@ export function ChatImage({ attachment, file, alt, caption, compact = false, cla
   return (
     <>
       <button
+        ref={frameRef}
         type="button"
         className={cn("chat-image-frame", !ready && "chat-image-loading", className)}
         style={frameStyle}
@@ -121,30 +142,12 @@ export function ChatImage({ attachment, file, alt, caption, compact = false, cla
               const img = e.currentTarget;
               if (img.naturalWidth && img.naturalHeight) setNatural({ w: img.naturalWidth, h: img.naturalHeight });
             }}
+            onError={() => setBroken(url)}
             draggable={false}
           />
         ) : null}
       </button>
-      <Dialog.Root open={open} onOpenChange={setOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="lightbox-overlay" />
-          <Dialog.Content className="lightbox-content" aria-describedby={caption ? "lightbox-caption" : undefined}>
-            <Dialog.Title className="sr-only">{text("Image")}</Dialog.Title>
-            {caption ? null : <Dialog.Description className="sr-only">{alt}</Dialog.Description>}
-            {url ? <img src={url} alt={alt} className="lightbox-image" /> : null}
-            {caption ? (
-              <p id="lightbox-caption" className="lightbox-caption">
-                {caption}
-              </p>
-            ) : null}
-            <Dialog.Close asChild>
-              <button type="button" className="lightbox-close" aria-label={text("Close image")}>
-                <X size={20} aria-hidden />
-              </button>
-            </Dialog.Close>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+      <ChatImageViewer open={open} onOpenChange={setOpen} src={url} alt={alt} caption={caption} returnFocusTo={frameRef} />
     </>
   );
 }

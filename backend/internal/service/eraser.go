@@ -53,7 +53,10 @@ type EraserDeps struct {
 	Support UserDataPurger
 	// Advisor: photo submissions and their private images, the published
 	// profile photo and the sealed phone number (advisor settings).
-	Advisor     UserDataPurger
+	Advisor UserDataPurger
+	// Calculators: web visitors linked to the account and their calculator
+	// rows (revisions 3.0: calculator analytics).
+	Calculators UserDataPurger
 	AvatarStore storage.ObjectStore
 	ExportStore storage.ObjectStore
 	Auth        *AuthService
@@ -221,7 +224,7 @@ func (e *AccountEraser) eraseExtras(ctx context.Context, id uuid.UUID, now time.
 			return err
 		}
 	}
-	for _, p := range []UserDataPurger{e.d.Waitlist, e.d.Support, e.d.Advisor} {
+	for _, p := range []UserDataPurger{e.d.Waitlist, e.d.Support, e.d.Advisor, e.d.Calculators} {
 		if p == nil {
 			continue
 		}
@@ -263,3 +266,7 @@ func (e *AccountEraser) cleanUp(ctx context.Context, u *domain.User, profile *do
 
 // SetEraser makes account deletion use a fully wired eraser (identity).
 func (s *AdminService) SetEraser(e *AccountEraser) { s.eraser = e }
+
+// SetCalculators erases web visitors linked to an account (revisions 3.0:
+// calculator analytics).
+func (e *AccountEraser) SetCalculators(p UserDataPurger) { e.d.Calculators = p }
