@@ -47,6 +47,13 @@ func TestAdvisorGrossUsesTheListRate(t *testing.T) {
 		{"legacy row without list rate", Session{RatePerMinute: 30, BilledMinutes: 2, CreditsCharged: 60}, 60},
 		{"member discount", Session{RatePerMinute: 24, ListRatePerMinute: 30, DiscountBps: 2000, BilledMinutes: 5, FreeMinutesUsed: 3, CreditsCharged: 48}, 60},
 		{"free minutes only", Session{RatePerMinute: 24, ListRatePerMinute: 30, DiscountBps: 2000, BilledMinutes: 3, FreeMinutesUsed: 3}, 0},
+		// revisions 3.0: sponsored (free mode) minutes earn the list rate.
+		{"sponsored only", Session{Sponsored: true, RatePerMinute: 30, ListRatePerMinute: 30, BilledMinutes: 4, SponsoredMinutes: 4, SponsoredCredits: 120}, 120},
+		{"sponsored with a member discount", Session{Sponsored: true, RatePerMinute: 24, ListRatePerMinute: 30, DiscountBps: 2000, BilledMinutes: 3, SponsoredMinutes: 3, SponsoredCredits: 72}, 90},
+		{"sponsored adds to paid minutes (no discount)", Session{RatePerMinute: 30, ListRatePerMinute: 30, BilledMinutes: 5, FreeMinutesUsed: 1, SponsoredMinutes: 2, CreditsCharged: 60}, 120},
+		{"sponsored adds to discounted paid minutes", Session{RatePerMinute: 24, ListRatePerMinute: 30, DiscountBps: 2000, BilledMinutes: 6, FreeMinutesUsed: 1, SponsoredMinutes: 2, CreditsCharged: 72}, 90 + 60},
+		{"no minutes yet", Session{Sponsored: true, RatePerMinute: 30, ListRatePerMinute: 30}, 0},
+		{"negative sponsored minutes are ignored", Session{RatePerMinute: 30, ListRatePerMinute: 30, SponsoredMinutes: -3, CreditsCharged: 30}, 30},
 	}
 	for _, c := range cases {
 		if got := c.s.AdvisorGross(); got != c.want {

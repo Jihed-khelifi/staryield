@@ -2,11 +2,15 @@
 /* eslint-disable @next/next/no-img-element */
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/i18n-provider";
 import { zodiacIconUrl } from "@/lib/astro-icons";
 import { formatRating } from "@/lib/format";
 import { SiteHeader, MobileNavigation } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
+import { FreeChatBadge } from "@/components/billing/free-chat-badge";
+import { useFreeMode } from "@/lib/site-config/site-config-provider";
+import { psychicsHref as buildPsychicsHref, usePsychicsHref } from "@/lib/psychics-link";
 import {
   Sheet,
   SheetContent,
@@ -123,6 +127,7 @@ function AdvisorCardView({ advisor }: { advisor: AdvisorCard }) {
             {text(statusCopy[advisor.status])}
           </span>
         </div>
+        <FreeChatBadge />
         {advisor.skills.length ? (
           <ul className="advisor-skills" aria-label={text("Specialties")}>
             {advisor.skills.slice(0, 4).map((skill) => (
@@ -155,7 +160,7 @@ function AdvisorCardView({ advisor }: { advisor: AdvisorCard }) {
   );
 }
 
-export function PsychicsBrowse() {
+function PsychicsDirectory() {
   const { text } = useI18n();
   // Read once on the client; the server renders the loading state, which
   // does not depend on the page, so hydration matches.
@@ -255,9 +260,39 @@ export function PsychicsBrowse() {
   );
 }
 
+/**
+ * The directory is for signed-in customers (revisions 3.0). Visitors are sent
+ * to the home section once the session answers "anonymous"; until then (and
+ * while redirecting) only a neutral loading state shows, never the directory.
+ */
+export function PsychicsBrowse() {
+  const { text, locale } = useI18n();
+  const router = useRouter();
+  const { status } = useSession();
+  useEffect(() => {
+    if (status === "anonymous") router.replace(buildPsychicsHref(locale, false));
+  }, [status, locale, router]);
+  if (status !== "authenticated")
+    return (
+      <div className="dashboard-page">
+        <SiteHeader />
+        <main className="psychics-browse" aria-busy="true" data-testid="psychics-gate">
+          <p role="status" className="sr-only">
+            {text("Loading advisors…")}
+          </p>
+          <AdvisorGridSkeleton />
+        </main>
+        <MobileNavigation />
+      </div>
+    );
+  return <PsychicsDirectory />;
+}
+
 export function PsychicProfile({ slug }: { slug: string }) {
   const { text, locale } = useI18n();
   const { status: sessionStatus, user } = useSession();
+  const psychicsHref = usePsychicsHref();
+  const freeMode = useFreeMode();
   const [advisor, setAdvisor] = useState<Psychic | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [service, setService] = useState<Service | null>(null);
@@ -284,7 +319,7 @@ export function PsychicProfile({ slug }: { slug: string }) {
           {error?.code === "not_found" ? (
             <div className="py-16 text-center">
               <h1 className="font-display text-3xl">{text("This advisor could not be found.")}</h1>
-              <Link className="mt-4 inline-block underline" href={`/${locale}/psychics`}>
+              <Link className="mt-4 inline-block underline" href={psychicsHref}>
                 {text("Browse all advisors")}
               </Link>
             </div>
@@ -312,7 +347,7 @@ export function PsychicProfile({ slug }: { slug: string }) {
       <main className="psychic-profile">
         <div className="mb-8 flex items-center justify-between text-sm">
           <div>
-            <Link href={`/${locale}/psychics`}>{text("Psychics")}</Link>{" "}
+            <Link href={psychicsHref}>{text("Psychics")}</Link>{" "}
             <span className="mx-2">›</span> <strong>{text(advisor.name)}</strong>
           </div>
           <span className={`status-pill ${canChat ? "online" : ""}`}>
@@ -357,10 +392,19 @@ export function PsychicProfile({ slug }: { slug: string }) {
               <div className="flex justify-between gap-3">
                 <div>
                   <p className="text-sm uppercase">{text("Consultation rate")}</p>
-                  <p>
-                    <span className="font-display text-[32px]">{advisor.rate_per_minute}</span>{" "}
-                    <strong className="text-sm">{text("Credits / minute")}</strong>
-                  </p>
+                  {freeMode ? (
+                    <p data-testid="profile-free-rate">
+                      <span className="font-display text-[32px]">{text("Free for a limited time")}</span>{" "}
+                      <s className="text-sm" aria-label={text("List rate: {value0} credits per minute", { value0: advisor.rate_per_minute })}>
+                        {advisor.rate_per_minute} {text("Credits / minute")}
+                      </s>
+                    </p>
+                  ) : (
+                    <p>
+                      <span className="font-display text-[32px]">{advisor.rate_per_minute}</span>{" "}
+                      <strong className="text-sm">{text("Credits / minute")}</strong>
+                    </p>
+                  )}
                 </div>
                 <p className="self-center text-right text-xs">
                   {text(canChat ? "● Instant Connection " : statusCopy[advisor.status])}
@@ -368,6 +412,7 @@ export function PsychicProfile({ slug }: { slug: string }) {
                   {text(canChat ? "No waiting queue " : "Live chat opens when this advisor is online.")}
                 </p>
               </div>
+              <FreeChatBadge className="mt-4" />
               {/* Busy, away or offline: wait for the advisor next to the chat CTA (same flow as the home cards). */}
               <div className="mt-5 flex flex-col gap-3 sm:flex-row" data-testid="profile-ctas">
                 <Button asChild className="gold-button h-14 w-full sm:flex-1">
@@ -429,7 +474,7 @@ export function PsychicProfile({ slug }: { slug: string }) {
                       track("service_viewed", { slug, credits: item.price_credits });
                     }}
                   >
-                    {text("Book Session › ")}
+                    {text("Order service › ")}
                   </Button>
                 </article>
               ))}

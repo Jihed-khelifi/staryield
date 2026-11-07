@@ -49,11 +49,36 @@ const queue: Queued[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 let installed = false;
 
-function optedOut(): boolean {
+/**
+ * True when this visitor opted out of analytics: Do Not Track, Global Privacy
+ * Control or an explicit "analytics off" in Privacy preferences (sy_consent).
+ * Shared by `track()` and by the sign-up attribution (§17), which must not
+ * send the browser id either.
+ */
+export function analyticsOptedOut(): boolean {
   if (typeof navigator === "undefined") return true;
   const gpc = (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl;
-  // account settings: an explicit "analytics off" in Privacy preferences (sy_consent).
   return navigator.doNotTrack === "1" || gpc === true || analyticsRefused();
+}
+
+const ANONYMOUS_ID = /^[A-Za-z0-9_-]{8,64}$/;
+const ANONYMOUS_ID_KEY = "staryield.aid";
+
+/**
+ * The random browser id used to count distinct visitors (§17), or undefined
+ * when the visitor opted out or storage is unusable.
+ */
+export function analyticsAnonymousId(): string | undefined {
+  if (typeof window === "undefined" || analyticsOptedOut()) return undefined;
+  try {
+    const id = localStorage.getItem(ANONYMOUS_ID_KEY);
+    if (id && ANONYMOUS_ID.test(id)) return id;
+    const fresh = newId();
+    localStorage.setItem(ANONYMOUS_ID_KEY, fresh);
+    return ANONYMOUS_ID.test(fresh) ? fresh : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function stored(storage: () => Storage, key: string): string {
@@ -94,13 +119,13 @@ function install() {
 
 /** Record a client event (no-op when the visitor opted out). */
 export function track(name: ClientEventName, properties?: Record<string, string | number | boolean>) {
-  if (typeof window === "undefined" || optedOut()) return;
+  if (typeof window === "undefined" || analyticsOptedOut()) return;
   install();
   queue.push({
     event_id: newId(),
     name,
     occurred_at: new Date().toISOString(),
-    anonymous_id: stored(() => localStorage, "staryield.aid"),
+    anonymous_id: stored(() => localStorage, ANONYMOUS_ID_KEY),
     session_key: stored(() => sessionStorage, "staryield.sid"),
     path: window.location.pathname,
     referrer: document.referrer,

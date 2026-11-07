@@ -110,7 +110,7 @@ test.describe.serial("live chat between a client and an advisor", () => {
     await psychic.getByRole("textbox", { name: "Message" }).pressSequentially("I see the cards");
     await expect(client.getByRole("status", { name: /is typing/ })).toBeVisible();
     await psychic.getByRole("textbox", { name: "Message" }).press("Enter");
-    await expect(client.getByTestId("chat-message").filter({ hasText: "I see the cards" })).toBeVisible();
+    await expect(client.getByTestId("chat-message").filter({ hasText: "I see the cards" }).last()).toBeVisible();
   });
 
   test("an image attachment uploads and displays for both sides", async () => {

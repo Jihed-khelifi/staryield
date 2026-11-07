@@ -9,7 +9,11 @@ import type {
   Chart,
   ChatMessage,
   ChatSession,
+  ChatUnread,
   Conversation,
+  CustomerTicket,
+  CustomerTicketRow,
+  SiteConfig,
   InboxPage,
   MessagePage,
   ReadResult,
@@ -190,6 +194,8 @@ export const chatApi = {
     api<ChatSession>("/api/v1/chat/sessions", { method: "POST", body: { psychic_slug, request_key }, idempotent: true }),
   sessions: (status?: string, cursor?: string) => api<Page<ChatSession>>("/api/v1/chat/sessions", { query: { status, cursor } }),
   session: (id: string) => api<ChatSession>(`/api/v1/chat/sessions/${id}`),
+  /** Unread messages over all of the caller's conversations (§18). */
+  unreadCount: (signal?: AbortSignal) => api<ChatUnread>("/api/v1/chat/unread-count", { signal }),
   summary: (id: string) => api<SessionSummary>(`/api/v1/chat/sessions/${id}/summary`),
   accept: (id: string) => api<ChatSession>(`/api/v1/chat/sessions/${id}/accept`, { method: "POST", idempotent: true }),
   decline: (id: string) => api<ChatSession>(`/api/v1/chat/sessions/${id}/decline`, { method: "POST", idempotent: true }),
@@ -279,9 +285,30 @@ export const requestsApi = {
     api<CustomRequest>(`/api/v1/custom-requests/${id}/dispute`, { method: "POST", body: { reason } }),
 };
 
-/** Contact form (public; signed-in senders are linked to their account). */
+/** Contact form (public; signed-in senders are linked to their account) and the requester's side of the support desk (§16.2). */
 export const supportApi = {
   createTicket: (input: TicketInput) => api<TicketReceipt>("/api/v1/support/tickets", { method: "POST", body: input }),
+  /** Signed in: the account's requests, latest activity first. */
+  myTickets: (cursor?: string, limit = 20, signal?: AbortSignal) =>
+    api<Page<CustomerTicketRow>>("/api/v1/me/support/tickets", { query: { cursor, limit }, signal }),
+  myTicket: (reference: string, signal?: AbortSignal) =>
+    api<CustomerTicket>(`/api/v1/me/support/tickets/${encodeURIComponent(reference)}`, { signal }),
+  replyMine: (reference: string, body: string) =>
+    api<CustomerTicket>(`/api/v1/me/support/tickets/${encodeURIComponent(reference)}/messages`, { method: "POST", body: { body } }),
+  /** Anonymous: through the private e-mailed link; the token travels in a header, never in the URL. */
+  linkTicket: (reference: string, token: string, signal?: AbortSignal) =>
+    api<CustomerTicket>(`/api/v1/support/tickets/${encodeURIComponent(reference)}`, { headers: { "X-Support-Token": token }, signal }),
+  replyLink: (reference: string, token: string, body: string) =>
+    api<CustomerTicket>(`/api/v1/support/tickets/${encodeURIComponent(reference)}/messages`, {
+      method: "POST",
+      body: { body },
+      headers: { "X-Support-Token": token },
+    }),
+};
+
+/** Public runtime settings: promo banners, sign-up offer, free mode (§15.1). */
+export const siteApi = {
+  config: (signal?: AbortSignal) => api<SiteConfig>("/api/v1/site/config", { signal, retries: 1 }),
 };
 
 export const astrologyApi = {

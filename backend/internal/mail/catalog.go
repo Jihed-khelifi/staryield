@@ -186,6 +186,16 @@ func Notification(locale, kind string, data map[string]any, link string) (Conten
 		c = Content{Subject: t("Your membership has ended"),
 			Paragraphs: []string{t("Your membership has ended. You can subscribe again at any time.")},
 			Action:     &Action{Label: t("See plans"), URL: link}}
+	// revisions 3.0: support desk
+	case "support.replied":
+		ref := truncateRunes(oneLine(str(data["reference"])), 20)
+		p := t("Our support team replied to your request.")
+		if ref != "" {
+			p = t(fmt.Sprintf("Our support team replied to your request %s.", ref))
+		}
+		c = Content{Subject: t("Our team replied to your request"), Paragraphs: []string{p},
+			Action: &Action{Label: t("Read the reply"), URL: link}}
+	// end revisions 3.0: support desk
 	case "broadcast":
 		title, body := localizedPair(locale, data["title"]), localizedPair(locale, data["body"])
 		if title == "" {

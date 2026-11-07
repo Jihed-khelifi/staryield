@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-04",
-    "effective": "2026-11-04",
-    "lastUpdated": "2026-11-04",
+    "version": "2026-11-07",
+    "effective": "2026-11-07",
+    "lastUpdated": "2026-11-07",
     "badge": "STARYIELD SYSTEM AGREEMENT",
     "title": "Terms of Use"
   },
@@ -390,6 +390,10 @@ const content: LegalDocumentContent = {
           "text": "Customer support services are provided at the Company’s discretion. While we may assist users, there is no obligation to provide support or respond to inquiries. If you require assistance, contact the [Support center](/contact), and we will respond as reasonably possible."
         },
         {
+          "type": "p",
+          "text": "When you contact us, we reply by email and, if you are signed in, in the Support requests section of your account. We email a private link for each request: anyone with the link can read and answer that request, so please keep it confidential. A request that has been closed can no longer be answered; if you still need help, send a new request. See our [Privacy Policy](/privacy#support-requests) to learn how support requests are kept."
+        },
+        {
           "type": "h3",
           "id": "live-readings-messages-and-images",
           "n": "4.11",
@@ -641,6 +645,14 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "We may offer a free trial or introductory offer subscription for the Service according to the terms specified when you sign up for the offer. A free trial provides you access to the Service for a period of time; an introductory offer provides you access to the Service at a reduced rate for a limited period of time. Unless you cancel before the end of the free trial or introductory offer, or unless otherwise stated, your access to the Service will automatically continue and you will be billed the applicable fees. It is your responsibility to know when the free trial or introductory offer will end. We reserve the right, in our absolute discretion, to modify or terminate any free trial or introductory offer, your access to the Service during the free trial or introductory period, or any of these terms without notice and with no liability. We reserve the right to limit your ability to take advantage of multiple free trials and/or introductory offers."
+        },
+        {
+          "type": "p",
+          "text": "Introductory free minutes. New customer accounts may receive a number of free chat minutes when they sign up. Staryield sets the amount, may change it or switch the offer off at any time, and a change applies only to accounts created afterwards. Free minutes are for new accounts only, have no cash value, cannot be transferred, exchanged or refunded, and are used before any Credits in your Balance."
+        },
+        {
+          "type": "p",
+          "text": "Promotional free access (“free mode”). From time to time we may make live chats free for everyone for a limited period. Free mode may start or stop at any time, with or without an announced end date. A chat you request while free mode is on stays free until that chat ends, even if free mode stops in the meantime. Advisors are still paid by Staryield for chats held during free mode. Free mode does not apply to custom requests or to the purchase of Credits, which are priced and charged as usual, and no free minutes or Credits are used up while your chat is free."
         },
         {
           "type": "h4",

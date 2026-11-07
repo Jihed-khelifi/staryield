@@ -6,7 +6,6 @@
  * focuses an open tab on that page, or navigates/opens one. Only same-origin
  * URLs are opened, so a payload can never send the user to another site.
  */
-/* eslint-disable no-restricted-globals */
 
 const ICON = "https://assets.staryield.net/assets/brand/sun-mark-192-c139a00d54.png";
 

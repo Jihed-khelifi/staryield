@@ -31,6 +31,7 @@ var ClientEvents = map[string]bool{
 	"service_viewed": true, "service_order_started": true, "error_displayed": true,
 	"web_vital": true, "realtime_reconnected": true, "realtime_fallback": true,
 	"locale_changed": true, "chat_opened": true,
+	"campaign_landing": true, // revisions 3.0: calculator analytics (was sent by the web app but dropped)
 }
 
 // ClientEvent is one browser-reported event.
@@ -67,6 +68,7 @@ type AnalyticsService struct {
 	clock    clock.Clock
 	ipSecret string
 	maxBatch int
+	visitors analytics.VisitorSink // revisions 3.0: calculator analytics
 }
 
 // NewAnalyticsService wires the analytics service.
@@ -133,6 +135,13 @@ func (s *AnalyticsService) Ingest(ctx context.Context, events []ClientEvent) (in
 		if authed {
 			uid := principal.UserID
 			evt.UserID, evt.UserRole = &uid, string(principal.Role)
+		}
+		// revisions 3.0: calculator analytics
+		clickID := sanitizeClickID(evt.Properties)
+		if s.visitors != nil {
+			if ve, ok := visitorEvent(e, evt, clickID, authed, evt.Locale, occurred); ok {
+				s.visitors.EnqueueVisitor(ve)
+			}
 		}
 		if s.tracker.Enqueue(evt) {
 			accepted++

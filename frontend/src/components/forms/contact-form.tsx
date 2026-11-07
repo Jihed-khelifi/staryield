@@ -81,6 +81,19 @@ export function ContactForm() {
             <p className="mt-6 text-center font-display text-2xl tracking-wider" data-testid="contact-reference">
               {receipt.reference}
             </p>
+            {user ? (
+              <p className="mt-4 text-center text-sm" data-testid="contact-follow">
+                {text("Follow this request and read our replies in")}{" "}
+                <Link className="font-semibold underline underline-offset-4" href={`/${locale}/support/requests/${receipt.reference}`}>
+                  {text("your support requests")}
+                </Link>
+                .
+              </p>
+            ) : (
+              <p className="mt-4 text-center text-sm" data-testid="contact-private-link">
+                {text("We e-mailed you a private link to follow your request")}
+              </p>
+            )}
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <Button
                 type="button"

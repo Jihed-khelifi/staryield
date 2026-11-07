@@ -105,6 +105,7 @@ func TestChatSavedMessagesPaging(t *testing.T) {
 // the advisor's per-minute billing event carries their live earnings.
 func TestChatPeerReadSeqAndLiveEarnings(t *testing.T) {
 	e := newEnv(t)
+	e.pinSignupFreeMinutes(3) // revisions 3.0: these assertions are written for 3 promotional minutes
 	client, psychic, cws, pws, s := startedSession(t, e, 40, 250)
 
 	var sent struct {

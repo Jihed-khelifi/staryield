@@ -37,6 +37,11 @@ type Props = {
   returnHere: string;
 };
 
+/** Same height, border and background for the date and time inputs, so the pair lines up on one row. */
+export const ORDER_FIELD_CLASS = "h-11 w-full min-w-0 appearance-none rounded-lg border border-input bg-white px-3 text-base leading-none";
+/** Both fields start at the top of the row (labels on one line); helper and error text sit below the inputs. */
+export const ORDER_DATETIME_ROW_CLASS = "grid grid-cols-1 items-start gap-4 sm:grid-cols-2";
+
 /**
  * Order sheet body for a custom request (FR-07): an optional note and an
  * optional preferred date/time. Mounted per opened sheet, so each opening
@@ -98,17 +103,20 @@ export function ServiceOrderForm({ service, advisorName, slug, returnHere }: Pro
             />
           )}
         </FieldRow>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FieldRow control={form.control} name="date" label={text("Preferred date ")} showValid={false}>
+        <div className={ORDER_DATETIME_ROW_CLASS} data-testid="order-datetime-row">
+          <FieldRow control={form.control} name="date" label={text("Preferred date ")} labelClassName="leading-5" showValid={false}>
             {(field) => (
               <Input
                 {...field}
                 type="date"
                 min={todayLocalIso()}
                 max={lastOrderDateIso()}
-                className="bg-white"
+                className={ORDER_FIELD_CLASS}
+                data-testid="order-date"
                 onChange={(event) => {
                   field.onChange(event);
+                  // No date: no time either (the time field is disabled without one).
+                  if (!event.target.value) form.setValue("time", "");
                   // The time rules depend on the date: re-check them once shown.
                   if (form.getFieldState("time").isTouched || form.formState.isSubmitted) void form.trigger("time");
                 }}
@@ -119,15 +127,25 @@ export function ServiceOrderForm({ service, advisorName, slug, returnHere }: Pro
             control={form.control}
             name="time"
             label={text("Preferred time ")}
+            labelClassName="leading-5"
             description={date ? undefined : text("Pick a date first.")}
             showValid={false}
           >
-            {(field) => <Input {...field} type="time" className="bg-white" />}
+            {(field) => <Input {...field} type="time" disabled={!date} className={ORDER_FIELD_CLASS} data-testid="order-time" />}
           </FieldRow>
         </div>
         <p>
           {text("{value0} Credits", { value0: service.price_credits.toLocaleString(locale) })} ·{" "}
           {text("Balance: {value0} credits", { value0: (wallet?.balance ?? 0).toLocaleString(locale) })}
+        </p>
+        <p className="text-sm" data-testid="order-how-it-works">
+          {text("{value0} delivers this request. Your credits are held until it is delivered.", { value0: advisorName })}
+          {service.delivery_days ? (
+            <>
+              {" "}
+              {text("Delivery in about {value0} days.", { value0: service.delivery_days })}
+            </>
+          ) : null}
         </p>
         <p className="text-xs font-light">
           {text("Credits are held when you order and released to the advisor only when they deliver. Declined or expired requests are refunded.")}
@@ -140,7 +158,7 @@ export function ServiceOrderForm({ service, advisorName, slug, returnHere }: Pro
           ) : null}
         </FormRootError>
         <Button className="gold-button w-full" type="submit" disabled={pending} aria-busy={pending} onMouseDown={keepFocusOnPress}>
-          {text(pending ? "Sending request…" : "Request a session ")}
+          {text(pending ? "Sending request…" : "Send request")}
         </Button>
         <p role="status" className="text-sm">
           {notice}

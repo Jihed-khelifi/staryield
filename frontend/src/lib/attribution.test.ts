@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
+const anonymousId = vi.hoisted(() => vi.fn<() => string | undefined>(() => undefined));
+vi.mock("@/lib/analytics", () => ({ track: vi.fn(), analyticsAnonymousId: anonymousId }));
 
 import {
   ATTRIBUTION_KEY,
@@ -29,7 +30,11 @@ function env(href: string, extra: Partial<AttributionEnv> = {}): AttributionEnv 
   } as AttributionEnv & { replaceUrl: ReturnType<typeof vi.fn>; track: ReturnType<typeof vi.fn> };
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  anonymousId.mockReset();
+  anonymousId.mockReturnValue(undefined);
+});
 
 describe("readCampaignParams", () => {
   it("reads utm_* and the click id", () => {
@@ -68,7 +73,7 @@ describe("captureAttribution", () => {
       landing_path: "/en/psychics",
       first_seen_at: new Date(NOW).toISOString(),
     });
-    expect(e.track).toHaveBeenCalledWith("campaign_landing", { has_click: true, utm_source: "ig", utm_campaign: "spring" });
+    expect(e.track).toHaveBeenCalledWith("campaign_landing", { has_click: true, utm_source: "ig", utm_campaign: "spring", click_id: "c1" });
   });
 
   it("keeps the first touch for 30 days, then accepts a new one", () => {
@@ -138,5 +143,31 @@ describe("helpers", () => {
     expect(attributionForSignup()).toMatchObject({ utm_source: "ig", click_id: "c1", landing_path: "/en" });
     expect(attributionForSignup(NOW + ATTRIBUTION_TTL_MS + 1)).toBeUndefined();
     vi.useRealTimers();
+  });
+
+  it("adds the analytics anonymous_id to the sign-up attribution when analytics is allowed", () => {
+    anonymousId.mockReturnValue("7f0c2d1e-aaaa-4bbb-8ccc-123456789abc");
+    captureAttribution(env("https://staryield.net/en?utm_source=ig&utm_term=tarot&sy_click=c1"));
+    expect(attributionForSignup(NOW)).toMatchObject({ utm_source: "ig", anonymous_id: "7f0c2d1e-aaaa-4bbb-8ccc-123456789abc" });
+  });
+
+  it("sends the anonymous_id even without a campaign touch", () => {
+    anonymousId.mockReturnValue("7f0c2d1e-aaaa-4bbb-8ccc-123456789abc");
+    expect(attributionForSignup(NOW)).toEqual({ anonymous_id: "7f0c2d1e-aaaa-4bbb-8ccc-123456789abc" });
+  });
+
+  it("never sends the anonymous_id when the visitor opted out", () => {
+    captureAttribution(env("https://staryield.net/en?utm_source=ig"));
+    const out = attributionForSignup(NOW);
+    expect(out).toBeDefined();
+    expect(out).not.toHaveProperty("anonymous_id");
+    localStorage.clear();
+    expect(attributionForSignup(NOW)).toBeUndefined();
+  });
+
+  it("records utm_term and the click id on the campaign_landing event", () => {
+    const e = env("https://staryield.net/en/calculators/natal-chart?utm_source=ig&utm_term=tarot&sy_click=c9");
+    captureAttribution(e);
+    expect(e.track).toHaveBeenCalledWith("campaign_landing", { has_click: true, utm_source: "ig", utm_term: "tarot", click_id: "c9" });
   });
 });

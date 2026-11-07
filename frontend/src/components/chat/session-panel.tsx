@@ -34,6 +34,8 @@ type Props = {
   rateView?: RateView;
   /** Client: the advisor turned out to be online (waiting list answered 409). */
   onAdvisorAvailable?: () => void;
+  /** Free mode (display only): no credit amounts and no top-up prompts for clients. */
+  free?: boolean;
 };
 
 const unavailableCopy: Record<string, string> = {
@@ -51,7 +53,7 @@ export function SessionPanel(p: Props) {
   const errorBlock = p.error ? (
     <div role="alert" className="mt-3 text-sm text-red-800">
       <p>{text(errorMessage(p.error))}</p>
-      {p.error.code === "insufficient_credits" ? (
+      {p.error.code === "insufficient_credits" && !p.free ? (
         <Link className="underline" href={`/${locale}/credits?next=${encodeURIComponent(p.returnPath)}`}>
           {text("Top up credits")}
         </Link>
@@ -131,8 +133,12 @@ export function SessionPanel(p: Props) {
             </dd>
           </div>
           <div>
-            <dt className="opacity-70">{text(p.role === "client" ? "Credits used" : "Your earnings")}</dt>
-            <dd className="font-semibold">{(p.role === "client" ? sum.session.credits_charged : sum.session.psychic_earnings) ?? 0}</dd>
+            <dt className="opacity-70">{text(p.role === "client" ? (sum.session.sponsored ? "Cost" : "Credits used") : "Your earnings")}</dt>
+            <dd className="font-semibold" data-testid={p.role === "client" && sum.session.sponsored ? "summary-sponsored" : undefined}>
+              {p.role === "client" && sum.session.sponsored
+                ? text("Free (sponsored) · {value0} minutes", { value0: sum.session.billed_minutes })
+                : ((p.role === "client" ? sum.session.credits_charged : sum.session.psychic_earnings) ?? 0)}
+            </dd>
           </div>
         </dl>
         {p.role === "client" && sum.review ? (
@@ -173,8 +179,10 @@ export function SessionPanel(p: Props) {
     <div className="chat-session-card">
       {s && endReasonCopy[s.end_reason ?? ""] ? <p className="mb-2 text-xs">{text(endReasonCopy[s.end_reason!])}</p> : null}
       <p className="font-semibold">{text("Start a private live chat with {value0}", { value0: name })}</p>
-      <p className="text-xs">
-        {free > 0
+      <p className="text-xs" data-testid="start-note">
+        {p.free
+          ? text("Chat is free right now. Staryield covers the cost.")
+          : free > 0
           ? text("{value0} free minutes, then {value1} credits per started minute.", { value0: free, value1: p.rate })
           : text("{value0} credits per started minute. Balance: {value1} credits.", { value0: p.rate, value1: (p.wallet?.balance ?? 0).toLocaleString(locale) })}
       </p>

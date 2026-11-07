@@ -54,6 +54,9 @@ type ChatRepository interface {
 	FindConversation(ctx context.Context, clientID, psychicID uuid.UUID) (*domain.Conversation, error)
 	ListInbox(ctx context.Context, f InboxFilter) ([]InboxRow, error)
 	SetReadPosition(ctx context.Context, id uuid.UUID, asPsychic bool, readSeq int64, unread int, readAt time.Time) error
+	// UnreadTotals sums a user's unread messages and counts their conversations
+	// with unread messages (an index-only scan; revisions 3.0: chat unread).
+	UnreadTotals(ctx context.Context, userID uuid.UUID, asPsychic bool) (count, conversations int64, err error)
 
 	CreateSession(ctx context.Context, s *domain.Session) error
 	GetSession(ctx context.Context, id uuid.UUID) (*domain.Session, error)
@@ -505,4 +508,19 @@ func (r *GormChatRepository) BookmarkedIDs(ctx context.Context, userID uuid.UUID
 		out[id] = true
 	}
 	return out, nil
+}
+
+// UnreadTotals implements ChatRepository (revisions 3.0: chat unread). The
+// partial indexes from migration 0019 cover exactly these predicates.
+func (r *GormChatRepository) UnreadTotals(ctx context.Context, userID uuid.UUID, asPsychic bool) (int64, int64, error) {
+	owner, unread := "client_id", "client_unread"
+	if asPsychic {
+		owner, unread = "psychic_id", "psychic_unread"
+	}
+	var out struct{ Count, Conversations int64 }
+	// Column names come from the two constants above, never from input.
+	err := database.Conn(ctx, r.db).Model(&domain.Conversation{}).
+		Select("COALESCE(SUM("+unread+"), 0) AS count, COUNT(*) AS conversations").
+		Where(owner+" = ?", userID).Where(unread + " > 0").Scan(&out).Error
+	return out.Count, out.Conversations, err
 }

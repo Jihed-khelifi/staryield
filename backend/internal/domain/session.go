@@ -114,8 +114,15 @@ type Session struct {
 	CreditsCharged    int64 `gorm:"not null"`
 	PsychicEarnings   int64 `gorm:"not null"`
 	Reconnects        int   `gorm:"not null"`
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	// revisions 3.0: site settings. A session requested while free mode
+	// was active is Sponsored for its whole life: every started minute is
+	// recorded in SponsoredMinutes/SponsoredCredits (at the rate the client
+	// would have paid) and nothing is taken from the client's wallet.
+	Sponsored        bool  `gorm:"not null"`
+	SponsoredMinutes int   `gorm:"not null"`
+	SponsoredCredits int64 `gorm:"not null"`
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 func (Session) TableName() string { return "chat_sessions" }
@@ -124,12 +131,15 @@ func (Session) TableName() string { return "chat_sessions" }
 // the paid minutes at the list rate. A member discount lowers what the
 // client pays (CreditsCharged) but not the advisor's earnings; the
 // platform funds the difference. Free minutes earn nothing, as before.
+// Sponsored minutes (free mode) are platform-funded too and earn the list
+// rate, exactly like a paid minute.
 func (s *Session) AdvisorGross() int64 {
+	sponsored := int64(max(s.SponsoredMinutes, 0)) * s.ListRatePerMinute
 	if s.ListRatePerMinute <= s.RatePerMinute || s.CreditsCharged == 0 {
-		return s.CreditsCharged
+		return s.CreditsCharged + sponsored
 	}
-	paid := int64(s.BilledMinutes - s.FreeMinutesUsed)
-	return max(paid*s.ListRatePerMinute, s.CreditsCharged)
+	paid := int64(max(s.BilledMinutes-s.FreeMinutesUsed-s.SponsoredMinutes, 0))
+	return max(paid*s.ListRatePerMinute, s.CreditsCharged) + sponsored
 }
 
 // IsParticipant reports whether userID takes part in the session.

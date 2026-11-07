@@ -50,6 +50,9 @@ const (
 
 	EventWalletUpdated = "wallet.updated"
 
+	// revisions 3.0: chat unread (ephemeral)
+	EventChatUnread = "chat.unread"
+
 	EventCustomRequestCreated = "custom_request.created"
 	EventCustomRequestUpdated = "custom_request.updated"
 	EventPsychicStatusChanged = "psychic.status_changed"

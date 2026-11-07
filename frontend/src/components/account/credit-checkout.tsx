@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormMessage, FormRootError } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { walletApi } from "@/lib/api/endpoints";
+import { FreeModeCreditsNotice } from "@/components/billing/free-chat-badge";
 import { billingApi, purchaseCredits, type PaymentMethod } from "@/lib/api/billing";
 import { errorMessage, toApiError } from "@/lib/api/errors";
 import { newId } from "@/lib/api/client";
@@ -170,6 +171,7 @@ export function CreditCheckout() {
               <div className="checkout-body">
                 <Dialog.Title className="checkout-title font-display text-2xl">{text("Top up credits ")}</Dialog.Title>
                 <Dialog.Description className="checkout-subtitle mt-2 text-sm">{text("Secure payment checkout via StarYield ")}</Dialog.Description>
+                <FreeModeCreditsNotice className="mt-4" />
                 <Dialog.Close asChild>
                   <button type="button" aria-label={text("Close checkout")} className="checkout-close absolute top-8 right-6 rounded-full bg-warm-gray/30 p-2">
                     <X size={18} />

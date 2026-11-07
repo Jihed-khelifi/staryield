@@ -807,6 +807,10 @@ type AttributionInput struct {
 	Referrer    string     `json:"referrer"`
 	LandingPath string     `json:"landing_path"`
 	FirstSeenAt *time.Time `json:"first_seen_at"`
+	// revisions 3.0: calculator analytics — the browser's anonymous visitor
+	// id (^[A-Za-z0-9_-]{8,64}$), sent only when analytics is allowed. It
+	// links the visitor to the new account; Attribute ignores it.
+	AnonymousID string `json:"anonymous_id"`
 }
 
 // AttributionView is a user's acquisition source.

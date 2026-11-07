@@ -555,3 +555,288 @@
     font-size: 8px;
   }
 }
+
+/* ===========================================================================
+   Revisions 3.0: phone chatroom (no bottom bar, keyboard aware), large
+   screens, drafts, notification prompt, image viewer, header shortcut.
+   =========================================================================== */
+
+/* Messages: long words and URLs wrap; bubbles can shrink inside the flex row. */
+.chat-workspace .message-bubble {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.chat-workspace .chat-feed-scroll {
+  overscroll-behavior: contain;
+}
+
+/* Phones --------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  /* The chatroom owns the visible area: the page cannot scroll behind it and the
+     frame follows visualViewport (iOS Safari keeps the layout viewport when the
+     keyboard opens; Chrome gets the same from interactive-widget=resizes-content). */
+  body:has(.chat-frame) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  .dashboard-page.chat-frame,
+  .dashboard-page.chat-frame:has(.chat-workspace) {
+    position: fixed;
+    top: var(--vv-top, 0px);
+    right: 0;
+    left: 0;
+    height: var(--vvh, 100dvh);
+    min-height: 0;
+    gap: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  /* No bottom bar any more: the composer sits on the safe area instead. */
+  .chat-workspace .composer {
+    padding-bottom: calc(7px + env(safe-area-inset-bottom));
+    padding-left: calc(12px + env(safe-area-inset-left));
+    padding-right: calc(12px + env(safe-area-inset-right));
+  }
+  html[data-keyboard="open"] .chat-workspace .composer {
+    padding-bottom: 7px;
+  }
+  .chat-workspace .composer-note {
+    font-size: 10px;
+  }
+}
+/* Touch screens: 16px inputs stop iOS from zooming the page on focus. */
+@media (max-width: 767px), (pointer: coarse) {
+  .chat-workspace .composer-input {
+    font-size: 16px;
+    line-height: 22px;
+  }
+}
+
+/* Large screens: use the width, scale the type and keep bubbles readable ------- */
+@media (min-width: 1536px) {
+  .dashboard-page.chat-frame .site-header {
+    padding-inline: clamp(80px, 5vw, 128px);
+  }
+  .chat-workspace .message-bubble {
+    max-width: min(480px, 70%);
+  }
+  .chat-workspace .message-text {
+    font-size: 14px;
+  }
+}
+@media (min-width: 1920px) {
+  .chat-workspace .message-bubble {
+    max-width: min(560px, 62%);
+  }
+  .chat-workspace .message-text {
+    font-size: 15px;
+  }
+  .chat-workspace .composer-input {
+    font-size: 15px;
+  }
+  .chat-workspace .chat-feed-list {
+    padding: 24px 28px;
+  }
+}
+
+/* Drafts and the notification prompt -------------------------------------------- */
+.composer-draft-hint {
+  flex-shrink: 0;
+  color: #4e473f;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  animation: composer-hint-in 160ms ease-out;
+}
+@keyframes composer-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+}
+.chat-push-prompt {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 12px 4px;
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  background: var(--cream-light);
+  padding: 10px 34px 10px 12px;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.45;
+  animation: composer-hint-in 200ms ease-out;
+}
+.chat-push-prompt svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--amber);
+}
+.chat-push-title {
+  font-family: "Castellar", var(--font-cinzel), serif;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.chat-push-problem {
+  margin-top: 4px;
+  color: #7a2e1d;
+  font-weight: 600;
+}
+.chat-push-later {
+  min-height: 32px;
+  padding: 0 6px;
+  text-decoration: underline;
+}
+.chat-push-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+.chat-push-close svg {
+  margin: 0;
+  color: var(--ink);
+}
+.chat-push-later:focus-visible,
+.chat-push-close:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* Quick links in the conversation switcher ------------------------------------- */
+.chat-quick-links {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 0 0 8px;
+}
+.chat-quick-links a {
+  display: flex;
+  min-height: 48px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid rgb(170 142 98 / 0.5);
+  border-radius: 12px;
+  color: #17150f;
+  font-family: var(--font-ui);
+  font-size: 11px;
+}
+.chat-quick-links a[aria-current="page"] {
+  background: #f3e9d2;
+  font-weight: 600;
+}
+.chat-quick-links a:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* Header menu sheet (phones): icons for the former bottom-bar destinations ------ */
+.mobile-menu-link {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 0 10px;
+}
+.mobile-menu-link svg {
+  color: var(--amber);
+}
+.mobile-menu-link[aria-current="page"] {
+  background: #f3e9d2;
+  font-weight: 600;
+}
+
+/* Header chat shortcut ---------------------------------------------------------- */
+.chat-shortcut:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.chat-shortcut[aria-current="page"] {
+  background: rgb(170 142 98 / 0.15);
+}
+.chat-shortcut-badge[data-pop] {
+  animation: chat-badge-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes chat-badge-pop {
+  0% {
+    transform: scale(0.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Image viewer ------------------------------------------------------------------- */
+.lightbox-stage {
+  display: flex;
+  max-width: 100%;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  outline: none;
+}
+.lightbox-stage:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: -2px;
+}
+.lightbox-stage .lightbox-image {
+  user-select: none;
+  transition: transform 160ms ease-out;
+  will-change: transform;
+}
+.lightbox-tools {
+  display: inline-flex;
+  gap: 4px;
+  border-radius: 999px;
+  background: rgb(244 240 234 / 0.15);
+  padding: 4px;
+}
+.lightbox-tools button {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--cream-light);
+}
+.lightbox-tools button:disabled {
+  opacity: 0.4;
+}
+.lightbox-tools button:hover:not(:disabled) {
+  background: rgb(244 240 234 / 0.25);
+}
+.lightbox-tools button:focus-visible,
+.lightbox-close:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lightbox-stage .lightbox-image,
+  .chat-shortcut-badge[data-pop],
+  .composer-draft-hint,
+  .chat-push-prompt {
+    animation: none;
+    transition: none;
+  }
+  .chat-image-loading::before {
+    animation: none;
+  }
+}

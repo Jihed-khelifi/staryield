@@ -214,6 +214,11 @@ export type ChatSession = {
   psychic_earnings_cents?: number;
   currency?: string;
   // --- end FE-CHAT ---
+  // --- revisions 3.0: free mode (§15.4) ---
+  /** Requested while free mode was on: the platform pays every minute. */
+  sponsored?: boolean;
+  sponsored_minutes?: number;
+  sponsored_credits?: number;
   reconnects: number;
   server_time: string;
 };
@@ -294,6 +299,8 @@ export type SessionBilledEvent = {
   session_id: string;
   minute: number;
   free: boolean;
+  /** Free mode (§15.4): nothing was taken from the wallet. */
+  sponsored?: boolean;
   /** Client: credits paid; advisor: the list rate (0 for free minutes). */
   charged: number;
   next_billing_at: string;
@@ -446,6 +453,8 @@ export type AttributionInput = {
   referrer?: string;
   landing_path?: string;
   first_seen_at?: string;
+  /** Analytics visitor id (localStorage `staryield.aid`), only when analytics is allowed (§17). */
+  anonymous_id?: string;
 };
 
 export type NotificationKind =
@@ -460,6 +469,7 @@ export type NotificationKind =
   | "withdrawal.updated"
   | "photo.approved"
   | "photo.rejected"
+  | "support.replied"
   | "broadcast";
 
 /** An in-app notification (§7.1). Named to avoid the DOM `Notification`. */
@@ -715,3 +725,59 @@ export type CustomServiceLimits = {
 export type CustomServiceState = { service: CustomService | null; limits: CustomServiceLimits };
 
 export type CustomServiceInput = { name: string; price_credits: number; delivery_days: number; description?: string };
+
+// --- Revisions 3.0 (docs/platform-extensions.md §15–§18) ---------------------------
+
+/** One promo banner of the public site (§15.1), already localized. */
+export type SiteBanner = {
+  id: string;
+  text: string;
+  /** "" when the banner has no call to action label. */
+  cta_label: string;
+  /** href: locale-less path ("/signup") or an allow-listed https URL; "" for "none". */
+  action: { type: "link" | "none"; href: string };
+  audience: "all" | "anonymous" | "signed_in";
+};
+
+/** GET /site/config: public runtime settings (§15.1). */
+export type SiteConfig = {
+  banners: { rotation_seconds: number; items: SiteBanner[] };
+  signup_offer: { enabled: boolean; free_minutes: number };
+  free_mode: { active: boolean; ends_at?: string };
+  generated_at: string;
+};
+
+/** GET /chat/unread-count and the `chat.unread` realtime event (§18). */
+export type ChatUnread = {
+  count: number;
+  conversations: number;
+  conversation_id?: string;
+  conversation_unread?: number;
+};
+
+export type TicketStatus = "open" | "pending" | "resolved" | "closed";
+
+/** A requester's support request (§16.2). */
+export type CustomerTicketRow = {
+  reference: string;
+  subject: string;
+  topic: SupportTopic;
+  status: TicketStatus;
+  /** open → support, pending → you, resolved/closed → none. */
+  awaiting: "support" | "you" | "none";
+  created_at: string;
+  last_message_at: string;
+};
+
+export type CustomerTicketMessage = {
+  id: string;
+  author: { type: "customer" | "staff"; name: string };
+  body: string;
+  created_at: string;
+};
+
+export type CustomerTicket = CustomerTicketRow & {
+  messages: CustomerTicketMessage[];
+  /** False once the request is closed. */
+  can_reply: boolean;
+};

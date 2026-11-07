@@ -80,6 +80,7 @@ type App struct {
 	Hub       *realtime.Hub
 	Realtime  *realtime.Server
 	Tracker   *analytics.AsyncTracker
+	Visitors  *analytics.VisitorAggregator // revisions 3.0: calculator analytics
 	Clock     clock.Clock
 	// Dispatcher delivers notifications asynchronously.
 	Dispatcher *service.Dispatcher
@@ -310,6 +311,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	chatSvc.WithExtras(service.ChatExtras{Attachments: attachments, Store: chatStore, Insights: insights, Reviews: reviewSvc,
 		Notifier: dispatcher, Images: service.ImagePolicy{MaxBytes: cfg.Storage.MaxChatImageBytes, MaxPixels: cfg.Storage.MaxImagePixels,
 			MaxSide: cfg.Storage.ChatImageMaxSide, AllowGIF: true, KeepTransparency: true, Field: "image"}})
+	chatSvc.WithUnread(kv, repository.NewContactRepository(db), pushSvc, cfg.App.FrontendURL) // revisions 3.0: chat unread
 	growthSvc := service.NewGrowthService(growth, audit, track, clk, service.GrowthSettings{FrontendURL: cfg.App.FrontendURL,
 		PublicBaseURL: cfg.Links.PublicBaseURL, AllowedHosts: cfg.Links.AllowedHosts, Currency: cfg.Payments.Currency,
 		IPHashSecret: cfg.Analytics.IPHashSecret})
@@ -329,6 +331,13 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 			MaxSide: cfg.Storage.AdvisorImageMaxSide, Field: "image"}})
 	insightsSvc := service.NewInsightsService(insights, users, adminSvc, clk, cfg.Payments.Currency)
 	analyticsSvc := service.NewAnalyticsService(track, analyticsRepo, reports, clk, cfg.Analytics.IPHashSecret, cfg.Analytics.MaxBatch)
+	// revisions 3.0: calculator analytics
+	calculatorRepo := repository.NewCalculatorRepository(db)
+	visitors := analytics.NewVisitorAggregator(analytics.VisitorConfig{Enabled: cfg.Analytics.Enabled, BufferSize: cfg.Analytics.BufferSize,
+		BatchSize: cfg.Analytics.BatchSize, FlushInterval: cfg.Analytics.FlushInterval}, calculatorRepo, log.With(zap.String("component", "visitors")))
+	analyticsSvc.WithVisitors(visitors)
+	calculatorSvc := service.NewCalculatorService(calculatorRepo, kv, clk, cfg.Analytics.Enabled)
+	// end revisions 3.0: calculator analytics
 	astroSvc := service.NewAstrologyService(users, track, clk, kv)
 	notesSvc := service.NewNoteService(txm, notesRepo, chatRepo, audit, sealer, clk, cfg.Analytics.IPHashSecret)
 	statsSvc := service.NewPsychicStatsService(repository.NewStatsRepository(db), kv, clk)
@@ -352,6 +361,11 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	supportRepo := repository.NewSupportRepository(db)
 	supportSvc := service.NewSupportService(supportRepo, sealer, service.NewMailSupportNotifier(mailSvc, cfg.Mail.SupportInbox), clk,
 		cfg.Analytics.IPHashSecret)
+	// revisions 3.0: support desk
+	supportSvc.WithDesk(service.SupportDeskDeps{Tx: txm, Users: users, Audit: audit, Cache: kv, Notifier: dispatcher,
+		Settings: service.SupportSettings{FrontendURL: cfg.App.FrontendURL, ConsoleURL: cfg.Admin.ConsoleURL,
+			Inbox: cfg.Mail.SupportInbox, LinkTTL: cfg.Support.LinkTTL, Retention: cfg.Support.Retention}})
+	// end revisions 3.0: support desk
 	gateway := service.NewRealtimeGateway(chatSvc, psychicSvc, presence)
 
 	// billing: saved-card providers (routing rules choose among them) and
@@ -391,6 +405,16 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 			Image: service.ImagePolicy{MaxBytes: cfg.Storage.MaxAdvisorImageBytes, MaxPixels: cfg.Storage.MaxImagePixels,
 				MaxSide: cfg.Storage.AdvisorImageMaxSide, Field: "photo"}}})
 	// --- end advisor settings ---
+	// revisions 3.0: site settings. Promo banners, sign-up offer and free
+	// mode: cached in-process and in Redis, invalidated on every instance
+	// through Pub/Sub. Registration and chat requests read it through hooks.
+	siteSvc := service.NewSiteService(service.SiteDeps{Tx: txm, Repo: repository.NewSiteRepository(db), Cache: kv,
+		Bus: cache.NewRedisBus(rdb, prefix), Audit: audit, Clock: clk, Log: log.With(zap.String("component", "site")),
+		Cfg: service.SiteSettings{AllowedHosts: cfg.Links.AllowedHosts, SignupFallbackMinutes: cfg.Billing.SignupFreeMinutes,
+			IPHashSecret: cfg.Analytics.IPHashSecret}})
+	authSvc.SetSignupOffer(siteSvc.SignupFreeMinutes)
+	chatSvc.SetFreeMode(siteSvc.FreeModeActive)
+	// --- end site settings ---
 	// --- identity: devices, settings, consents, exports, closure ---
 	sessionsRepo := repository.NewSessionRepository(db)
 	actionsRepo := repository.NewActionTokenRepository(db)
@@ -416,7 +440,8 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Clock: clk, Notes: notesRepo, Push: repository.NewPushRepository(db), Actions: actionsRepo, Exports: exportsRepo,
 		Sessions: sessionsRepo, Consents: consentsRepo, Waitlist: waitlistRepo, Support: supportRepo, Advisor: advisorSvc, AvatarStore: store, ExportStore: exportStore,
 		Auth: authSvc, AdminAuth: adminAuthSvc, Chat: chatSvc, PsychicSvc: psychicSvc, Events: publisher, Mail: mailSvc})
-	eraser.SetBilling(billingSvc) // memberships end and saved cards are forgotten
+	eraser.SetBilling(billingSvc)        // memberships end and saved cards are forgotten
+	eraser.SetCalculators(calculatorSvc) // revisions 3.0: calculator analytics
 	adminSvc.SetEraser(eraser)
 	accountSvc := service.NewAccountService(service.AccountDeps{Tx: txm, Users: users, Accounts: repository.NewAccountRepository(db),
 		Tokens: tokens, Actions: actionsRepo, Psychics: psychics, Requests: requests, Audit: audit, Auth: authSvc, UserSvc: userSvc,
@@ -437,9 +462,10 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		AdminAuth: adminAuthSvc, Growth: growthSvc, Insights: insightsSvc, Notifications: notificationSvc, Reviews: reviewSvc,
 		Withdrawals: withdrawalSvc, PsychicAnalytics: psychicAnalyticsSvc, Mail: mailSvc, Push: pushSvc, Notes: notesSvc,
 		PsychicStats: statsSvc, Billing: billingSvc, Catalog: catalogSvc, Waitlist: waitlistSvc,
-		Support: supportSvc,
+		Support: supportSvc, Calculators: calculatorSvc, // revisions 3.0: calculator analytics
 		Account: accountSvc, Consents: consentSvc, Exports: exportSvc,
-		Advisor: advisorSvc} // advisor settings
+		Advisor: advisorSvc, // advisor settings
+		Site:    siteSvc}    // revisions 3.0: site settings
 	cookieNames := api.CookieNamesFor(cfg.Security)
 	health := func(r *http.Request) map[string]error {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -498,9 +524,18 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	)
 	// --- end identity ---
 
+	// revisions 3.0: calculator analytics: daily retention of the visitor roll-up.
+	scheduler.WithJobs(worker.Job{Name: service.WebVisitorsJob, Every: 24 * time.Hour, Run: func(ctx context.Context) error {
+		_, err := calculatorSvc.RunRetention(ctx, clk.Now())
+		return err
+	}})
+	// revisions 3.0: support desk
+	scheduler.WithJobs(worker.Job{Name: service.SupportJob, Every: time.Hour, Run: supportSvc.RunMaintenance})
+	// end revisions 3.0: support desk
+
 	return &App{
 		Config: cfg, Log: log, DB: db, Redis: rdb, Router: router, Services: services, Hub: hub, Realtime: rtServer,
-		Scheduler: scheduler, Tracker: tracker, Clock: clk, Dispatcher: dispatcher,
+		Scheduler: scheduler, Tracker: tracker, Visitors: visitors, Clock: clk, Dispatcher: dispatcher,
 		Events: publisher, Broker: broker,
 		ExportStore: exportStore, // identity
 		Hasher:      hasher,
@@ -511,6 +546,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 func (a *App) Start(ctx context.Context) {
 	ctx, a.cancel = context.WithCancel(ctx)
 	a.Tracker.Start()
+	a.Visitors.Start() // revisions 3.0: calculator analytics
 	a.Dispatcher.Start()
 	a.Services.Push.Start()
 	a.wg.Add(1)
@@ -520,6 +556,14 @@ func (a *App) Start(ctx context.Context) {
 			a.Log.Error("realtime broker stopped", zap.Error(err))
 		}
 	}()
+	// revisions 3.0: site settings. Drop the in-process copy when another
+	// instance changes the configuration.
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		a.Services.Site.Run(ctx)
+	}()
+	// --- end site settings ---
 	if a.Config.Worker.Enabled {
 		a.Scheduler.Start(ctx)
 	}
@@ -572,6 +616,7 @@ func (a *App) Shutdown(ctx context.Context) {
 	// After the dispatcher: draining it may still queue pushes.
 	a.Services.Push.Stop(ctx)
 	a.Tracker.Stop(ctx)
+	a.Visitors.Stop(ctx) // revisions 3.0: calculator analytics
 	_ = a.Redis.Close()
 	closeDB(a.DB)
 	a.Log.Info("shutdown complete")

@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-04",
-    "effective": "2026-11-04",
-    "lastUpdated": "2026-11-04",
+    "version": "2026-11-07",
+    "effective": "2026-11-07",
+    "lastUpdated": "2026-11-07",
     "badge": "STARYIELD PRIVACY AGREEMENT",
     "title": "Privacy Policy"
   },
@@ -224,6 +224,58 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Account requests. When you change your email address, download your data, or disable or close your account, we keep a record of the request and send you confirmation messages, as described in [Section 5](#your-privacy-rights)."
+        },
+        {
+          "type": "h3",
+          "id": "support-requests",
+          "n": "2.9",
+          "title": "Support requests"
+        },
+        {
+          "type": "p",
+          "text": "When you write to us through the [contact form](/contact), we store your request (topic, subject, message and the email address you gave us), the replies of our support team and the internal notes our team writes about it. Messages, replies and notes are encrypted at rest, and the email address is also stored as a keyed hash so that we can find your requests."
+        },
+        {
+          "type": "p",
+          "text": "If you are signed in, the request is linked to your account and you can follow it, and read our replies, under [Support requests](/support/requests) in your account menu; we also notify you in the app and by push when we reply. If you are not signed in, we email you a private link to your request. The secret code sits in the part of the link after the “#”, which browsers do not send to servers or to other websites; our page uses it only to open your request and removes it from the address bar. The link works for 30 days and lets whoever holds it read and answer that request, so keep it to yourself."
+        },
+        {
+          "type": "p",
+          "text": "Support requests are included in your data export. A closed request and its messages are deleted 24 months after it was closed, and the requests linked to your account are deleted when your account is erased."
+        },
+        {
+          "type": "h3",
+          "id": "calculator-usage-measurement",
+          "n": "2.10",
+          "title": "Calculator usage measurement"
+        },
+        {
+          "type": "p",
+          "text": "To count how many different people open and use our calculators, our website stores a random identifier in your browser’s local storage (it is not derived from your name, email address or IP address) and records which calculator pages you open, whether you start a calculation and whether you see a result. If you create an account, this identifier is linked to it at sign-up, only when analytics are allowed, which lets us tell which visitors became members. We keep the campaign and short-link data of your first visit (UTM parameters and click code, see [Section 2.6](#marketing-attribution)) with the identifier."
+        },
+        {
+          "type": "p",
+          "text": "These records are kept for 25 months and are used only in aggregate to understand how the calculators perform. Nothing is recorded if your browser sends a Do Not Track or Global Privacy Control signal, or if you switch analytics off in your [privacy preferences](/profile/settings)."
+        },
+        {
+          "type": "h3",
+          "id": "chat-notifications-and-drafts",
+          "n": "2.11",
+          "title": "Chat notifications and drafts"
+        },
+        {
+          "type": "p",
+          "text": "Push notifications about new chat messages never contain the text of the message: they only tell you that a new message has arrived. A message you have typed but not yet sent is kept as a draft only on your device, in your browser’s local storage, for up to 7 days; drafts are never sent to us."
+        },
+        {
+          "type": "h3",
+          "id": "free-access-periods",
+          "n": "2.12",
+          "title": "Free access periods"
+        },
+        {
+          "type": "p",
+          "text": "When we make live chat free for everyone for a limited time (“free mode”, see [Terms of Use](/terms#free-trials-and-promotional-offers)), the chats requested during that time are recorded as sponsored sessions, with their minutes and the credits Staryield covers. We use these records to bill the sessions to Staryield and to compute advisor earnings and platform statistics, on the basis of our contract with advisors and our legitimate interest in running the Services."
         }
       ]
     },
@@ -577,6 +629,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Additional retention periods. Chat messages and images are kept for as long as the conversation exists in your account. In-app notifications are deleted after 180 days. The content of transactional emails is deleted from our sending queue once the message has been sent. Data exports are deleted 7 days after they are ready. Advisor notes are kept until their author deletes them or until the client’s or the advisor’s account is deleted. Records of signed-in devices are kept until the session expires or is signed out, and for a limited period afterwards for security purposes. Consent records are kept as proof of your choices for as long as your account exists and as required by law. Marketing click records are kept in pseudonymous form for campaign reporting. When you close your account, it is deactivated immediately and, after a 30-day grace period, we erase the personal details that identify you and keep only the pseudonymous records required for accounting, fraud prevention and legal compliance. Payment, membership and advisor payout records are kept for as long as accounting and tax laws require."
+        },
+        {
+          "type": "p",
+          "text": "Support requests and their messages are deleted 24 months after the request is closed. Calculator usage records, with their random browser identifier and first-visit campaign data, are deleted after 25 months. Chat drafts stay on your device for up to 7 days."
         }
       ]
     },

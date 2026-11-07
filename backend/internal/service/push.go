@@ -363,3 +363,21 @@ func (s *PushService) pause(host string, d time.Duration) {
 	s.pmu.Unlock()
 	s.log.Warn("push: service throttled us; pausing", zap.String("host", host), zap.Duration("for", d))
 }
+
+// revisions 3.0: chat unread
+
+// QueueChatMessage queues a prebuilt push (chat message notifications) for
+// every browser of a user, with high urgency. Non-blocking, like NotifyUser.
+func (s *PushService) QueueChatMessage(userID uuid.UUID, p PushPayload) {
+	if !s.Enabled() {
+		return
+	}
+	payload, _ := json.Marshal(p)
+	select {
+	case s.queue <- pushJob{userID: userID, payload: payload, topic: strings.NewReplacer(".", "", ":", "", "-", "").Replace(p.Tag), urgency: "high"}:
+	default:
+		if c := s.dropped.Add(1); c == 1 || c%1000 == 0 {
+			s.log.Error("push: queue full, dropping", zap.Int64("dropped_total", c))
+		}
+	}
+}

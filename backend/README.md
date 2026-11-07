@@ -79,7 +79,7 @@ declined · expired · cancelled            ended ──calculate earnings──
 * **SSE fallback** `GET /api/v1/realtime/stream` (cookie auth, `Last-Event-ID` resume); intents then go over REST (`/chat/sessions/:id/messages`, `/typing`, `/realtime/presence`).
 * **Envelope** `{ "id", "type", "ts", "ref", "data", "error" }`. Durable events carry a Redis Stream ID as `id`; each user's stream is bounded and expires. Every instance subscribes to Pub/Sub and delivers to its local sockets. On reconnect the server replays from `resume`, merges live events without duplicates, or sends `resync_required` if history was trimmed. If the server's own Pub/Sub link drops, it asks its clients to resync.
 * **Client frames** `session.join`, `session.leave`, `message.send` (idempotent `client_msg_id`), `typing`, `message.read`, `ping`. Each frame is acked or rejected with an error frame carrying its `ref`.
-* **Server events** `hello`, `session.*` (requested, accepted, started, billed, low_balance, disconnected, resumed, ended, settled, declined, expired, cancelled, participant), `message.created`, `message.read`, `typing`, `wallet.updated`, `custom_request.*`, `psychic.status_changed`, `auth.revoked`, `server.shutdown`, `resync_required`.
+* **Server events** `hello`, `session.*` (requested, accepted, started, billed, low_balance, disconnected, resumed, ended, settled, declined, expired, cancelled, participant), `message.created`, `message.read`, `chat.unread` (ephemeral unread totals), `typing`, `wallet.updated`, `custom_request.*`, `psychic.status_changed`, `auth.revoked`, `server.shutdown`, `resync_required`.
 * **Robustness.** Ping/pong with read deadlines. Bounded send buffers: slow consumers are closed with 4000. Per-connection frame rate limit, closing with 4008 after repeated abuse. Frame size limit (1009). Per-user connection cap (4009). Revocation closes with 4001. Graceful drain on shutdown with 1001 and a reconnect hint.
 
 ### Security
@@ -129,7 +129,7 @@ Admin dashboard endpoints (served to the admin console, see below):
 | Me | `GET me` · `PATCH me/profile` · `POST/DELETE me/avatar` · `GET me/chart` · `GET me/horoscope` · `GET me/numerology` |
 | Credits | `GET credit-packs` · `GET wallet` · `GET wallet/ledger` · `POST/GET credits/purchases` · `POST webhooks/payments` |
 | Advisors | `GET psychics` · `GET psychics/:slug` · `PATCH psychic/availability` · `PATCH psychic/profile` · `GET psychic/earnings` |
-| Chat | `GET chat/conversations` · `GET chat/conversations/:id/messages[/since]` · `POST chat/conversations/:id/read` · `GET chat/psychics/:slug` · `POST/GET chat/sessions` · `GET chat/sessions/:id[/summary]` · `POST chat/sessions/:id/{accept,decline,cancel,end,messages,typing}` · `GET/PUT/DELETE chat/saved[/:messageId]` |
+| Chat | `GET chat/conversations` · `GET chat/unread-count` · `GET chat/conversations/:id/messages[/since]` · `POST chat/conversations/:id/read` · `GET chat/psychics/:slug` · `POST/GET chat/sessions` · `GET chat/sessions/:id[/summary]` · `POST chat/sessions/:id/{accept,decline,cancel,end,messages,typing}` · `GET/PUT/DELETE chat/saved[/:messageId]` |
 | Realtime | `POST realtime/ticket` · `GET realtime/ws` · `GET realtime/stream` · `POST realtime/presence` |
 | Requests | `GET/POST custom-requests` · `GET custom-requests/:id` · `POST custom-requests/:id/{cancel,dispute,accept,decline,deliver}` |
 | Astrology | `GET astrology/places[/:id]` · `POST astrology/{natal,numerology,sun-sign,chart}` · `GET astrology/horoscope/:sign` · `GET astrology/events` · `GET/POST aztro` |
@@ -162,6 +162,13 @@ The admin console (`admin.staryield.net`, repository `staryield-admin`), growth 
 * **Notifications** are queued to an in-process asynchronous dispatcher (bounded buffer, batch insert, then realtime `notification.created`); a full buffer drops with an error log rather than slowing the triggering request. Clients render text from `kind` + `data` in the viewer's language; admin broadcasts carry English, French and Spanish copy.
 * **Chat images** are content-sniffed, size- and dimension-checked, re-encoded (EXIF/GPS stripped) and stored under random keys in the private `R2_CHAT_IMAGES_PRIVATE` bucket. They are only streamed by the API to the two participants of the conversation; administrators cannot open them.
 * **Advisor portraits** uploaded by administrators are re-encoded and stored in the public `R2_ADVISOR_IMAGE` bucket.
+
+### Support desk (revisions 3.0, spec §16)
+
+* **Contact form → ticket.** `POST /support/tickets` stores a sealed ticket (address and message AES-GCM, keyed hashes for grouping) and e-mails the support inbox; the acknowledgement carries the requester's private link (`{site}/{lang}/support/{reference}#t=<token>`). The token is 32 random bytes, stored as a keyed hash (a sealed copy lets the same link be e-mailed again: valid `support.link_ttl`, extended — not rotated — on every e-mail) and compared in constant time; every failure answers the same 404.
+* **Admin queue.** `GET admin/support/tickets` (keyset pages; status list, topic, priority, assignee, user, `q` = reference / e-mail through the keyed hash / subject words, sorts newest, oldest, waiting) and `GET admin/support/summary` (cached 15 s, generation-keyed so every write invalidates it) never decrypt anything. Reading a ticket, replying and noting need a fresh step-up; `support_ticket.viewed` is audited at most once per admin and ticket every 10 minutes. `PATCH` is optimistic (`expected_version` → 409 `version_conflict`) and the assignee must be an active administrator.
+* **Requesters.** `me/support/tickets…` (matched on `user_id` only) and the private link both return only public messages (the SQL excludes internal notes and system entries); staff appear as "Staryield Support (First name)". A requester reply re-opens the ticket and e-mails the assignee or the inbox; closed tickets answer 409 `invalid_state`; threads hold at most 200 messages.
+* **Maintenance.** The hourly `support-maintenance` job closes resolved tickets after 7 days, deletes closed tickets after `support.retention` (messages cascade) and fills masked addresses of tickets created before the desk. Messages are append-only (trigger); account erasure deletes the user's tickets; the personal-data export includes them (public messages only).
 
 ### Localization
 

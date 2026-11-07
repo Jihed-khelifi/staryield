@@ -23,6 +23,9 @@ import { outboxMessage } from "@/lib/chat/outbox";
 import { track } from "@/lib/analytics";
 import { useRealtimeEvent, useRealtimeEvents, useSession } from "@/lib/auth/session-provider";
 import { loginUrl } from "@/lib/navigation";
+import { shouldToastOtherConversation } from "@/lib/chat/chat-alerts";
+import { useVisualViewport } from "@/lib/use-visual-viewport";
+import { useFreeMode } from "@/lib/site-config/site-config-provider";
 import { logger } from "@/lib/logger";
 import { usePagedList } from "@/lib/use-paged-list";
 import { announce } from "@/components/feedback/live-region";
@@ -30,12 +33,13 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { useToast } from "@/components/feedback/toast-provider";
 import { ChatFeed, type Announcement } from "@/components/chat/chat-feed";
 import { ChatHeader, useEarningsLabel } from "@/components/chat/chat-header";
-import { SessionTools, SwitcherHeader } from "@/components/chat/chat-mobile";
+import { SessionTools, SwitcherHeader, SwitcherQuickLinks } from "@/components/chat/chat-mobile";
+import { ComposerNote } from "@/components/chat/composer-note";
+import { ChatPushPrompt } from "@/components/chat/push-prompt";
 import { ConversationList } from "@/components/chat/conversation-list";
 import { MessageComposer, type ComposerSubmit } from "@/components/chat/message-composer";
 import { ReaderPanel } from "@/components/chat/reader-panel";
 import { ClientPanel } from "@/components/chat/client-panel";
-import { RatePrice } from "@/components/chat/rate-price";
 import { SAVED_PAGE_SIZE } from "@/components/chat/saved-list";
 import { ReviewDialog } from "@/components/reviews/review-form";
 import { SessionPanel } from "@/components/chat/session-panel";
@@ -94,6 +98,9 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const { status, user, wallet, realtime, connection } = useSession();
   const role = user?.role === "psychic" ? "psychic" : "client";
   const meId = user?.id ?? "";
+  const freeMode = useFreeMode();
+  // The composer stays above the phone keyboard (iOS Safari does not resize the layout).
+  useVisualViewport();
 
   const [slug, setSlug] = React.useState<string | undefined>(initialReader);
   const [activeConvId, setActiveConvId] = React.useState<string | null>(null);
@@ -347,6 +354,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
               next_billing_at: b.next_billing_at,
               server_time: new Date().toISOString(),
               // Advisors: live earnings so far.
+              ...(b.sponsored ? { sponsored: true } : {}),
               ...(typeof b.psychic_earnings === "number"
                 ? { psychic_earnings: b.psychic_earnings, psychic_earnings_cents: b.psychic_earnings_cents, currency: b.currency ?? cur.session.currency }
                 : {}),
@@ -377,6 +385,16 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
       }
     } else if (!activeConvId && role === "client" && liveSession?.conversation_id === message.conversation_id) {
       setActiveConvId(message.conversation_id);
+    }
+    if (shouldToastOtherConversation({ message, meId, activeConversationId: activeConvId, hidden: document.visibilityState === "hidden", permission: "unsupported" })) {
+      // Advisors juggle clients: say who wrote, with a way to open that chat.
+      const row = inbox.items.find((c) => c.id === message.conversation_id);
+      toast.show({
+        tone: "info",
+        message: row ? text("New message from {value0}", { value0: row.counterpart.name }) : text("New message"),
+        actionLabel: row ? text("Open") : undefined,
+        onAction: row ? () => openConversation(row) : undefined,
+      });
     }
     if (message.sender_id === meId && message.client_msg_id) outbox.confirm([message.client_msg_id]);
     const next = withMessage(inbox.items, message, { meId, activeId: activeConvId });
@@ -593,6 +611,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     return [...queued, ...images.filter((m) => m.conversation_id === activeConvId)];
   }, [outbox.entries, images, activeConvId]);
   const messages = React.useMemo(() => mergeMessages(timeline.messages, localMessages), [timeline.messages, localMessages]);
+  const hasSent = React.useMemo(() => messages.some((m) => m.sender_id === meId && m.kind !== "system"), [messages, meId]);
   const savedIds = React.useMemo(() => {
     const ids = new Set<string>();
     for (const m of messages) if (isSaved(m)) ids.add(m.id);
@@ -621,21 +640,17 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const returnPath = `/${locale}/chatroom${slug ? `?reader=${slug}` : ""}`;
   const composerDisabled = liveSession?.status !== "active";
   const free = wallet?.free_minutes ?? 0;
-  const rateNode = rateView.rate > 0 ? <RatePrice rate={rateView} /> : null;
-  const note: React.ReactNode =
-    role === "client" ? (
-      free > 0 ? (
-        <>
-          {text("{value0} free minutes, then", { value0: free })} {rateNode}
-        </>
-      ) : (
-        <>
-          {rateNode} · {text("balance {value0}", { value0: (wallet?.balance ?? 0).toLocaleString(locale) })}
-        </>
-      )
-    ) : (
-      t("chatroom.composer.label")
-    );
+  const freeChat = freeMode || Boolean(session?.sponsored);
+  const note = (
+    <ComposerNote
+      role={role}
+      free={freeChat}
+      freeMinutes={free}
+      balance={wallet?.balance ?? 0}
+      rate={rateView.rate > 0 ? rateView : null}
+      advisorLabel={t("chatroom.composer.label")}
+    />
+  );
 
   const listProps = {
     conversations: inbox.items,
@@ -692,7 +707,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     <main
       aria-label={text("Chatroom")}
       data-role={role}
-      className="chat-workspace grid min-h-0 flex-1 gap-4 px-8 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_280px]"
+      className="chat-workspace grid min-h-0 flex-1 gap-4 px-8 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)_280px] 2xl:gap-6 2xl:px-12 2xl:grid-cols-[300px_minmax(0,1fr)_320px] min-[120rem]:gap-8 min-[120rem]:px-16 min-[120rem]:grid-cols-[360px_minmax(0,1fr)_380px]"
     >
       <aside className="chat-inbox-column hidden min-h-0 overflow-hidden rounded-xl border lg:block" aria-label={t("chatroom.inbox.title")}>
         <ConversationList {...listProps} />
@@ -724,7 +739,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                 })
               }
             />
-            <SessionTools role={role} wallet={wallet} earned={earned} returnPath={returnPath} onOpenDetails={() => setDetailsOpen(true)} />
+            <SessionTools role={role} wallet={wallet} free={freeChat} earned={earned} returnPath={returnPath} onOpenDetails={() => setDetailsOpen(true)} />
             {otherSession && role === "client" ? (
               <p className="chat-connection-banner" role="status">
                 {text("You already have a live chat with {value0}.", { value0: otherSession.psychic.name })}{" "}
@@ -733,7 +748,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                 </button>
               </p>
             ) : null}
-            {lowBalance !== null && session?.status === "active" ? (
+            {lowBalance !== null && session?.status === "active" && !freeChat ? (
               <p className="chat-connection-banner" role="alert">
                 {text("About {value0} minutes of credit left.", { value0: lowBalance })}{" "}
                 <a className="underline" href={`/${locale}/credits?next=${encodeURIComponent(returnPath)}`} target="_blank" rel="noopener">
@@ -788,6 +803,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                   busy={busy}
                   error={actionError}
                   returnPath={returnPath}
+                  free={freeChat}
                   onStart={() => void startChat()}
                   onCancel={() => session && void act(() => chatApi.cancel(session.id), (s) => setSnap(snapshot(s)))}
                   onAccept={() => session && void act(() => chatApi.accept(session.id), (s) => setSnap(snapshot(s)))}
@@ -801,7 +817,11 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                 />
               </ChatFeed>
             )}
+            <ChatPushPrompt userId={meId} hasSent={hasSent} />
             <MessageComposer
+              userId={meId}
+              draftId={activeConvId ?? (slug ? `reader:${slug}` : null)}
+              draftFallbackId={activeConvId && slug ? `reader:${slug}` : null}
               onSend={submit}
               onTyping={onTyping}
               disabled={composerDisabled}
@@ -847,6 +867,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
             <ConversationList {...listProps} variant="cards" excludeId={activeConvId} className="absolute inset-0 h-auto" />
           </div>
           <div className="chat-switcher-foot">
+            <SwitcherQuickLinks onNavigate={() => setInboxOpen(false)} />
             <Button asChild variant="ghost" className="chat-leave-button">
               <Link href={role === "client" ? `/${locale}/psychics` : `/${locale}/profile`}>{text("Leave Chatroom")}</Link>
             </Button>

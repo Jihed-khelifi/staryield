@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { FiBookmark, FiUser } from "react-icons/fi";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import type { Participant, Wallet } from "@/lib/api/types";
+import { MOBILE_NAV_LINKS, isMobileNavActive } from "@/components/layout/site-header";
 import { ReaderAvatar } from "@/components/chat/reader-avatar";
 import { RatePrice } from "@/components/chat/rate-price";
 import type { RateView } from "@/components/chat/chat-model";
@@ -27,6 +29,7 @@ export function SessionTools({
   earned,
   returnPath,
   onOpenDetails,
+  free = false,
 }: {
   role: "client" | "psychic";
   wallet: Wallet | null;
@@ -34,11 +37,17 @@ export function SessionTools({
   earned?: string | null;
   returnPath: string;
   onOpenDetails: () => void;
+  /** Free mode or sponsored session: no balance or top-up link. */
+  free?: boolean;
 }) {
   const { text, locale } = useI18n();
   return (
     <div className="chat-session-tools" data-testid="chat-session-tools">
-      {role === "client" ? (
+      {role === "client" && free ? (
+        <span className="chat-credit-pill" data-testid="free-chat-pill">
+          <strong>{text("Free chat")}</strong>
+        </span>
+      ) : role === "client" ? (
         <Link
           href={`/${locale}/credits?next=${encodeURIComponent(returnPath)}`}
           className="chat-credit-pill"
@@ -110,5 +119,30 @@ export function SwitcherHeader({
       ) : null}
       <p className="chat-switcher-eyebrow">{text(role === "client" ? "Choose another advisor" : "Other conversations")}</p>
     </div>
+  );
+}
+
+/**
+ * Compact quick links in the conversation switcher: the chatroom hides the
+ * bottom navigation on phones, so its destinations live here (and in the
+ * header menu).
+ */
+export function SwitcherQuickLinks({ onNavigate }: { onNavigate?: () => void }) {
+  const { text, locale } = useI18n();
+  const path = usePathname();
+  return (
+    <nav className="chat-quick-links" aria-label={text("Main navigation")} data-testid="chat-quick-links">
+      {MOBILE_NAV_LINKS.map(({ label, href, icon: Icon }) => (
+        <Link
+          key={label}
+          href={`/${locale}${href}`}
+          onClick={onNavigate}
+          aria-current={isMobileNavActive(path, locale, label, href) ? "page" : undefined}
+        >
+          <Icon size={16} strokeWidth={1.5} aria-hidden />
+          <span>{text(label)}</span>
+        </Link>
+      ))}
+    </nav>
   );
 }

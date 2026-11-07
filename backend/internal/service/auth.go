@@ -80,7 +80,14 @@ type AuthService struct {
 	cfg     AuthSettings
 	// ident enables signed-in devices (identity module; see devices.go).
 	ident *authIdentity
+	// revisions 3.0: site settings. signupMinutes returns the sign-up offer's
+	// free minutes (SiteService.SignupFreeMinutes); nil falls back to
+	// cfg.SignupFreeMinutes.
+	signupMinutes func(ctx context.Context) int
 }
+
+// SetSignupOffer installs the sign-up offer lookup (revisions 3.0).
+func (s *AuthService) SetSignupOffer(fn func(ctx context.Context) int) { s.signupMinutes = fn }
 
 // NewAuthService wires the auth service. E-mail (password resets) goes
 // through the outbox (EmailQueue).
@@ -181,6 +188,10 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*AuthResu
 		CreatedAt: now, UpdatedAt: now,
 	}
 	var result *AuthResult
+	signupMinutes := s.cfg.SignupFreeMinutes // revisions 3.0: site settings
+	if s.signupMinutes != nil {
+		signupMinutes = max(s.signupMinutes(ctx), 0)
+	}
 	err = s.tx.WithinTx(ctx, func(ctx context.Context) error {
 		if err := s.users.Create(ctx, user); err != nil {
 			if errors.Is(err, repository.ErrDuplicate) {
@@ -191,7 +202,7 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*AuthResu
 		if err := s.users.CreateProfile(ctx, newProfile(user.ID, birth, now)); err != nil {
 			return err
 		}
-		if err := s.wallets.Create(ctx, &domain.Wallet{UserID: user.ID, FreeMinutes: s.cfg.SignupFreeMinutes, UpdatedAt: now}); err != nil {
+		if err := s.wallets.Create(ctx, &domain.Wallet{UserID: user.ID, FreeMinutes: signupMinutes, UpdatedAt: now}); err != nil {
 			return err
 		}
 		if s.cfg.SignupBonusCredits > 0 {
@@ -211,7 +222,8 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*AuthResu
 		return nil, mapRepoErr(err, "User")
 	}
 	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: user.ID, Role: user.Role})
-	s.tracker.Track(ctx, "user.registered", map[string]any{"role": string(user.Role), "locale": user.Locale, "has_birth_date": birth != nil})
+	s.tracker.Track(ctx, "user.registered", map[string]any{"role": string(user.Role), "locale": user.Locale, "has_birth_date": birth != nil,
+		"signup_free_minutes": signupMinutes})
 	logger.FromContext(ctx).Info("user registered", zap.String("user_id", user.ID.String()))
 	return result, nil
 }

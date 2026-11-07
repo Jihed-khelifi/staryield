@@ -34,6 +34,8 @@ export type RequestOptions = {
   keepalive?: boolean;
   /** Decode the body as JSON (default) or return it as a Blob (images). */
   responseType?: "json" | "blob";
+  /** Extra request headers (e.g. `X-Support-Token`); cannot override the built-in ones. */
+  headers?: Record<string, string>;
 };
 
 const AUTH_HINT = "staryield.auth-hint";
@@ -57,6 +59,15 @@ export function setAuthHint(on: boolean) {
     else localStorage.removeItem(AUTH_HINT);
   } catch {
     // Storage may be unavailable (private mode); refresh simply runs anyway.
+  }
+}
+
+/** First-paint guess: true only when this browser remembered a session (false on the server and without storage). */
+export function readAuthHint(): boolean {
+  try {
+    return localStorage.getItem(AUTH_HINT) === "1";
+  } catch {
+    return false;
   }
 }
 
@@ -209,6 +220,7 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
 
     try {
       const headers: Record<string, string> = {
+        ...opts.headers,
         Accept: opts.responseType === "blob" ? "image/*, application/json;q=0.5" : "application/json",
         "X-Request-ID": requestId,
         "X-Locale": currentLocale(),

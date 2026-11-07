@@ -7,6 +7,9 @@ import type { AdvisorCard, DirectoryPage, DirectoryQuery, PresenceStatus } from 
 import { axeViolations, renderWithI18n } from "@/test/render";
 
 const browse = vi.fn<(query: DirectoryQuery, signal?: AbortSignal) => Promise<DirectoryPage>>();
+const session = vi.hoisted(() => ({ status: "authenticated" as "authenticated" | "anonymous" | "loading" }));
+const replace = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace, push: vi.fn() }), usePathname: () => "/en/psychics" }));
 let statusHandler: ((data: { slug: string; status: PresenceStatus }) => void) | null = null;
 
 vi.mock("@/lib/api/endpoints", () => ({
@@ -14,7 +17,7 @@ vi.mock("@/lib/api/endpoints", () => ({
   requestsApi: {},
 }));
 vi.mock("@/lib/auth/session-provider", () => ({
-  useSession: () => ({ realtime: null, status: "anonymous", user: null, wallet: null, setWallet: () => {} }),
+  useSession: () => ({ realtime: null, status: session.status, user: null, wallet: null, setWallet: () => {} }),
   useRealtimeEvent: (type: string, handler: (data: { slug: string; status: PresenceStatus }) => void) => {
     if (type === "psychic.status_changed") statusHandler = handler;
   },
@@ -48,6 +51,8 @@ function page(n: number, items: AdvisorCard[], total: number): DirectoryPage {
 
 beforeEach(() => {
   browse.mockReset();
+  replace.mockReset();
+  session.status = "authenticated";
   statusHandler = null;
   window.history.replaceState(null, "", "/en/psychics");
   Element.prototype.scrollIntoView = vi.fn();
@@ -129,5 +134,35 @@ describe("PsychicsBrowse", () => {
     act(() => statusHandler?.({ slug: "bea", status: "online" }));
     await waitFor(() => expect(screen.getAllByText("● Online")).toHaveLength(1));
     expect(screen.getAllByText("● Offline")).toHaveLength(1);
+  });
+});
+
+describe("PsychicsBrowse gate (signed-in customers only)", () => {
+  it("shows a neutral loading state, never the directory, while the session loads", async () => {
+    session.status = "loading";
+    browse.mockResolvedValue(page(1, [advisor("ada")], 1));
+    renderWithI18n(<PsychicsBrowse />);
+    expect(screen.getByTestId("psychics-gate")).toBeTruthy();
+    expect(screen.getByText("Loading advisors…")).toBeTruthy();
+    await act(async () => {});
+    expect(browse).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.queryByRole("heading", { name: /Ada/ })).toBeNull();
+  });
+
+  it("redirects anonymous visitors to the home section and never loads the directory", async () => {
+    session.status = "anonymous";
+    renderWithI18n(<PsychicsBrowse />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/en#psychics"));
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(browse).not.toHaveBeenCalled();
+    expect(screen.queryByRole("heading", { name: /Our advisors/ })).toBeNull();
+  });
+
+  it("shows the directory to signed-in customers without redirecting", async () => {
+    browse.mockResolvedValue(page(1, [advisor("ada")], 1));
+    renderWithI18n(<PsychicsBrowse />);
+    expect(await screen.findByRole("heading", { name: /Ada/ })).toBeTruthy();
+    expect(replace).not.toHaveBeenCalled();
   });
 });

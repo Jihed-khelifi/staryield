@@ -7,7 +7,7 @@ import type * as React from "react";
 import { ApiError } from "@/lib/api/errors";
 import type { Service } from "@/lib/api/types";
 import { axeViolations, renderWithI18n } from "@/test/render";
-import { ServiceOrderForm } from "@/components/psychics/service-order-form";
+import { ORDER_DATETIME_ROW_CLASS, ORDER_FIELD_CLASS, ServiceOrderForm } from "@/components/psychics/service-order-form";
 
 const order = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => ({ show: vi.fn(), showError: vi.fn() }));
@@ -53,7 +53,7 @@ function setup() {
     u: userEvent.setup(),
     date: within(form).getByLabelText("Preferred date") as HTMLInputElement,
     time: within(form).getByLabelText("Preferred time") as HTMLInputElement,
-    send: () => within(form).getByRole("button", { name: "Request a session" }),
+    send: () => within(form).getByRole("button", { name: "Send request" }),
   };
 }
 
@@ -64,17 +64,65 @@ describe("ServiceOrderForm", () => {
     expect(date.max).toBe("2027-11-04");
   });
 
-  it("needs a date for a time and refuses past dates", async () => {
+  it("refuses past dates", async () => {
     const { form, date, time, send, u } = setup();
+    fireEvent.change(date, { target: { value: "2026-11-04" } });
     fireEvent.change(time, { target: { value: "18:30" } });
     await u.click(send());
-    expect(await within(form).findByText("Choose a date for this time.")).toBeTruthy();
-    fireEvent.change(date, { target: { value: "2026-11-04" } });
     expect(await within(form).findByText("Choose today or a later date.")).toBeTruthy();
     fireEvent.change(date, { target: { value: "2026-11-06" } });
-    await waitFor(() => expect(within(form).queryByText("Choose a date for this time.")).toBeNull());
+    await waitFor(() => expect(within(form).queryByText("Choose today or a later date.")).toBeNull());
     expect(order).not.toHaveBeenCalled();
     expect(await axeViolations()).toEqual([]);
+  });
+
+  it("frames the sheet as ordering a service, not booking a session", () => {
+    const { form } = setup();
+    expect(within(form).getByRole("button", { name: "Send request" })).toBeTruthy();
+    expect(within(form).queryByText(/book/i)).toBeNull();
+    expect(within(form).queryByRole("button", { name: /session/i })).toBeNull();
+    expect(within(form).getByTestId("order-how-it-works").textContent).toBe("Luna delivers this request. Your credits are held until it is delivered.");
+  });
+
+  it("mentions the delivery time when the service has one", () => {
+    renderWithI18n(<ServiceOrderForm service={{ ...service, kind: "custom", delivery_days: 3 }} advisorName="Luna" slug="luna" returnHere="x" />);
+    expect(screen.getByTestId("order-how-it-works").textContent).toContain("Delivery in about 3 days.");
+  });
+
+  it("disables the time until a date is picked, with a linked helper, and clears it with the date", async () => {
+    const { form, date, time } = setup();
+    expect(time.disabled).toBe(true);
+    const helper = within(form).getByText("Pick a date first.");
+    expect(time.getAttribute("aria-describedby")?.split(" ")).toContain(helper.id);
+    fireEvent.change(date, { target: { value: "2026-11-20" } });
+    await waitFor(() => expect(time.disabled).toBe(false));
+    expect(within(form).queryByText("Pick a date first.")).toBeNull();
+    fireEvent.change(time, { target: { value: "09:15" } });
+    expect(time.value).toBe("09:15");
+    fireEvent.change(date, { target: { value: "" } });
+    await waitFor(() => expect(time.disabled).toBe(true));
+    expect(time.value).toBe("");
+  });
+
+  it("gives the date and time fields the same box and starts both at the top of one row", () => {
+    const { form, date, time } = setup();
+    for (const input of [date, time]) for (const cls of ORDER_FIELD_CLASS.split(" ")) expect(input.className).toContain(cls);
+    const row = within(form).getByTestId("order-datetime-row");
+    expect(row.className).toBe(ORDER_DATETIME_ROW_CLASS);
+    expect(row.className).toContain("items-start");
+    expect(row.className).toContain("grid-cols-1");
+    expect(row.className).toContain("sm:grid-cols-2");
+  });
+
+  it("shows the pending label while sending", async () => {
+    const { send, u } = setup();
+    let resolve!: (v: unknown) => void;
+    order.mockReturnValue(new Promise((r) => (resolve = r)));
+    await u.click(send());
+    const busy = await screen.findByRole("button", { name: "Sending request…" });
+    expect((busy as HTMLButtonElement).disabled).toBe(true);
+    resolve({ id: "r", price_credits: 600, wallet: { balance: 1 } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send request" })).toBeTruthy());
   });
 
   it("limits the note to 2,000 characters", async () => {

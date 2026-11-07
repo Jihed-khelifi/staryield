@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ComponentProps } from "react";
 import { useI18n } from "@/i18n/i18n-provider";
 import { usePathname } from "next/navigation";
+import { usePsychicsPath } from "@/lib/psychics-link";
 
 export function headingAnchor(label: string) {
   return label
@@ -12,7 +13,8 @@ export function headingAnchor(label: string) {
     .replace(/^-|-$/g, "");
 }
 
-export function contentDestination(label: string) {
+/** `psychicsPath` is the entry point for the directory (see `@/lib/psychics-link`). */
+export function contentDestination(label: string, psychicsPath = "/psychics") {
   const text = label.toLowerCase();
   const routes: [RegExp, string][] = [
     [/privacy/, "/privacy"],
@@ -30,7 +32,7 @@ export function contentDestination(label: string) {
     [/sign|start today|get started|intro|continue/, "/signup"],
     [/chat/, "/chatroom"],
   ];
-  return routes.find(([pattern]) => pattern.test(text))?.[1] ?? "/psychics";
+  return routes.find(([pattern]) => pattern.test(text))?.[1] ?? psychicsPath;
 }
 export function ContentLink({
   label,
@@ -40,6 +42,7 @@ export function ContentLink({
 }: ComponentProps<"a"> & { label: string }) {
   const { text, locale } = useI18n();
   const pathname = usePathname();
+  const psychics = usePsychicsPath();
   const legalSection =
     /\/(terms|privacy)$/.test(pathname) &&
     label === label.toUpperCase() &&
@@ -53,7 +56,7 @@ export function ContentLink({
     ? `#${headingAnchor(label)}`
     : suppliedHref?.startsWith("mailto:") || suppliedHref?.startsWith("tel:")
       ? suppliedHref
-      : `/${locale}${support ? "/contact" : contentDestination(label) + (/start 1-on-1 chat/i.test(label) ? `?reader=${reader}` : "")}`;
+      : `/${locale}${support ? "/contact" : contentDestination(label, psychics) + (/start 1-on-1 chat/i.test(label) ? `?reader=${reader}` : "")}`;
   if (
     String(props["data-name" as keyof typeof props] ?? "").startsWith(
       "Instance / State=Collapsed",

@@ -14,6 +14,12 @@ import { ToastProvider } from "@/components/feedback/toast-provider";
 import { ErrorReporter } from "@/components/feedback/error-reporter";
 import { SessionProvider } from "@/lib/auth/session-provider";
 import { NotificationsProvider } from "@/lib/notifications/notifications-provider";
+// revisions 3.0: unread chat count for the header shortcut (§18).
+import { ChatUnreadProvider } from "@/lib/chat/chat-unread-provider";
+import { ChatAlerts } from "@/components/chat/chat-alerts";
+// revisions 3.0: admin-controlled banners, sign-up offer and free mode (§15.1).
+import { SiteConfigProvider } from "@/lib/site-config/site-config-provider";
+import { fetchSiteConfig } from "@/lib/site-config/server";
 import { AttributionCapture } from "@/components/feedback/attribution-capture";
 // account settings: app-wide theme, rendered from the sy_theme cookie (no flash).
 import { ThemeSync } from "@/components/layout/theme-sync";
@@ -81,10 +87,15 @@ export default async function LangLayout({
   if (!isLocale(lang)) notFound();
 
   const dictionary = await getDictionary(lang);
-  const theme = parseThemeCookie((await cookies()).get(THEME_COOKIE)?.value);
+  // Both reads start together; the config has a 700 ms budget and falls back to null.
+  const [theme, siteConfig] = await Promise.all([
+    cookies().then((jar) => parseThemeCookie(jar.get(THEME_COOKIE)?.value)),
+    fetchSiteConfig(lang),
+  ]);
 
   return (
-    <html lang={lang} dir="ltr" data-theme={theme}>
+    // Smooth scrolling is for in-page anchors (#psychics); Next turns it off during route changes.
+    <html lang={lang} dir="ltr" data-theme={theme} data-scroll-behavior="smooth">
       <body
         className={`${cinzel.variable} ${sourceSerif.variable} ${inter.variable} paper-page min-h-dvh`}
       >
@@ -92,12 +103,17 @@ export default async function LangLayout({
           <ErrorReporter />
           <AttributionCapture />
           <ToastProvider>
-            <SessionProvider>
-              <ThemeSync />
-              <NotificationsProvider>
-                <TooltipProvider>{children}</TooltipProvider>
-              </NotificationsProvider>
-            </SessionProvider>
+            <SiteConfigProvider initial={siteConfig}>
+              <SessionProvider>
+                <ThemeSync />
+                <NotificationsProvider>
+                  <ChatUnreadProvider>
+                    <ChatAlerts />
+                    <TooltipProvider>{children}</TooltipProvider>
+                  </ChatUnreadProvider>
+                </NotificationsProvider>
+              </SessionProvider>
+            </SiteConfigProvider>
           </ToastProvider>
         </I18nProvider>
       </body>

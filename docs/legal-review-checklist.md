@@ -89,4 +89,15 @@ Status legend: **Decide**: owner or counsel decision required.
   - Privacy: §2.7 advisor notes, §2.8 account/devices/preferences/membership, §11 cookies.
   - Terms: §2.4 calculators, §3.7 disabling, §4.14 client notes, §4.15 waiting lists, §6.2.9 withdrawal.
   - Spanish blocks rewritten from informal "tú" to formal "usted" for consistency.
-- **Dates:** effective and last-updated set to 2026-11-04 in all locales. Update them on publication.
+- **Dates:** effective and last-updated set to 2026-11-07 in all locales (revisions 3.0). Update them on publication.
+
+## Revisions 3.0 additions (2026-11-07)
+
+| # | Clause | Status | Why |
+|---|---|---|---|
+| 43 | Privacy §2.9 `#support-requests`, §8 `#data-retention` | Verify | Support desk: thread, staff replies and internal notes sealed at rest, e-mail keyed hash, private links valid 30 days (fragment token), deletion 24 months after closing, linked to the account when signed in, included in the data export. Matches `STARYIELD_SUPPORT_LINK_TTL` / `STARYIELD_SUPPORT_RETENTION`. |
+| 44 | Privacy §2.10 `#calculator-usage-measurement` | Decide | Random browser id (`staryield.aid`) linked to the account at sign-up only when analytics is allowed; first-touch campaign data kept 25 months. Same open point as #25: confirm prior-consent handling for anonymous EU visitors. |
+| 45 | Privacy §2.11 `#chat-notifications-and-drafts` | Verify | Push without message content; drafts only on the device for up to 7 days. |
+| 46 | Privacy §2.12 `#free-access-periods`, Terms §6.2.5 | Verify | Sponsored sessions are recorded for billing and advisor-earnings statistics. Terms: introductory free minutes (amount set by Staryield, new accounts only, no cash value, used before credits) and promotional free access ("free mode": may start or stop at any time, chats requested during it stay free until they end, advisors still paid, custom requests and credit purchases excluded). |
+| 47 | Terms §4.10 `#customer-support` | Verify | Support communications: private e-mailed links, closed requests cannot be answered. |
+

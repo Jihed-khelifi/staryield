@@ -1007,3 +1007,441 @@ E-mail, through the outbox:
 - The support inbox (`STARYIELD_MAIL_SUPPORT_INBOX`) receives the full request.
 - The requester receives a localized acknowledgement with the reference only. It never repeats the submitted text, so the form cannot relay content to arbitrary addresses.
 - Requests linked to an account are deleted when the account is erased.
+
+---
+
+# Revisions 3.0
+
+Sections 15–19 were added with revisions 3.0 (site settings, support desk,
+calculator analytics, chat unread badge and message notifications). The
+usual conventions apply: 🔐 = step-up, every admin write is audit-logged,
+`Page<T>` = `{items, next_cursor}` with keyset cursors that fetch one extra
+row, errors are localized (§10), and every user-facing server message has
+French and Spanish translations (`internal/i18n`).
+
+## 15. Site configuration: promo banners, sign-up offer, free mode
+
+Runtime settings controlled from the admin console. They live in PostgreSQL
+(`site_settings`, `site_banners`, migration `0016_site_settings.sql`), are
+cached in Redis and in-process, and every admin write invalidates them on all
+instances (Redis pub/sub channel `site:config:changed`).
+
+### 15.1 Public configuration
+
+`GET /api/v1/site/config` — public, no auth, no CSRF. Locale from `X-Locale` /
+`Accept-Language` (§10) or `?locale=en|fr|es`.
+
+```ts
+type SiteConfig = {
+  banners: { rotation_seconds: number; items: SiteBanner[] };  // items = [] when the bar is hidden
+  signup_offer: { enabled: boolean; free_minutes: number };    // free_minutes = 0 when disabled
+  free_mode: { active: boolean; ends_at?: string };            // live chat is free for everyone (§15.4)
+  generated_at: string;
+};
+type SiteBanner = {
+  id: string;
+  text: string;          // localized (falls back to en); "{free_minutes}" already replaced
+  cta_label: string;     // localized; "" when none
+  action: { type: "link" | "none"; href: string };  // locale-less path ("/signup") or allow-listed https URL; "" for none
+  audience: "all" | "anonymous" | "signed_in";      // the client filters on its own session state
+};
+```
+
+- Only banners that are `active` and inside their schedule
+  (`starts_at ≤ now < ends_at`) are returned, by `sort_order`, at most 10.
+- `Cache-Control: public, max-age=30, stale-while-revalidate=60`, weak `ETag`
+  (304 on `If-None-Match`), `Vary: Accept-Language, X-Locale`.
+- Served from one raw snapshot in Redis (`site:config:v1`, TTL 5 min)
+  behind a 10 s in-process copy; the localized view is derived per request
+  (memoized for 1 s), so banner schedules and the free-mode end apply on
+  time. A database outage keeps serving the last good copy; with nothing
+  cached it serves safe defaults (no banners, the configured sign-up offer,
+  free mode off) instead of failing.
+- While the sign-up offer is disabled, banners whose text or CTA uses
+  `{free_minutes}` are left out (the bar never advertises "0 minutes"); the
+  console still lists them.
+- Rate limit: bucket `site`, per IP (3000/min, burst 600; the web app's server
+  renders share a few edge addresses and cache the answer for 30 s per
+  isolate), fails open.
+
+### 15.2 Admin: promo banners (`/api/v1/admin`)
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /site/banners` | `{settings: BannerSettings, items: AdminBanner[]}`: every banner (inactive and expired included) by `sort_order`. |
+| 🔐 `POST /site/banners` | `BannerInput` → 201 `AdminBanner` (appended last). 409 `limit_reached` beyond 10 banners. |
+| 🔐 `PATCH /site/banners/:id` | `Partial<BannerInput> & {expected_version?}` → `AdminBanner`. 409 `version_conflict` (`details.current_version`). |
+| 🔐 `DELETE /site/banners/:id` | 204 |
+| 🔐 `PUT /site/banners/order` | `{ids: string[]}` (every banner id exactly once, else 422) → `{items: AdminBanner[]}` |
+| 🔐 `PATCH /site/banners/settings` | `{enabled?, rotation_seconds?, expected_version?}` → `BannerSettings`. Hiding the bar is `enabled:false`. |
+
+```ts
+type L10n = { en: string; fr?: string; es?: string };
+type BannerInput = {
+  text: L10n;                        // en required; each 1–140 characters, one line, plain text
+  cta_label?: Partial<L10n>;         // each ≤ 40 characters
+  action: { type: "link" | "none"; href?: string };
+  audience?: "all" | "anonymous" | "signed_in";  // default "all"
+  active?: boolean;                  // default true
+  starts_at?: string | null;         // optional schedule; ends_at must be after starts_at
+  ends_at?: string | null;
+};
+type BannerSettings = { enabled: boolean; rotation_seconds: number /* 4–30, default 6 */; version: number; updated_at: string };
+type AdminBanner = {
+  id: string; text: L10n; cta_label: Partial<L10n>; action: { type: "link" | "none"; href: string };
+  audience: "all" | "anonymous" | "signed_in"; active: boolean; starts_at?: string; ends_at?: string;
+  sort_order: number; version: number; status: "live" | "scheduled" | "expired" | "inactive";
+  created_at: string; updated_at: string; updated_by?: { id: string; name: string };
+};
+```
+
+Validation (422 `validation_failed`, dotted field keys such as `text.fr` or `action.href`):
+
+- Text is cleaned like any other line of copy (control, bidi and other
+  invisible format characters stripped). Text that looks like HTML markup
+  (`<b>`, `<script>`) is rejected; a plain `<` or `>` in prose is accepted.
+  The only placeholder is `{free_minutes}` (replaced with the live sign-up
+  offer); any other `{…}` is rejected.
+- A `link` action needs `href`: an internal path matching
+  `^/(?!/)[A-Za-z0-9\-._~/?=&%#]{0,299}$` (no locale prefix — clients add it),
+  or an absolute `https://` URL whose host is in `STARYIELD_LINKS_ALLOWED_HOSTS`
+  (the frontend host is not implicitly allowed). Paths that start with a
+  locale (`/en/…`) are rejected: clients add the reader's locale.
+  `javascript:`, `data:`, protocol-relative and other schemes are rejected.
+  `none` stores `href: ""`.
+- Audit actions: `site_banner.created|updated|deleted|reordered`,
+  `site_banner.settings_updated` (ids and changed field names).
+
+Seed (migration): one live banner reproducing the former hard-coded bar —
+text `{free_minutes} MINUTES FREE + 80% OFF FOR NEW CUSTOMERS`, CTA
+`CLAIM INTRO OFFER →`, link `/signup`, audience `anonymous`, with French and
+Spanish copy; bar enabled, rotation 6 s.
+
+### 15.3 Admin: sign-up offer
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /site/signup-offer` | `SignupOffer` |
+| 🔐 `PUT /site/signup-offer` | `{enabled: boolean, free_minutes: number /* 1–60 */, expected_version?}` → `SignupOffer`. Audited `site.signup_offer_updated` (before and after). |
+
+```ts
+type SignupOffer = { enabled: boolean; free_minutes: number; version: number; updated_at: string; updated_by?: { id: string; name: string } };
+```
+
+- Default (migration seed): enabled, **5** minutes.
+  `STARYIELD_BILLING_SIGNUP_FREE_MINUTES` (default now 5) is only the fallback
+  when the setting cannot be read.
+- `POST /auth/register` reads the offer (cached, at most 10 s stale) and opens
+  the wallet with `free_minutes = enabled ? free_minutes : 0`. Existing
+  accounts are not changed. The `user.registered` event records
+  `signup_free_minutes`.
+- Disabling keeps the stored minutes (switching back on restores them), but
+  `SiteConfig.signup_offer.free_minutes` reports 0 while disabled.
+
+### 15.4 Admin: free mode (live chat free for everyone) — sensitive
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /site/free-mode` | `FreeModeState` |
+| 🔐 `PUT /site/free-mode` | On: `{enabled: true, confirmation: "ENABLE FREE MODE", reason /* 5–500 */, ends_at? /* future, ≤ 90 days */, expected_version?}`. Off: `{enabled: false, reason?, expected_version?}`. → `FreeModeState`. A wrong confirmation is 422 `fields.confirmation`. Audited `site.free_mode_enabled` / `site.free_mode_disabled` (reason, ends_at, previous state). |
+
+```ts
+type FreeModeState = {
+  enabled: boolean;        // switched on by an admin
+  active: boolean;         // enabled and ends_at not reached: what the platform applies now
+  ends_at?: string; reason: string;
+  enabled_at?: string; enabled_by?: { id: string; name: string };
+  disabled_at?: string; disabled_by?: { id: string; name: string };
+  version: number;
+  stats: {                 // since enabled_at of the current (or last) period
+    since?: string; sponsored_sessions: number; live_sponsored_sessions: number;
+    sponsored_minutes: number; sponsored_credits: number; advisor_earnings_credits: number;
+  };
+};
+```
+
+Rules (the server is the authority; clients only display):
+
+1. A chat **requested** while free mode is active is `sponsored` for its whole
+   life, even if free mode ends before the chat does. Sponsored requests skip
+   the wallet check (no `insufficient_credits`).
+2. Every started minute is recorded as usual (`billed_minutes`, active time,
+   `session.billed`). Nothing is taken from the wallet and the client's own
+   free minutes are kept; `sponsored_minutes += 1` and
+   `sponsored_credits += rate_per_minute` instead.
+3. The advisor earns exactly as for a paid minute at the list rate
+   (platform-funded, like the member discount): earnings, readings count,
+   stats and payouts are unchanged.
+4. Sponsored sessions get no low-balance warnings and never end with
+   `credits_exhausted`.
+5. `ChatSession` (session views, conversation `open_session`, summaries)
+   gains `sponsored: boolean`, `sponsored_minutes: number`,
+   `sponsored_credits: number`. `session.billed` gains `sponsored: boolean`
+   (the client's copy keeps `free: true`, `charged: 0`).
+6. `GET /admin/reports/overview` gains `sponsored: {sessions, minutes, credits}`;
+   revenue and `credits_spent` exclude sponsored minutes.
+7. Custom requests (service orders) and credit purchases are unaffected.
+8. When `ends_at` passes, free mode stops applying at once (`active` is
+   computed, no job needed); the state stays `enabled: true` until an admin
+   switches it off, and the console shows it as ended.
+9. Billing workers never read the setting: sponsorship is a column of the
+   session row.
+
+Migration 0016 adds `chat_sessions.sponsored boolean NOT NULL DEFAULT false`,
+`sponsored_minutes integer NOT NULL DEFAULT 0 CHECK (sponsored_minutes >= 0)`,
+`sponsored_credits bigint NOT NULL DEFAULT 0 CHECK (sponsored_credits >= 0)`
+and a partial index on sponsored sessions for the statistics.
+
+## 16. Support desk (ticketing)
+
+Extends §14 (the contact form keeps its endpoint and validation). Migration
+`0017_support_desk.sql`.
+
+Data:
+
+- `support_tickets` gains: `status` `open | pending | resolved | closed` (was
+  `open | closed`; `open` = waiting for the team, `pending` = waiting for the
+  requester), `priority` `low | normal | high | urgent` (default `normal`),
+  `assignee_id` (an admin, nullable), `version`, `message_count`,
+  `last_message_at`, `last_customer_message_at`, `last_staff_message_at`,
+  `first_response_at`, `resolved_at`, `closed_at`, `staff_seen_at`,
+  `access_token_hash`, `access_token_expires_at`.
+- `support_messages` (append-only): `id`, `ticket_id` (ON DELETE CASCADE),
+  `author_type customer|staff|system`, `author_id` (staff user, nullable),
+  `visibility public|internal`, `body_enc` (sealed, associated data
+  `support-message:<id>`), `body_chars`, `email_status none|queued|sent|failed`
+  (set to `queued` or `failed` when the e-mail is handed to the outbox),
+  `created_at`. Replies answer 201. The original request stays in `support_tickets.message_enc` and
+  is returned as the first message of the thread.
+- A ticket holds at most 200 messages, the original request included
+  (409 `limit_reached`).
+- The masked address shown in lists is stored (`email_masked`) so the queue
+  never decrypts; the private-link token is stored as a keyed hash (what is
+  verified) plus a sealed copy (`access_token_enc`), used only to e-mail the
+  same link again (links are extended, not rotated).
+
+### 16.1 Admin endpoints (`/api/v1/admin`)
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /support/tickets?status=&topic=&priority=&assignee=me\|unassigned\|<uuid>&user_id=&q=&sort=newest\|oldest\|waiting&cursor=&limit=` | `Page<AdminTicketRow>` (limit 25/100). Metadata only; nothing is decrypted. `status` accepts a comma list (`open,pending`). `q` is a reference (`SY-…`, exact, case-insensitive), an e-mail address (exact, through the keyed hash) or words of the subject (case-insensitive). `sort=waiting` puts the oldest unanswered customer message first (the queue). |
+| `GET /support/summary` | `{open, pending, resolved, closed, unassigned, mine, needs_reply}`; `needs_reply` = open tickets; `unassigned` and `mine` count open and pending tickets. Cached 15 s. Drives the console's navigation badge. |
+| 🔐 `GET /support/tickets/:id` | `AdminTicket` (`:id` is the uuid or the reference). Decrypts the address and the thread, internal notes included. Audited `support_ticket.viewed` at most once per admin and ticket every 10 minutes. Sets `staff_seen_at`. |
+| 🔐 `POST /support/tickets/:id/messages` | `{body /* 1–5000 */, visibility: "public" \| "internal", status?: TicketStatus}` → `AdminTicket`. A public reply is e-mailed to the requester (outbox, in the ticket's locale) with the reply text and the private link; its default `status` afterwards is `pending`; an internal note leaves the status unchanged unless given. Sets `first_response_at` once. Audited `support_ticket.replied` / `support_ticket.noted` (never the text). 409 `invalid_state` on closed tickets. |
+| `PATCH /support/tickets/:id` | `{status?, priority?, assignee_id?: string \| null, expected_version?}` → `AdminTicketRow`. The assignee must be an active admin (422 `fields.assignee_id`). 409 `version_conflict`. An admin may re-open a closed ticket here (replies to closed tickets stay refused). Audited `support_ticket.updated` (fields with before/after values). |
+
+```ts
+type TicketStatus = "open" | "pending" | "resolved" | "closed";
+type TicketPriority = "low" | "normal" | "high" | "urgent";
+type TicketTopic = "general" | "privacy" | "billing" | "advisor" | "technical";
+type AdminTicketRow = {
+  id: string; reference: string; subject: string; topic: TicketTopic;
+  status: TicketStatus; priority: TicketPriority; locale: "en" | "fr" | "es";
+  requester: { user_id?: string; name: string; email_masked: string /* "j•••@g•••.com" */ };
+  assignee?: { id: string; name: string };
+  message_count: number;
+  needs_reply: boolean;   // status === "open"
+  unread: boolean;        // the requester wrote since staff last opened the ticket
+  created_at: string; updated_at: string; last_message_at: string;
+  first_response_at?: string; resolved_at?: string; version: number;
+};
+type SupportMessage = {
+  id: string; author: { type: "customer" | "staff" | "system"; name: string };
+  visibility: "public" | "internal"; body: string; created_at: string;
+  email_status?: "none" | "queued" | "sent" | "failed";
+};
+type AdminTicket = AdminTicketRow & {
+  requester: AdminTicketRow["requester"] & { email: string };
+  user?: { id: string; email: string; display_name: string; role: string; status: string };  // linked account
+  messages: SupportMessage[];   // oldest first; the original request comes first
+};
+```
+
+### 16.2 Requester endpoints
+
+Signed in (tickets linked to the account, matched on `user_id` only):
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /me/support/tickets?cursor=&limit=` | `Page<CustomerTicketRow>` (limit 20/50), latest activity first. |
+| `GET /me/support/tickets/:reference` | `CustomerTicket` (404 for another user's ticket). |
+| `POST /me/support/tickets/:reference/messages` | `{body /* 1–5000 */}` → `CustomerTicket`. Rate limit `support_reply` (20/h per user). |
+
+Anonymous, through the private link e-mailed to the requester
+(`{site}/{lang}/support/{reference}#t=<token>`). The page reads the token
+from the URL fragment (fragments are never sent to servers or put in
+referrers) and sends it as the `X-Support-Token` header:
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /support/tickets/:reference` | `CustomerTicket` |
+| `POST /support/tickets/:reference/messages` | `{body}` → `CustomerTicket` (CSRF required). |
+
+A missing, wrong or expired token and an unknown reference all answer the
+same 404 `not_found` (constant-time comparison). Rate limit `support_link`
+per IP (30/min). Tokens are 32 random bytes (base64url), stored as a keyed
+hash, valid 30 days (`STARYIELD_SUPPORT_LINK_TTL`) and extended — not
+rotated — whenever a link is e-mailed.
+
+```ts
+type CustomerTicketRow = {
+  reference: string; subject: string; topic: TicketTopic; status: TicketStatus;
+  awaiting: "support" | "you" | "none";   // open → support, pending → you, resolved/closed → none
+  created_at: string; last_message_at: string;
+};
+type CustomerTicket = CustomerTicketRow & {
+  messages: { id: string; author: { type: "customer" | "staff"; name: string }; body: string; created_at: string }[];
+  can_reply: boolean;   // false once closed
+};
+```
+
+Staff appear to requesters as "Staryield Support" plus the staff member's
+first name; internal notes and system entries are never returned.
+
+### 16.3 Rules
+
+- A requester reply re-opens `pending` and `resolved` tickets (`status → open`),
+  marks them `unread`, and e-mails the support inbox (or the assignee) with
+  the reference, the reply and a console link
+  (`STARYIELD_ADMIN_CONSOLE_URL/support/<id>`).
+- Closed tickets cannot be answered by anyone (409 `invalid_state`). Resolved
+  tickets close automatically after 7 days without a reply (job
+  `support-maintenance`, hourly).
+- The acknowledgement of a new ticket (§14) now carries the private link.
+  Signed-in requesters also get an in-app and push notification
+  `support.replied` `{reference, subject}` (link `/support/requests/<reference>`)
+  for every staff reply; the reply e-mail is sent as well.
+- Retention: closed tickets and their messages are deleted 24 months after
+  `closed_at` (`STARYIELD_SUPPORT_RETENTION`, by `support-maintenance`).
+  Account erasure still deletes the account's tickets.
+- Mail templates (en/fr/es): `support_reply` (to the requester),
+  `support_customer_reply` (to the team) and the updated acknowledgement.
+
+## 17. Calculator usage and conversion analytics
+
+Measures how many distinct visitors open and use the three calculators
+(`/{lang}/calculators/natal-chart|path-of-life|astrology`, every locale), where
+they came from (UTM, short links) and who signed up afterwards. Migration
+`0018_web_visitors.sql`.
+
+Collection (browser → `POST /analytics/events`, unchanged envelope):
+
+- `campaign_landing` is now accepted (it was missing from the server
+  allow-list and was being dropped), with `utm_source, utm_medium,
+  utm_campaign, utm_content, utm_term, has_click` and the new `click_id`
+  (the `sy_click` value).
+- A **visit** is a `page_view` whose path matches
+  `^/(en|fr|es)/calculators/(natal-chart|path-of-life|astrology)(/results)?$`;
+  a **try** is `calculator_started`; a **result** is `calculator_completed`
+  (`properties.kind`).
+- A visitor is the browser's random `anonymous_id` (localStorage
+  `staryield.aid`). Visitors who opted out (Do Not Track, Global Privacy
+  Control, analytics switched off) send nothing and are not counted.
+- `POST /auth/register` accepts `attribution.anonymous_id`
+  (`^[A-Za-z0-9_-]{8,64}$`), sent only when analytics is allowed: it links the
+  visitor to the new account. Authenticated events also link their
+  `anonymous_id` to the signed-in user (first link wins), which identifies
+  existing users browsing the calculators.
+
+Roll-up (asynchronous and batched; it never blocks ingestion, and a full
+buffer drops with a counter, like the event tracker):
+
+- `web_visitors` (`anonymous_id` PK, `first_seen_at`, `last_seen_at`,
+  `first_locale`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`,
+  `utm_term`, `click_id`, `link_id`, `campaign_id`, `referrer_host`,
+  `user_id`, `linked_at`, `signed_up_at`): first touch only — the first
+  `campaign_landing` wins; a valid click id resolves to its link and campaign.
+- `calculator_visits` (`day`, `anonymous_id`, `kind`, `locale`, `views`,
+  `started`, `completed`, `signed_in`; PK `(day, anonymous_id, kind, locale)`):
+  one row per visitor, calculator, locale and UTC day, upserted in batches.
+- Rows older than 25 months are deleted daily (job `web-visitors-retention`).
+  Account erasure deletes the user's `web_visitors` rows and their
+  calculator rows.
+
+Definitions for a window (`to` exclusive):
+
+- `visitors`: distinct anonymous ids with a visit; `signed_in_visitors`: of
+  those, ids with at least one visit while signed in;
+- `existing_users`: visitors linked to an account created before their first
+  visit in the window;
+- `tried` / `completed`: distinct visitors with a try / a result;
+- `signups`: distinct visitors whose linked account was created after their
+  first calculator visit (first visit inside the window; the sign-up any time
+  up to now);
+- `try_rate = tried / visitors`, `completion_rate = completed / tried`,
+  `signup_rate = signups / (visitors − existing_users)` (0 when a divisor is 0).
+
+| Method & path (`/api/v1/admin`) | Notes |
+| --- | --- |
+| `GET /analytics/calculators?from&to&interval&kind&locale&source&campaign_id&link_id` | `CalculatorReport`. Range rules of the header (max 366 days), aligned to whole UTC days (echoed in `range`). Visits are stored per day, so `interval=hour` is served (and echoed) as `day`. Cached in Redis for 60 s per normalized query. |
+| `GET /analytics/calculators/conversions?from&to&kind&locale&source&campaign_id&link_id&cursor&limit` | `Page<CalculatorConversion>`, newest sign-ups first (limit 25/100). |
+
+`source` filters on `utm_source`; `(direct)` selects visitors without one.
+
+```ts
+type CalculatorKind = "natal-chart" | "path-of-life" | "astrology";
+type CalculatorTotals = {
+  visitors: number; signed_in_visitors: number; existing_users: number;
+  tried: number; completed: number; signups: number;
+  try_rate: number; completion_rate: number; signup_rate: number;   // 0..1
+};
+type CalculatorReport = {
+  range: { from: string; to: string; interval: "hour" | "day" | "week" | "month" };
+  totals: CalculatorTotals;
+  by_kind: ({ kind: CalculatorKind } & CalculatorTotals)[];          // always all three
+  by_locale: ({ locale: "en" | "fr" | "es" } & CalculatorTotals)[];  // always all three
+  by_source: { source: string; medium: string; campaign: string; visitors: number; tried: number; signups: number }[];  // top 50, "(direct)" without UTM
+  by_link: { link_id: string; code: string; label: string; campaign_name?: string; visitors: number; tried: number; signups: number }[];  // top 50
+  series: { bucket: string; visitors: number; tried: number; completed: number; signups: number }[];
+};
+type CalculatorConversion = {
+  user: { id: string; email: string; display_name: string; role: string; status: string; created_at: string };
+  first_visit_at: string; signed_up_at: string; kinds: CalculatorKind[]; locales: string[]; tried: boolean;
+  attribution?: { utm_source: string; utm_medium: string; utm_campaign: string; link_code?: string; campaign_name?: string };
+};
+```
+
+## 18. Chat: unread badge and message notifications
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /chat/unread-count` | Authenticated client or advisor → `{count, conversations}`: unread messages, and conversations with unread messages, over all of the caller's conversations. Cached per user in Redis (30 s), invalidated on every change. |
+
+Realtime `chat.unread` (ephemeral) `{count, conversations, conversation_id?, conversation_unread?}`
+goes to a user whenever their total changes: to the recipient after a
+message is stored, to the sender when sending moved their own total (sending
+marks the conversation read for them), and to the reader (every tab and
+device) after their read position moves (`POST /chat/conversations/:id/read`
+or the `message.read` frame). Frames are computed after commit and may
+arrive slightly out of order under bursts; clients treat every frame as
+authoritative and refetch on reconnect and visibility. Under extreme load
+live frames and pushes are dropped (bounded backlog) while REST totals stay
+exact. Clients refetch `GET /chat/unread-count` after `hello` with
+`reconnected`, on `resync_required` and when the page becomes visible.
+
+Message push notifications:
+
+- When a text or image message is stored and the recipient has **no open
+  realtime connection**, a Web Push `chat.message` is queued: title "New
+  message from {name}", body "Open the chatroom to read it." (localized; the
+  message text is never put in a push), URL `/chatroom?reader=<slug>` for
+  clients and `/chatroom` for advisors, tag `chat:<conversation_id>` (a newer
+  push replaces an older one), urgency `high`.
+- At most one push per conversation and recipient every 60 s (Redis `SET NX`),
+  and only when the recipient's push switch is on. System messages never
+  push.
+- While a tab is open but hidden, the web app shows the notification itself
+  through the service worker with the same tag, so the two never stack.
+
+Migration `0019_chat_unread.sql`: partial indexes on
+`conversations (client_id) INCLUDE (client_unread) WHERE client_unread > 0`
+and the advisor equivalent, so the total is a cheap index-only sum.
+
+## 19. Configuration added (revisions 3.0)
+
+| Environment variable | Default | Purpose |
+| --- | --- | --- |
+| `STARYIELD_BILLING_SIGNUP_FREE_MINUTES` | 5 (was 3) | Fallback sign-up free minutes when the site setting cannot be read (§15.3). |
+| `STARYIELD_SUPPORT_RETENTION` | 17520h | Closed tickets are deleted this long after closing (§16.3). |
+| `STARYIELD_SUPPORT_LINK_TTL` | 720h | Validity of a ticket's private link (§16.2). |
+| `STARYIELD_ADMIN_CONSOLE_URL` | `http://localhost:3002` | Console links in support e-mails (§16.3). |

@@ -59,7 +59,7 @@ describe("BillingCard", () => {
     expect(await screen.findByText("You're not a member yet.")).toBeTruthy();
     expect(screen.getByText("$9.99 / mo")).toBeTruthy();
     expect(screen.getByText("No saved cards yet.")).toBeTruthy();
-    expect(screen.getByText("No payments yet.")).toBeTruthy();
+    expect(await screen.findByText("No payments yet.")).toBeTruthy();
     expect(await axeViolations()).toEqual([]);
   });
 

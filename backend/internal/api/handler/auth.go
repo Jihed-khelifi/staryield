@@ -62,6 +62,10 @@ func (h *Handler) Register(c echo.Context) error {
 	if h.svc.Growth != nil {
 		h.svc.Growth.Attribute(c.Request().Context(), res.UserID, req.Attribution)
 	}
+	// revisions 3.0: calculator analytics
+	if h.svc.Calculators != nil {
+		h.svc.Calculators.LinkSignup(c.Request().Context(), res.UserID, req.Locale, req.Attribution)
+	}
 	return h.session(c, res, http.StatusCreated)
 }
 

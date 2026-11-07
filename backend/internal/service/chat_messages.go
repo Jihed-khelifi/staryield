@@ -31,9 +31,13 @@ func (c *ChatService) publishMessage(ctx context.Context, v MessageView, userIDs
 	payload := map[string]any{"message": v}
 	if op, ok := c.events.(orderedPublisher); ok {
 		warnErr(ctx, "chat: publish message", op.PublishOrdered(ctx, v.ConversationID, v.Seq, realtime.EventMessageCreated, payload, userIDs...))
-		return
+	} else {
+		warnErr(ctx, "chat: publish message", c.events.Publish(ctx, realtime.EventMessageCreated, payload, userIDs...))
 	}
-	warnErr(ctx, "chat: publish message", c.events.Publish(ctx, realtime.EventMessageCreated, payload, userIDs...))
+	// revisions 3.0: chat unread (all callers pass client, then psychic).
+	if len(userIDs) == 2 {
+		c.onMessageStored(ctx, v, userIDs[0], userIDs[1])
+	}
 }
 
 // FlushMessageGaps publishes message events held back because a
@@ -221,6 +225,8 @@ func (c *ChatService) MarkRead(ctx context.Context, p reqctx.Principal, conversa
 			receipt["message_id"], receipt["read_at"] = rows[0].ID, rows[0].CreatedAt
 		}
 		warnErr(ctx, "chat: publish read receipt", c.events.Publish(ctx, realtime.EventMessageRead, receipt, conv.Counterpart(p.UserID)))
+		// revisions 3.0: chat unread — the reader's total moved on every tab.
+		c.afterRead(ctx, p.UserID, p.UserID == conv.PsychicID, conv.ID, res.Unread)
 	}
 	return &res, nil
 }

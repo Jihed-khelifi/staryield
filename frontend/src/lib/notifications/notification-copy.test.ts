@@ -46,6 +46,8 @@ describe("notificationText", () => {
     ["photo.approved", { submission_id: "p" }, "Photo approved", "Your new profile photo is now on your profile."],
     ["photo.rejected", { submission_id: "p", reason: "Your face is not visible." }, "Photo not approved", "Your new profile photo was not approved: Your face is not visible."],
     ["photo.rejected", { submission_id: "p" }, "Photo not approved", "Your new profile photo was not approved. Upload another one from your settings."],
+    ["support.replied", { reference: "SY-7K2M9Q", subject: "Billing question" }, "Support replied to your request", "SY-7K2M9Q: Billing question"],
+    ["support.replied", { reference: "SY-7K2M9Q" }, "Support replied to your request", "We answered your request SY-7K2M9Q."],
   ])("renders %s in English", (kind, data, title, body) => {
     expect(notificationText(n(kind, data), "en", textEn)).toEqual({ title, body });
   });

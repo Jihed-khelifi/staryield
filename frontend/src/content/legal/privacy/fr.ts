@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-04",
-    "effective": "2026-11-04",
-    "lastUpdated": "2026-11-04",
+    "version": "2026-11-07",
+    "effective": "2026-11-07",
+    "lastUpdated": "2026-11-07",
     "badge": "ACCORD DE CONFIDENTIALITÉ STARYIELD",
     "title": "Politique de confidentialité"
   },
@@ -224,6 +224,58 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Demandes relatives au compte. Lorsque vous modifiez votre adresse e-mail, téléchargez vos données, ou désactivez ou fermez votre compte, nous conservons une trace de la demande et vous envoyons des messages de confirmation, comme décrit à la [section 5](#your-privacy-rights)."
+        },
+        {
+          "type": "h3",
+          "id": "support-requests",
+          "n": "2.9",
+          "title": "Demandes d’assistance"
+        },
+        {
+          "type": "p",
+          "text": "Lorsque vous nous écrivez via le [formulaire de contact](/contact), nous conservons votre demande (sujet, objet, message et adresse e-mail que vous nous avez indiquée), les réponses de notre équipe d’assistance et les notes internes que notre équipe rédige à son sujet. Les messages, réponses et notes sont chiffrés au repos, et l’adresse e-mail est aussi conservée sous forme d’empreinte à clé afin que nous puissions retrouver vos demandes."
+        },
+        {
+          "type": "p",
+          "text": "Si vous êtes connecté, la demande est rattachée à votre compte et vous pouvez la suivre, et lire nos réponses, dans [Demandes d’assistance](/support/requests) depuis le menu de votre compte ; nous vous prévenons aussi dans l’application et par notification push lorsque nous répondons. Si vous n’êtes pas connecté, nous vous envoyons par e-mail un lien privé vers votre demande. Le code secret se trouve dans la partie du lien située après le « # », que les navigateurs n’envoient ni aux serveurs ni aux autres sites ; notre page l’utilise uniquement pour ouvrir votre demande et le retire de la barre d’adresse. Le lien est valable 30 jours et permet à toute personne qui le détient de lire et de répondre à cette demande : gardez-le pour vous."
+        },
+        {
+          "type": "p",
+          "text": "Les demandes d’assistance sont incluses dans l’export de vos données. Une demande clôturée et ses messages sont supprimés 24 mois après sa clôture, et les demandes rattachées à votre compte sont supprimées lorsque votre compte est effacé."
+        },
+        {
+          "type": "h3",
+          "id": "calculator-usage-measurement",
+          "n": "2.10",
+          "title": "Mesure de l’utilisation des calculateurs"
+        },
+        {
+          "type": "p",
+          "text": "Pour compter combien de personnes différentes ouvrent et utilisent nos calculateurs, notre site enregistre un identifiant aléatoire dans le stockage local de votre navigateur (il n’est pas dérivé de votre nom, de votre adresse e-mail ou de votre adresse IP) et note les pages de calculateur que vous ouvrez, si vous lancez un calcul et si vous voyez un résultat. Si vous créez un compte, cet identifiant y est rattaché à l’inscription, uniquement lorsque les statistiques d’audience sont autorisées, ce qui nous permet de savoir quels visiteurs sont devenus membres. Nous conservons avec cet identifiant les données de campagne et de lien court de votre première visite (paramètres UTM et code de clic, voir la [Section 2.6](#marketing-attribution))."
+        },
+        {
+          "type": "p",
+          "text": "Ces enregistrements sont conservés 25 mois et ne servent qu’à des statistiques agrégées pour comprendre les performances des calculateurs. Rien n’est enregistré si votre navigateur envoie un signal Do Not Track ou Global Privacy Control, ou si vous désactivez les statistiques d’audience dans vos [préférences de confidentialité](/profile/settings)."
+        },
+        {
+          "type": "h3",
+          "id": "chat-notifications-and-drafts",
+          "n": "2.11",
+          "title": "Notifications de chat et brouillons"
+        },
+        {
+          "type": "p",
+          "text": "Les notifications push sur les nouveaux messages de chat ne contiennent jamais le texte du message : elles indiquent seulement qu’un nouveau message est arrivé. Un message que vous avez saisi mais pas encore envoyé est conservé comme brouillon uniquement sur votre appareil, dans le stockage local de votre navigateur, pendant 7 jours au plus ; les brouillons ne nous sont jamais transmis."
+        },
+        {
+          "type": "h3",
+          "id": "free-access-periods",
+          "n": "2.12",
+          "title": "Périodes d’accès gratuit"
+        },
+        {
+          "type": "p",
+          "text": "Lorsque nous rendons le chat en direct gratuit pour tous pour une durée limitée (« mode gratuit », voir les [Conditions d’utilisation](/terms#free-trials-and-promotional-offers)), les chats demandés pendant cette période sont enregistrés comme séances offertes, avec leurs minutes et les crédits pris en charge par Staryield. Nous utilisons ces enregistrements pour facturer les séances à Staryield et calculer les gains des conseillers et les statistiques de la plateforme, sur la base de notre contrat avec les conseillers et de notre intérêt légitime à faire fonctionner les Services."
         }
       ]
     },
@@ -577,6 +629,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Durées de conservation complémentaires. Les messages et images des conversations sont conservés tant que la conversation existe dans votre compte. Les notifications dans l’application sont supprimées au bout de 180 jours. Le contenu des e-mails transactionnels est supprimé de notre file d’envoi une fois le message envoyé. Les exports de données sont supprimés 7 jours après leur mise à disposition. Les notes des conseillers sont conservées jusqu’à ce que leur auteur les supprime ou jusqu’à la suppression du compte du client ou du conseiller. Les traces des appareils connectés sont conservées jusqu’à l’expiration ou la déconnexion de la session, puis pendant une durée limitée à des fins de sécurité. Les preuves de consentement sont conservées tant que votre compte existe et dans la mesure requise par la loi. Les enregistrements de clics marketing sont conservés sous forme pseudonymisée pour le suivi des campagnes. Lorsque vous fermez votre compte, celui-ci est immédiatement désactivé et, à l’issue d’un délai de grâce de 30 jours, nous effaçons les données personnelles qui vous identifient et ne conservons que les enregistrements pseudonymisés nécessaires à la comptabilité, à la prévention de la fraude et au respect de nos obligations légales. Les enregistrements de paiements, d’abonnements et de versements aux conseillers sont conservés aussi longtemps que l’exigent les lois comptables et fiscales."
+        },
+        {
+          "type": "p",
+          "text": "Les demandes d’assistance et leurs messages sont supprimés 24 mois après la clôture de la demande. Les enregistrements d’utilisation des calculateurs, avec leur identifiant de navigateur aléatoire et les données de campagne de la première visite, sont supprimés après 25 mois. Les brouillons de chat restent sur votre appareil pendant 7 jours au plus."
         }
       ]
     },
