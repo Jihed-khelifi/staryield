@@ -4,6 +4,15 @@ package i18n
 // and push copy of the ticketing system. Merged at start-up like channels.
 
 var frSupportDesk = map[string]string{
+	// revisions 3.1: conversation reports
+	"Read the transcript in the console (step-up, audited). Do not forward this message outside the team.": "Lisez la transcription dans la console (step-up, journalisée). Ne transférez pas ce message en dehors de l'équipe.",
+	"Choose what went wrong.":                                                "Choisissez ce qui s'est mal passé.",
+	"Describe the problem in 10 to 2,000 characters.":                        "Décrivez le problème en 10 à 2 000 caractères.",
+	"Use at most 2,000 characters.":                                          "Utilisez 2 000 caractères au maximum.",
+	"This session is not part of the conversation.":                          "Cette séance ne fait pas partie de la conversation.",
+	"Only clients can report a conversation.":                                "Seuls les clients peuvent signaler une conversation.",
+	"You already reported this conversation.":                                "Vous avez déjà signalé cette conversation.",
+	"Choose contact or chat report.":                                         "Choisissez contact ou signalement de conversation.",
 	"Support request":                                                        "Demande d'assistance",
 	"Choose an active administrator.":                                        "Choisissez un administrateur actif.",
 	"Invalid administrator.":                                                 "Administrateur invalide.",
@@ -36,6 +45,15 @@ var frSupportDesk = map[string]string{
 }
 
 var esSupportDesk = map[string]string{
+	// revisions 3.1: conversation reports
+	"Read the transcript in the console (step-up, audited). Do not forward this message outside the team.": "Lee la transcripción en la consola (step-up, auditada). No reenvíes este mensaje fuera del equipo.",
+	"Choose what went wrong.":                                                "Elige qué salió mal.",
+	"Describe the problem in 10 to 2,000 characters.":                        "Describe el problema en 10 a 2.000 caracteres.",
+	"Use at most 2,000 characters.":                                          "Usa 2.000 caracteres como máximo.",
+	"This session is not part of the conversation.":                          "Esta sesión no forma parte de la conversación.",
+	"Only clients can report a conversation.":                                "Solo los clientes pueden denunciar una conversación.",
+	"You already reported this conversation.":                                "Ya has denunciado esta conversación.",
+	"Choose contact or chat report.":                                         "Elige contacto o denuncia de conversación.",
 	"Support request":                                                        "Solicitud de soporte",
 	"Choose an active administrator.":                                        "Elige un administrador activo.",
 	"Invalid administrator.":                                                 "Administrador no válido.",

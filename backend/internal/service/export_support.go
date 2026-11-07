@@ -50,8 +50,12 @@ func (s *ExportService) collectSupport(ctx context.Context, b *ExportBundle, use
 			}
 			thread = append(thread, map[string]any{"from": from, "body": body, "at": m.CreatedAt})
 		}
-		out = append(out, map[string]any{"reference": t.Reference, "topic": t.Topic, "subject": t.Subject, "status": t.Status,
-			"email": email, "name": t.Name, "created_at": t.CreatedAt, "messages": thread})
+		entry := map[string]any{"reference": t.Reference, "topic": t.Topic, "subject": t.Subject, "status": t.Status,
+			"kind": kindOf(t), "email": email, "name": t.Name, "created_at": t.CreatedAt, "messages": thread}
+		if isReport(t) { // revisions 3.1: conversation reports
+			entry["reason"], entry["conversation_id"], entry["session_id"] = *t.ReportReason, t.ConversationID, t.SessionID
+		}
+		out = append(out, entry)
 	}
 	b.Documents = append(b.Documents, ExportDocument{Path: "support.json", Data: out})
 	return nil

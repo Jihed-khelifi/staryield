@@ -24,6 +24,8 @@ import { track } from "@/lib/analytics";
 import { useRealtimeEvent, useRealtimeEvents, useSession } from "@/lib/auth/session-provider";
 import { loginUrl } from "@/lib/navigation";
 import { shouldToastOtherConversation } from "@/lib/chat/chat-alerts";
+import { useChatUnread } from "@/lib/chat/chat-unread-provider";
+import { useNotifications } from "@/lib/notifications/notifications-provider";
 import { useVisualViewport } from "@/lib/use-visual-viewport";
 import { useFreeMode } from "@/lib/site-config/site-config-provider";
 import { logger } from "@/lib/logger";
@@ -32,8 +34,9 @@ import { announce } from "@/components/feedback/live-region";
 import { ErrorState } from "@/components/feedback/error-state";
 import { useToast } from "@/components/feedback/toast-provider";
 import { ChatFeed, type Announcement } from "@/components/chat/chat-feed";
-import { ChatHeader, useEarningsLabel } from "@/components/chat/chat-header";
-import { SessionTools, SwitcherHeader, SwitcherQuickLinks } from "@/components/chat/chat-mobile";
+import { ChatHeader, ChatroomTopBar, useEarningsLabel } from "@/components/chat/chat-header";
+import { SessionTools, SwitcherAccount, SwitcherHeader, SwitcherQuickLinks } from "@/components/chat/chat-mobile";
+import type { ReportIssueTarget } from "@/components/chat/report-issue";
 import { ComposerNote } from "@/components/chat/composer-note";
 import { ChatPushPrompt } from "@/components/chat/push-prompt";
 import { ConversationList } from "@/components/chat/conversation-list";
@@ -101,6 +104,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const freeMode = useFreeMode();
   // The composer stays above the phone keyboard (iOS Safari does not resize the layout).
   useVisualViewport();
+  const chatUnread = useChatUnread();
+  const notifications = useNotifications();
 
   const [slug, setSlug] = React.useState<string | undefined>(initialReader);
   const [activeConvId, setActiveConvId] = React.useState<string | null>(null);
@@ -638,6 +643,19 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const secondsLeft = secondsUntil(deadline, snap);
   const elapsed = elapsedSeconds(snap);
   const returnPath = `/${locale}/chatroom${slug ? `?reader=${slug}` : ""}`;
+  const shownSession = session ?? summary?.session ?? null;
+  const report: ReportIssueTarget | null =
+    role === "client" && activeConvId && counterpart
+      ? {
+          conversationId: activeConvId,
+          sessionId: shownSession && shownSession.conversation_id === activeConvId ? shownSession.id : undefined,
+          advisorName: counterpart.name,
+          seq: timeline.messages.reduce((max, m) => Math.max(max, m.seq ?? 0), 0) || undefined,
+        }
+      : null;
+  // Phones: unread elsewhere (other conversations) or unread notifications dot the menu button.
+  const unreadHere = conversationRow?.unread ?? 0;
+  const activity = Math.max(0, chatUnread.count - unreadHere) > 0 || notifications.unread > 0;
   const composerDisabled = liveSession?.status !== "active";
   const free = wallet?.free_minutes ?? 0;
   const freeChat = freeMode || Boolean(session?.sponsored);
@@ -730,6 +748,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
               earnings={earnings}
               onOpenInbox={() => setInboxOpen(true)}
               onOpenDetails={() => setDetailsOpen(true)}
+              activity={activity}
+              report={report}
               ending={busy}
               onEnd={() =>
                 session &&
@@ -739,7 +759,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                 })
               }
             />
-            <SessionTools role={role} wallet={wallet} free={freeChat} earned={earned} returnPath={returnPath} onOpenDetails={() => setDetailsOpen(true)} />
+            <SessionTools role={role} wallet={wallet} free={freeChat} earned={earned} returnPath={returnPath} onOpenDetails={() => setDetailsOpen(true)} report={report} />
             {otherSession && role === "client" ? (
               <p className="chat-connection-banner" role="status">
                 {text("You already have a live chat with {value0}.", { value0: otherSession.psychic.name })}{" "}
@@ -831,24 +851,33 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
           </>
         ) : inbox.status === "error" && inbox.error ? (
           // No conversation to show because the inbox failed: retry from here (phones have no inbox column).
-          <div className="grid flex-1 place-items-center p-6">
-            <ErrorState error={inbox.error} onRetry={inbox.refresh} title={text("Your conversations could not be loaded.")} className="w-full max-w-md bg-cream/60" />
-          </div>
-        ) : inbox.status === "loading" ? (
-          <div className="grid flex-1 place-items-center p-8 text-center text-sm">
-            <p role="status">{text("Loading your conversations…")}</p>
-          </div>
-        ) : (
-          <div className="grid flex-1 place-items-center p-8 text-center text-sm">
-            <div className="flex flex-col items-center gap-3">
-              <p>{text(role === "psychic" ? "Chat requests from clients appear here while you are online." : "Choose an advisor to start a conversation.")}</p>
-              {role === "client" ? (
-                <Button asChild variant="cta" className="px-5">
-                  <Link href={`/${locale}/psychics`}>{text("Browse all advisors")}</Link>
-                </Button>
-              ) : null}
+          <>
+            <ChatroomTopBar onOpenInbox={() => setInboxOpen(true)} activity={activity} />
+            <div className="grid flex-1 place-items-center p-6">
+              <ErrorState error={inbox.error} onRetry={inbox.refresh} title={text("Your conversations could not be loaded.")} className="w-full max-w-md bg-cream/60" />
             </div>
-          </div>
+          </>
+        ) : inbox.status === "loading" ? (
+          <>
+            <ChatroomTopBar onOpenInbox={() => setInboxOpen(true)} activity={activity} />
+            <div className="grid flex-1 place-items-center p-8 text-center text-sm">
+              <p role="status">{text("Loading your conversations…")}</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <ChatroomTopBar onOpenInbox={() => setInboxOpen(true)} activity={activity} />
+            <div className="grid flex-1 place-items-center p-8 text-center text-sm">
+              <div className="flex flex-col items-center gap-3">
+                <p>{text(role === "psychic" ? "Chat requests from clients appear here while you are online." : "Choose an advisor to start a conversation.")}</p>
+                {role === "client" ? (
+                  <Button asChild variant="cta" className="px-5">
+                    <Link href={`/${locale}/psychics`}>{text("Browse all advisors")}</Link>
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </>
         )}
       </section>
       <aside className={`chat-detail-column hidden min-h-0 overflow-y-auto rounded-xl border xl:block`}>{renderPanel("column")}</aside>
@@ -857,6 +886,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
           <SheetHeader className="pb-0">
             <SheetTitle>{t("chatroom.inbox.title")}</SheetTitle>
           </SheetHeader>
+          <SwitcherAccount role={role} returnPath={returnPath} free={freeChat} onNavigate={() => setInboxOpen(false)} />
           <SwitcherHeader
             role={role}
             counterpart={counterpart}

@@ -129,9 +129,9 @@ test.describe.serial("advisor notes about a client", () => {
     await theo.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
 
-    // Below xl the panel is a sheet with Overview / Saved / Notes tabs.
+    // Below xl the panel is a sheet with Overview / Saved / Notes tabs; phones open it from the tools row (§20.1).
     await theo.setViewportSize({ width: 390, height: 844 });
-    await theo.getByRole("button", { name: "Open reader details" }).click();
+    await theo.getByTestId("chat-session-tools").getByRole("button", { name: "Client details" }).click();
     const sheet = theo.getByRole("dialog");
     await expect(sheet.getByRole("tab")).toHaveText(["Overview", "Saved", "Notes"]);
     await sheet.getByRole("tab", { name: "Notes" }).click();

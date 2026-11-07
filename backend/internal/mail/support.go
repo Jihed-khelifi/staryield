@@ -103,3 +103,28 @@ func SupportTicketForTeam(reference, topic, name, email, subject, message string
 		Note: "Reply to the requester from the support mailbox. Do not forward this message outside the team.",
 	}
 }
+
+// SupportChatReportForTeam is the team's copy of a conversation report
+// (revisions 3.1). The subject starts with "[Chat report]" ("[Urgent][Chat
+// report]" when urgent); the advisor is never e-mailed. The transcript is read
+// in the console (audited), never sent by e-mail.
+func SupportChatReportForTeam(reference, urgent, reason, name, email, subject, details, conversationID, sessionID string, seq int64) Content {
+	prefix := "[Chat report]"
+	if urgent != "" {
+		prefix = "[Urgent][Chat report]"
+	}
+	if details == "" {
+		details = "(no details given)"
+	}
+	return Content{
+		Subject: fmt.Sprintf("%s [%s] %s", prefix, reference, subject),
+		Heading: fmt.Sprintf("Chat report %s", reference),
+		Paragraphs: []string{
+			fmt.Sprintf("Reason: %s", reason),
+			fmt.Sprintf("From: %s <%s> (signed-in account: yes)", name, email),
+			fmt.Sprintf("Conversation: %s, session: %s, newest message seen: %d", conversationID, sessionID, seq),
+			details,
+		},
+		Note: "Read the transcript in the console (step-up, audited). Do not forward this message outside the team.",
+	}
+}

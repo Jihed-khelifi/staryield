@@ -84,7 +84,8 @@ test.describe("sign in and sign out", () => {
     const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
     const page = await context.newPage();
     await signIn(page, CLIENT.email, CLIENT.password);
-    await page.goto("/en/chatroom");
+    // The phone chatroom has no site header (§20.1): sign out from an account page.
+    await page.goto("/en/profile");
     await accountTrigger(page).click();
     const sheet = page.getByRole("dialog");
     await sheet.getByRole("button", { name: "Sign out" }).click();

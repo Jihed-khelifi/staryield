@@ -40,9 +40,17 @@ func (n *MailSupportNotifier) TicketCreated(ctx context.Context, t *domain.Suppo
 		if name == "" {
 			name = "(no name)"
 		}
+		content := mail.SupportTicketForTeam(t.Reference, string(t.Topic), name, email, t.Subject, message, t.UserID != nil)
+		if isReport(t) { // revisions 3.1: conversation reports
+			urgent := ""
+			if t.Priority == domain.SupportUrgent {
+				urgent = "urgent"
+			}
+			content = mail.SupportChatReportForTeam(t.Reference, urgent, reportLabels[*t.ReportReason], name, email, t.Subject, message,
+				derefID(t.ConversationID).String(), derefID(t.SessionID).String(), t.ReportedSeq)
+		}
 		reqs = append(reqs, EmailRequest{To: n.inbox, Locale: "en", Category: domain.EmailAccount, Template: "support_ticket",
-			Content:   mail.SupportTicketForTeam(t.Reference, string(t.Topic), name, email, t.Subject, message, t.UserID != nil),
-			DedupeKey: "support:" + t.ID.String() + ":team"})
+			Content: content, DedupeKey: "support:" + t.ID.String() + ":team"})
 	}
 	warnErr(ctx, "support: e-mail ticket", n.queue.Enqueue(database.Detach(ctx), reqs...))
 }

@@ -31,7 +31,8 @@ export type ClientEventName =
   | "realtime_fallback"
   | "locale_changed"
   | "chat_opened"
-  | "campaign_landing";
+  | "campaign_landing"
+  | "chat_report_submitted";
 
 type Queued = {
   event_id: string;

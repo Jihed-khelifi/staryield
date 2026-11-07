@@ -25,7 +25,7 @@ type CustomerReplyInput struct {
 
 func customerRow(t *domain.SupportTicket) CustomerTicketRow {
 	return CustomerTicketRow{Reference: t.Reference, Subject: t.Subject, Topic: string(t.Topic), Status: string(t.Status),
-		Awaiting: awaitingOf(t.Status), CreatedAt: t.CreatedAt, LastMessageAt: t.LastMessageAt}
+		Awaiting: awaitingOf(t.Status), CreatedAt: t.CreatedAt, LastMessageAt: t.LastMessageAt, Kind: kindOf(t)}
 }
 
 // MyTickets lists the signed-in user's requests, latest activity first.
@@ -40,12 +40,19 @@ func (s *SupportService) MyTickets(ctx context.Context, userID uuid.UUID, cursor
 	if err != nil {
 		return page, apperror.Internal(err)
 	}
+	var reports []*domain.SupportTicket
 	for i := range rows {
 		if i == size {
 			page.NextCursor = repository.EncodeCursor(rows[size-1].LastMessageAt, rows[size-1].ID.String())
 			break
 		}
 		page.Items = append(page.Items, customerRow(&rows[i]))
+		reports = append(reports, &rows[i])
+	}
+	if ctxs := s.customerReports(ctx, reports); len(ctxs) > 0 { // one batch per page
+		for i := range page.Items {
+			page.Items[i].Report = ctxs[reports[i].ID]
+		}
 	}
 	return page, nil
 }
@@ -147,8 +154,12 @@ func (s *SupportService) customerView(ctx context.Context, t *domain.SupportTick
 	}
 	out := &CustomerTicket{CustomerTicketRow: customerRow(t), CanReply: t.Status != domain.SupportClosed,
 		Messages: make([]CustomerMessage, 0, len(msgs)+1)}
-	out.Messages = append(out.Messages, CustomerMessage{ID: t.ID, Author: MessageAuthor{Type: "customer", Name: t.Name},
-		Body: first, CreatedAt: t.CreatedAt})
+	out.Report = s.customerReports(ctx, []*domain.SupportTicket{t})[t.ID]
+	// A report without details has no original text: the thread starts at the first reply.
+	if first != "" || !isReport(t) {
+		out.Messages = append(out.Messages, CustomerMessage{ID: t.ID, Author: MessageAuthor{Type: "customer", Name: t.Name},
+			Body: first, CreatedAt: t.CreatedAt})
+	}
 	for _, m := range msgs {
 		// Defence in depth: the query already excludes everything else.
 		if m.Visibility != domain.SupportPublic || m.AuthorType == domain.SupportAuthorSystem {

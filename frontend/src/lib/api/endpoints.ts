@@ -1,6 +1,7 @@
 /** Typed wrappers for every API route used by the web app. */
 import { api, newId, setAuthHint, setCsrfToken } from "@/lib/api/client";
 import type {
+  ChatReportInput,
   AnalyticsInterval,
   AppNotification,
   AttributionInput,
@@ -304,6 +305,12 @@ export const supportApi = {
       body: { body },
       headers: { "X-Support-Token": token },
     }),
+  /** Clients: report a problem with a chat conversation (§16.4). 409 `report_exists` carries `details.reference`. */
+  createChatReport: (input: ChatReportInput) =>
+    api<CustomerTicket>("/api/v1/me/support/chat-reports", { method: "POST", body: input }),
+  /** Clients: the open or pending report about a conversation, if any (§16.4). */
+  openChatReport: (conversationId: string, signal?: AbortSignal) =>
+    api<{ open: CustomerTicketRow | null }>("/api/v1/me/support/chat-reports", { query: { conversation_id: conversationId }, signal }),
 };
 
 /** Public runtime settings: promo banners, sign-up offer, free mode (§15.1). */

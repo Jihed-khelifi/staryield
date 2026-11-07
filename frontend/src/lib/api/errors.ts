@@ -46,7 +46,9 @@ export type ErrorCode =
   | "closure_blocked"
   | "export_in_progress"
   | "subscription_exists"
-  | "payment_method_required";
+  | "payment_method_required"
+  // --- support desk (§16.4) ---
+  | "report_exists";
 
 export class ApiError extends Error {
   readonly code: ErrorCode | string;
@@ -159,6 +161,8 @@ export const errorCopy: Record<string, string> = {
   export_in_progress: "Your previous export is still being prepared.",
   subscription_exists: "You already have a membership.",
   payment_method_required: "Add another card first: your membership renews with this one.",
+  // --- support desk (§16.4) ---
+  report_exists: "You already reported this conversation.",
 };
 
 /** The English copy for an error (translate with `text()`). */

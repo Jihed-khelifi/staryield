@@ -42,6 +42,7 @@ const (
 	CodeFeatureUnavailable  Code = "feature_unavailable"
 	CodeLimitReached        Code = "limit_reached"
 	CodeAdvisorAvailable    Code = "advisor_available"
+	CodeReportExists        Code = "report_exists" // revisions 3.1: conversation reports
 	CodeInternal            Code = "internal_error"
 )
 
@@ -155,6 +156,13 @@ func NotFound(resource string) *Error {
 }
 
 func Conflict(code Code, message string) *Error { return New(code, http.StatusConflict, message) }
+
+// ReportExists reports that the caller already has an open or pending report
+// about the conversation; reference is the existing ticket's.
+func ReportExists(reference string) *Error {
+	return New(CodeReportExists, http.StatusConflict, "You already reported this conversation.").
+		WithDetails(map[string]any{"reference": reference})
+}
 
 func InvalidState(message string) *Error { return New(CodeInvalidState, http.StatusConflict, message) }
 

@@ -362,7 +362,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	supportSvc := service.NewSupportService(supportRepo, sealer, service.NewMailSupportNotifier(mailSvc, cfg.Mail.SupportInbox), clk,
 		cfg.Analytics.IPHashSecret)
 	// revisions 3.0: support desk
-	supportSvc.WithDesk(service.SupportDeskDeps{Tx: txm, Users: users, Audit: audit, Cache: kv, Notifier: dispatcher,
+	supportSvc.WithDesk(service.SupportDeskDeps{Tx: txm, Users: users, Audit: audit, Cache: kv, Notifier: dispatcher, Chat: chatRepo, Psychics: psychics, // revisions 3.1
 		Settings: service.SupportSettings{FrontendURL: cfg.App.FrontendURL, ConsoleURL: cfg.Admin.ConsoleURL,
 			Inbox: cfg.Mail.SupportInbox, LinkTTL: cfg.Support.LinkTTL, Retention: cfg.Support.Retention}})
 	// end revisions 3.0: support desk

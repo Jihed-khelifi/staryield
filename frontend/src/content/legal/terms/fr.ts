@@ -504,7 +504,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Si vous rencontrez du contenu tiers nuisible, trompeur ou offensant lors de l'utilisation du Service, vous pouvez le signaler à la Société. Cependant, la Société n'est pas tenue d'enquêter, de supprimer ou de prendre des mesures contre le contenu tiers, sauf si la loi l'exige."
+          "text": "Si vous rencontrez du contenu tiers nuisible, trompeur ou offensant lors de l'utilisation du Service, vous pouvez le signaler à la Société. Cependant, la Société n'est pas tenue d'enquêter, de supprimer ou de prendre des mesures contre le contenu tiers, sauf si la loi l'exige. Vous pouvez aussi utiliser « Signaler un problème » dans la messagerie du salon pour signaler un problème avec la conversation affichée ; notre équipe d’assistance examine ces signalements comme décrit dans notre [Politique de confidentialité](/privacy#support-requests)."
         }
       ]
     },

@@ -31,7 +31,8 @@ var ClientEvents = map[string]bool{
 	"service_viewed": true, "service_order_started": true, "error_displayed": true,
 	"web_vital": true, "realtime_reconnected": true, "realtime_fallback": true,
 	"locale_changed": true, "chat_opened": true,
-	"campaign_landing": true, // revisions 3.0: calculator analytics (was sent by the web app but dropped)
+	"chat_report_submitted": true, // revisions 3.1: chat reports (properties: reason only, never free text)
+	"campaign_landing":      true, // revisions 3.0: calculator analytics (was sent by the web app but dropped)
 }
 
 // ClientEvent is one browser-reported event.

@@ -14,12 +14,15 @@ export function AppFrame({
   wide = false,
   /** Show the floating bottom navigation below 768px (the chatroom hides it for space). */
   mobileNav = true,
+  /** Show the site header below 768px (the chatroom's top bar is its own header there, §20.2). */
+  phoneHeader = true,
   className,
 }: {
   children: React.ReactNode;
   fill?: boolean;
   wide?: boolean;
   mobileNav?: boolean;
+  phoneHeader?: boolean;
   className?: string;
 }) {
   return (
@@ -35,7 +38,7 @@ export function AppFrame({
       )}
       data-mobile-nav={mobileNav ? undefined : "off"}
     >
-      <SiteHeader />
+      {phoneHeader ? <SiteHeader /> : <div className="contents max-md:hidden" data-testid="site-header-md-up"><SiteHeader /></div>}
       {children}
       {mobileNav ? <MobileNavigation /> : null}
     </div>

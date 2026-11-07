@@ -101,46 +101,7 @@ func (d *Dataset) supportTickets() error {
 			a := admins[d.Rand.IntN(len(admins))]
 			t.AssigneeID = &a
 		}
-		// A short thread on tickets that were answered.
-		last := created
-		if status != domain.SupportOpen {
-			for n, replies := 0, 1+d.Rand.IntN(3); n < replies && t.MessageCount < domain.MaxSupportMessages; n++ {
-				last = d.After(last, 72*time.Hour)
-				staff := n%2 == 0
-				m := domain.SupportMessage{ID: d.ID(last), TicketID: id, AuthorType: domain.SupportAuthorCustomer, Visibility: domain.SupportPublic,
-					EmailStatus: domain.SupportEmailNone, CreatedAt: last}
-				text := supportBodies[d.Rand.IntN(len(supportBodies))]
-				if staff {
-					m.AuthorType, m.EmailStatus = domain.SupportAuthorStaff, domain.SupportEmailSent
-					if len(admins) > 0 {
-						m.AuthorID = &admins[d.Rand.IntN(len(admins))]
-					}
-					t.LastStaffMessageAt = &last
-					if t.FirstResponseAt == nil {
-						first := last
-						t.FirstResponseAt = &first
-					}
-				} else {
-					t.LastCustomerMessageAt = last
-				}
-				m.BodyEnc, _ = d.Sealer.Seal(text, "support-message:"+m.ID.String())
-				m.BodyChars = utf8.RuneCountInString(text)
-				messages = append(messages, m)
-				t.MessageCount++
-				t.LastMessageAt = last
-			}
-			t.UpdatedAt = t.LastMessageAt
-		}
-		switch status {
-		case domain.SupportResolved:
-			at := d.After(last, 0)
-			t.ResolvedAt = &at
-			t.UpdatedAt = at
-		case domain.SupportClosed:
-			at := d.After(last, 0)
-			t.ClosedAt = &at
-			t.UpdatedAt = at
-		}
+		d.supportThread(&t, status, admins, &messages)
 		if d.Rand.Float64() < 0.6 {
 			seen := d.After(created, 48*time.Hour)
 			t.StaffSeenAt = &seen
@@ -157,4 +118,50 @@ func (d *Dataset) supportTickets() error {
 	}
 	d.Log.Info("support tickets generated", zap.Int("tickets", d.Counts["support_tickets"]), zap.Int("messages", d.Counts["support_messages"]))
 	return nil
+}
+
+// supportThread gives a ticket that was answered a short sealed thread and
+// stamps its resolution or closing time (open tickets stay as created).
+func (d *Dataset) supportThread(t *domain.SupportTicket, status domain.SupportStatus, admins []uuid.UUID, out *[]domain.SupportMessage) {
+	created, id := t.CreatedAt, t.ID
+	// A short thread on tickets that were answered.
+	last := created
+	if status != domain.SupportOpen {
+		for n, replies := 0, 1+d.Rand.IntN(3); n < replies && t.MessageCount < domain.MaxSupportMessages; n++ {
+			last = d.After(last, 72*time.Hour)
+			staff := n%2 == 0
+			m := domain.SupportMessage{ID: d.ID(last), TicketID: id, AuthorType: domain.SupportAuthorCustomer, Visibility: domain.SupportPublic,
+				EmailStatus: domain.SupportEmailNone, CreatedAt: last}
+			text := supportBodies[d.Rand.IntN(len(supportBodies))]
+			if staff {
+				m.AuthorType, m.EmailStatus = domain.SupportAuthorStaff, domain.SupportEmailSent
+				if len(admins) > 0 {
+					m.AuthorID = &admins[d.Rand.IntN(len(admins))]
+				}
+				t.LastStaffMessageAt = &last
+				if t.FirstResponseAt == nil {
+					first := last
+					t.FirstResponseAt = &first
+				}
+			} else {
+				t.LastCustomerMessageAt = last
+			}
+			m.BodyEnc, _ = d.Sealer.Seal(text, "support-message:"+m.ID.String())
+			m.BodyChars = utf8.RuneCountInString(text)
+			*out = append(*out, m)
+			t.MessageCount++
+			t.LastMessageAt = last
+		}
+		t.UpdatedAt = t.LastMessageAt
+	}
+	switch status {
+	case domain.SupportResolved:
+		at := d.After(last, 0)
+		t.ResolvedAt = &at
+		t.UpdatedAt = at
+	case domain.SupportClosed:
+		at := d.After(last, 0)
+		t.ClosedAt = &at
+		t.UpdatedAt = at
+	}
 }

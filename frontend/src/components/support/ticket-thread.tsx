@@ -2,16 +2,18 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CheckCircle2, CircleDot, Clock, Lock, MessageCircleReply } from "lucide-react";
+import { CheckCircle2, CircleDot, Clock, Flag, Lock, MessageCircleReply } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { toApiError } from "@/lib/api/errors";
-import type { CustomerTicket, CustomerTicketMessage, TicketStatus } from "@/lib/api/types";
+import type { CustomerTicket, CustomerTicketMessage, CustomerTicketRow, TicketStatus } from "@/lib/api/types";
 import { applyApiError } from "@/lib/forms/server-errors";
 import { keepFocusOnPress } from "@/lib/forms/submit-press";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { supportReplySchema, type SupportReplyValues } from "@/lib/schemas/support-reply";
+import { chatReportReasonLabels } from "@/lib/schemas/chat-report";
 import { supportTopicLabels } from "@/lib/schemas/contact";
+import { isChatReport, reportConversationHref } from "@/lib/support/chat-report";
 import { classifySupportError, markClosed, REPLY_MAX, ticketStatusCopy, waitHint } from "@/lib/support/support";
 import { cn } from "@/lib/utils";
 import { announce } from "@/components/feedback/live-region";
@@ -40,6 +42,44 @@ export function StatusChip({ status, className }: { status: TicketStatus; classN
   );
 }
 
+/** Marks a conversation report in lists and threads: icon and words, never colour alone. */
+export function ReportBadge({ className }: { className?: string }) {
+  const { text } = useI18n();
+  return (
+    <span
+      data-testid="report-badge"
+      className={cn("inline-flex items-center gap-1.5 rounded-full border border-amber/70 bg-gold-cta/40 px-2.5 py-0.5 text-xs font-semibold text-ink", className)}
+    >
+      <Flag size={12} aria-hidden />
+      {text("Conversation report")}
+    </span>
+  );
+}
+
+/** The title of a request: the localized reason for a conversation report, the subject otherwise. */
+export function useTicketTitle() {
+  const { text } = useI18n();
+  return React.useCallback(
+    (row: Pick<CustomerTicketRow, "kind" | "report" | "subject">) => (isChatReport(row) ? text(chatReportReasonLabels[row.report.reason] ?? chatReportReasonLabels.other) : row.subject),
+    [text],
+  );
+}
+
+/** "With {advisor} · {session date}" for a conversation report, or null for other requests. */
+export function useReportMeta() {
+  const { text } = useI18n();
+  const format = useDateFormat();
+  return React.useCallback(
+    (row: Pick<CustomerTicketRow, "kind" | "report">): string | null => {
+      if (!isChatReport(row)) return null;
+      const advisor = row.report.advisor?.name || text("an advisor");
+      const when = row.report.session_started_at ? format(row.report.session_started_at) : "";
+      return when ? text("With {value0} · {value1}", { value0: advisor, value1: when }) : text("With {value0}", { value0: advisor });
+    },
+    [text, format],
+  );
+}
+
 function useDateFormat() {
   const { locale } = useI18n();
   return React.useCallback(
@@ -53,6 +93,41 @@ function useDateFormat() {
 
 export function useFormatTicketDate() {
   return useDateFormat();
+}
+
+/** Detail card of a conversation report: what it is about, and a way back to the conversation. */
+function ReportContextCard({ ticket, showConversationLink }: { ticket: CustomerTicket; showConversationLink: boolean }) {
+  const { text, locale } = useI18n();
+  const format = useDateFormat();
+  if (!isChatReport(ticket)) return null;
+  const { report } = ticket;
+  const advisor = report.advisor?.name || text("an advisor");
+  const href = showConversationLink ? reportConversationHref(locale, ticket) : null;
+  return (
+    <section data-testid="report-context" aria-labelledby="report-context-title" className="mt-5 grid gap-3 rounded-xl border border-amber/60 bg-cream-light p-4">
+      <h3 id="report-context-title" className="flex items-start gap-2 font-semibold [overflow-wrap:anywhere]">
+        <Flag size={16} aria-hidden className="mt-1 shrink-0 text-amber" />
+        {text("Report about your conversation with {value0}", { value0: advisor })}
+      </h3>
+      <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
+        <dt className="text-ink/75">{text("Reason")}</dt>
+        <dd data-testid="report-context-reason">{text(chatReportReasonLabels[report.reason] ?? chatReportReasonLabels.other)}</dd>
+        {report.session_started_at ? (
+          <>
+            <dt className="text-ink/75">{text("Session date")}</dt>
+            <dd>{format(report.session_started_at)}</dd>
+          </>
+        ) : null}
+      </dl>
+      {href ? (
+        <Button asChild variant="outline" size="sm" className="w-fit border-gold bg-cream">
+          <Link href={href} data-testid="report-open-conversation">
+            {text("Open conversation")}
+          </Link>
+        </Button>
+      ) : null}
+    </section>
+  );
 }
 
 function Message({ message }: { message: CustomerTicketMessage }) {
@@ -169,7 +244,9 @@ export function TicketThread({
   onTicket,
   onRefresh,
   refreshing,
+  showConversationLink = false,
 }: {
+  showConversationLink?: boolean;
   ticket: CustomerTicket;
   reply: (body: string) => Promise<CustomerTicket>;
   onTicket: (ticket: CustomerTicket) => void;
@@ -178,6 +255,9 @@ export function TicketThread({
 }) {
   const { text } = useI18n();
   const format = useDateFormat();
+  const titleOf = useTicketTitle();
+  const metaOf = useReportMeta();
+  const meta = metaOf(ticket);
   return (
     <article data-testid="ticket-thread" aria-labelledby="ticket-subject" aria-busy={refreshing || undefined}>
       <header className="grid gap-3 border-b border-gold/30 pb-5">
@@ -185,10 +265,16 @@ export function TicketThread({
           {ticket.reference}
         </p>
         <h2 id="ticket-subject" className="text-2xl font-semibold [overflow-wrap:anywhere]">
-          {ticket.subject}
+          {titleOf(ticket)}
         </h2>
+        {meta ? (
+          <p className="text-sm text-ink/80 [overflow-wrap:anywhere]" data-testid="report-meta">
+            {meta}
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
           <StatusChip status={ticket.status} />
+          {isChatReport(ticket) ? <ReportBadge /> : null}
           <span className="inline-flex items-center gap-1.5">
             <CircleDot size={12} aria-hidden className="text-amber" />
             {text(supportTopicLabels[ticket.topic] ?? supportTopicLabels.general)}
@@ -201,11 +287,19 @@ export function TicketThread({
           ) : null}
         </div>
       </header>
-      <ol className="my-6 flex flex-col gap-4" aria-label={text("Conversation")}>
-        {ticket.messages.map((message) => (
-          <Message key={message.id} message={message} />
-        ))}
-      </ol>
+      <ReportContextCard ticket={ticket} showConversationLink={showConversationLink} />
+      {ticket.messages.length === 0 ? (
+        // A conversation report can be sent without details (§16.4): nothing to list yet.
+        <p className="my-6 rounded-lg border border-dashed border-gold/60 px-4 py-3 text-sm text-ink/80" role="note" data-testid="ticket-no-messages">
+          {text(ticket.can_reply ? "You sent this report without details. You can add them below." : "This request has no messages.")}
+        </p>
+      ) : (
+        <ol className="my-6 flex flex-col gap-4" aria-label={text("Conversation")}>
+          {ticket.messages.map((message) => (
+            <Message key={message.id} message={message} />
+          ))}
+        </ol>
+      )}
       {ticket.can_reply ? <ReplyComposer key={ticket.reference} ticket={ticket} reply={reply} onTicket={onTicket} /> : <ClosedNotice />}
     </article>
   );

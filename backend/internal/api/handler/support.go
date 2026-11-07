@@ -1,7 +1,12 @@
 package handler
 
 import (
+	"strings"
+
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+
+	"github.com/Jihed-khelifi/staryield/backend/internal/apperror"
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/service"
 )
@@ -79,4 +84,33 @@ func (h *Handler) ReplySupportTicketByLink(c echo.Context) error {
 		return err
 	}
 	return created(c, out)
+}
+
+// revisions 3.1: conversation reports (section 16.4).
+
+// CreateChatReport reports a problem with one of the caller's conversations.
+func (h *Handler) CreateChatReport(c echo.Context) error {
+	var in service.ChatReportInput
+	if err := bind(c, &in); err != nil {
+		return err
+	}
+	out, err := h.svc.Support.CreateChatReport(c.Request().Context(), principal(c), in)
+	if err != nil {
+		return err
+	}
+	return created(c, out)
+}
+
+// MyOpenChatReport returns the caller's open or pending report about a conversation.
+func (h *Handler) MyOpenChatReport(c echo.Context) error {
+	// A malformed id answers the same 404 as an unknown or foreign conversation.
+	id, err := uuid.Parse(strings.TrimSpace(c.QueryParam("conversation_id")))
+	if err != nil {
+		return apperror.NotFound("Conversation")
+	}
+	row, err := h.svc.Support.OpenChatReport(c.Request().Context(), principal(c).UserID, id)
+	if err != nil {
+		return err
+	}
+	return ok(c, map[string]any{"open": row})
 }

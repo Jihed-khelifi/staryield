@@ -27,13 +27,14 @@ test.describe("site foundations", { tag: "@responsive" }, () => {
     await page.goto("/en");
     const social = page.getByRole("navigation", { name: "Social platforms" });
     const links = social.getByRole("link");
-    await expect(links).toHaveCount(5);
+    await expect(links).toHaveCount(6);
     const expected = [
       ["Facebook", "https://www.facebook.com/profile.php?id=61595272673949"],
       ["X", "https://x.com/StaryieldCoven"],
       ["Instagram", "https://www.instagram.com/staryield/"],
       ["Reddit", "https://www.reddit.com/r/staryield/"],
-      ["TikTok", "https://www.tiktok.com/@staryield.media"],
+      ["TikTok", "https://www.tiktok.com/@staryield.community"],
+      ["Threads", "https://www.threads.com/@staryield_community"],
     ];
     for (const [index, [name, href]] of expected.entries()) {
       const link = links.nth(index);
@@ -46,7 +47,7 @@ test.describe("site foundations", { tag: "@responsive" }, () => {
     const loaded = await social
       .locator("img")
       .evaluateAll((imgs) => imgs.map((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0));
-    expect(loaded).toEqual([true, true, true, true, true]);
+    expect(loaded).toEqual([true, true, true, true, true, true]);
     await expectNoA11yViolations(page, ['[data-testid="social-links"]']);
   });
 

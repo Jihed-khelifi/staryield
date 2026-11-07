@@ -16,6 +16,13 @@ import (
 // (the service retries with a fresh one).
 var ErrDuplicateReference = errors.New("repository: support reference already used")
 
+// ErrDuplicateReport reports that the reporter already has an open or pending
+// report about the conversation (the unique index decides, so it is race-safe).
+var ErrDuplicateReport = errors.New("repository: chat report already open")
+
+// supportReportIndex is the partial unique index behind ErrDuplicateReport.
+const supportReportIndex = "support_tickets_one_open_report_idx"
+
 // SupportRepository persists support tickets and their messages.
 type SupportRepository interface {
 	Create(ctx context.Context, t *domain.SupportTicket) error
@@ -38,6 +45,9 @@ type SupportRepository interface {
 	AdminList(ctx context.Context, f SupportAdminFilter) ([]SupportAdminRow, error)
 	Summary(ctx context.Context, adminID uuid.UUID) (SupportCounts, error)
 	ListForUser(ctx context.Context, userID uuid.UUID, cursor *Cursor, limit int) ([]domain.SupportTicket, error)
+	// OpenReport returns the user's open or pending report about a conversation
+	// (served by the partial unique index); ErrNotFound when there is none.
+	OpenReport(ctx context.Context, userID, conversationID uuid.UUID) (*domain.SupportTicket, error)
 	// ClaimResolved locks resolved tickets whose resolution is older than
 	// before (several instances may run the job: SKIP LOCKED).
 	ClaimResolved(ctx context.Context, before time.Time, limit int) ([]domain.SupportTicket, error)
@@ -68,6 +78,7 @@ type SupportAdminFilter struct {
 	Statuses   []domain.SupportStatus
 	Topic      string
 	Priority   string
+	Kind       domain.TicketKind // "" = every kind
 	AssigneeID *uuid.UUID
 	Unassigned bool
 	UserID     *uuid.UUID
@@ -92,6 +103,8 @@ type SupportCounts struct {
 	Open, Pending, Resolved, Closed int64
 	// Unassigned and Mine count tickets still being worked (open or pending).
 	Unassigned, Mine int64
+	// ReportsOpen counts chat reports still being worked (open or pending).
+	ReportsOpen int64
 }
 
 // GormSupportRepository implements SupportRepository.
@@ -105,6 +118,9 @@ func (r *GormSupportRepository) Create(ctx context.Context, t *domain.SupportTic
 	err := database.Conn(ctx, r.db).Create(t).Error
 	if isUnique(err, "support_tickets_reference_key") {
 		return ErrDuplicateReference
+	}
+	if isUnique(err, supportReportIndex) {
+		return ErrDuplicateReport
 	}
 	return err
 }
@@ -192,7 +208,8 @@ func (r *GormSupportRepository) Messages(ctx context.Context, ticketID uuid.UUID
 const supportRowColumns = "t.id, t.reference, t.user_id, t.name, t.topic, t.subject, t.message_chars, t.locale, t.status, " +
 	"t.priority, t.assignee_id, t.version, t.message_count, t.created_at, t.updated_at, t.last_message_at, " +
 	"t.last_customer_message_at, t.last_staff_message_at, t.first_response_at, t.resolved_at, t.closed_at, t.staff_seen_at, " +
-	"t.email_masked, a.display_name AS assignee_name, u.display_name AS user_name"
+	"t.email_masked, t.kind, t.conversation_id, t.session_id, t.reported_user_id, t.report_reason, t.reported_seq, " +
+	"a.display_name AS assignee_name, u.display_name AS user_name"
 
 // adminBase applies the filters shared by every sort (no order, no cursor).
 func (r *GormSupportRepository) adminBase(ctx context.Context, f SupportAdminFilter) *gorm.DB {
@@ -208,6 +225,14 @@ func (r *GormSupportRepository) adminBase(ctx context.Context, f SupportAdminFil
 	}
 	if f.Priority != "" {
 		q = q.Where("t.priority = ?", f.Priority)
+	}
+	// Literals (from the validated enum), not parameters: the partial indexes of
+	// the report queue are only chosen when the predicate is provable.
+	switch f.Kind {
+	case domain.TicketChatReport:
+		q = q.Where("t.kind = 'chat_report'")
+	case domain.TicketContact:
+		q = q.Where("t.kind = 'contact'")
 	}
 	switch {
 	case f.Unassigned:
@@ -324,7 +349,7 @@ func onlyOpen(statuses []domain.SupportStatus) bool {
 // Summary implements SupportRepository: one statement of index-only counts.
 func (r *GormSupportRepository) Summary(ctx context.Context, adminID uuid.UUID) (SupportCounts, error) {
 	var row struct {
-		Open, Pending, Resolved, Closed, Unassigned, Mine int64
+		Open, Pending, Resolved, Closed, Unassigned, Mine, ReportsOpen int64
 	}
 	err := database.Conn(ctx, r.db).Raw(`SELECT
 		(SELECT count(*) FROM support_tickets WHERE deleted_at IS NULL AND status = 'open') AS open,
@@ -332,21 +357,35 @@ func (r *GormSupportRepository) Summary(ctx context.Context, adminID uuid.UUID) 
 		(SELECT count(*) FROM support_tickets WHERE deleted_at IS NULL AND status = 'resolved') AS resolved,
 		(SELECT count(*) FROM support_tickets WHERE deleted_at IS NULL AND status = 'closed') AS closed,
 		(SELECT count(*) FROM support_tickets WHERE deleted_at IS NULL AND assignee_id IS NULL AND status IN ('open', 'pending')) AS unassigned,
-		(SELECT count(*) FROM support_tickets WHERE deleted_at IS NULL AND assignee_id = ? AND status IN ('open', 'pending')) AS mine`,
+		(SELECT count(*) FROM support_tickets WHERE deleted_at IS NULL AND assignee_id = ? AND status IN ('open', 'pending')) AS mine,
+		(SELECT count(*) FROM support_tickets WHERE deleted_at IS NULL AND kind = 'chat_report' AND status IN ('open', 'pending')) AS reports_open`,
 		adminID).Scan(&row).Error
 	return SupportCounts{Open: row.Open, Pending: row.Pending, Resolved: row.Resolved, Closed: row.Closed,
-		Unassigned: row.Unassigned, Mine: row.Mine}, err
+		Unassigned: row.Unassigned, Mine: row.Mine, ReportsOpen: row.ReportsOpen}, err
 }
 
 // ListForUser implements SupportRepository.
 func (r *GormSupportRepository) ListForUser(ctx context.Context, userID uuid.UUID, cursor *Cursor, limit int) ([]domain.SupportTicket, error) {
 	q := database.Conn(ctx, r.db).
-		Select("id, reference, user_id, name, topic, subject, locale, status, created_at, updated_at, last_message_at").
+		Select("id, reference, user_id, name, topic, subject, locale, status, created_at, updated_at, last_message_at, "+
+			"kind, conversation_id, session_id, reported_user_id, report_reason").
 		Where("user_id = ?", userID)
 	q = applyCursor(q, cursor, "last_message_at", "id")
 	var out []domain.SupportTicket
 	err := q.Order("last_message_at DESC, id DESC").Limit(clampLimit(limit, 21, 51)).Find(&out).Error
 	return out, err
+}
+
+// OpenReport implements SupportRepository.
+func (r *GormSupportRepository) OpenReport(ctx context.Context, userID, conversationID uuid.UUID) (*domain.SupportTicket, error) {
+	var t domain.SupportTicket
+	err := database.Conn(ctx, r.db).
+		Where("user_id = ? AND conversation_id = ? AND kind = 'chat_report' AND status IN ('open', 'pending') AND deleted_at IS NULL",
+			userID, conversationID).Take(&t).Error
+	if err != nil {
+		return nil, notFound(err)
+	}
+	return &t, nil
 }
 
 // ClaimResolved implements SupportRepository.

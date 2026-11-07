@@ -241,6 +241,10 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
+          "text": "Las solicitudes también pueden provenir de «Informar de un problema» en la sala de chat, que los clientes pueden usar para comunicar un problema con la conversación que tienen en pantalla (el asesor no responde, comportamiento inapropiado, un problema de facturación o técnico, u otra cosa). Un informe se vincula a esa conversación, a la sesión y al asesor, junto con el motivo y los detalles que escribas, para que nuestro equipo pueda investigar; esto puede incluir la revisión de la transcripción de la conversación como informe de seguridad, en las condiciones descritas en «Mensajes e imágenes» más arriba (un motivo declarado y un registro en el historial de auditoría). Tu asesor no es informado de que has informado de la conversación. Un informe sigue las mismas reglas que cualquier otra solicitud de soporte: puedes seguirlo en [Solicitudes de soporte](/support/requests), se incluye en la exportación de tus datos y se conserva y elimina con el mismo calendario."
+        },
+        {
+          "type": "p",
           "text": "Las solicitudes de soporte se incluyen en la exportación de tus datos. Una solicitud cerrada y sus mensajes se eliminan 24 meses después de cerrarse, y las solicitudes vinculadas a tu cuenta se eliminan cuando se borra tu cuenta."
         },
         {

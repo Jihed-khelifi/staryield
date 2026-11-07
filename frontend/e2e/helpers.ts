@@ -15,7 +15,8 @@ export async function signIn(page: Page, email: string, password: string, locale
   await page.locator("input[name=email]").fill(email);
   await page.locator("input[name=password]").fill(password);
   await Promise.all([page.waitForURL((url) => !url.pathname.endsWith("/login")), page.locator("form button[type=submit]").click()]);
-  await expect(accountTrigger(page)).toBeVisible();
+  // Phones show no site header in the chatroom (where advisors land): the chat header is the top bar.
+  await expect(page.locator("[data-testid=user-menu-trigger], [data-testid=mobile-menu-trigger], [data-testid=chat-header], main.chat-workspace").filter({ visible: true }).first()).toBeVisible();
 }
 
 /** The account menu button (header avatar on desktop, menu sheet trigger on phones). */

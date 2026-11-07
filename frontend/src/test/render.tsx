@@ -10,6 +10,7 @@ import en from "@/i18n/dictionaries/en.json";
 import copy from "@/i18n/dictionaries/copy-en.json";
 import { I18nProvider } from "@/i18n/i18n-provider";
 import type { Dictionary } from "@/i18n/types";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const dictionary = { ...en, copy } as Dictionary;
 
@@ -17,7 +18,8 @@ export function renderWithI18n(ui: React.ReactElement, options?: Omit<RenderOpti
   return render(ui, {
     wrapper: ({ children }) => (
       <I18nProvider locale="en" dictionary={dictionary}>
-        {children}
+        {/* Like the [lang] layout: tooltips need a provider. */}
+        <TooltipProvider>{children}</TooltipProvider>
       </I18nProvider>
     ),
     ...options,

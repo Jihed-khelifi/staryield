@@ -16,6 +16,7 @@ import { supportApi } from "@/lib/api/endpoints";
 import { ApiError, toApiError } from "@/lib/api/errors";
 import type { CustomerTicket, CustomerTicketRow } from "@/lib/api/types";
 import { useSession } from "@/lib/auth/session-provider";
+import { isChatReport } from "@/lib/support/chat-report";
 import { supportTopicLabels } from "@/lib/schemas/contact";
 import { browserTokenEnv, classifySupportError, forgetSupportToken, normalizeReference, takeSupportToken } from "@/lib/support/support";
 import { useAsync } from "@/lib/use-async";
@@ -26,7 +27,7 @@ import { PublicFrame } from "@/components/layout/public-frame";
 import { Button } from "@/components/ui/button";
 import { CursorPager } from "@/components/ui/pagination";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
-import { StatusChip, TicketThread, useFormatTicketDate } from "@/components/support/ticket-thread";
+import { ReportBadge, StatusChip, TicketThread, useFormatTicketDate, useReportMeta, useTicketTitle } from "@/components/support/ticket-thread";
 
 function Shell({ title, children, wide = false }: { title: string; children: React.ReactNode; wide?: boolean }) {
   const { text } = useI18n();
@@ -120,7 +121,7 @@ function TicketScreen({ loader, context, enabled = true }: { loader: Loader; con
   return (
     <>
       {error && !loading ? <ErrorState compact className="mb-5" error={error} onRetry={reload} /> : null}
-      <TicketThread ticket={data} reply={loader.reply} onTicket={(t) => setData(t)} onRefresh={reload} refreshing={loading} />
+      <TicketThread ticket={data} reply={loader.reply} onTicket={(t) => setData(t)} onRefresh={reload} refreshing={loading} showConversationLink={context === "account"} />
     </>
   );
 }
@@ -203,19 +204,27 @@ export function LinkTicketPage({ reference: raw }: { reference: string }) {
 function RequestRow({ row }: { row: CustomerTicketRow }) {
   const { text, locale } = useI18n();
   const format = useFormatTicketDate();
+  const titleOf = useTicketTitle();
+  const meta = useReportMeta()(row);
+  const report = isChatReport(row);
   return (
-    <li data-testid="request-row">
+    <li data-testid="request-row" data-kind={report ? "chat_report" : "contact"}>
       <Link
         href={`/${locale}/support/requests/${row.reference}`}
         className="grid gap-2 rounded-xl border border-gold/50 bg-white p-4 transition-colors hover:border-gold hover:bg-cream-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <span className="flex flex-wrap items-center justify-between gap-2">
           <span className="font-display text-sm tracking-wider">{row.reference}</span>
-          <StatusChip status={row.status} />
+          <span className="flex flex-wrap items-center gap-2">
+            {report ? <ReportBadge /> : null}
+            <StatusChip status={row.status} />
+          </span>
         </span>
-        <span className="font-semibold [overflow-wrap:anywhere]">{row.subject}</span>
+        <span className="font-semibold [overflow-wrap:anywhere]" data-testid="request-title">
+          {titleOf(row)}
+        </span>
         <span className="flex flex-wrap gap-x-4 text-sm text-ink/80">
-          <span>{text(supportTopicLabels[row.topic] ?? supportTopicLabels.general)}</span>
+          {meta ? <span className="[overflow-wrap:anywhere]">{meta}</span> : <span>{text(supportTopicLabels[row.topic] ?? supportTopicLabels.general)}</span>}
           <span>{text("Last activity {value0}", { value0: format(row.last_message_at) })}</span>
         </span>
       </Link>

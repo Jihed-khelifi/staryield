@@ -3,7 +3,7 @@
  * Corporate", node 1283:2192). Icons are the Figma exports on R2. A profile
  * without an `href` (the apps are not published yet) is not rendered.
  */
-export type SocialId = "facebook" | "x" | "instagram" | "reddit" | "tiktok" | "google-play" | "app-store";
+export type SocialId = "facebook" | "x" | "instagram" | "reddit" | "tiktok" | "threads" | "google-play" | "app-store";
 
 export type SocialLink = {
   id: SocialId;
@@ -43,8 +43,15 @@ export const SOCIAL_LINKS: readonly SocialLink[] = [
   {
     id: "tiktok",
     label: "TikTok",
-    href: "https://www.tiktok.com/@staryield.media",
+    href: "https://www.tiktok.com/@staryield.community",
     icon: `${ICONS}/tiktok-d4c1acc79e.svg`,
+    size: 22,
+  },
+  {
+    id: "threads",
+    label: "Threads",
+    href: "https://www.threads.com/@staryield_community",
+    icon: `${ICONS}/threads-83cc748f28.svg`,
     size: 22,
   },
   // Store listings are not live yet: add the URL to show the icon.

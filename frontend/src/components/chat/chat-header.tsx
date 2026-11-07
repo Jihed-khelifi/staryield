@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { ReaderAvatar } from "@/components/chat/reader-avatar";
 import { RatePrice } from "@/components/chat/rate-price";
 import { formatMoney, type RateView } from "@/components/chat/chat-model";
+import { ReportIssueButton, type ReportIssueTarget } from "@/components/chat/report-issue";
 import { Button } from "@/components/ui/button";
 
 type Earnings = { credits: number; cents?: number; currency?: string };
@@ -27,6 +28,10 @@ type ChatHeaderProps = {
   onOpenDetails: () => void;
   onEnd: () => void;
   ending: boolean;
+  /** Phones: unread messages in other conversations or unread notifications (dot on the menu button). */
+  activity?: boolean;
+  /** Clients with a conversation: "Report an issue" (tablet and up; phones have it in the tools row). */
+  report?: ReportIssueTarget | null;
 };
 
 const statusCopy: Record<string, string> = {
@@ -44,7 +49,40 @@ export function useEarningsLabel(earnings: Earnings | null | undefined): string 
   return text("{value0} credits", { value0: earnings.credits.toLocaleString(locale) });
 }
 
-export function ChatHeader({ counterpart, viewerRole = "client", session, elapsedSeconds, rate, earnings, onOpenInbox, onOpenDetails, onEnd, ending }: ChatHeaderProps) {
+/** ☰ that opens the conversation drawer; dotted when there is activity elsewhere (§20.2). */
+function InboxMenuButton({ onClick, activity }: { onClick: () => void; activity: boolean }) {
+  const { text, t } = useI18n();
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label={activity ? text("Open conversations, new activity") : t("chatroom.inbox.openLabel")}
+      onClick={onClick}
+      className="chat-header-menu relative text-ink hover:bg-cream/40 lg:hidden"
+      data-activity={activity || undefined}
+    >
+      <FiMenu className="size-5" aria-hidden />
+      {activity ? <span className="chat-menu-dot" aria-hidden data-testid="menu-activity-dot" /> : null}
+    </Button>
+  );
+}
+
+/**
+ * Phone top bar while there is no conversation on screen (empty, loading or
+ * failed inbox): the site header is hidden there, so the drawer (account,
+ * navigation) stays reachable from here.
+ */
+export function ChatroomTopBar({ onOpenInbox, activity = false }: { onOpenInbox: () => void; activity?: boolean }) {
+  const { text } = useI18n();
+  return (
+    <div className="chat-header chat-topbar-empty flex items-center gap-3 bg-sage p-4 md:hidden" data-testid="chat-topbar">
+      <InboxMenuButton onClick={onOpenInbox} activity={activity} />
+      <span className="font-serif text-[18px] font-bold text-ink">{text("Chatroom")}</span>
+    </div>
+  );
+}
+
+export function ChatHeader({ counterpart, viewerRole = "client", session, elapsedSeconds, rate, earnings, onOpenInbox, onOpenDetails, onEnd, ending, activity = false, report }: ChatHeaderProps) {
   const { text, t } = useI18n();
   const live = session && (session.status === "active" || session.status === "disconnected" || session.status === "accepted");
   const presence = viewerRole === "psychic" && counterpart.status ? (counterpart.status === "offline" ? "offline" : "online") : null;
@@ -62,9 +100,7 @@ export function ChatHeader({ counterpart, viewerRole = "client", session, elapse
   return (
     <div className="chat-header flex items-center justify-between gap-3 bg-sage p-4" data-testid="chat-header">
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-        <Button variant="ghost" size="icon-sm" aria-label={t("chatroom.inbox.openLabel")} onClick={onOpenInbox} className="chat-header-menu text-ink hover:bg-cream/40 lg:hidden">
-          <FiMenu className="size-5" aria-hidden />
-        </Button>
+        <InboxMenuButton onClick={onOpenInbox} activity={activity} />
         <button
           type="button"
           className="chat-header-avatar relative shrink-0 xl:pointer-events-none"
@@ -118,12 +154,13 @@ export function ChatHeader({ counterpart, viewerRole = "client", session, elapse
             </span>
           ) : null}
         </div>
+        {report ? <ReportIssueButton placement="header" target={report} className="max-md:hidden" /> : null}
         <Button
           variant="ghost"
           size="icon-sm"
           aria-label={t("chatroom.header.openDetails")}
           onClick={onOpenDetails}
-          className={cn("text-ink hover:bg-cream/40 xl:hidden", "chat-header-details")}
+          className={cn("text-ink hover:bg-cream/40 max-md:hidden xl:hidden", "chat-header-details")}
         >
           <FiInfo className="size-4" aria-hidden />
         </Button>

@@ -237,6 +237,11 @@ func NewRouter(d Deps) *echo.Echo {
 	me.GET("/support/tickets/:reference", h.MySupportTicket)
 	me.POST("/support/tickets/:reference/messages", h.ReplyMySupportTicket, supportReplyRL)
 	// end revisions 3.0: support desk
+	// revisions 3.1: conversation reports (clients only, checked in the service)
+	supportReportRL := mw.RateLimit(limiter, rule("support_report", config.Rule{Rate: 10, Period: time.Hour, Burst: 10}, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
+	me.POST("/support/chat-reports", h.CreateChatReport, supportReportRL)
+	me.GET("/support/chat-reports", h.MyOpenChatReport)
+	// end revisions 3.1: conversation reports
 	me.GET("/notifications", h.Notifications)
 	me.GET("/notifications/unread-count", h.UnreadNotifications)
 	me.POST("/notifications/read", h.MarkNotificationsRead, writeRL)

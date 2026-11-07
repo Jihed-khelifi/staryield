@@ -956,7 +956,7 @@ html:not([lang="en"]) .figma-content > .figma-section {
     padding: 40px 24px;
   }
   .footer-columns {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 32px 24px;
   }
   .footer-columns > div {
@@ -1180,6 +1180,7 @@ html:not([lang="en"]) .figma-content > .figma-section {
     flex-direction: column;
     padding: 48px 24px;
     gap: 30px;
+    height: auto;
   }
   .figma-content > .figma-section > [class*="flex"]:not([class*="flex-col"]) {
     flex-wrap: wrap;
@@ -1196,7 +1197,9 @@ html:not([lang="en"]) .figma-content > .figma-section {
     align-items: stretch;
   }
   .figma-content [data-name="Section / Hero"] h1 {
-    font-size: 36px;
+    font-size: clamp(20px, 6.6vw, 36px);
+    overflow-wrap: break-word;
+    word-break: normal;
     width: 100%;
     min-width: 0;
   }
@@ -1814,6 +1817,14 @@ html {
     min-width: 0;
     width: 100%;
   }
+  /* Display headings (36px in the desktop frame) scale down so the longest
+     translated words fit a phone (FR "D'INTÉGRATION" in Castellar at 320px);
+     words wrap whole (no hyphenation: Chrome hyphenates even fitting words). */
+  .figma-content [class*="text-[36px]"]:not([class*="w-[36px]"]) {
+    font-size: clamp(20px, 6.6vw, 36px);
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
   .figma-content [class*="px-[120px]"],
   .figma-content [class*="px-[160px]"],
   .figma-content [class*="px-[219px]"] {
@@ -1875,7 +1886,6 @@ html {
   transform: rotate(180deg);
 }
 
-.chat-mobile-heading,
 .chat-session-notice {
   display: none;
 }
@@ -1886,19 +1896,6 @@ html {
   }
   .figma-content [data-name^="Header /"] {
     flex-wrap: wrap;
-  }
-  .chat-desktop-brand {
-    display: none;
-  }
-  .chat-mobile-heading {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 18px;
-    font-weight: 600;
-  }
-  .chat-mobile-heading > span {
-    font-size: 26px;
   }
   .dashboard-page:has(.chat-workspace) {
     gap: 0;
@@ -2399,8 +2396,7 @@ html {
   gap: 12px;
   min-width: 0;
 }
-.site-header .brand,
-.chat-mobile-heading {
+.site-header .brand {
   min-width: 0;
 }
 .site-header .brand > span:last-child {
@@ -3394,6 +3390,67 @@ html {
     white-space: normal;
   }
 }
+/* Figma frames are fixed-size desktop boxes: below desktop they grow with their
+   (possibly translated) content, and equal-share flex columns wrap instead of
+   squeezing text into a few pixels. */
+@media (max-width: 1023px) {
+  .figma-content
+    :is(
+      [data-name^="Section /"],
+      [data-name^="Container /"],
+      [data-name^="Content Group /"],
+      [data-name^="Card /"],
+      [data-name^="Media /"],
+      [data-name^="Button /"]
+    ):not([data-name^="Container / Mystical"]):not(
+      [data-name^="Container / Top Arc"]
+    ):not([data-name^="Card / Tarot"]) {
+    height: auto;
+  }
+  .figma-content
+    [class*="flex"]:not([class*="flex-col"]):has(> [class*="flex-[1_0_0]"]):not(
+      [data-name="Media / Testimonials & Stats"]
+    ):not([data-name="Layout / Testimonial Quote"]) {
+    flex-wrap: wrap;
+  }
+  .figma-content
+    [class*="flex"]:not([class*="flex-col"]):not(
+      [data-name="Media / Testimonials & Stats"]
+    ):not([data-name="Layout / Testimonial Quote"])
+    > [class*="flex-[1_0_0]"] {
+    min-width: min(100%, 220px);
+  }
+  .figma-content [class*="px-[100px]"] {
+    padding-inline: 32px;
+  }
+  .figma-content [class*="px-[48px]"] {
+    padding-inline: 24px;
+  }
+}
+@media (max-width: 767px) {
+  .figma-content [class*="px-[100px]"] {
+    padding-inline: 20px;
+  }
+  .figma-content [class*="px-[48px]"] {
+    padding-inline: 20px;
+  }
+  .figma-content [class*="p-[80px]"] {
+    padding: 40px 20px;
+  }
+  .figma-content [class*="p-[40px]"] {
+    padding: 24px 20px;
+  }
+  .figma-content [class*="text-[40px]"] {
+    font-size: clamp(22px, 7vw, 40px);
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+  .figma-content [data-name="Section / Header"] {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+}
 /* Tablets: the four-column footer only fits from 1024px. */
 @media (min-width: 768px) and (max-width: 1023px) {
   .site-footer {
@@ -3407,8 +3464,19 @@ html {
     grid-column: 1 / -1;
   }
 }
-.footer-columns h2 {
-  overflow-wrap: anywhere;
+.footer-columns h2,
+.footer-columns a {
+  overflow-wrap: break-word;
+  hyphens: manual;
+}
+.footer-columns > * {
+  min-width: 0;
+}
+/* Below 360px the link groups stack into one column. */
+@media (max-width: 359px) {
+  .footer-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 /* Phones: long translated headings wrap instead of overflowing. */
 @media (max-width: 767px) {
@@ -3446,8 +3514,33 @@ html {
   .site-header > .flex {
     gap: 8px;
   }
-  .chat-mobile-heading {
+}
+
+/* Tablets (768–1023px): the signed-in header (wordmark, nav, language, chat,
+   balance or wallet + availability, bell, avatar) was up to 11px wider than a
+   768px screen. Tighten the spacing and show the advisor's availability as its
+   dot; the button keeps its full accessible name ("Availability: Online"). */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .site-header {
+    gap: 12px;
+    padding-inline: 20px;
+  }
+  .site-header .desktop-nav {
+    gap: 16px;
+  }
+  .site-header .header-actions {
+    gap: 8px;
+  }
+  .site-header .availability-trigger {
     min-width: 0;
-    font-size: 16px;
+    padding: 0 8px;
+  }
+  .site-header .availability-trigger-label > span:last-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 }

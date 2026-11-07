@@ -46,6 +46,7 @@ const (
 	msgSupportClosed       = "This request is closed. Please send a new request to contact us again."
 	msgSupportLimit        = "This request has reached the maximum number of messages."
 	msgSupportVersion      = "This request was changed by someone else. Reload it and try again."
+	msgSupportKind         = "Choose contact or chat report."
 	msgSupportAutoClose    = "Closed automatically after 7 days without a reply."
 )
 
@@ -84,8 +85,11 @@ type SupportSettings struct {
 
 // SupportDeskDeps are the collaborators of the support desk.
 type SupportDeskDeps struct {
-	Tx       database.TxManager
-	Users    repository.UserRepository
+	Tx    database.TxManager
+	Users repository.UserRepository
+	// revisions 3.1: conversation reports (see support_report.go).
+	Chat     repository.ChatRepository
+	Psychics repository.PsychicRepository
 	Audit    repository.AuditRepository
 	Cache    cache.Store // optional: summary cache and throttled audit
 	Notifier Notifier    // in-app + push notification for staff replies
@@ -141,6 +145,7 @@ type adminTicketCommon struct {
 	Topic           string         `json:"topic"`
 	Status          string         `json:"status"`
 	Priority        string         `json:"priority"`
+	Kind            string         `json:"kind"` // contact | chat_report (revisions 3.1)
 	Locale          string         `json:"locale"`
 	Assignee        *AdminAssignee `json:"assignee,omitempty"`
 	MessageCount    int            `json:"message_count"`
@@ -157,7 +162,8 @@ type adminTicketCommon struct {
 // AdminTicketRow is a queue row (metadata only).
 type AdminTicketRow struct {
 	adminTicketCommon
-	Requester AdminRequester `json:"requester"`
+	Requester AdminRequester      `json:"requester"`
+	Report    *AdminReportContext `json:"report,omitempty"` // chat reports only
 }
 
 // AdminTicketUser is the account a ticket is linked to.
@@ -189,6 +195,7 @@ type SupportMessageView struct {
 type AdminTicket struct {
 	adminTicketCommon
 	Requester AdminRequesterFull   `json:"requester"`
+	Report    *AdminReportDetail   `json:"report,omitempty"` // chat reports only
 	User      *AdminTicketUser     `json:"user,omitempty"`
 	Messages  []SupportMessageView `json:"messages"`
 }
@@ -202,6 +209,8 @@ type SupportSummary struct {
 	Unassigned int64 `json:"unassigned"`
 	Mine       int64 `json:"mine"`
 	NeedsReply int64 `json:"needs_reply"`
+	// ReportsOpen counts chat reports still being worked (open or pending).
+	ReportsOpen int64 `json:"reports_open"`
 }
 
 // CustomerTicketRow is a request as its requester sees it in a list.
@@ -213,6 +222,9 @@ type CustomerTicketRow struct {
 	Awaiting      string    `json:"awaiting"` // support | you | none
 	CreatedAt     time.Time `json:"created_at"`
 	LastMessageAt time.Time `json:"last_message_at"`
+	// revisions 3.1: conversation reports.
+	Kind   string             `json:"kind"`
+	Report *ChatReportContext `json:"report,omitempty"`
 }
 
 // CustomerMessage is a message visible to the requester.

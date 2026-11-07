@@ -840,3 +840,124 @@
     animation: none;
   }
 }
+
+/* ===========================================================================
+   Revisions 3.1: phone chatroom without the site header (§20.2). The chat
+   header is the top bar, the drawer carries the account controls, and the
+   on-screen keyboard collapses everything but the messages and composer.
+   =========================================================================== */
+.chat-tools-trail {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.chat-menu-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--sage);
+  border-radius: 999px;
+  background: var(--amber);
+}
+.chat-switcher-account {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 16px 0;
+}
+.chat-switcher-me {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  background: var(--cream);
+  padding: 10px 12px;
+  color: #17150f;
+}
+.chat-switcher-account-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.chat-switcher-account .chat-credit-pill {
+  min-height: 36px;
+  align-items: center;
+}
+.chat-switcher-account .chat-credit-pill strong {
+  font-size: 13px;
+}
+.chat-switcher-account .chat-credit-pill span {
+  font-size: 11px;
+}
+.chat-switcher-bell {
+  flex-shrink: 0;
+}
+/* The advisor's "Live chat is still running" notice sits in the chat column. */
+.chat-workspace [data-testid="background-live-notice"] {
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .chat-workspace .chat-header {
+    height: calc(66px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
+    transition: height 0.18s ease;
+  }
+  .chat-workspace .chat-header-menu {
+    width: 40px;
+    height: 40px;
+  }
+  .chat-session-tools {
+    overflow: hidden;
+    transition:
+      height 0.18s ease,
+      padding 0.18s ease,
+      opacity 0.18s ease,
+      visibility 0s linear 0s;
+  }
+  .chat-tools-report {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+  }
+  .chat-session-tools .availability-trigger {
+    min-height: 36px;
+  }
+  /* Keyboard open: only the header (compact), the messages and the composer remain. */
+  html[data-keyboard="open"] .chat-workspace .chat-header {
+    height: calc(52px + env(safe-area-inset-top));
+  }
+  html[data-keyboard="open"] .chat-workspace .chat-header-avatar [data-slot="avatar"] {
+    width: 34px;
+    height: 34px;
+  }
+  html[data-keyboard="open"] .chat-workspace .chat-header-name {
+    font-size: 15px;
+  }
+  html[data-keyboard="open"] .chat-workspace .chat-session-tools {
+    height: 0;
+    padding-block: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      height 0.18s ease,
+      padding 0.18s ease,
+      opacity 0.18s ease,
+      visibility 0s linear 0.18s;
+  }
+  html[data-keyboard="open"] .chat-workspace .chat-push-prompt,
+  html[data-keyboard="open"] .chat-workspace .composer-note {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-workspace .chat-header,
+  .chat-session-tools,
+  html[data-keyboard="open"] .chat-workspace .chat-session-tools {
+    transition: none;
+  }
+}

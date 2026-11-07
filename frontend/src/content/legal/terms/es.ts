@@ -504,7 +504,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Si encuentra contenido de terceros dañino, engañoso u ofensivo mientras utiliza el Servicio, puede informarlo a la Compañía. Sin embargo, la Compañía no está obligada a investigar, eliminar ni tomar medidas contra el contenido de terceros a menos que lo exija la ley."
+          "text": "Si encuentra contenido de terceros dañino, engañoso u ofensivo mientras utiliza el Servicio, puede informarlo a la Compañía. Sin embargo, la Compañía no está obligada a investigar, eliminar ni tomar medidas contra el contenido de terceros a menos que lo exija la ley. También puede usar «Informar de un problema» en la sala de chat para comunicar un problema con la conversación que tiene en pantalla; nuestro equipo de soporte revisa estos informes como se describe en nuestra [Política de privacidad](/privacy#support-requests)."
         }
       ]
     },

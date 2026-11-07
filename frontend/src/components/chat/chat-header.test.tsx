@@ -4,7 +4,7 @@ import { cleanup, screen, within } from "@testing-library/react";
 
 import type { ChatSession, Participant } from "@/lib/api/types";
 import { axeViolations, renderWithI18n } from "@/test/render";
-import { ChatHeader } from "@/components/chat/chat-header";
+import { ChatHeader, ChatroomTopBar } from "@/components/chat/chat-header";
 import { RatePrice } from "@/components/chat/rate-price";
 import { sessionEarnings, sessionRate } from "@/components/chat/chat-model";
 
@@ -93,5 +93,48 @@ describe("member price (client view of a discount)", () => {
     const s = session({ rate_per_minute: 32, list_rate_per_minute: 40, discount_pct: 20 });
     header({ viewerRole: "client", counterpart: advisor, session: s, rate: sessionRate(s) });
     expect(within(screen.getByTestId("chat-header-status")).getByTestId("member-rate")).toBeTruthy();
+  });
+});
+
+describe("phone top bar (§20.2)", () => {
+  it("dots the menu button when there is activity elsewhere and says so", async () => {
+    header({ viewerRole: "client", counterpart: advisor, activity: true });
+    const menu = screen.getByRole("button", { name: "Open conversations, new activity" });
+    const dot = within(menu).getByTestId("menu-activity-dot");
+    expect(dot.getAttribute("aria-hidden")).toBe("true");
+    expect(await axeViolations()).toEqual([]);
+  });
+
+  it("has a plain menu label and no dot without activity", () => {
+    header({ viewerRole: "client", counterpart: advisor });
+    expect(screen.getByRole("button", { name: "Open conversations" })).toBeTruthy();
+    expect(screen.queryByTestId("menu-activity-dot")).toBeNull();
+  });
+
+  it("hides the details button below 768px (the avatar opens details) and keeps End chat", () => {
+    header({ viewerRole: "client", counterpart: advisor });
+    expect(screen.getByRole("button", { name: "Open reader details" }).className).toContain("max-md:hidden");
+    expect(screen.getByRole("button", { name: "End the chat with Theo" })).toBeTruthy();
+  });
+
+  it("places the report button in the header, hidden on phones, only with a target", () => {
+    const { unmount } = header({ viewerRole: "client", counterpart: advisor });
+    expect(screen.queryByTestId("report-issue-trigger")).toBeNull();
+    unmount();
+    header({ viewerRole: "client", counterpart: advisor, report: { conversationId: "conv", advisorName: "Theo" } });
+    const trigger = screen.getByTestId("report-issue-trigger");
+    expect(trigger.getAttribute("data-placement")).toBe("header");
+    expect(trigger.className).toContain("max-md:hidden");
+  });
+});
+
+describe("ChatroomTopBar (no conversation on screen)", () => {
+  it("keeps the drawer reachable and dots activity", async () => {
+    const onOpen = vi.fn();
+    renderWithI18n(<ChatroomTopBar onOpenInbox={onOpen} activity />);
+    screen.getByRole("button", { name: "Open conversations, new activity" }).click();
+    expect(onOpen).toHaveBeenCalled();
+    expect(screen.getByTestId("chat-topbar").className).toContain("md:hidden");
+    expect(await axeViolations()).toEqual([]);
   });
 });

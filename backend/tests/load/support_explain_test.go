@@ -30,6 +30,8 @@ type supportSample struct {
 	cursorAt    time.Time
 	cursorID    uuid.UUID
 	ticket      uuid.UUID
+	// revisions 3.1: a client with an open chat report and its conversation.
+	reportUser, reportConv uuid.UUID
 }
 
 // pickSupportIDs finds the busiest administrator and requester so each query
@@ -55,6 +57,13 @@ func pickSupportIDs(db *gorm.DB) supportSample {
 	if db.Table("support_tickets").Select("id, reference, email_hash, created_at").Order("created_at DESC").Offset(50000).Limit(1).Scan(&row).Error == nil && row.ID != uuid.Nil {
 		s.reference, s.emailHash, s.cursorAt, s.cursorID, s.ticket = row.Reference, row.EmailHash, row.CreatedAt, row.ID, row.ID
 	}
+	var rep struct{ U, C uuid.UUID }
+	if db.Table("support_tickets").Select("user_id AS u, conversation_id AS c").
+		Where("kind = 'chat_report' AND status = 'open' AND conversation_id IS NOT NULL").Limit(1).Scan(&rep).Error == nil && rep.U != uuid.Nil {
+		s.reportUser, s.reportConv = rep.U, rep.C
+	} else {
+		s.reportUser, s.reportConv = uuid.New(), uuid.New()
+	}
 	return s
 }
 
@@ -79,6 +88,27 @@ func supportChecks(s supportSample) []queryCheck {
 		// The second range of the ranked sort: every status but open.
 		list("support: queue waiting (pending, resolved)", fast, repository.SupportAdminFilter{Sort: repository.SupportSortWaiting,
 			Statuses: []domain.SupportStatus{pending, domain.SupportResolved}, Cursor: &repository.SupportCursor{At: s.cursorAt, ID: s.cursorID, Rank: 1}}),
+		// revisions 3.1: conversation reports (kind=chat_report): one partial index per sort.
+		list("support: reports newest", fast, repository.SupportAdminFilter{Kind: domain.TicketChatReport, Sort: repository.SupportSortNewest}),
+		list("support: reports newest (deep page)", fast, repository.SupportAdminFilter{Kind: domain.TicketChatReport, Sort: repository.SupportSortNewest, Cursor: cursor}),
+		list("support: reports oldest", fast, repository.SupportAdminFilter{Kind: domain.TicketChatReport, Sort: repository.SupportSortOldest}),
+		list("support: reports oldest (deep page)", fast, repository.SupportAdminFilter{Kind: domain.TicketChatReport, Sort: repository.SupportSortOldest, Cursor: cursor}),
+		list("support: reports waiting (open)", fast, repository.SupportAdminFilter{Kind: domain.TicketChatReport, Sort: repository.SupportSortWaiting,
+			Statuses: []domain.SupportStatus{open}}),
+		list("support: reports waiting (ranked)", 150*time.Millisecond, repository.SupportAdminFilter{Kind: domain.TicketChatReport,
+			Sort: repository.SupportSortWaiting, Statuses: []domain.SupportStatus{open, pending}}),
+		list("support: reports waiting (rest, deep)", fast, repository.SupportAdminFilter{Kind: domain.TicketChatReport, Sort: repository.SupportSortWaiting,
+			Statuses: []domain.SupportStatus{pending, domain.SupportResolved}, Cursor: &repository.SupportCursor{At: s.cursorAt, ID: s.cursorID, Rank: 1}}),
+		list("support: reports filter status", fast, repository.SupportAdminFilter{Kind: domain.TicketChatReport, Statuses: []domain.SupportStatus{pending}}),
+		list("support: reports filter open+pending", fast, repository.SupportAdminFilter{Kind: domain.TicketChatReport,
+			Statuses: []domain.SupportStatus{open, pending}, Sort: repository.SupportSortNewest}),
+		list("support: contacts only newest", fast, repository.SupportAdminFilter{Kind: domain.TicketContact, Sort: repository.SupportSortNewest}),
+		{"support: open report lookup", fast, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewSupportRepository(d).OpenReport(ctx, s.reportUser, s.reportConv)
+		}},
+		{"chat: latest session of a conversation", fast, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewChatRepository(d).LatestSession(ctx, s.reportConv)
+		}},
 		list("support: filter status", fast, repository.SupportAdminFilter{Statuses: []domain.SupportStatus{pending}}),
 		list("support: filter priority", fast, repository.SupportAdminFilter{Priority: "urgent"}),
 		list("support: filter topic + status", fast, repository.SupportAdminFilter{Topic: "billing", Statuses: []domain.SupportStatus{open}}),

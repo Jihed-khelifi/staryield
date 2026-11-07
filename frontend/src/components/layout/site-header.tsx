@@ -63,18 +63,10 @@ export function SiteHeader({
     <>
       {promo && <PromoBanner />}
       <header className="site-header">
-        <Link
-          className={`brand ${pathname.endsWith("/chatroom") ? "chat-desktop-brand" : ""}`}
-          href={`/${locale}`}
-        >
+        <Link className="brand" href={`/${locale}`}>
           <SunLogo />
           <span>{text("Staryield")}</span>
         </Link>
-        {pathname.endsWith("/chatroom") && (
-          <Link className="chat-mobile-heading" href={`/${locale}/psychics`}>
-            <span aria-hidden="true">‹</span> {text("Chatroom ")}
-          </Link>
-        )}
         <nav
           aria-label={t("nav.menuTitle")}
           className={`desktop-nav ${publicSite ? "public-nav" : ""}`}

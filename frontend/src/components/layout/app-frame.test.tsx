@@ -36,3 +36,19 @@ describe("AppFrame", () => {
     expect(frame.getAttribute("data-mobile-nav")).toBe("off");
   });
 });
+
+describe("AppFrame phone header", () => {
+  it("renders the site header on phones by default", () => {
+    const { queryByTestId } = render(<AppFrame>x</AppFrame>);
+    expect(queryByTestId("site-header-md-up")).toBeNull();
+    expect(queryByTestId("header")).toBeTruthy();
+  });
+
+  it("phoneHeader={false} keeps the header for tablets and up only", () => {
+    const { getByTestId } = render(<AppFrame phoneHeader={false}>x</AppFrame>);
+    const wrapper = getByTestId("site-header-md-up");
+    expect(wrapper.className).toContain("max-md:hidden");
+    expect(wrapper.className).toContain("contents");
+    expect(wrapper.querySelector("[data-testid=header]")).toBeTruthy();
+  });
+});
