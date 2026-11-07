@@ -241,6 +241,10 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
+          "text": "Une demande peut aussi provenir de « Signaler un problème » dans la messagerie du salon, que les clients peuvent utiliser pour signaler un problème avec la conversation affichée (conseiller qui ne répond pas, comportement inapproprié, problème de facturation ou technique, ou autre). Un signalement est rattaché à cette conversation, à la session et au conseiller, avec le motif et les précisions que vous rédigez, afin que notre équipe puisse enquêter ; cela peut inclure la consultation de la transcription de la conversation au titre d’un signalement de sécurité, dans les conditions décrites dans « Messages et images » ci-dessus (motif indiqué et inscription au journal d’audit). Votre conseiller n’est pas informé que vous avez signalé la conversation. Un signalement suit les mêmes règles que toute autre demande d’assistance : vous pouvez le suivre dans [Demandes d’assistance](/support/requests), il est inclus dans l’export de vos données et il est conservé puis supprimé selon le même calendrier."
+        },
+        {
+          "type": "p",
           "text": "Les demandes d’assistance sont incluses dans l’export de vos données. Une demande clôturée et ses messages sont supprimés 24 mois après sa clôture, et les demandes rattachées à votre compte sont supprimées lorsque votre compte est effacé."
         },
         {

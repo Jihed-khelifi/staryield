@@ -486,7 +486,7 @@ export default function ScreenDesktopHome() {
               {text(`"`)}
             </p>
             <p
-              className="flex-[1_0_0] font-serif font-light leading-[1.5] min-w-px relative text-[24px] text-center"
+              className="flex-[1_0_0] font-serif font-light leading-[1.5] min-w-px relative text-[18px] sm:text-[24px] text-center"
               data-node-id="461:1775"
             >
               {text(
@@ -519,7 +519,7 @@ export default function ScreenDesktopHome() {
           </div>
         </div>
         <div
-          className="content-stretch flex gap-[40px] items-start justify-center p-[32px] relative rounded-[16px] shrink-0 w-full"
+          className="content-stretch flex flex-col sm:flex-row gap-[24px] sm:gap-[40px] items-center sm:items-start justify-center p-[32px] relative rounded-[16px] shrink-0 w-full"
           data-node-id="461:1780"
           data-name="Media / Testimonials & Stats"
         >
@@ -535,7 +535,7 @@ export default function ScreenDesktopHome() {
             />
           </div>
           <div
-            className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[4px] items-center leading-[normal] min-w-px relative text-black whitespace-nowrap"
+            className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[4px] items-center leading-[normal] min-w-px relative text-black text-center"
             data-node-id="461:1781"
             data-name="Control / 4.8"
           >
@@ -553,7 +553,7 @@ export default function ScreenDesktopHome() {
             </p>
           </div>
           <div
-            className="flex h-[60px] items-center justify-center relative shrink-0 w-0"
+            className="hidden sm:flex h-[60px] items-center justify-center relative shrink-0 w-0"
             data-node-id="461:1784"
           >
             <div className="flex-none rotate-90">
@@ -572,7 +572,7 @@ export default function ScreenDesktopHome() {
             </div>
           </div>
           <div
-            className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[4px] items-center leading-[normal] min-w-px relative text-black whitespace-nowrap"
+            className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[4px] items-center leading-[normal] min-w-px relative text-black text-center"
             data-node-id="461:1785"
             data-name="Control / 50+"
           >
@@ -590,7 +590,7 @@ export default function ScreenDesktopHome() {
             </p>
           </div>
           <div
-            className="flex h-[60px] items-center justify-center relative shrink-0 w-0"
+            className="hidden sm:flex h-[60px] items-center justify-center relative shrink-0 w-0"
             data-node-id="461:1788"
           >
             <div className="flex-none rotate-90">
@@ -609,7 +609,7 @@ export default function ScreenDesktopHome() {
             </div>
           </div>
           <div
-            className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[4px] items-center leading-[normal] min-w-px relative text-black whitespace-nowrap"
+            className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[4px] items-center leading-[normal] min-w-px relative text-black text-center"
             data-node-id="461:1789"
             data-name="Control / 10K+"
           >
@@ -629,7 +629,7 @@ export default function ScreenDesktopHome() {
         </div>
       </div>
       <section
-        className="bg-[var(--sage)] content-stretch flex flex-col gap-[50px] h-[731px] items-center justify-center px-6 md:px-10 lg:px-20 py-14 lg:py-[120px] relative shrink-0 w-full figma-section"
+        className="bg-[var(--sage)] content-stretch flex flex-col gap-[50px] lg:min-h-[731px] items-center justify-center px-6 md:px-10 lg:px-20 py-14 lg:py-[112px] relative shrink-0 w-full figma-section"
         data-node-id="461:1792"
         data-name="Section / How To Start"
       >
@@ -651,36 +651,36 @@ export default function ScreenDesktopHome() {
             </p>
           </div>
           <p
-            className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[36px] text-white whitespace-nowrap"
+            className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[36px] text-white whitespace-nowrap text-center"
             data-node-id="461:1796"
           >
             {text("Onboarding Protocol ")}
           </p>
         </div>
         <div
-          className="[word-break:break-word] content-stretch flex gap-[24px] items-start justify-center relative shrink-0 w-full"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[24px] items-stretch justify-center relative shrink-0 w-full"
           data-node-id="461:1797"
           data-name="Layout / How To Start / 02"
         >
           <div
-            className="bg-[var(--cream)] content-stretch flex flex-[1_0_0] flex-col gap-[16px] h-[260px] items-start min-w-px p-[24px] relative rounded-[12px]"
+            className="bg-[var(--cream)] content-stretch flex flex-col gap-[16px] lg:min-h-[260px] items-start min-w-0 p-[24px] relative rounded-[12px]"
             data-node-id="461:1798"
             data-name="Content Group / 01"
           >
             <p
-              className="font-serif font-bold leading-[normal] relative shrink-0 text-[20px] text-[color:var(--amber)] whitespace-nowrap"
+              className="font-serif font-bold leading-[normal] relative shrink-0 text-[20px] text-[color:var(--advisor-gold-text,#6b5630)]"
               data-node-id="461:1799"
             >
               01
             </p>
             <p
-              className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black whitespace-nowrap"
+              className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black"
               data-node-id="461:1800"
             >
               {text("Diagnostic Intake ")}
             </p>
             <p
-              className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black w-[min-content]"
+              className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black"
               data-node-id="461:1801"
             >
               {text(
@@ -689,24 +689,24 @@ export default function ScreenDesktopHome() {
             </p>
           </div>
           <div
-            className="bg-[var(--cream)] content-stretch flex flex-[1_0_0] flex-col gap-[16px] h-[260px] items-start min-w-px p-[24px] relative rounded-[12px]"
+            className="bg-[var(--cream)] content-stretch flex flex-col gap-[16px] lg:min-h-[260px] items-start min-w-0 p-[24px] relative rounded-[12px]"
             data-node-id="461:1802"
             data-name="Content Group / 02"
           >
             <p
-              className="font-serif font-bold leading-[normal] relative shrink-0 text-[20px] text-[color:var(--amber)] whitespace-nowrap"
+              className="font-serif font-bold leading-[normal] relative shrink-0 text-[20px] text-[color:var(--advisor-gold-text,#6b5630)]"
               data-node-id="461:1803"
             >
               02
             </p>
             <p
-              className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black whitespace-nowrap"
+              className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black"
               data-node-id="461:1804"
             >
               {text("Select Advisor ")}
             </p>
             <p
-              className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black w-[min-content]"
+              className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black"
               data-node-id="461:1805"
             >
               {text(
@@ -715,24 +715,24 @@ export default function ScreenDesktopHome() {
             </p>
           </div>
           <div
-            className="bg-[var(--cream)] content-stretch flex flex-[1_0_0] flex-col gap-[16px] h-[260px] items-start min-w-px p-[24px] relative rounded-[12px]"
+            className="bg-[var(--cream)] content-stretch flex flex-col gap-[16px] lg:min-h-[260px] items-start min-w-0 p-[24px] relative rounded-[12px]"
             data-node-id="461:1806"
             data-name="Content Group / 03"
           >
             <p
-              className="font-serif font-bold leading-[normal] relative shrink-0 text-[20px] text-[color:var(--amber)] whitespace-nowrap"
+              className="font-serif font-bold leading-[normal] relative shrink-0 text-[20px] text-[color:var(--advisor-gold-text,#6b5630)]"
               data-node-id="461:1807"
             >
               03
             </p>
             <p
-              className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black whitespace-nowrap"
+              className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black"
               data-node-id="461:1808"
             >
               {text("Initiate Session ")}
             </p>
             <p
-              className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black w-[min-content]"
+              className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black"
               data-node-id="461:1809"
             >
               {text(
@@ -741,24 +741,24 @@ export default function ScreenDesktopHome() {
             </p>
           </div>
           <div
-            className="bg-[var(--cream)] content-stretch flex flex-[1_0_0] flex-col gap-[16px] h-[260px] items-start min-w-px p-[24px] relative rounded-[12px]"
+            className="bg-[var(--cream)] content-stretch flex flex-col gap-[16px] lg:min-h-[260px] items-start min-w-0 p-[24px] relative rounded-[12px]"
             data-node-id="461:1810"
             data-name="Content Group / 04"
           >
             <p
-              className="font-serif font-bold leading-[normal] relative shrink-0 text-[20px] text-[color:var(--amber)] whitespace-nowrap"
+              className="font-serif font-bold leading-[normal] relative shrink-0 text-[20px] text-[color:var(--advisor-gold-text,#6b5630)]"
               data-node-id="461:1811"
             >
               04
             </p>
             <p
-              className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black whitespace-nowrap"
+              className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black"
               data-node-id="461:1812"
             >
               {text("Continuous Audit ")}
             </p>
             <p
-              className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black w-[min-content]"
+              className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black"
               data-node-id="461:1813"
             >
               {text(
@@ -768,13 +768,13 @@ export default function ScreenDesktopHome() {
           </div>
         </div>
         <ContentLink
-          className="content-stretch cursor-pointer flex items-start relative shrink-0"
+          className="content-stretch cursor-pointer flex items-start relative shrink-0 w-[min(100%,400px)]"
           data-node-id="461:1814"
           data-name="Control / Get started"
           label="Get started"
         >
           <span
-            className="border-[0.5px] border-black border-solid content-stretch flex items-center justify-center px-[24px] py-[14px] relative rounded-[8px] shrink-0 w-[400px]"
+            className="border-[0.5px] border-black border-solid content-stretch flex items-center justify-center px-[24px] py-[14px] relative rounded-[8px] shrink-0 w-[min(100%,400px)]"
             data-node-id="461:1815"
             data-name="Button / Primary / Get started"
           >

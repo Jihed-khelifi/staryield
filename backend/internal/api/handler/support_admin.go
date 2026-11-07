@@ -15,7 +15,7 @@ func (h *Handler) AdminSupportTickets(c echo.Context) error {
 		return err
 	}
 	out, err := h.svc.Support.AdminTickets(c.Request().Context(), principal(c).UserID, service.SupportQuery{
-		Status: c.QueryParam("status"), Topic: c.QueryParam("topic"), Priority: c.QueryParam("priority"),
+		Status: c.QueryParam("status"), Topic: c.QueryParam("topic"), Priority: c.QueryParam("priority"), Kind: c.QueryParam("kind"),
 		Assignee: c.QueryParam("assignee"), UserID: c.QueryParam("user_id"), Q: c.QueryParam("q"), Sort: c.QueryParam("sort"),
 		Cursor: c.QueryParam("cursor"), Limit: limit})
 	if err != nil {

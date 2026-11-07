@@ -504,7 +504,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "If you encounter harmful, misleading, or offensive third-party content while using the Service, you may report it to the Company. However, the Company is not obligated to investigate, remove, or take action against third-party content unless required by law."
+          "text": "If you encounter harmful, misleading, or offensive third-party content while using the Service, you may report it to the Company. However, the Company is not obligated to investigate, remove, or take action against third-party content unless required by law. You can also use “Report an issue” in the chatroom to report a problem with the conversation on screen; our support team reviews these reports as described in our [Privacy Policy](/privacy#support-requests)."
         }
       ]
     },

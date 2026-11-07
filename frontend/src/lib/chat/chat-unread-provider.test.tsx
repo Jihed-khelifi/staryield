@@ -67,17 +67,28 @@ describe("ChatUnreadProvider", () => {
     expect(value()).toBe("0/0");
   });
 
-  it("refetches after a reconnect, on resync_required and when the page becomes visible", async () => {
+  it("refetches on every hello (first connection and reconnects), on resync_required and when the page becomes visible", async () => {
     render(ui());
     await waitFor(() => expect(h.unreadCount).toHaveBeenCalledTimes(1));
+    // The first connection: a message stored between the REST load and the subscription is counted.
     act(() => h.handlers["hello"]({ reconnected: false }));
-    expect(h.unreadCount).toHaveBeenCalledTimes(1);
-    act(() => h.handlers["hello"]({ reconnected: true }));
     expect(h.unreadCount).toHaveBeenCalledTimes(2);
-    act(() => h.handlers["resync_required"](undefined));
+    act(() => h.handlers["hello"]({ reconnected: true }));
     expect(h.unreadCount).toHaveBeenCalledTimes(3);
-    act(() => setVisibility("visible"));
+    act(() => h.handlers["resync_required"](undefined));
     expect(h.unreadCount).toHaveBeenCalledTimes(4);
+    act(() => setVisibility("visible"));
+    expect(h.unreadCount).toHaveBeenCalledTimes(5);
+  });
+
+  it("counts a message that arrived before the realtime connection opened", async () => {
+    h.unreadCount.mockResolvedValueOnce({ count: 3, conversations: 2 });
+    render(ui());
+    await waitFor(() => expect(value()).toBe("3/2"));
+    // The chat.unread frame was published before this tab subscribed: only the hello refetch sees it.
+    h.unreadCount.mockResolvedValueOnce({ count: 4, conversations: 2 });
+    act(() => h.handlers["hello"]({}));
+    await waitFor(() => expect(value()).toBe("4/2"));
   });
 
   it("swallows failures and keeps the last count", async () => {

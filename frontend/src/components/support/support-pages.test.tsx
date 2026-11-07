@@ -315,3 +315,90 @@ describe("LinkTicketPage (anonymous private link)", () => {
     expect(within(alert).getByRole("button", { name: /Try again in \d+s/ })).toBeTruthy();
   });
 });
+
+const reportRow = (over: Partial<CustomerTicketRow> = {}): CustomerTicketRow =>
+  row(7, {
+    reference: "SY-REPORT",
+    subject: "Chat report · The advisor stopped responding · Theo",
+    topic: "advisor",
+    kind: "chat_report",
+    report: { reason: "advisor_unresponsive", conversation_id: "c1", session_id: "s1", advisor: { name: "Theo", slug: "theo" }, session_started_at: "2026-11-01T09:30:00Z" },
+    ...over,
+  });
+
+describe("conversation reports", () => {
+  it("marks them in the list with a badge, the localized reason and the advisor meta line; contact requests are unchanged", async () => {
+    api.myTickets.mockResolvedValue({ items: [reportRow(), row(2, { kind: "contact" }), row(3)] });
+    renderWithI18n(<SupportRequestsPage />);
+    const rows = await screen.findAllByTestId("request-row");
+    expect(rows).toHaveLength(3);
+    expect(rows[0].dataset.kind).toBe("chat_report");
+    expect(within(rows[0]).getByTestId("report-badge").textContent).toBe("Conversation report");
+    expect(within(rows[0]).getByTestId("request-title").textContent).toBe("The advisor stopped responding");
+    expect(rows[0].textContent).toMatch(/With Theo · /);
+    expect(rows[0].textContent).not.toContain("Chat report ·");
+    for (const plain of rows.slice(1)) {
+      expect(plain.dataset.kind).toBe("contact");
+      expect(within(plain).queryByTestId("report-badge")).toBeNull();
+      expect(within(plain).getByTestId("request-title").textContent).toMatch(/^Subject/);
+      expect(plain.textContent).toContain("Billing & credits");
+    }
+    expect(await axeViolations()).toEqual([]);
+  });
+
+  it("keeps long advisor names and titles wrapping", async () => {
+    api.myTickets.mockResolvedValue({ items: [reportRow({ report: { reason: "other", advisor: { name: "N".repeat(150) } } })] });
+    renderWithI18n(<SupportRequestsPage />);
+    const r = await screen.findByTestId("request-row");
+    expect(within(r).getByTestId("request-title").className).toContain("[overflow-wrap:anywhere]");
+    expect(r.textContent).toContain("With " + "N".repeat(150));
+  });
+
+  it("shows the context card and a link to the conversation in the signed-in detail", async () => {
+    api.myTicket.mockResolvedValue({ ...ticket(), ...reportRow(), can_reply: true, messages: ticket().messages });
+    renderWithI18n(<MyTicketPage reference="SY-REPORT" />);
+    await screen.findByTestId("ticket-thread");
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("The advisor stopped responding");
+    expect(screen.getByTestId("report-badge")).toBeTruthy();
+    const card = screen.getByTestId("report-context");
+    expect(within(card).getByText("Report about your conversation with Theo")).toBeTruthy();
+    expect(within(card).getByTestId("report-context-reason").textContent).toBe("The advisor stopped responding");
+    expect(within(card).getByTestId("report-open-conversation").getAttribute("href")).toBe("/en/chatroom?reader=theo");
+    expect(await axeViolations()).toEqual([]);
+  });
+
+  it("omits the link when the advisor slug is unknown, and the card for contact requests", async () => {
+    api.myTicket.mockResolvedValueOnce({ ...ticket(), ...reportRow({ report: { reason: "billing", advisor: { name: "Theo" } } }) });
+    const { unmount } = renderWithI18n(<MyTicketPage reference="SY-REPORT" />);
+    await screen.findByTestId("report-context");
+    expect(screen.queryByTestId("report-open-conversation")).toBeNull();
+    unmount();
+    api.myTicket.mockResolvedValueOnce(ticket());
+    renderWithI18n(<MyTicketPage reference="SY-7K2M9Q" />);
+    await screen.findByTestId("ticket-thread");
+    expect(screen.queryByTestId("report-context")).toBeNull();
+    expect(screen.queryByTestId("report-badge")).toBeNull();
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Export my data");
+  });
+
+  it("explains an empty thread when the report was sent without details (§16.4)", async () => {
+    api.myTicket.mockResolvedValueOnce({ ...ticket(), ...reportRow(), can_reply: true, messages: [] });
+    const { unmount } = renderWithI18n(<MyTicketPage reference="SY-REPORT" />);
+    expect((await screen.findByTestId("ticket-no-messages")).textContent).toBe("You sent this report without details. You can add them below.");
+    expect(screen.queryByRole("list", { name: "Conversation" })).toBeNull();
+    expect(await axeViolations()).toEqual([]);
+    unmount();
+    api.myTicket.mockResolvedValueOnce({ ...ticket(), ...reportRow({ status: "closed" }), can_reply: false, messages: [] });
+    renderWithI18n(<MyTicketPage reference="SY-REPORT" />);
+    expect((await screen.findByTestId("ticket-no-messages")).textContent).toBe("This request has no messages.");
+  });
+
+  it("shows the report on the private link page without a conversation link", async () => {
+    window.history.replaceState(null, "", `/en/support/SY-REPORT#t=${TOKEN}`);
+    api.linkTicket.mockResolvedValue({ ...ticket(), ...reportRow() });
+    renderWithI18n(<LinkTicketPage reference="SY-REPORT" />);
+    await screen.findByTestId("report-context");
+    expect(screen.getByTestId("report-badge")).toBeTruthy();
+    expect(screen.queryByTestId("report-open-conversation")).toBeNull();
+  });
+});

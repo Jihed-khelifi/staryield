@@ -25,6 +25,7 @@ type SupportQuery struct {
 	Status   string // comma list
 	Topic    string
 	Priority string
+	Kind     string // contact | chat_report (revisions 3.1)
 	Assignee string // me | unassigned | <uuid>
 	UserID   string
 	Q        string
@@ -118,6 +119,12 @@ func (s *SupportService) buildFilter(adminID uuid.UUID, q SupportQuery) (reposit
 		}
 		f.Priority = p
 	}
+	if k := strings.ToLower(strings.TrimSpace(q.Kind)); k != "" {
+		if !domain.ValidTicketKind(domain.TicketKind(k)) {
+			fields["kind"] = msgSupportKind
+		}
+		f.Kind = domain.TicketKind(k)
+	}
 	switch a := strings.ToLower(strings.TrimSpace(q.Assignee)); a {
 	case "":
 	case "me":
@@ -193,19 +200,27 @@ func (s *SupportService) AdminTickets(ctx context.Context, adminID uuid.UUID, q 
 		return empty, apperror.Internal(err)
 	}
 	page := empty
+	var reports []*domain.SupportTicket
 	for i := range rows {
 		if i == size {
 			page.NextCursor = encodeSupportCursor(f.Sort, &rows[size-1].SupportTicket, mixed)
 			break
 		}
 		page.Items = append(page.Items, adminRow(&rows[i]))
+		reports = append(reports, &rows[i].SupportTicket)
+	}
+	// Advisors of the whole page in one batch (no N+1); nothing is decrypted.
+	if ctxs, _ := s.adminReports(ctx, reports); len(ctxs) > 0 {
+		for i := range page.Items {
+			page.Items[i].Report = ctxs[reports[i].ID]
+		}
 	}
 	return page, nil
 }
 
 func adminCommon(t *domain.SupportTicket, assigneeName string) adminTicketCommon {
 	c := adminTicketCommon{ID: t.ID, Reference: t.Reference, Subject: t.Subject, Topic: string(t.Topic), Status: string(t.Status),
-		Priority: string(t.Priority), Locale: t.Locale, MessageCount: t.MessageCount, NeedsReply: t.Status == domain.SupportOpen,
+		Priority: string(t.Priority), Kind: kindOf(t), Locale: t.Locale, MessageCount: t.MessageCount, NeedsReply: t.Status == domain.SupportOpen,
 		Unread: unreadTicket(t), CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt, LastMessageAt: t.LastMessageAt,
 		FirstResponseAt: t.FirstResponseAt, ResolvedAt: t.ResolvedAt, Version: t.Version}
 	if t.AssigneeID != nil {
@@ -270,7 +285,7 @@ func (s *SupportService) AdminSummary(ctx context.Context, adminID uuid.UUID) (*
 		return nil, apperror.Internal(err)
 	}
 	out := &SupportSummary{Open: c.Open, Pending: c.Pending, Resolved: c.Resolved, Closed: c.Closed,
-		Unassigned: c.Unassigned, Mine: c.Mine, NeedsReply: c.Open}
+		Unassigned: c.Unassigned, Mine: c.Mine, NeedsReply: c.Open, ReportsOpen: c.ReportsOpen}
 	if key != "" {
 		if b, err := json.Marshal(out); err == nil {
 			warnErr(ctx, "support: cache summary", s.desk.Cache.Set(ctx, key, string(b), supportSummaryTTL))
@@ -389,8 +404,19 @@ func (s *SupportService) adminView(ctx context.Context, t *domain.SupportTicket)
 			out.User = &AdminTicketUser{ID: u.ID, Email: u.Email, DisplayName: u.DisplayName, Role: string(u.Role), Status: string(u.Status)}
 		}
 	}
-	out.Messages = append(out.Messages, SupportMessageView{ID: t.ID, Author: MessageAuthor{Type: "customer", Name: customer},
-		Visibility: "public", Body: first, CreatedAt: t.CreatedAt})
+	if ctxs, refs := s.adminReports(ctx, []*domain.SupportTicket{t}); ctxs[t.ID] != nil {
+		out.Report = &AdminReportDetail{AdminReportContext: *ctxs[t.ID]}
+		if t.SessionID != nil {
+			if sess, ok := refs.sessions[*t.SessionID]; ok {
+				out.Report.Session = adminReportSession(sess)
+			}
+		}
+	}
+	// A report without details has no original text: the thread starts at the first message.
+	if first != "" || !isReport(t) {
+		out.Messages = append(out.Messages, SupportMessageView{ID: t.ID, Author: MessageAuthor{Type: "customer", Name: customer},
+			Visibility: "public", Body: first, CreatedAt: t.CreatedAt})
+	}
 	for _, m := range msgs {
 		body, err := s.sealer.Open(m.BodyEnc, supportMessageAD(m.ID))
 		if err != nil {
@@ -671,6 +697,10 @@ func (s *SupportService) AdminUpdate(ctx context.Context, adminID uuid.UUID, key
 	}
 	row := AdminTicketRow{adminTicketCommon: adminCommon(fresh, ""),
 		Requester: AdminRequester{UserID: fresh.UserID, Name: fresh.Name, EmailMasked: maskedOf(fresh)}}
+	row.Report = func() *AdminReportContext {
+		ctxs, _ := s.adminReports(ctx, []*domain.SupportTicket{fresh})
+		return ctxs[fresh.ID]
+	}()
 	ids := []uuid.UUID{}
 	if fresh.AssigneeID != nil {
 		ids = append(ids, *fresh.AssigneeID)

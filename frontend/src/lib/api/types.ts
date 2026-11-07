@@ -757,6 +757,32 @@ export type ChatUnread = {
 
 export type TicketStatus = "open" | "pending" | "resolved" | "closed";
 
+/** Contact-form request or a report about a chat conversation (§16.4). */
+export type TicketKind = "contact" | "chat_report";
+export type ChatReportReason = "advisor_unresponsive" | "inappropriate" | "billing" | "technical" | "other";
+
+/** What a conversation report is about (§16.4); interfaces show a localized label instead of the subject. */
+export type ChatReportContext = {
+  reason: ChatReportReason;
+  /** Absent once the conversation is deleted. */
+  conversation_id?: string;
+  session_id?: string;
+  advisor?: { name: string; slug?: string; avatar_url?: string };
+  /** started_at, else requested_at, of the linked session. */
+  session_started_at?: string;
+};
+
+/** POST /api/v1/me/support/chat-reports body (§16.4). */
+export type ChatReportInput = {
+  conversation_id: string;
+  session_id?: string;
+  reason: ChatReportReason;
+  /** 0–2000 characters; 10–2000 when reason is "other". */
+  details?: string;
+  /** Newest message seq the reporter saw. */
+  seq?: number;
+};
+
 /** A requester's support request (§16.2). */
 export type CustomerTicketRow = {
   reference: string;
@@ -767,6 +793,9 @@ export type CustomerTicketRow = {
   awaiting: "support" | "you" | "none";
   created_at: string;
   last_message_at: string;
+  /** revisions 3.1: older API builds omit it (treat as "contact"). */
+  kind?: TicketKind;
+  report?: ChatReportContext;
 };
 
 export type CustomerTicketMessage = {

@@ -241,6 +241,10 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
+          "text": "Requests can also come from “Report an issue” in the chatroom, which clients can use to report a problem with the conversation on screen (the advisor not answering, inappropriate behaviour, a billing or technical problem, or something else). A report is linked to that conversation, the session and the advisor, together with the reason and the details you write, so that our team can investigate; this may include reviewing the transcript of the conversation as a safety report, under the conditions described in “Messages and images” above (a stated reason and an entry in the audit log). Your advisor is not told that you reported the conversation. A report follows the same rules as any other support request: you can follow it under [Support requests](/support/requests), it is included in your data export, and it is kept and deleted on the same schedule."
+        },
+        {
+          "type": "p",
           "text": "Support requests are included in your data export. A closed request and its messages are deleted 24 months after it was closed, and the requests linked to your account are deleted when your account is erased."
         },
         {

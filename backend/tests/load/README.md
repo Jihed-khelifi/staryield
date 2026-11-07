@@ -24,6 +24,12 @@ go run ./cmd/seed -profile=large -extend "calculator visitors"
 # revisions 3.0: support desk — about one ticket per two clients (100k with the
 # default profile) with sealed addresses, bodies and short threads:
 go run ./cmd/seed -profile=large -extend "support tickets"
+
+# revisions 3.1: conversation reports — about one chat report for every ten
+# tickets, each linked to a synthetic client's conversation, its latest session
+# and the advisor (statuses mixed; at most one open or pending report per
+# client and conversation; some conversations also get an older closed one):
+go run ./cmd/seed -profile=large -extend "chat reports"
 ```
 
 Synthetic accounts are `load-<tag>-pNNNNNN@load.staryield.test` (advisors) and `load-<tag>-cNNNNNNN@load.staryield.test` (clients), all with the password in `seed.LoadPassword`.
@@ -103,4 +109,5 @@ Write a `Request` (`func(ctx, *Client, i) (status, error)`) and add a `Scenario`
 
 * `TestLoadSupportRequesters` (`support_test.go`): signed-in requesters list and open their tickets and reply (`support_reply` is 20/hour per user: keep `STARYIELD_RATE_LIMIT_SCALE=1000`), plus wrong-token lookups of the private link.
 * `TestExplainHotQueries` includes the admin queue (newest, oldest, waiting, every filter, reference/e-mail/subject search, deep keyset pages), the summary, the requester's list and the maintenance claim (`support: …`, see `support_explain_test.go`). The summary is one pass over the table by design: it is cached for 15 s.
+* revisions 3.1: `TestLoadChatReports` (`support_reports_test.go`): up to `LOAD_REPORT_CLIENTS` (default 300) distinct synthetic clients that own a conversation file a report (`POST /me/support/chat-reports`; `support_report` is 10/hour per user: keep `STARYIELD_RATE_LIMIT_SCALE=1000`; a repeated report answers 409 `report_exists` and counts as served), poll `GET /me/support/chat-reports?conversation_id=` and list their tickets. `TestExplainHotQueries` adds the `kind=chat_report` queue for every sort and deep page, the open-report lookup and the latest-session lookup (`support: reports …`, `chat: latest session …`); the admin queue itself needs a TOTP console session, so its SQL is checked there.
 * The e2e suite has a self-contained 100k-ticket check (`TestSupportDeskLargeDatasetFiltersSortsAndKeysetPagination`); run it with `SUPPORT_LARGE_KEEP=1` to leave the rows in the e2e database for the EXPLAIN checks.

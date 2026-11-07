@@ -62,6 +62,11 @@ type ChatRepository interface {
 	GetSession(ctx context.Context, id uuid.UUID) (*domain.Session, error)
 	GetSessionForUpdate(ctx context.Context, id uuid.UUID) (*domain.Session, error)
 	GetSessionByRequestKey(ctx context.Context, clientID uuid.UUID, key string) (*domain.Session, error)
+	// GetSessions loads sessions by id in one query (missing ids are skipped).
+	GetSessions(ctx context.Context, ids []uuid.UUID) ([]domain.Session, error)
+	// LatestSession returns a conversation's newest session by requested_at
+	// (chat_sessions_conversation_idx); ErrNotFound when it has none.
+	LatestSession(ctx context.Context, conversationID uuid.UUID) (*domain.Session, error)
 	SaveSession(ctx context.Context, s *domain.Session) error
 	OpenSessionForClient(ctx context.Context, clientID uuid.UUID) (*domain.Session, error)
 	OpenSessionForPsychic(ctx context.Context, psychicID uuid.UUID) (*domain.Session, error)
@@ -223,6 +228,26 @@ func (e *busyError) Error() string { return "repository: " + e.msg }
 func (r *GormChatRepository) GetSession(ctx context.Context, id uuid.UUID) (*domain.Session, error) {
 	var s domain.Session
 	if err := database.Conn(ctx, r.db).First(&s, "id = ?", id).Error; err != nil {
+		return nil, notFound(err)
+	}
+	return &s, nil
+}
+
+// GetSessions implements ChatRepository.
+func (r *GormChatRepository) GetSessions(ctx context.Context, ids []uuid.UUID) ([]domain.Session, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var out []domain.Session
+	err := database.Conn(ctx, r.db).Where("id IN ?", ids).Find(&out).Error
+	return out, err
+}
+
+// LatestSession implements ChatRepository.
+func (r *GormChatRepository) LatestSession(ctx context.Context, conversationID uuid.UUID) (*domain.Session, error) {
+	var s domain.Session
+	if err := database.Conn(ctx, r.db).Where("conversation_id = ?", conversationID).
+		Order("requested_at DESC, id DESC").Limit(1).Take(&s).Error; err != nil {
 		return nil, notFound(err)
 	}
 	return &s, nil

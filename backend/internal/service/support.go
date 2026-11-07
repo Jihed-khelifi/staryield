@@ -159,46 +159,79 @@ func validateTicket(in TicketInput) (cleanTicket, error) {
 	return out, nil
 }
 
+// ticketDraft is what a new ticket is built from: the contact form and the
+// conversation reports share the construction (sealing, hashes, mask, link).
+type ticketDraft struct {
+	name, email, subject, message string
+	topic                         domain.SupportTopic
+	priority                      domain.SupportPriority
+	kind                          domain.TicketKind
+}
+
+// buildTicket assembles a new open ticket from a draft: the address and the
+// message are sealed, the address and the IP keyed-hashed, the address masked
+// for the queue, and a private-link token issued (returned once, for the link).
+func (s *SupportService) buildTicket(ctx context.Context, p reqctx.Principal, d ticketDraft) (*domain.SupportTicket, string, error) {
+	meta := reqctx.MetaFrom(ctx)
+	now := s.clock.Now()
+	if d.priority == "" {
+		d.priority = domain.SupportNormal
+	}
+	if d.kind == "" {
+		d.kind = domain.TicketContact
+	}
+	t := &domain.SupportTicket{ID: domain.NewID(), Name: d.name, Topic: d.topic, Subject: d.subject,
+		MessageChars: utf8.RuneCountInString(d.message), Locale: normalizeLocale(meta.Locale), Status: domain.SupportOpen,
+		EmailHash: security.Keyed(s.ipSecret, "support-email:"+d.email, 0), IPHash: security.Keyed(s.ipSecret, meta.IP, 32),
+		CreatedAt: now, UpdatedAt: now,
+		// revisions 3.0: support desk
+		Priority: d.priority, Version: 1, MessageCount: 1, LastMessageAt: now, LastCustomerMessageAt: now,
+		EmailMasked: MaskEmail(d.email), Kind: d.kind}
+	token, err := s.issueToken(t, now)
+	if err != nil {
+		return nil, "", err
+	}
+	if p.UserID != uuid.Nil {
+		id := p.UserID
+		t.UserID = &id
+	}
+	if t.EmailEnc, err = s.sealer.Seal(d.email, supportAD(t.ID, "email")); err != nil {
+		return nil, "", err
+	}
+	if t.MessageEnc, err = s.sealer.Seal(d.message, supportAD(t.ID, "message")); err != nil {
+		return nil, "", err
+	}
+	return t, token, nil
+}
+
+// insertTicket stores t under a fresh reference. A reference collision is
+// astronomically rare; it retries a few times. Other repository errors (such
+// as repository.ErrDuplicateReport) are returned as they are.
+func (s *SupportService) insertTicket(ctx context.Context, t *domain.SupportTicket) error {
+	var err error
+	for attempt := 0; ; attempt++ {
+		if t.Reference, err = newSupportReference(); err != nil {
+			return err
+		}
+		err = s.repo.Create(ctx, t)
+		if !errors.Is(err, repository.ErrDuplicateReference) || attempt == 4 {
+			return err
+		}
+	}
+}
+
 // Create stores a ticket. Signed-in senders are linked to their account.
 func (s *SupportService) Create(ctx context.Context, p reqctx.Principal, in TicketInput) (*TicketReceipt, error) {
 	clean, err := validateTicket(in)
 	if err != nil {
 		return nil, err
 	}
-	meta := reqctx.MetaFrom(ctx)
-	now := s.clock.Now()
-	t := &domain.SupportTicket{ID: domain.NewID(), Name: clean.name, Topic: clean.topic, Subject: clean.subject,
-		MessageChars: utf8.RuneCountInString(clean.message), Locale: normalizeLocale(meta.Locale), Status: domain.SupportOpen,
-		EmailHash: security.Keyed(s.ipSecret, "support-email:"+clean.email, 0), IPHash: security.Keyed(s.ipSecret, meta.IP, 32),
-		CreatedAt: now, UpdatedAt: now,
-		// revisions 3.0: support desk
-		Priority: domain.SupportNormal, Version: 1, MessageCount: 1, LastMessageAt: now, LastCustomerMessageAt: now,
-		EmailMasked: MaskEmail(clean.email)}
-	token, err := s.issueToken(t, now)
+	t, token, err := s.buildTicket(ctx, p, ticketDraft{name: clean.name, email: clean.email, subject: clean.subject,
+		message: clean.message, topic: clean.topic})
 	if err != nil {
 		return nil, apperror.Internal(err)
 	}
-	if p.UserID != uuid.Nil {
-		id := p.UserID
-		t.UserID = &id
-	}
-	if t.EmailEnc, err = s.sealer.Seal(clean.email, supportAD(t.ID, "email")); err != nil {
-		return nil, apperror.Internal(err)
-	}
-	if t.MessageEnc, err = s.sealer.Seal(clean.message, supportAD(t.ID, "message")); err != nil {
-		return nil, apperror.Internal(err)
-	}
-	// A reference collision is astronomically rare; retry a few times.
-	for attempt := 0; ; attempt++ {
-		if t.Reference, err = newSupportReference(); err != nil {
-			return nil, apperror.Internal(err)
-		}
-		err = s.repo.Create(ctx, t)
-		if !errors.Is(err, repository.ErrDuplicateReference) || attempt == 4 {
-			break
-		}
-	}
-	if err != nil {
+	if err := s.insertTicket(ctx, t); err != nil {
 		return nil, apperror.Internal(err)
 	}
 	s.invalidateSummary(ctx) // revisions 3.0: support desk

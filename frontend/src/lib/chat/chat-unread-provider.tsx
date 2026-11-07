@@ -3,7 +3,7 @@
 /**
  * Unread chat messages for the header shortcut (docs/platform-extensions.md
  * §18). The total loads with the session and follows realtime `chat.unread`;
- * it is refetched after a reconnect that could not replay events, on
+ * it is refetched on every realtime `hello` (connect and reconnect), on
  * `resync_required` and when the page becomes visible. While the tab is
  * hidden the title carries "(n) ". Every failure is swallowed.
  */
@@ -69,9 +69,10 @@ export function ChatUnreadProvider({ children }: { children: React.ReactNode }) 
     if (userId && d) apply(userId, d);
   });
   useRealtimeEvent("resync_required", () => fetchCount());
-  useRealtimeEvent<{ reconnected?: boolean }>("hello", (d) => {
-    if (d?.reconnected) fetchCount();
-  });
+  // Every hello, the first one included: a message stored between the initial
+  // REST load and the subscription would otherwise stay uncounted until the
+  // next change (revisions 3.1).
+  useRealtimeEvent("hello", () => fetchCount());
 
   React.useEffect(() => {
     if (!userId) return;

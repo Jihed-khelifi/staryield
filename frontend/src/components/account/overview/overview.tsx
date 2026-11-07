@@ -109,7 +109,7 @@ export function Overview({ name, user, horoscope }: { name: string; user: User; 
   const needsBirthDate = missingBirthDate(horoscope.error);
 
   const stats = (
-    <dl className="grid grid-cols-3 gap-2 md:flex md:gap-4" data-testid="overview-stats">
+    <dl className="grid grid-cols-3 gap-2 md:flex md:flex-wrap md:gap-4" data-testid="overview-stats">
       <div className="flex min-w-0 flex-col gap-[3px] rounded-[6px] bg-[rgb(214_208_188/0.2)] p-3 md:w-[177px] md:gap-2 md:rounded-[4px] md:border md:border-gold md:bg-warm-gray md:p-4">
         <dt className="text-[9px] font-bold tracking-[0.45px] text-[var(--muted-ink)] uppercase md:text-xs md:font-light md:tracking-normal md:text-black">
           {text("Compatibility score")}
@@ -177,7 +177,7 @@ export function Overview({ name, user, horoscope }: { name: string; user: User; 
 
   return (
     <div className="flex flex-col gap-5 md:gap-8" data-testid="client-overview">
-      <section className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between md:gap-6">
+      <section className="flex flex-col gap-5 md:gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-[3px] md:gap-1">
             <h1 className="text-[25px] leading-[1.05] font-semibold text-[#17150f] md:text-[28px] md:font-medium md:text-black">

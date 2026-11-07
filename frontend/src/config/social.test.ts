@@ -4,20 +4,21 @@ import registry from "@/data/r2-images.json";
 import { SOCIAL_LINKS, visibleSocialLinks, type SocialLink } from "@/config/social";
 
 describe("social links", () => {
-  it("lists the seven Figma footer platforms in order", () => {
+  it("lists the eight footer platforms in order", () => {
     expect(SOCIAL_LINKS.map((link) => link.id)).toEqual([
       "facebook",
       "x",
       "instagram",
       "reddit",
       "tiktok",
+      "threads",
       "google-play",
       "app-store",
     ]);
   });
 
   it("only renders profiles with an https URL", () => {
-    expect(visibleSocialLinks().map((link) => link.id)).toEqual(["facebook", "x", "instagram", "reddit", "tiktok"]);
+    expect(visibleSocialLinks().map((link) => link.id)).toEqual(["facebook", "x", "instagram", "reddit", "tiktok", "threads"]);
     const extra: SocialLink[] = [
       { id: "x", label: "X", href: "javascript:alert(1)", icon: "", size: 22 },
       { id: "x", label: "X", href: "http://insecure.example", icon: "", size: 22 },

@@ -1317,6 +1317,86 @@ first name; internal notes and system entries are never returned.
 - Mail templates (en/fr/es): `support_reply` (to the requester),
   `support_customer_reply` (to the team) and the updated acknowledgement.
 
+### 16.4 Conversation reports (revisions 3.1)
+
+Clients report a problem with the conversation on screen from the chatroom
+("Report an issue"). A report is a ticket of `kind: "chat_report"` linked to
+the conversation, one of its sessions and the advisor. It goes through the
+same desk as contact requests (§16.1–16.3: thread, replies, e-mails, private
+link, auto-close, retention, account erasure). The advisor is never told
+that a report exists or who filed it.
+
+Migration `0020_support_chat_reports.sql` adds to `support_tickets`:
+
+- `kind text NOT NULL DEFAULT 'contact'` (`contact | chat_report`);
+- `conversation_id uuid` → `conversations` (ON DELETE SET NULL);
+- `session_id uuid` → `chat_sessions` (ON DELETE SET NULL);
+- `reported_user_id uuid` → `users` (the advisor's user, ON DELETE SET NULL);
+- `report_reason text` (required when `kind = 'chat_report'`, null otherwise);
+- `reported_seq bigint NOT NULL DEFAULT 0` (newest message the reporter saw);
+- a partial unique index: one **open or pending** report per reporter and
+  conversation (`(user_id, conversation_id) WHERE kind = 'chat_report' AND
+  status IN ('open','pending') AND deleted_at IS NULL`);
+- a partial index serving the console's `kind=chat_report` filter.
+
+```ts
+type TicketKind = "contact" | "chat_report";
+type ChatReportReason = "advisor_unresponsive" | "inappropriate" | "billing" | "technical" | "other";
+```
+
+Derived on creation: `topic` = `advisor` (advisor_unresponsive, inappropriate),
+`billing`, `technical`, or `general` (other); `priority` = `urgent` for
+`inappropriate`, else `high`; `subject` (English, for the queue and the team
+e-mail) = `Chat report · <reason label> · <advisor name>` (≤ 120 characters).
+Name and e-mail are the account's (display name, account e-mail); the locale
+is the request's. Interfaces show a localized label instead of the subject.
+
+Requester endpoints (signed in, **clients only**: other roles get 403
+`forbidden`; CSRF as for every `/me` write):
+
+| Method & path | Notes |
+| --- | --- |
+| `POST /me/support/chat-reports` | `{conversation_id, session_id?, reason, details? /* 0–2000; 10–2000 when reason = "other" */, seq?}` → 201 `CustomerTicket`. `session_id` omitted → the conversation's latest session (by `requested_at`), if any; a session of another conversation → 422 `fields.session_id`. `seq` is clamped to `[0, conversation.last_seq]`. 404 `not_found` when the conversation does not exist or the caller is not its client (no existence leak). 409 `report_exists` `details: {reference}` when the caller already has an open or pending report for it. Rate limit `support_report` (10/h per user). E-mails as for a new contact ticket; the team e-mail's subject starts with `[Chat report]` (`[Urgent][Chat report]` for urgent ones). |
+| `GET /me/support/chat-reports?conversation_id=` | `{open: CustomerTicketRow \| null}`: the caller's open or pending report about that conversation (same 404 rule). |
+
+Views (existing endpoints):
+
+```ts
+// CustomerTicketRow (§16.2) gains:
+//   kind: TicketKind;
+//   report?: ChatReportContext;          // chat reports only
+type ChatReportContext = {
+  reason: ChatReportReason;
+  conversation_id?: string;             // absent once the conversation is deleted
+  session_id?: string;
+  advisor?: { name: string; slug?: string; avatar_url?: string };   // public profile fields
+  session_started_at?: string;          // started_at, else requested_at, of the linked session
+};
+
+// AdminTicketRow (§16.1) gains:
+//   kind: TicketKind;
+//   report?: AdminReportContext;
+type AdminReportContext = {
+  reason: ChatReportReason;
+  conversation_id?: string;
+  session_id?: string;
+  reported_seq: number;
+  advisor?: { user_id: string; psychic_id?: string; name: string; slug?: string };
+};
+// AdminTicket.report additionally carries the linked session:
+//   session?: { id: string; status: string; requested_at: string; started_at?: string;
+//               ended_at?: string; end_reason?: string; active_seconds: number;
+//               billed_minutes: number; credits_charged: number; rate_per_minute: number;
+//               sponsored: boolean };
+```
+
+- `GET /support/tickets` accepts `kind=contact|chat_report`.
+- `GET /support/summary` gains `reports_open` (open + pending chat reports).
+- The console reads the transcript through the existing
+  `GET /chat/sessions/:id/transcript` (step-up, stated reason, audited).
+- The requester's data export lists `kind` and, for reports, `reason`,
+  `conversation_id` and `session_id`.
+
 ## 17. Calculator usage and conversion analytics
 
 Measures how many distinct visitors open and use the three calculators
@@ -1416,8 +1496,10 @@ or the `message.read` frame). Frames are computed after commit and may
 arrive slightly out of order under bursts; clients treat every frame as
 authoritative and refetch on reconnect and visibility. Under extreme load
 live frames and pushes are dropped (bounded backlog) while REST totals stay
-exact. Clients refetch `GET /chat/unread-count` after `hello` with
-`reconnected`, on `resync_required` and when the page becomes visible.
+exact. Clients refetch `GET /chat/unread-count` after every `hello` (the
+first connection included, so a frame published before the subscription is
+not missed — revisions 3.1), on `resync_required` and when the page becomes
+visible.
 
 Message push notifications:
 
@@ -1445,3 +1527,21 @@ and the advisor equivalent, so the total is a cheap index-only sum.
 | `STARYIELD_SUPPORT_RETENTION` | 17520h | Closed tickets are deleted this long after closing (§16.3). |
 | `STARYIELD_SUPPORT_LINK_TTL` | 720h | Validity of a ticket's private link (§16.2). |
 | `STARYIELD_ADMIN_CONSOLE_URL` | `http://localhost:3002` | Console links in support e-mails (§16.3). |
+
+## 20. Revisions 3.1: phone chatroom layout
+
+Presence is unchanged: leaving the conversation on screen (opening another
+conversation or leaving the chatroom) still leaves the session, which stops
+the timer and shows the other participant "{name} lost connection." (BR-05).
+
+### 20.1 Phone chatroom (below 768 px)
+
+Following Figma (Screen / Mobile / Chat, 867:16787 and 1261:1537): no site
+header; the chat header is the top bar (safe-area aware). The account
+controls of the site header (balance or wallet, advisor availability,
+notifications, account menu, main navigation) move into the conversation
+drawer (☰), whose button shows a dot for unread messages in other
+conversations or unread notifications. While the on-screen keyboard is open
+(`html[data-keyboard="open"]`) the session tools row, the notification prompt
+and the composer note collapse and the header compacts, leaving the space to
+the messages.

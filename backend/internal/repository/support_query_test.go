@@ -47,6 +47,13 @@ func TestSupportQueueQueryShapes(t *testing.T) {
 		"waiting rest (rank 1)": {SupportAdminFilter{Sort: SupportSortWaiting, Statuses: []domain.SupportStatus{domain.SupportPending},
 			Cursor: &SupportCursor{At: at, ID: id, Rank: 1}},
 			[]string{"t.status <> 'open'", "(t.last_customer_message_at, t.id) > ($", "ORDER BY t.last_customer_message_at ASC, t.id ASC"}},
+		// revisions 3.1: the kind filter is a literal so the partial report indexes match.
+		"reports newest": {SupportAdminFilter{Sort: SupportSortNewest, Kind: domain.TicketChatReport},
+			[]string{"t.kind = 'chat_report'", "ORDER BY t.created_at DESC, t.id DESC"}},
+		"reports waiting open": {SupportAdminFilter{Sort: SupportSortWaiting, Kind: domain.TicketChatReport, Statuses: []domain.SupportStatus{domain.SupportOpen}},
+			[]string{"t.kind = 'chat_report'", "ORDER BY t.last_customer_message_at ASC, t.id ASC"}},
+		"contacts only": {SupportAdminFilter{Sort: SupportSortOldest, Kind: domain.TicketContact},
+			[]string{"t.kind = 'contact'", "ORDER BY t.created_at ASC, t.id ASC"}},
 		"search": {SupportAdminFilter{Words: "refund", Reference: "SY-ABCDEF", EmailHash: "h", Priority: "high", Topic: "billing", Unassigned: true},
 			[]string{"to_tsvector('simple', t.subject) @@ plainto_tsquery('simple', $", "t.reference = $", "t.email_hash = $", "t.priority = $",
 				"t.topic = $", "t.assignee_id IS NULL"}},

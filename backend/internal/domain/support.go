@@ -69,6 +69,61 @@ func ValidSupportPriority(p SupportPriority) bool {
 	return false
 }
 
+// TicketKind tells a contact request from a conversation report (revisions 3.1).
+type TicketKind string
+
+// Ticket kinds.
+const (
+	TicketContact    TicketKind = "contact"
+	TicketChatReport TicketKind = "chat_report"
+)
+
+// ValidTicketKind reports whether k is a ticket kind.
+func ValidTicketKind(k TicketKind) bool { return k == TicketContact || k == TicketChatReport }
+
+// ChatReportReason says what went wrong in a reported conversation.
+type ChatReportReason string
+
+// Chat report reasons.
+const (
+	ReportAdvisorUnresponsive ChatReportReason = "advisor_unresponsive"
+	ReportInappropriate       ChatReportReason = "inappropriate"
+	ReportBilling             ChatReportReason = "billing"
+	ReportTechnical           ChatReportReason = "technical"
+	ReportOther               ChatReportReason = "other"
+)
+
+// ValidChatReportReason reports whether r is an offered reason.
+func ValidChatReportReason(r ChatReportReason) bool {
+	switch r {
+	case ReportAdvisorUnresponsive, ReportInappropriate, ReportBilling, ReportTechnical, ReportOther:
+		return true
+	}
+	return false
+}
+
+// Topic is the ticket topic a report of this reason is filed under.
+func (r ChatReportReason) Topic() SupportTopic {
+	switch r {
+	case ReportAdvisorUnresponsive, ReportInappropriate:
+		return SupportAdvisor
+	case ReportBilling:
+		return SupportBilling
+	case ReportTechnical:
+		return SupportTechnical
+	}
+	return SupportGeneral
+}
+
+// Priority is the queue priority of a report: inappropriate behavior is
+// urgent, everything else high.
+func (r ChatReportReason) Priority() SupportPriority {
+	if r == ReportInappropriate {
+		return SupportUrgent
+	}
+	return SupportHigh
+}
+
 // MaxSupportMessages is the thread limit, the original request included.
 const MaxSupportMessages = 200
 
@@ -110,6 +165,15 @@ type SupportTicket struct {
 	AccessTokenEnc       *string
 	AccessTokenExpiresAt *time.Time
 	EmailMasked          string `gorm:"not null"`
+
+	// revisions 3.1: conversation reports (Kind chat_report). The report is
+	// linked to the conversation, one of its sessions and the advisor's user.
+	Kind           TicketKind `gorm:"not null;default:contact"`
+	ConversationID *uuid.UUID `gorm:"type:uuid"`
+	SessionID      *uuid.UUID `gorm:"type:uuid"`
+	ReportedUserID *uuid.UUID `gorm:"type:uuid"`
+	ReportReason   *ChatReportReason
+	ReportedSeq    int64 `gorm:"not null"`
 }
 
 // TableName binds the model to its table.

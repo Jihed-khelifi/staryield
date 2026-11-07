@@ -46,7 +46,7 @@ export default async function ChatroomPage({
   const { reader, review } = await searchParams;
 
   return (
-    <AppFrame fill wide mobileNav={false}>
+    <AppFrame fill wide mobileNav={false} phoneHeader={false}>
       <ChatroomShell
         key={reader ?? "inbox"}
         initialReader={reader && /^[a-z0-9-]{1,64}$/.test(reader) ? reader : undefined}

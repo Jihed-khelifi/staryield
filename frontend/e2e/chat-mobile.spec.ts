@@ -6,6 +6,7 @@
  */
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 
+import { expectNoA11yViolations } from "./a11y";
 import { API_URL, CLIENT, advisor, expectNoHorizontalScroll, pngFixture, setAvailability, signIn, signedInPage } from "./helpers";
 
 /** The signed-in user's unread total, straight from the API (cookies of the page's context). */
@@ -52,7 +53,7 @@ test.describe("header chat shortcut visibility", { tag: "@responsive" }, () => {
 
   test("signed-in clients see it on public and app pages, linking to the chatroom", async ({ page }) => {
     await signIn(page, CLIENT.email, CLIENT.password);
-    for (const path of ["/en", "/en/psychics", "/en/profile", "/en/credits", "/en/chatroom"]) {
+    for (const path of ["/en", "/en/psychics", "/en/profile", "/en/credits"]) {
       await page.goto(path);
       await expect(shortcut(page)).toBeVisible();
       await expect(shortcut(page)).toHaveAttribute("href", "/en/chatroom");
@@ -93,15 +94,9 @@ test.describe("phone chatroom layout", { tag: "@mobile-only" }, () => {
     await expect(page.locator(".mobile-navigation")).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "Main navigation" })).toHaveCount(0);
 
-    // Header menu: same destinations, with icons.
-    await page.getByTestId("mobile-menu-trigger").click();
-    const links = page.getByTestId("mobile-menu-links");
-    await expect(links.getByRole("link")).toHaveText(["Today", "Psychics", "Chat", "Profile"]);
-    await expect(links.locator("svg")).toHaveCount(4);
-    await expect(links.getByRole("link", { name: "Chat" })).toHaveAttribute("aria-current", "page");
-    const hrefs = await links.getByRole("link").evaluateAll((els) => els.map((a) => a.getAttribute("href")));
-    expect(hrefs).toEqual(["/en/profile", "/en/psychics", "/en/chatroom", "/en/profile/chart"]);
-    await page.keyboard.press("Escape");
+    // No site header on phones in the chatroom (the chat header is the top bar, §20.2).
+    await expect(page.locator("header.site-header")).toBeHidden();
+    await expect(page.getByTestId("mobile-menu-trigger")).toBeHidden();
 
     // Switcher: compact quick links.
     await page.getByRole("button", { name: "Open conversations" }).click();
@@ -143,6 +138,172 @@ test.describe("phone chatroom layout", { tag: "@mobile-only" }, () => {
     expect(frame).toBeLessThanOrEqual(844 - 299);
     const bottom = await page.getByRole("textbox", { name: "Message" }).evaluate((el) => el.getBoundingClientRect().bottom);
     expect(bottom).toBeLessThanOrEqual(844 - 300);
+  });
+});
+
+const stateOf = (page: Page) => ({
+  header: page.getByTestId("chat-header"),
+  tools: page.getByTestId("chat-session-tools"),
+});
+const ACCOUNT_ROUTES = { notifications: "**/api/v1/me/notifications/unread-count", chat: "**/api/v1/chat/unread-count" };
+
+test.describe("phone chatroom top bar and drawer (revisions 3.1)", { tag: "@mobile-only" }, () => {
+  test("client: the chat header is the top bar, tools row has credits, report and bookmarks", async ({ page }) => {
+    await signIn(page, CLIENT.email, CLIENT.password);
+    await page.goto(`/en/chatroom?reader=${THEO.slug}`);
+    await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
+    const { header, tools } = stateOf(page);
+    await expect(page.locator("header.site-header")).toBeHidden();
+    // The chat header starts at the very top of the screen and the whole top chrome stays slim.
+    const h = (await header.boundingBox())!;
+    expect(h.y).toBeLessThanOrEqual(1);
+    expect(h.height).toBeLessThanOrEqual(70);
+    const t = (await tools.boundingBox())!;
+    expect(t.y + t.height).toBeLessThanOrEqual(120);
+    // The details button is gone (the avatar opens details); report moved to the tools row.
+    await expect(header.getByRole("button", { name: "Open reader details" })).toBeHidden();
+    await expect(header.getByTestId("report-issue-trigger")).toBeHidden();
+    const report = tools.getByTestId("report-issue-trigger");
+    await expect(report).toBeVisible();
+    await expect(report).toHaveAttribute("data-placement", "tools");
+    await expect(tools.getByRole("button", { name: "Bookmarks" })).toBeVisible();
+    await header.getByRole("button", { name: /View .*'s details/ }).click();
+    await expect(page.locator(".chat-details-sheet")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expectNoA11yViolations(page);
+  });
+
+  for (const width of [320, 360, 390]) {
+    test(`nothing scrolls sideways at ${width}px (page and drawer)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 700 });
+      await signIn(page, CLIENT.email, CLIENT.password);
+      await page.goto(`/en/chatroom?reader=${THEO.slug}`);
+      await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
+      await expectNoHorizontalScroll(page);
+      await page.getByRole("button", { name: /^Open conversations/ }).click();
+      await expect(page.getByTestId("switcher-account")).toBeVisible();
+      await expectNoHorizontalScroll(page);
+    });
+  }
+
+  test("client drawer: account block with balance link and notifications above the drawer", async ({ page }) => {
+    await signIn(page, CLIENT.email, CLIENT.password);
+    await page.goto(`/en/chatroom?reader=${THEO.slug}`);
+    await page.getByRole("button", { name: /^Open conversations/ }).click();
+    const account = page.getByTestId("switcher-account");
+    await expect(account).toBeVisible();
+    const pill = account.getByTestId("drawer-balance-pill");
+    await expect(pill).toHaveAttribute("href", `/en/credits?next=${encodeURIComponent(`/en/chatroom?reader=${THEO.slug}`)}`);
+    await expect(account.getByTestId("switcher-current")).toHaveCount(0);
+    await expect(page.getByTestId("switcher-current")).toBeVisible();
+    await expect(page.getByTestId("chat-quick-links")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Leave Chatroom" })).toBeVisible();
+    await expectNoA11yViolations(page, ["[data-testid=chat-switcher]"]);
+
+    // The bell opens its own sheet on top of the drawer.
+    await account.getByRole("button", { name: /^Notifications/ }).click();
+    const sheet = page.getByRole("dialog", { name: "Notifications" });
+    await expect(sheet).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(sheet).toHaveCount(0);
+    await expect(page.getByTestId("chat-switcher")).toBeVisible();
+  });
+
+  test("the menu button shows a dot for unread notifications or other conversations", async ({ page }) => {
+    let notifications = 0;
+    await page.route(ACCOUNT_ROUTES.notifications, (route) => route.fulfill({ json: { count: notifications } }));
+    await page.route(ACCOUNT_ROUTES.chat, (route) => route.fulfill({ json: { count: 0, conversations: 0 } }));
+    await signIn(page, CLIENT.email, CLIENT.password);
+    await page.goto(`/en/chatroom?reader=${THEO.slug}`);
+    await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
+    await expect(page.getByTestId("menu-activity-dot")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Open conversations", exact: true })).toBeVisible();
+    notifications = 3;
+    await page.reload();
+    const menu = page.getByRole("button", { name: "Open conversations, new activity" });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByTestId("menu-activity-dot")).toHaveAttribute("aria-hidden", "true");
+    await expectNoA11yViolations(page, ["[data-testid=chat-header]"]);
+  });
+
+  test("keyboard open: the tools row, notice and composer note collapse and the header compacts", async ({ page }) => {
+    await signIn(page, CLIENT.email, CLIENT.password);
+    await page.goto(`/en/chatroom?reader=${THEO.slug}`);
+    const box = page.getByRole("textbox", { name: "Message" });
+    await expect(box).toBeVisible();
+    const { header, tools } = stateOf(page);
+    const closed = (await header.boundingBox())!.height;
+    const feedClosed = (await page.getByTestId("chat-feed").boundingBox())!.height;
+    await expect(tools).toBeVisible();
+    await page.evaluate(() => {
+      document.documentElement.dataset.keyboard = "open";
+    });
+    await expect(tools).toBeHidden();
+    await expect.poll(async () => (await header.boundingBox())!.height).toBeLessThan(closed - 8);
+    expect((await header.boundingBox())!.height).toBeLessThanOrEqual(54);
+    await expect.poll(async () => (await page.getByTestId("chat-feed").boundingBox())!.height).toBeGreaterThan(feedClosed + 40);
+    await expect(page.locator(".chat-workspace .composer-note")).toBeHidden();
+    await expect(header.getByRole("button", { name: /^Open conversations/ })).toBeVisible();
+    await page.evaluate(() => {
+      delete document.documentElement.dataset.keyboard;
+    });
+    await expect(tools).toBeVisible();
+  });
+
+  test("the feed stays on the latest message when its height changes", async ({ page }) => {
+    await signIn(page, CLIENT.email, CLIENT.password);
+    await page.goto(`/en/chatroom?reader=${THEO.slug}`);
+    await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
+    const feed = page.getByTestId("chat-feed");
+    await feed.evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    await page.evaluate(() => {
+      document.documentElement.dataset.keyboard = "open";
+    });
+    await page.waitForTimeout(400);
+    const gap = await feed.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight);
+    expect(gap).toBeLessThanOrEqual(2);
+  });
+
+  test("advisor: availability in the tools row, wallet, availability and bell in the drawer", async ({ browser }) => {
+    const { context, page } = await phonePage(browser, advisor("ramone").email, advisor("ramone").password);
+    try {
+      await page.goto("/en/chatroom");
+      // With a conversation: the chat header; without one: a slim bar that still opens the drawer.
+      await expect(page.locator("[data-testid=chat-header], [data-testid=chat-topbar]").filter({ visible: true }).first()).toBeVisible();
+      await expect(page.locator("header.site-header")).toBeHidden();
+      if ((await page.getByTestId("chat-header").count()) > 0) {
+        await expect(page.getByTestId("chat-session-tools").getByTestId("availability-menu")).toBeVisible();
+      }
+      await page.getByRole("button", { name: /^Open conversations/ }).click();
+      const account = page.getByTestId("switcher-account");
+      await expect(account.getByTestId("wallet-pill")).toBeVisible();
+      await expect(account.getByTestId("availability-menu")).toBeVisible();
+      await expect(account.getByRole("button", { name: /^Notifications/ })).toBeVisible();
+      await expect(account.getByTestId("drawer-balance-pill")).toHaveCount(0);
+      await expectNoHorizontalScroll(page);
+      await expectNoA11yViolations(page, ["[data-testid=chat-switcher]"]);
+    } finally {
+      await context.close();
+    }
+  });
+});
+
+test.describe("tablet and desktop keep the site header", { tag: "@responsive" }, () => {
+  test("the report button sits in the chat header on tablet and up", async ({ page, isMobile }) => {
+    test.skip(Boolean(isMobile), "phones have the tools row");
+    for (const size of [{ width: 768, height: 1024 }, { width: 1024, height: 800 }, { width: 1440, height: 900 }]) {
+      await page.setViewportSize(size);
+      if (size.width === 768) {
+        await signIn(page, CLIENT.email, CLIENT.password);
+        await page.goto(`/en/chatroom?reader=${THEO.slug}`);
+      }
+      await expect(page.locator("header.site-header")).toBeVisible();
+      await expect(page.getByTestId("chat-header").getByTestId("report-issue-trigger")).toHaveAttribute("data-placement", "header");
+      await expect(page.getByTestId("switcher-account")).toHaveCount(0);
+      await expectNoHorizontalScroll(page);
+    }
   });
 });
 
