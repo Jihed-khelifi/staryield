@@ -1,0 +1,15 @@
+{
+  "id": "/",
+  "name": "Staryield",
+  "short_name": "Staryield",
+  "description": "Grounded wisdom. Personalized guidance.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f0ea",
+  "theme_color": "#c29a3d",
+  "icons": [
+    { "src": "https://assets.staryield.net/assets/brand/sun-mark-192-c139a00d54.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "https://assets.staryield.net/assets/brand/sun-mark-180-208bacab8e.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ]
+}

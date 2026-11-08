@@ -255,7 +255,8 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	}
 	pushSvc := service.NewPushService(repository.NewPushRepository(db), sealer, pushSender, clk, log.With(zap.String("component", "push")),
 		service.PushSettings{PublicKey: pushPublicKey, FrontendURL: cfg.App.FrontendURL, HashKey: endpointHashKey,
-			MaxPerUser: cfg.Push.MaxPerUser, Workers: cfg.Push.Workers, QueueSize: cfg.Push.QueueSize})
+			MaxPerUser: cfg.Push.MaxPerUser, Workers: cfg.Push.Workers, QueueSize: cfg.Push.QueueSize,
+			ChatRequestTTL: cfg.Chat.RequestTimeout})
 	channels := service.NewNotificationChannels(repository.NewContactRepository(db), mailSvc, pushSvc, cfg.App.FrontendURL,
 		log.With(zap.String("component", "notification-channels")))
 	var provider payment.Provider = payment.NewSandbox(cfg.Payments.WebhookSecret, cfg.Payments.WebhookTolerance)

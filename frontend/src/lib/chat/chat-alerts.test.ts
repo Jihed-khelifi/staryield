@@ -96,6 +96,14 @@ describe("push prompt", () => {
     expect(shouldShowPrompt({ ...ok, dismissed: true })).toBe(false);
     for (const permission of ["granted", "denied", "unsupported"] as const) expect(shouldShowPrompt({ ...ok, permission })).toBe(false);
   });
+  it("shows advisors the prompt without waiting for a first message", () => {
+    const advisor = { ...ok, hasSent: false, role: "psychic" as const };
+    expect(shouldShowPrompt(advisor)).toBe(true);
+    expect(shouldShowPrompt({ ...advisor, serverEnabled: false })).toBe(false);
+    expect(shouldShowPrompt({ ...advisor, dismissed: true })).toBe(false);
+    expect(shouldShowPrompt({ ...advisor, permission: "granted" })).toBe(false);
+    expect(shouldShowPrompt({ ...ok, hasSent: false, role: "client" })).toBe(false);
+  });
   it("remembers the dismissal per user", () => {
     expect(promptDismissed("u1")).toBe(false);
     dismissPrompt("u1");

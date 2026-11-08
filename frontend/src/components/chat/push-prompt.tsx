@@ -7,32 +7,38 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { pushApi, settingsApi } from "@/lib/api/account";
 import { dismissPrompt, promptDismissed, shouldShowPrompt } from "@/lib/chat/chat-alerts";
 import { enablePush, pushPermission, pushSupported, type PushOutcome } from "@/lib/push";
+import { PushProblem } from "@/components/notifications/push-problem";
 import { announce } from "@/components/feedback/live-region";
 import { Button } from "@/components/ui/button";
-
-const PROBLEM: Record<Exclude<PushOutcome, "subscribed">, string> = {
-  denied: "Notifications are blocked for this site. Allow them in your browser settings, then try again.",
-  dismissed: "You closed the permission prompt. Turn the switch on again when you're ready.",
-  unsupported: "This browser doesn't support push notifications.",
-  failed: "We couldn't turn on notifications in this browser. Please try again.",
-};
 
 /**
  * Dismissible prompt above the composer: turn on notifications so new
  * messages reach the phone when the chat is closed. Shown once per user,
- * after their first message, when the browser supports push and the
+ * after their first message (advisors at once, for chat requests), when the browser supports push and the
  * permission is still undecided.
  */
-export function ChatPushPrompt({ userId, hasSent }: { userId: string; hasSent: boolean }) {
+export function ChatPushPrompt({
+  userId,
+  hasSent = false,
+  role = "client",
+  className,
+}: {
+  userId: string;
+  hasSent?: boolean;
+  role?: "client" | "psychic";
+  className?: string;
+}) {
+  const advisor = role === "psychic";
   const { text } = useI18n();
   const [supported] = React.useState(pushSupported);
   const [dismissed, setDismissed] = React.useState(() => (typeof window === "undefined" ? true : promptDismissed(userId)));
   const [publicKey, setPublicKey] = React.useState<string | null>(null);
   const [permission, setPermission] = React.useState(pushPermission);
   const [busy, setBusy] = React.useState(false);
-  const [problem, setProblem] = React.useState<string | null>(null);
+  const [problem, setProblem] = React.useState<Exclude<PushOutcome, "subscribed"> | null>(null);
   const [done, setDone] = React.useState(false);
-  const active = supported && permission === "default" && !dismissed && hasSent;
+  const wanted = advisor || hasSent;
+  const active = supported && permission === "default" && !dismissed && wanted;
 
   React.useEffect(() => {
     if (!active || publicKey) return;
@@ -50,11 +56,11 @@ export function ChatPushPrompt({ userId, hasSent }: { userId: string; hasSent: b
     return (
       <p className="chat-push-prompt" role="status" data-testid="chat-push-done">
         <BellRing size={16} aria-hidden />
-        <span>{text("Notifications are on. We'll let you know when a new message arrives.")}</span>
+        <span>{text(advisor ? "Notifications are on. We'll let you know when a new chat request arrives." : "Notifications are on. We'll let you know when a new message arrives.")}</span>
       </p>
     );
   }
-  if (!shouldShowPrompt({ supported, permission, dismissed, hasSent, serverEnabled: Boolean(publicKey) }) && !(problem && !dismissed && supported && hasSent)) return null;
+  if (!shouldShowPrompt({ supported, permission, dismissed, hasSent, serverEnabled: Boolean(publicKey), role }) && !(problem && !dismissed && supported && wanted)) return null;
 
   async function turnOn() {
     if (!publicKey) return;
@@ -67,22 +73,28 @@ export function ChatPushPrompt({ userId, hasSent }: { userId: string; hasSent: b
       // The server only pushes when the account switch is on.
       void settingsApi.update({ notifications: { push: true } }).catch(() => undefined);
       setDone(true);
-      announce(text("Notifications are on. We'll let you know when a new message arrives."));
+      announce(text(advisor ? "Notifications are on. We'll let you know when a new chat request arrives." : "Notifications are on. We'll let you know when a new message arrives."));
       window.setTimeout(() => setDone(false), 5000);
       return;
     }
-    setProblem(text(PROBLEM[outcome]));
+    setProblem(outcome);
   }
 
   return (
-    <div className="chat-push-prompt" role="region" aria-label={text("Message notifications")} data-testid="chat-push-prompt">
+    <div className={`chat-push-prompt${className ? ` ${className}` : ""}`} role="region" aria-label={text(advisor ? "Chat request notifications" : "Message notifications")} data-testid="chat-push-prompt">
       <BellRing size={16} aria-hidden />
       <div className="min-w-0 flex-1">
-        <p className="chat-push-title">{text("Don't miss a reply")}</p>
-        <p>{text("Turn on notifications to know when a new message arrives, even when this page is closed.")}</p>
+        <p className="chat-push-title">{text(advisor ? "Never miss a chat request" : "Don't miss a reply")}</p>
+        <p>
+          {text(
+            advisor
+              ? "Turn on notifications to hear about new chat requests, even when this page is closed."
+              : "Turn on notifications to know when a new message arrives, even when this page is closed.",
+          )}
+        </p>
         {problem ? (
           <p role="alert" className="chat-push-problem">
-            {problem}
+            <PushProblem outcome={problem} />
           </p>
         ) : null}
         <div className="mt-2 flex flex-wrap items-center gap-2">

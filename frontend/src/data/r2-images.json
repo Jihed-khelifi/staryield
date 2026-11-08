@@ -2100,6 +2100,20 @@
     "sha256": "3e7a43860ac93d31dcdbcf82059975ff5c0b6b78b35aacab652e8445c80a26c8"
   },
   {
+    "key": "assets/sounds/incoming-request-e7d7a4bf80.wav",
+    "url": "https://assets.staryield.net/assets/sounds/incoming-request-e7d7a4bf80.wav",
+    "contentType": "audio/wav",
+    "bytes": 1312740,
+    "sha256": "e7d7a4bf804e144befe60a18357276ca7c17644ed368d3877c6890f03f0f1114"
+  },
+  {
+    "key": "assets/sounds/incoming-request-ef54be5299.m4a",
+    "url": "https://assets.staryield.net/assets/sounds/incoming-request-ef54be5299.m4a",
+    "contentType": "audio/mp4",
+    "bytes": 247474,
+    "sha256": "ef54be529954450175c6326bc11189e46c9f063da0df9bb622d11130785c2eb8"
+  },
+  {
     "key": "assets/tarot/death.png",
     "url": "https://assets.staryield.net/assets/tarot/death.png",
     "contentType": "image/png",

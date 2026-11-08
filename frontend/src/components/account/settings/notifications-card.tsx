@@ -5,7 +5,8 @@ import { useFormContext } from "react-hook-form";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { pushApi } from "@/lib/api/account";
-import { disablePush, enablePush, existingSubscription, pushPermission, pushSupported, refreshPush, type PushOutcome } from "@/lib/push";
+import { disablePush, enablePush, existingSubscription, pushAvailability, pushPermission, refreshPush, type PushOutcome } from "@/lib/push";
+import { PushProblem } from "@/components/notifications/push-problem";
 import { useAsync } from "@/lib/use-async";
 import { announce } from "@/components/feedback/live-region";
 import { FormControl, FormField, FormItem } from "@/components/ui/form";
@@ -57,13 +58,6 @@ function SwitchRow({ name, label, testId }: { name: Toggle; label: string; testI
   );
 }
 
-const OUTCOME_MESSAGE: Record<Exclude<PushOutcome, "subscribed">, string> = {
-  denied: "Notifications are blocked for this site. Allow them in your browser settings, then try again.",
-  dismissed: "You closed the permission prompt. Turn the switch on again when you're ready.",
-  unsupported: "This browser doesn't support push notifications.",
-  failed: "We couldn't turn on notifications in this browser. Please try again.",
-};
-
 /**
  * Push notifications: switching on asks for the browser permission,
  * registers the service worker and subscribes this browser; the account
@@ -74,11 +68,12 @@ function PushRow() {
   const { text } = useI18n();
   const form = useFormContext<SettingsFormValues>();
   const config = useAsync((signal) => pushApi.config(signal), []);
-  const [supported] = React.useState(pushSupported);
+  const [availability] = React.useState(pushAvailability);
+  const supported = availability === "available";
   const [permission, setPermission] = React.useState(pushPermission);
   const [subscribed, setSubscribed] = React.useState<boolean | null>(null);
   const [busy, setBusy] = React.useState(false);
-  const [problem, setProblem] = React.useState<string | null>(null);
+  const [problem, setProblem] = React.useState<Exclude<PushOutcome, "subscribed"> | null>(null);
   const labelId = React.useId();
   const hintId = React.useId();
   const preference = form.getValues("notifications.push");
@@ -114,7 +109,7 @@ function PushRow() {
       announce(text("Push notifications are on in this browser. Save your changes to keep them."));
       return;
     }
-    setProblem(text(OUTCOME_MESSAGE[outcome]));
+    setProblem(outcome);
   }
 
   async function turnOff(onChange: (value: boolean) => void) {
@@ -132,10 +127,11 @@ function PushRow() {
   }
 
   let hint: React.ReactNode = null;
-  if (!supported) hint = text("This browser doesn't support push notifications.");
+  if (availability !== "available") hint = <PushProblem outcome={availability} />;
   else if (config.error || (config.data && !enabled)) hint = text("Push notifications aren't available yet.");
-  else if (problem) hint = problem;
-  else if (permission === "denied") hint = text(OUTCOME_MESSAGE.denied);
+  else if (problem) hint = <PushProblem outcome={problem} />;
+  else if (permission === "denied") hint = <PushProblem outcome="denied" />;
+  const retryable = problem === "brave_blocked" || problem === "service_error" || problem === "failed";
 
   return (
     <FormField
@@ -150,6 +146,14 @@ function PushRow() {
             {hint ? (
               <p id={hintId} className="settings-description" role="status" data-testid="push-hint">
                 {hint}
+                {retryable ? (
+                  <>
+                    {" "}
+                    <button type="button" className="settings-link-button" onClick={() => void turnOn(field.onChange)} disabled={busy} data-testid="push-retry">
+                      {text("Try again")}
+                    </button>
+                  </>
+                ) : null}
               </p>
             ) : field.value && subscribed === false && permission !== "denied" ? (
               <p id={hintId} className="settings-description" data-testid="push-hint">

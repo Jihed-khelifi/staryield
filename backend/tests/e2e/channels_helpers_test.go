@@ -35,6 +35,7 @@ type pushSend struct {
 	Payload  service.PushPayload
 	Topic    string
 	Urgency  string
+	TTL      time.Duration
 }
 
 func (f *fakePush) Send(_ context.Context, sub push.Subscription, m push.Message) push.Result {
@@ -42,7 +43,7 @@ func (f *fakePush) Send(_ context.Context, sub push.Subscription, m push.Message
 	_ = json.Unmarshal(m.Payload, &p)
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.sent = append(f.sent, pushSend{Endpoint: sub.Endpoint, Payload: p, Topic: m.Topic, Urgency: m.Urgency})
+	f.sent = append(f.sent, pushSend{Endpoint: sub.Endpoint, Payload: p, Topic: m.Topic, Urgency: m.Urgency, TTL: m.TTL})
 	return push.Result{Outcome: f.Outcome}
 }
 

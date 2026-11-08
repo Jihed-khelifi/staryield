@@ -196,3 +196,28 @@ func TestSafeTransportRefusesPrivateAddresses(t *testing.T) {
 		t.Fatal("public address rejected")
 	}
 }
+
+// A message TTL (chat requests live only as long as the request) overrides
+// the configured default; it is rounded up so a short TTL never means "none".
+func TestSendTTLFromMessageOrDefault(t *testing.T) {
+	cfg := testConfig(t)
+	tr := &captureTransport{status: http.StatusCreated}
+	w, err := NewWebPush(cfg, tr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, a := browserKeys(t)
+	sub := Subscription{Endpoint: "https://fcm.googleapis.com/fcm/send/ttl", P256dh: p, Auth: a}
+	cases := []struct {
+		ttl  time.Duration
+		want string
+	}{{0, "3600"}, {90 * time.Second, "90"}, {1500 * time.Millisecond, "2"}, {time.Millisecond, "1"}}
+	for i, c := range cases {
+		if res := w.Send(context.Background(), sub, Message{Payload: []byte(`{}`), TTL: c.ttl}); res.Outcome != Delivered {
+			t.Fatalf("ttl %v: %+v", c.ttl, res)
+		}
+		if got := tr.requests[i].Header.Get("TTL"); got != c.want {
+			t.Errorf("ttl %v: header %q, want %q", c.ttl, got, c.want)
+		}
+	}
+}

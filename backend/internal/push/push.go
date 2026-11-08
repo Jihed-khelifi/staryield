@@ -163,6 +163,9 @@ type Message struct {
 	// characters).
 	Topic   string
 	Urgency string // very-low | low | normal | high
+	// TTL is how long the push service keeps the message if the device is
+	// offline; 0 uses the sender's configured TTL.
+	TTL time.Duration
 }
 
 // Outcome classifies a push service response.
@@ -244,7 +247,7 @@ func (w *WebPush) Send(ctx context.Context, sub Subscription, m Message) Result 
 		Endpoint: sub.Endpoint, Keys: webpush.Keys{P256dh: sub.P256dh, Auth: sub.Auth},
 	}, &webpush.Options{
 		HTTPClient: w.client, Subscriber: w.subject, VAPIDPublicKey: w.cfg.PublicKey, VAPIDPrivateKey: w.cfg.PrivateKey,
-		TTL: int(w.cfg.TTL / time.Second), Urgency: urgency, Topic: topic(m.Topic),
+		TTL: ttlSeconds(m.TTL, w.cfg.TTL), Urgency: urgency, Topic: topic(m.Topic),
 	})
 	if err != nil {
 		return Result{Outcome: Failed}
@@ -260,6 +263,16 @@ func (w *WebPush) Send(ctx context.Context, sub Subscription, m Message) Result 
 		return Result{Outcome: Throttled, Status: res.StatusCode, RetryAfter: retryAfter(res.Header.Get("Retry-After"))}
 	}
 	return Result{Outcome: Failed, Status: res.StatusCode}
+}
+
+// ttlSeconds picks the message TTL (or the default when 0), rounded up to
+// whole seconds and never below 1 s so a short TTL is not read as "none".
+func ttlSeconds(msg, def time.Duration) int {
+	d := msg
+	if d <= 0 {
+		d = def
+	}
+	return int((d + time.Second - 1) / time.Second)
 }
 
 // topic keeps a header-safe topic: URL-safe base64 alphabet, ≤ 32 chars.

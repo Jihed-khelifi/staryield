@@ -81,6 +81,8 @@ export function dismissPrompt(userId: string): void {
   }
 }
 
-export function shouldShowPrompt(i: { supported: boolean; permission: NotificationPermission | "unsupported"; dismissed: boolean; hasSent: boolean; serverEnabled: boolean }): boolean {
-  return i.supported && i.permission === "default" && !i.dismissed && i.hasSent && i.serverEnabled;
+export function shouldShowPrompt(i: { supported: boolean; permission: NotificationPermission | "unsupported"; dismissed: boolean; hasSent: boolean; serverEnabled: boolean; role?: "client" | "psychic" }): boolean {
+  // Advisors need chat-request pushes most: no waiting for a first message (docs §21.3).
+  const wanted = i.role === "psychic" || i.hasSent;
+  return i.supported && i.permission === "default" && !i.dismissed && wanted && i.serverEnabled;
 }

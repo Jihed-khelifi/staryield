@@ -11,6 +11,7 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
 	"github.com/Jihed-khelifi/staryield/backend/internal/mail"
 	"github.com/Jihed-khelifi/staryield/backend/internal/push"
+	"github.com/Jihed-khelifi/staryield/backend/internal/realtime"
 	"github.com/Jihed-khelifi/staryield/backend/internal/service"
 )
 
@@ -316,7 +317,7 @@ func TestPushDeliveryFollowsPreferencesAndPrunes(t *testing.T) {
 		Link: "/chatroom"}, c.user.ID)
 	got := e.waitPushes(1)[0]
 	if got.Endpoint != endpoint || got.Payload.Title != "Nouvelle demande de chat" || !strings.Contains(got.Payload.Body, "Nova") ||
-		got.Payload.URL != e.app.Config.App.FrontendURL+"/fr/chatroom" || got.Urgency != "high" || got.Payload.Tag != "chat.requested:"+sessionID.String() {
+		got.Payload.URL != e.app.Config.App.FrontendURL+"/fr/chatroom" || got.Urgency != "high" || got.Payload.Tag != "chat.request:"+sessionID.String() {
 		t.Fatalf("push: %+v", got)
 	}
 
@@ -472,5 +473,32 @@ func TestMailJobDrainsInBackground(t *testing.T) {
 			t.Fatal("background worker did not deliver the e-mail")
 		}
 		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// TestChatRequestPushTagAndTTL checks the chat request push lives as long as
+// the request, and that the "missed" push replaces it on the device.
+func TestChatRequestPushTagAndTTL(t *testing.T) {
+	e := newEnv(t, withPush(t))
+	psychic := e.createPsychic(30)
+	psychic.must(http.StatusCreated, http.MethodPost, "/api/v1/me/push-subscriptions",
+		browserSubscription(t, "https://fcm.googleapis.com/fcm/send/"+uniq("adv")), nil)
+	e.setPrefs(psychic.user.ID, map[string]any{"notify_push": true})
+	pws := psychic.goOnline()
+	client := e.registerClient()
+
+	var s service.SessionView
+	client.must(http.StatusCreated, http.MethodPost, "/api/v1/chat/sessions", map[string]any{"psychic_slug": psychic.slug(), "request_key": uniq("req-key-")}, &s)
+	pws.waitFor(realtime.EventSessionRequested, 5*time.Second)
+	tag := "chat.request:" + s.ID.String()
+	req := e.waitPushes(1)[0]
+	if req.Payload.Kind != service.NotifyChatRequested || req.Payload.Tag != tag || req.TTL != e.app.Config.Chat.RequestTimeout || req.Urgency != "high" {
+		t.Fatalf("request push: %+v (want ttl %v)", req, e.app.Config.Chat.RequestTimeout)
+	}
+
+	e.tick(e.app.Config.Chat.RequestTimeout + time.Second)
+	missed := e.waitPushes(2)[1]
+	if missed.Payload.Kind != service.NotifyChatMissed || missed.Payload.Tag != tag || missed.Topic != req.Topic || missed.TTL != 0 {
+		t.Fatalf("missed push: %+v", missed)
 	}
 }

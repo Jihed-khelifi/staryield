@@ -2283,5 +2283,21 @@
   "You have sent several reports recently. Try again in {value0} seconds.": "You have sent several reports recently. Try again in {value0} seconds.",
   "an advisor": "an advisor",
   "You sent this report without details. You can add them below.": "You sent this report without details. You can add them below.",
-  "This request has no messages.": "This request has no messages."
+  "This request has no messages.": "This request has no messages.",
+  "Open chat": "Open chat",
+  "Tap to turn on the ringtone": "Tap to turn on the ringtone",
+  "+{value0} more": "+{value0} more",
+  "Incoming chat request": "Incoming chat request",
+  "On iPhone and iPad, notifications work once Staryield is on your Home Screen: tap Share, then “Add to Home Screen”, and open Staryield from there.": "On iPhone and iPad, notifications work once Staryield is on your Home Screen: tap Share, then “Add to Home Screen”, and open Staryield from there.",
+  "Brave blocks website notifications by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, restart Brave, then try again.": "Brave blocks website notifications by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, restart Brave, then try again.",
+  "Your browser's notification service didn't respond. Check your connection, then try again.": "Your browser's notification service didn't respond. Check your connection, then try again.",
+  "This browser's notification service isn't supported. Try Chrome, Edge, Firefox or Safari.": "This browser's notification service isn't supported. Try Chrome, Edge, Firefox or Safari.",
+  "Never miss a chat request": "Never miss a chat request",
+  "Turn on notifications to hear about new chat requests, even when this page is closed.": "Turn on notifications to hear about new chat requests, even when this page is closed.",
+  "Chat request notifications": "Chat request notifications",
+  "Notifications are on. We'll let you know when a new chat request arrives.": "Notifications are on. We'll let you know when a new chat request arrives.",
+  "Copy": "Copy",
+  "Copied": "Copied",
+  "Copied. Paste it into a new Brave tab.": "Copied. Paste it into a new Brave tab.",
+  "Couldn't copy. Select the address and copy it manually.": "Couldn't copy. Select the address and copy it manually."
 }

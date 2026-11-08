@@ -36,6 +36,10 @@ type PushSettings struct {
 	QueueSize  int
 	// MaxFailures drops a subscription after that many consecutive errors.
 	MaxFailures int
+	// ChatRequestTTL is how long a chat.requested push lives on the push
+	// service: the request timeout, after which the request is moot. 0 uses
+	// the sender's default TTL.
+	ChatRequestTTL time.Duration
 }
 
 // PushService manages browser subscriptions and delivers notifications to
@@ -63,6 +67,7 @@ type pushJob struct {
 	payload []byte
 	topic   string
 	urgency string
+	ttl     time.Duration
 }
 
 // NewPushService wires Web Push; sender nil (or an empty public key)
@@ -220,13 +225,21 @@ func (s *PushService) NotifyUser(userID uuid.UUID, locale string, n *domain.Noti
 			break
 		}
 	}
+	// A missed request replaces the stale request on the device (and
+	// collapses with it on the push service) through a shared tag.
+	if n.Kind == NotifyChatRequested || n.Kind == NotifyChatMissed {
+		if v, ok := n.Data["session_id"]; ok {
+			tag = "chat.request:" + fmt.Sprint(v)
+		}
+	}
 	payload, _ := json.Marshal(PushPayload{Kind: n.Kind, Title: title, Body: body, URL: mail.AppURL(s.cfg.FrontendURL, locale, n.Link), Tag: tag})
 	urgency := "normal"
+	var ttl time.Duration
 	if n.Kind == NotifyChatRequested {
-		urgency = "high"
+		urgency, ttl = "high", s.cfg.ChatRequestTTL
 	}
 	select {
-	case s.queue <- pushJob{userID: userID, payload: payload, topic: strings.NewReplacer(".", "", ":", "", "-", "").Replace(tag), urgency: urgency}:
+	case s.queue <- pushJob{userID: userID, payload: payload, topic: strings.NewReplacer(".", "", ":", "", "-", "").Replace(tag), urgency: urgency, ttl: ttl}:
 	default:
 		if c := s.dropped.Add(1); c == 1 || c%1000 == 0 {
 			s.log.Error("push: queue full, dropping", zap.Int64("dropped_total", c))
@@ -314,7 +327,7 @@ func (s *PushService) deliver(job pushJob) {
 			continue
 		}
 		res := s.sender.Send(ctx, push.Subscription{Endpoint: endpoint, P256dh: p256dh, Auth: auth},
-			push.Message{Payload: job.payload, Topic: job.topic, Urgency: job.urgency})
+			push.Message{Payload: job.payload, Topic: job.topic, Urgency: job.urgency, TTL: job.ttl})
 		switch res.Outcome {
 		case push.Delivered:
 			s.sent.Add(1)

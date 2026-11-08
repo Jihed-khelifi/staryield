@@ -1,14 +1,14 @@
 /**
- * Image assets live in the public R2 bucket `staryield-app-assets`
+ * Image and sound assets live in the public R2 bucket `staryield-app-assets`
  * (https://assets.staryield.net), never in Git. This script uploads new
- * images and keeps `src/data/r2-images.json` (the registry checked by
+ * files and keeps `src/data/r2-images.json` (the registry checked by
  * `npm run test:r2`) in sync.
  *
  *   npm run assets:upload -- <dir> [--prefix assets/social] [--hashed] [--dry-run] [--force]
  *   npm run assets:verify
  *
  * upload
- *   Every image under <dir> becomes an object. The key is `<prefix>/<path
+ *   Every image or sound under <dir> becomes an object. The key is `<prefix>/<path
  *   relative to dir>`; with --hashed a content hash is added before the
  *   extension (`facebook-1a2b3c4d5e.svg`) and the object is cached for a year
  *   as immutable, so a changed file always gets a new URL.
@@ -37,6 +37,11 @@ export const TYPES = {
   ".gif": "image/gif",
   ".avif": "image/avif",
   ".ico": "image/x-icon",
+  // Sounds (the advisor's incoming-request ringtone).
+  ".m4a": "audio/mp4",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
 };
 
 /** Registry key for a file (pure, unit-tested). */
