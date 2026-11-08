@@ -17,6 +17,7 @@ const m = vi.hoisted(() => ({
   emailChangeApi: { request: vi.fn() },
   accountApi: { deactivate: vi.fn(), close: vi.fn() },
   pushApi: { config: vi.fn() },
+  push: { availability: vi.fn(), enable: vi.fn() },
   billingApi: { plans: vi.fn(), subscription: vi.fn(), paymentMethods: vi.fn(), transactions: vi.fn(), clientConfig: vi.fn() },
   signOut: vi.fn(),
 }));
@@ -33,6 +34,12 @@ vi.mock("next/link", () => ({
 }));
 vi.mock("@/lib/auth/session-provider", () => ({
   useSession: () => ({ user: { id: "u1", role: "client" }, status: "authenticated", reload: vi.fn(), signOut: m.signOut }),
+}));
+
+vi.mock("@/lib/push", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/push")>()),
+  pushAvailability: m.push.availability,
+  enablePush: m.push.enable,
 }));
 
 import { AccountSettings } from "@/components/account/settings/account-settings";
@@ -55,6 +62,8 @@ beforeEach(() => {
   m.settingsApi.get.mockResolvedValue(base);
   m.devicesApi.list.mockResolvedValue({ items: [{ id: "d1", label: "Chrome on macOS", device_type: "desktop", browser: "Chrome", os: "macOS", current: true, signed_in_at: "2026-11-01T10:00:00Z", last_seen_at: new Date().toISOString(), expires_at: "2026-12-01T00:00:00Z" }] });
   m.pushApi.config.mockResolvedValue({ enabled: false });
+  m.push.availability.mockReset().mockReturnValue("unsupported");
+  m.push.enable.mockReset();
   m.billingApi.plans.mockResolvedValue([]);
   m.billingApi.subscription.mockResolvedValue(null);
   m.billingApi.paymentMethods.mockResolvedValue([]);
@@ -155,6 +164,48 @@ describe("AccountSettings", () => {
     view();
     expect(await screen.findByTestId("push-hint")).toBeTruthy();
     expect(screen.getByTestId("notify-push").hasAttribute("disabled")).toBe(true);
+  });
+
+  it("shows the iOS Home Screen hint up-front instead of a dead switch", async () => {
+    m.push.availability.mockReturnValue("ios_install");
+    view();
+    expect(await screen.findByTestId("push-hint")).toHaveProperty("textContent", expect.stringContaining("Add to Home Screen"));
+    expect(screen.getByTestId("notify-push").hasAttribute("disabled")).toBe(true);
+  });
+
+  it("explains Brave with a copyable address, a Copy button and Try again", async () => {
+    const u = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    m.push.availability.mockReturnValue("available");
+    m.pushApi.config.mockResolvedValue({ enabled: true, public_key: "KEY" });
+    m.push.enable.mockResolvedValueOnce("brave_blocked").mockResolvedValueOnce("subscribed");
+    view();
+    const toggle = await screen.findByTestId("notify-push");
+    await waitFor(() => expect(toggle.hasAttribute("disabled")).toBe(false));
+    await u.click(toggle);
+    const hint = await screen.findByTestId("push-hint");
+    expect(hint.textContent).toContain("Use Google services for push messaging");
+    expect(screen.getByTestId("push-brave-address").textContent).toBe("brave://settings/privacy");
+    await u.click(screen.getByTestId("push-brave-copy"));
+    expect(writeText).toHaveBeenCalledWith("brave://settings/privacy");
+    expect(await screen.findByText("Copied")).toBeTruthy();
+    await u.click(screen.getByTestId("push-retry"));
+    await waitFor(() => expect(screen.getByTestId("notify-push").getAttribute("aria-checked")).toBe("true"));
+    expect(m.push.enable).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the service-error copy with a retry", async () => {
+    const u = userEvent.setup();
+    m.push.availability.mockReturnValue("available");
+    m.pushApi.config.mockResolvedValue({ enabled: true, public_key: "KEY" });
+    m.push.enable.mockResolvedValue("service_error");
+    view();
+    const toggle = await screen.findByTestId("notify-push");
+    await waitFor(() => expect(toggle.hasAttribute("disabled")).toBe(false));
+    await u.click(toggle);
+    expect((await screen.findByTestId("push-hint")).textContent).toContain("notification service didn't respond");
+    expect(screen.getByTestId("push-retry")).toBeTruthy();
   });
 
   it("pages devices and revokes one after confirmation", async () => {

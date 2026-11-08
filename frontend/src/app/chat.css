@@ -711,6 +711,55 @@
   outline: 2px solid var(--amber);
   outline-offset: 2px;
 }
+/* The prompt on the advisor overview sits in the page flow, not above a composer. */
+.chat-push-prompt.advisor-push-prompt {
+  margin: 0 0 20px;
+  border-color: #aa8e62;
+  background: var(--cream-light);
+  font-size: 14px;
+  padding: 14px 40px 14px 16px;
+}
+.advisor-push-prompt .chat-push-title {
+  font-size: 13px;
+}
+/* brave://settings/privacy in a copyable form (web pages cannot link to brave:// URLs). */
+.push-brave-address {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-weight: 400;
+}
+.push-brave-address code {
+  border: 1px solid #e0d5c3;
+  border-radius: 6px;
+  background: var(--cream-light);
+  padding: 2px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--ink);
+  user-select: all;
+}
+.push-copy-button {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #c29a3d;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--ink);
+}
+.push-copy-button svg {
+  margin: 0;
+  color: var(--ink);
+}
+.push-copy-button:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
 
 /* Quick links in the conversation switcher ------------------------------------- */
 .chat-quick-links {
@@ -959,5 +1008,103 @@
   .chat-session-tools,
   html[data-keyboard="open"] .chat-workspace .chat-session-tools {
     transition: none;
+  }
+}
+
+/* revisions 3.2: advisor ringtone (§21.1) */
+.incoming-request-banner {
+  position: fixed;
+  z-index: 60;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 12px calc(12px + env(safe-area-inset-bottom));
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  background: var(--cream-light);
+  padding: 14px;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.22);
+  animation: composer-hint-in 200ms ease-out;
+}
+.incoming-request-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--amber);
+  transform-origin: 50% 0;
+  animation: incoming-request-ring 1.6s ease-in-out infinite;
+}
+.incoming-request-body {
+  min-width: 0;
+  flex: 1;
+}
+.incoming-request-title {
+  font-family: "Castellar", var(--font-cinzel), serif;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.incoming-request-meta {
+  margin-top: 2px;
+  font-size: 12px;
+}
+.incoming-request-more {
+  font-weight: 600;
+}
+.incoming-request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.incoming-request-actions > * {
+  min-height: 40px;
+}
+.incoming-request-banner a:focus-visible,
+.incoming-request-banner button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+@keyframes incoming-request-ring {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0);
+  }
+  10%,
+  30%,
+  50% {
+    transform: rotate(14deg);
+  }
+  20%,
+  40% {
+    transform: rotate(-14deg);
+  }
+}
+.chat-ringtone-hint {
+  margin-top: 8px;
+  min-height: 32px;
+  font-size: 12px;
+  text-decoration: underline;
+}
+@media (min-width: 768px) {
+  .incoming-request-banner {
+    left: auto;
+    right: 20px;
+    bottom: 20px;
+    width: 380px;
+    margin: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .incoming-request-banner,
+  .incoming-request-icon {
+    animation: none;
   }
 }

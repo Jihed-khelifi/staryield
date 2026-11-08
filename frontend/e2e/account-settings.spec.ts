@@ -283,7 +283,7 @@ test.describe("account settings", { tag: "@responsive" }, () => {
       delete window.PushManager;
     });
     await openSettings(page);
-    await expect(page.getByTestId("push-hint")).toContainText("doesn't support push");
+    await expect(page.getByTestId("push-hint")).toContainText(/doesn't support push|Add to Home Screen/); // the phone project has an iPhone UA: Home Screen hint (§21.3)
     await expect(page.getByTestId("notify-push")).toBeDisabled();
   });
 

@@ -7,7 +7,7 @@ import { Info, Minus, Star, TrendingDown, TrendingUp } from "lucide-react";
 import { useI18n } from "@/i18n/i18n-provider";
 import { psychicsApi, reviewsApi } from "@/lib/api/endpoints";
 import type { AppNotification, Review, StatsKPIs, StatsOverview } from "@/lib/api/types";
-import { useRealtimeEvent } from "@/lib/auth/session-provider";
+import { useRealtimeEvent, useSession } from "@/lib/auth/session-provider";
 import { formatDate } from "@/lib/format";
 import { RANGE_KEYS, viewerTimeZone, type RangeKey } from "@/lib/psychic-analytics";
 import { useAsync } from "@/lib/use-async";
@@ -15,6 +15,7 @@ import { usePagedList } from "@/lib/use-paged-list";
 import { cn } from "@/lib/utils";
 import { rangeCopy } from "@/components/analytics/analytics-copy";
 import { AdvisorRequests } from "@/components/account/orders";
+import { ChatPushPrompt } from "@/components/chat/push-prompt";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { CursorPager } from "@/components/ui/pagination";
@@ -240,8 +241,11 @@ function RangePicker({ value, onChange }: { value: RangeKey; onChange: (next: Ra
 export function PsychicOverview() {
   const { text } = useI18n();
   const [range, setRange] = React.useState<RangeKey>("30d");
+  const { user } = useSession();
   return (
     <div className="advisor-overview" data-testid="psychic-overview">
+      {/* Chat requests are the push an advisor needs most (docs §21.3); same dismissal as the chatroom. */}
+      {user?.id ? <ChatPushPrompt userId={user.id} role="psychic" className="advisor-push-prompt" /> : null}
       <div className="advisor-overview-head">
         <div>
           <h1 className="advisor-title">{text("Advisor stats overview")}</h1>

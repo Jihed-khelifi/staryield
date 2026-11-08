@@ -7,7 +7,7 @@ const images = JSON.parse(await readFile(new URL("../src/data/r2-images.json", i
 // 1. Every asset URL written literally in the app (TS/TSX/CSS/JSON) must be
 //    a registered R2 object, so nothing ships pointing at a missing image.
 const registered = new Set(images.map((image) => image.url));
-const ASSET_URL = /https:\/\/assets\.staryield\.net\/[^\s"'`)\\]+?\.(?:png|jpe?g|svg|webp|gif|avif|ico)\b/gi;
+const ASSET_URL = /https:\/\/assets\.staryield\.net\/[^\s"'`)\\]+?\.(?:png|jpe?g|svg|webp|gif|avif|ico|m4a|mp3|wav|ogg)\b/gi;
 const SOURCE = new Set([".ts", ".tsx", ".css", ".json", ".mjs"]);
 const unregistered = [];
 async function scan(directory) {
@@ -49,17 +49,17 @@ await Promise.all(Array.from({ length: 8 }, async () => {
 }));
 if (failures.length) throw new Error(failures.join("\n"));
 
-// 3. No image binaries in the repository (they belong in R2).
-const imageTypes = new Set([".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif", ".avif", ".ico"]);
+// 3. No image or sound binaries in the repository (they belong in R2).
+const imageTypes = new Set([".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif", ".avif", ".ico", ".m4a", ".mp3", ".wav", ".ogg"]);
 async function checkNoImages(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const file = `${directory}/${entry.name}`;
     if (entry.isDirectory()) await checkNoImages(file);
-    else if (imageTypes.has(extname(file).toLowerCase())) throw new Error(`Image binary remains in repository: ${file}`);
+    else if (imageTypes.has(extname(file).toLowerCase())) throw new Error(`Binary asset remains in repository: ${file}`);
   }
 }
 if (!process.argv.includes("--before-removal")) {
   await checkNoImages("public");
   await checkNoImages("src");
 }
-console.log(`Verified ${verified} public R2 images: checksums, MIME types, cache headers, and production CORS; every asset URL in src/ is registered.`);
+console.log(`Verified ${verified} public R2 assets (images and sounds): checksums, MIME types, cache headers, and production CORS; every asset URL in src/ is registered.`);

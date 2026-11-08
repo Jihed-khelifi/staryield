@@ -837,7 +837,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                 />
               </ChatFeed>
             )}
-            <ChatPushPrompt userId={meId} hasSent={hasSent} />
+            <ChatPushPrompt userId={meId} hasSent={hasSent} role={role} />
             <MessageComposer
               userId={meId}
               draftId={activeConvId ?? (slug ? `reader:${slug}` : null)}

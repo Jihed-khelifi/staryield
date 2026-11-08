@@ -1545,3 +1545,104 @@ conversations or unread notifications. While the on-screen keyboard is open
 (`html[data-keyboard="open"]`) the session tools row, the notification prompt
 and the composer note collapse and the header compacts, leaving the space to
 the messages.
+
+## 21. Revisions 3.2: advisor ringtone and push reliability
+
+### 21.1 Incoming-request ringtone (web app, advisors only)
+
+Asset (public R2 bucket `staryield-app-assets`, registered in
+`frontend/src/data/r2-images.json`, CORS for `https://staryield.net`,
+immutable cache):
+
+| URL | Format |
+| --- | --- |
+| `https://assets.staryield.net/assets/sounds/incoming-request-ef54be5299.m4a` | AAC-LC 128 kb/s stereo, 14.9 s, 247 KB (primary) |
+| `https://assets.staryield.net/assets/sounds/incoming-request-e7d7a4bf80.wav` | PCM 16-bit mono 44.1 kHz, 1.3 MB (fallback when AAC cannot be decoded) |
+
+Source: "bell small2" by Fenodyrie (freesound.org #830252, CC0), trimmed to
+start on the first strike and end after the decay so it loops cleanly.
+
+Behaviour (`IncomingRequestRinger`, mounted once in `[lang]/layout.tsx`):
+
+- Signed-in advisors only (`user.role === "psychic"`); renders nothing and
+  loads nothing for anyone else.
+- **Preload**: right after sign-in the ringtone is fetched (CORS) and decoded
+  once per page load into a Web Audio buffer, so the first ring is instant.
+  Fallback: an `HTMLAudioElement` with `preload="auto"`.
+- **Pending requests**: `GET /chat/sessions?status=requested` on mount, after
+  every `hello` (first connection and reconnects), on `resync_required` and
+  when the page becomes visible; realtime `session.requested` adds a request,
+  `session.accepted|started|declined|expired|cancelled|ended` removes it, and
+  each request is dropped at its `expires_at` (clock-corrected with
+  `server_time`).
+- **Ring**: while at least one request is pending the ringtone loops; it stops
+  as soon as none is pending, i.e. the advisor accepted (and is in the
+  chat), declined, the client cancelled, or the request expired.
+- **Autoplay**: audio unlocks on the first `pointerdown`, `keydown` or
+  `touchend`. While a request is pending and the browser blocks sound, the UI
+  offers "Tap to turn on the ringtone" (the tap unlocks and starts it).
+- **One tab rings**: tabs whose audio is unlocked compete for the Web Lock
+  `staryield:ringtone`; only the holder plays. Without Web Locks every tab
+  rings.
+- **UI**: outside the chatroom a fixed request banner ("{name} would like to
+  start a live chat.", countdown, "Open chat" → `/{locale}/chatroom`). In the
+  chatroom the existing request card (Accept / Decline) is the UI and shows
+  the sound hint when needed. Presence and billing are untouched (§20, BR-05).
+- **Hidden tab**: with notification permission granted, one system
+  notification through the service worker, tag `chat.request:<session_id>`,
+  `data.kind = "chat.requested"`, `requireInteraction: true`. When the
+  request stops being pending, notifications with that tag **and**
+  `data.kind === "chat.requested"` are closed (a `chat.missed` notification
+  with the same tag is kept).
+- State for other components: `useRingtoneState()` (external store) →
+  `{ status: "idle" | "ringing" | "blocked" | "unavailable", pending }`.
+
+### 21.2 Push for chat requests (API)
+
+- `chat.requested` and `chat.missed` pushes use the same tag
+  `chat.request:<session_id>`, so the "missed" notification replaces the stale
+  request on the device. `kind` in the payload is unchanged.
+- A `chat.requested` push lives only as long as the request:
+  TTL = `STARYIELD_CHAT_REQUEST_TIMEOUT` (default 90 s); other kinds keep
+  `STARYIELD_PUSH_TTL`. `push.Message` gains `TTL` (0 = sender default).
+
+### 21.3 Turning push on (web app, clients and advisors)
+
+`enablePush(publicKey)` (`frontend/src/lib/push.ts`) returns one of:
+
+| Outcome | When | Copy (en) |
+| --- | --- | --- |
+| `subscribed` | Browser subscribed and the API stored it | — |
+| `denied` | Permission blocked | "Notifications are blocked for this site. Allow them in your browser settings, then try again." |
+| `dismissed` | Prompt closed | "You closed the permission prompt. Turn the switch on again when you're ready." |
+| `unsupported` | No service worker / PushManager / Notification | "This browser doesn't support push notifications." |
+| `ios_install` | iPhone/iPad browser tab (push needs the Home Screen app) | "On iPhone and iPad, notifications work once Staryield is on your Home Screen: tap Share, then “Add to Home Screen”, and open Staryield from there." |
+| `brave_blocked` | Brave rejects `subscribe()` (Google push services off by default) | "Brave blocks website notifications by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, restart Brave, then try again." |
+| `service_error` | The browser's push service failed twice (other browsers) | "Your browser's notification service didn't respond. Check your connection, then try again." |
+| `server_rejected` | The API refused the subscription (422) | "This browser's notification service isn't supported. Try Chrome, Edge, Firefox or Safari." |
+| `failed` | Anything else | "We couldn't turn on notifications in this browser. Please try again." |
+
+`pushOutcomeMessage(outcome)` is the single source of these strings (settings
+card and chatroom prompt). Hardening: permission request works with the
+promise and legacy callback forms; the service worker is registered with
+`updateViaCache: "none"` and awaited through `navigator.serviceWorker.ready`
+with a timeout; a subscription made with another VAPID key (or rejected with
+`InvalidStateError`) is replaced; `AbortError` is retried once.
+
+`PushSync` (mounted once in `[lang]/layout.tsx`, every signed-in user, never
+prompts): when permission is already granted it re-sends this browser's
+subscription to the API (at most every 6 h per user and browser), and when
+the subscription is missing but the account's push switch is on it
+subscribes again silently (a failed attempt, e.g. Brave's default, is retried
+at most once an hour).
+
+iPhone/iPad: `public/manifest.webmanifest` (standalone) and `appleWebApp`
+metadata make "Add to Home Screen" open Staryield as a web app, the only
+place iOS delivers Web Push. The `pushsubscriptionchange` service-worker event
+is not handled (the API needs cookies + CSRF); `PushSync` re-subscribes on the
+next page load instead.
+
+Advisors see the chatroom notification prompt without waiting for their first
+message ("Never miss a chat request"), because chat requests are the
+notification they need most. The service worker shows `chat.requested` pushes
+with `requireInteraction` and a vibration pattern.

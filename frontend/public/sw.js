@@ -54,6 +54,11 @@ self.addEventListener("push", (event) => {
     options.tag = tag;
     options.renotify = true;
   }
+  if (options.data.kind === "chat.requested") {
+    // A live chat request: stay on screen until answered and buzz the phone.
+    options.requireInteraction = true;
+    options.vibrate = [200, 100, 200, 100, 400];
+  }
   event.waitUntil(self.registration.showNotification(title, options));
 });
 

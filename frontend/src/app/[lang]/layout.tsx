@@ -17,6 +17,9 @@ import { NotificationsProvider } from "@/lib/notifications/notifications-provide
 // revisions 3.0: unread chat count for the header shortcut (§18).
 import { ChatUnreadProvider } from "@/lib/chat/chat-unread-provider";
 import { ChatAlerts } from "@/components/chat/chat-alerts";
+// revisions 3.2: advisor ringtone (§21.1) and push subscription upkeep (§21.3).
+import { IncomingRequestRinger } from "@/components/chat/incoming-request-ringer";
+import { PushSync } from "@/components/notifications/push-sync";
 // revisions 3.0: admin-controlled banners, sign-up offer and free mode (§15.1).
 import { SiteConfigProvider } from "@/lib/site-config/site-config-provider";
 import { fetchSiteConfig } from "@/lib/site-config/server";
@@ -65,6 +68,9 @@ export async function generateMetadata({
       default: `${dictionary.nav.brand} — ${text("Grounded wisdom. Personalized guidance.")}`,
       template: `%s — ${dictionary.nav.brand}`,
     },
+    // Installable web app: iOS only delivers Web Push to a Home Screen app (docs §21.3).
+    manifest: "/manifest.webmanifest",
+    appleWebApp: { capable: true, title: "Staryield", statusBarStyle: "default" },
     // Faceless sun mark (revisions 2.0: small logos have no face).
     icons: {
       icon: [
@@ -109,6 +115,8 @@ export default async function LangLayout({
                 <NotificationsProvider>
                   <ChatUnreadProvider>
                     <ChatAlerts />
+                    <IncomingRequestRinger />
+                    <PushSync />
                     <TooltipProvider>{children}</TooltipProvider>
                   </ChatUnreadProvider>
                 </NotificationsProvider>

@@ -13,7 +13,14 @@ const mocks = vi.hoisted(() => ({
   requestsApi: { list: vi.fn(), accept: vi.fn(), decline: vi.fn(), deliver: vi.fn(), dispute: vi.fn(), cancel: vi.fn() },
 }));
 vi.mock("@/lib/api/endpoints", () => mocks);
-vi.mock("@/lib/auth/session-provider", () => ({ useRealtimeEvent: () => undefined, useSession: () => ({ realtime: null }) }));
+const push = vi.hoisted(() => ({ supported: { current: true }, user: { current: { id: "p1", role: "psychic" } as { id: string; role: string } | null }, config: vi.fn() }));
+vi.mock("@/lib/auth/session-provider", () => ({ useRealtimeEvent: () => undefined, useSession: () => ({ realtime: null, user: push.user.current }) }));
+vi.mock("@/lib/api/account", () => ({ pushApi: { config: push.config }, settingsApi: { update: vi.fn() } }));
+vi.mock("@/lib/push", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/push")>()),
+  pushSupported: () => push.supported.current,
+  pushPermission: () => "default",
+}));
 
 import { PsychicOverview } from "@/components/psychic/psychic-overview";
 
@@ -23,6 +30,10 @@ beforeEach(() => {
   for (const group of Object.values(mocks)) for (const fn of Object.values(group)) fn.mockReset();
   mocks.reviewsApi.mine.mockResolvedValue({ items: [] });
   mocks.requestsApi.list.mockResolvedValue({ items: [] });
+  push.supported.current = true;
+  push.user.current = { id: "p1", role: "psychic" };
+  push.config.mockReset().mockResolvedValue({ enabled: true, public_key: "KEY" });
+  window.localStorage.clear();
 });
 
 const kpis = (over: Partial<StatsKPIs> = {}): StatsKPIs => ({
@@ -70,6 +81,32 @@ function renderOverview() {
 }
 
 describe("PsychicOverview", () => {
+  it("offers the advisor push prompt when push is available and this browser isn't subscribed", async () => {
+    mocks.psychicsApi.stats.mockResolvedValue(overview());
+    renderOverview();
+    expect(await screen.findByText("Never miss a chat request")).toBeTruthy();
+  });
+
+  it("hides the push prompt when dismissed, unsupported or for no user", async () => {
+    mocks.psychicsApi.stats.mockResolvedValue(overview());
+    window.localStorage.setItem("staryield.chat.push-prompt.v1:p1", "1");
+    renderOverview();
+    await screen.findByTestId("psychic-overview");
+    expect(screen.queryByText("Never miss a chat request")).toBeNull();
+    cleanup();
+    window.localStorage.clear();
+    push.supported.current = false;
+    renderOverview();
+    await screen.findByTestId("psychic-overview");
+    expect(screen.queryByText("Never miss a chat request")).toBeNull();
+    cleanup();
+    push.supported.current = true;
+    push.user.current = null;
+    renderOverview();
+    await screen.findByTestId("psychic-overview");
+    expect(screen.queryByText("Never miss a chat request")).toBeNull();
+  });
+
   it("shows the five KPI cards with units, trends and no-data states", async () => {
     mocks.psychicsApi.stats.mockResolvedValue(overview());
     renderOverview();

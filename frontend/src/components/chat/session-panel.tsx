@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { errorMessage, type ApiError } from "@/lib/api/errors";
 import type { ChatSession, Participant, Review, SessionSummary, Wallet } from "@/lib/api/types";
 import { formatDuration } from "@/lib/format";
+import { unlockRingtone, useRingtoneState } from "@/lib/chat/ringtone";
 import { Button } from "@/components/ui/button";
 import { endReasonCopy, type RateView } from "@/components/chat/chat-model";
 import { RatePrice } from "@/components/chat/rate-price";
@@ -47,6 +48,7 @@ const unavailableCopy: Record<string, string> = {
 /** The state-dependent card above the composer (spec §5 and §6). */
 export function SessionPanel(p: Props) {
   const { text, locale } = useI18n();
+  const ringtone = useRingtoneState();
   const s = p.session;
   const name = text(p.counterpart.name);
 
@@ -74,6 +76,11 @@ export function SessionPanel(p: Props) {
             {text("Decline")}
           </Button>
         </div>
+        {ringtone.status === "blocked" ? (
+          <button type="button" className="chat-ringtone-hint" onClick={() => void unlockRingtone()}>
+            {text("Tap to turn on the ringtone")}
+          </button>
+        ) : null}
         {errorBlock}
       </div>
     ) : (

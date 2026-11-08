@@ -82,3 +82,45 @@ describe("SessionPanel free mode", () => {
     expect(screen.getByText("12")).toBeTruthy();
   });
 });
+
+describe("SessionPanel ringtone hint", () => {
+  const request = { id: "s1", status: "requested" } as never;
+
+  it("advisor request card offers the ringtone when blocked, and the tap unlocks", async () => {
+    const ringtone = await import("@/lib/chat/ringtone");
+    const unlock = vi.spyOn(ringtone, "unlockRingtone").mockResolvedValue();
+    ringtone.configureRingtone({ AudioContext: null, fetch: null, locks: null, Audio: null });
+    ringtone.resetRingtone();
+    // no sound available + nothing blocked: no hint
+    render(wrap({ role: "psychic", session: request }));
+    expect(screen.queryByRole("button", { name: "Tap to turn on the ringtone" })).toBeNull();
+    cleanup();
+
+    class Audio {
+      src = "";
+      preload = "";
+      loop = false;
+      muted = false;
+      currentTime = 0;
+      play = () => Promise.reject(new Error("blocked"));
+      pause = () => undefined;
+    }
+    ringtone.configureRingtone({ AudioContext: null, fetch: null, locks: null, Audio });
+    ringtone.resetRingtone();
+    await ringtone.preloadRingtone();
+    ringtone.startRinging();
+    await new Promise((r) => setTimeout(r, 0));
+    render(wrap({ role: "psychic", session: request }));
+    const tap = screen.getByRole("button", { name: "Tap to turn on the ringtone" });
+    tap.click();
+    expect(unlock).toHaveBeenCalled();
+    ringtone.stopRinging();
+    ringtone.configureRingtone(null);
+    ringtone.resetRingtone();
+  });
+
+  it("clients never see the hint", () => {
+    render(wrap({ role: "client", session: request }));
+    expect(screen.queryByRole("button", { name: "Tap to turn on the ringtone" })).toBeNull();
+  });
+});

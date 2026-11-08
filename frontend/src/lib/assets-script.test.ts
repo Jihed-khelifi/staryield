@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 // The R2 asset pipeline (scripts/assets.mjs) exports pure helpers.
-import { assetKey, mergeRegistry, planEntry } from "../../scripts/assets.mjs";
+import { TYPES, assetKey, mergeRegistry, planEntry } from "../../scripts/assets.mjs";
 
 const entry = (key: string, sha256 = "a".repeat(64), bytes = 10) => ({
   key,
@@ -25,6 +25,16 @@ describe("assets pipeline helpers", () => {
     expect(planEntry(registry, entry("assets/a.svg"))).toBe("skip");
     expect(planEntry(registry, entry("assets/a.svg", "b".repeat(64)))).toBe("conflict");
     expect(planEntry(registry, entry("assets/b.svg"))).toBe("upload");
+  });
+
+  it("uploads sounds with audio MIME types (the advisor ringtone)", () => {
+    expect(TYPES[".m4a"]).toBe("audio/mp4");
+    expect(TYPES[".wav"]).toBe("audio/wav");
+    expect(TYPES[".mp3"]).toBe("audio/mpeg");
+    expect(TYPES[".ogg"]).toBe("audio/ogg");
+    expect(assetKey({ prefix: "assets/sounds", path: "incoming-request.m4a", sha256: "0123456789abcdef", hashed: true })).toBe(
+      "assets/sounds/incoming-request-0123456789.m4a",
+    );
   });
 
   it("merges into a key-sorted registry", () => {

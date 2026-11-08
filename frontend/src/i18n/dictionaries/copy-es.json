@@ -2283,5 +2283,21 @@
   "You have sent several reports recently. Try again in {value0} seconds.": "Has enviado varios informes recientemente. Inténtalo de nuevo en {value0} segundos.",
   "an advisor": "un asesor",
   "You sent this report without details. You can add them below.": "Enviaste este reporte sin detalles. Puedes añadirlos a continuación.",
-  "This request has no messages.": "Esta solicitud no tiene mensajes."
+  "This request has no messages.": "Esta solicitud no tiene mensajes.",
+  "Open chat": "Abrir el chat",
+  "Tap to turn on the ringtone": "Toca para activar el tono de llamada",
+  "+{value0} more": "+{value0} más",
+  "Incoming chat request": "Solicitud de chat entrante",
+  "On iPhone and iPad, notifications work once Staryield is on your Home Screen: tap Share, then “Add to Home Screen”, and open Staryield from there.": "En iPhone y iPad, las notificaciones funcionan cuando Staryield está en tu pantalla de inicio: toca Compartir, luego «Añadir a pantalla de inicio», y abre Staryield desde allí.",
+  "Brave blocks website notifications by default. Open brave://settings/privacy, turn on “Use Google services for push messaging”, restart Brave, then try again.": "Brave bloquea de forma predeterminada las notificaciones de los sitios web. Abre brave://settings/privacy, activa «Usar servicios de Google para la mensajería push», reinicia Brave y vuelve a intentarlo.",
+  "Your browser's notification service didn't respond. Check your connection, then try again.": "El servicio de notificaciones de tu navegador no respondió. Comprueba tu conexión y vuelve a intentarlo.",
+  "This browser's notification service isn't supported. Try Chrome, Edge, Firefox or Safari.": "El servicio de notificaciones de este navegador no es compatible. Prueba con Chrome, Edge, Firefox o Safari.",
+  "Never miss a chat request": "No te pierdas ninguna solicitud de chat",
+  "Turn on notifications to hear about new chat requests, even when this page is closed.": "Activa las notificaciones para enterarte de las nuevas solicitudes de chat, incluso con esta página cerrada.",
+  "Chat request notifications": "Notificaciones de solicitudes de chat",
+  "Notifications are on. We'll let you know when a new chat request arrives.": "Las notificaciones están activadas. Te avisaremos cuando llegue una nueva solicitud de chat.",
+  "Copy": "Copiar",
+  "Copied": "Copiado",
+  "Copied. Paste it into a new Brave tab.": "Copiado. Pégalo en una pestaña nueva de Brave.",
+  "Couldn't copy. Select the address and copy it manually.": "No se pudo copiar. Selecciona la dirección y cópiala manualmente."
 }

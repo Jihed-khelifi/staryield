@@ -103,3 +103,24 @@ export async function setAvailability(page: Page, value: "online" | "away" | "of
   await expect(page.getByRole("menu")).toHaveCount(0);
   await expect(trigger).toHaveAttribute("data-status", value === "online" ? /online|busy/ : value);
 }
+
+/** A short valid mono 16-bit WAV (a quiet 440 Hz tone), generated so no binary fixture is committed. */
+export function wavFixture(seconds = 0.5, sampleRate = 8000): Buffer {
+  const samples = Math.floor(seconds * sampleRate);
+  const data = Buffer.alloc(samples * 2);
+  for (let i = 0; i < samples; i++) data.writeInt16LE(Math.round(Math.sin((2 * Math.PI * 440 * i) / sampleRate) * 3000), i * 2);
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0, "ascii");
+  header.writeUInt32LE(36 + data.length, 4);
+  header.write("WAVEfmt ", 8, "ascii");
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20); // PCM
+  header.writeUInt16LE(1, 22); // mono
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36, "ascii");
+  header.writeUInt32LE(data.length, 40);
+  return Buffer.concat([header, data]);
+}
