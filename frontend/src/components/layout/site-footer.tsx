@@ -73,7 +73,7 @@ export function SiteFooter() {
       <div className="mt-12 flex flex-wrap items-center justify-between gap-6 border-t border-ink/60 pt-4 text-xs">
         <p>
           {text(
-            "© 2026 STARYIELD. All rights reserved. For entertainment and alignment audits only. ",
+            "© 2026 Staryield Media LLC. All rights reserved. For entertainment and alignment audits only. ",
           )}
         </p>
         <nav aria-label={text("Social platforms")} data-testid="social-links">
