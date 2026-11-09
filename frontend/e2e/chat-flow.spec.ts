@@ -5,7 +5,7 @@
  */
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
-import { CLIENT, advisor, expectImageLoaded, expectNoHorizontalScroll, pngFixture, setAvailability, signedInPage } from "./helpers";
+import { CLIENT, advisor, ensureCredits, expectImageLoaded, expectNoHorizontalScroll, pngFixture, setAvailability, signedInPage } from "./helpers";
 
 const THEO = advisor("theo");
 const LINK = "https://staryield.net/en/psychics";
@@ -20,6 +20,7 @@ test.describe.serial("live chat between a client and an advisor", () => {
   test.beforeAll(async ({ browser }) => {
     ({ context: psychicCtx, page: psychic } = await signedInPage(browser, THEO.email, THEO.password));
     ({ context: clientCtx, page: client } = await signedInPage(browser, CLIENT.email, CLIENT.password));
+    await ensureCredits(client);
   });
 
   test.afterAll(async () => {
@@ -63,6 +64,32 @@ test.describe.serial("live chat between a client and an advisor", () => {
     await expect(panel).not.toContainText(/balance/i);
     // Presence dot in the inbox row.
     await expect(psychic.locator("aside .presence-dot[data-online]").first()).toBeVisible();
+  });
+
+  test("the advisor sees the client's date of birth in the header and the panel, one shared request (§22.6)", async () => {
+    // Deterministic profile: a date of birth with the birth city NOT shared.
+    const pattern = "**/api/v1/chat/conversations/*/client";
+    await psychic.route(pattern, async (route) => {
+      const res = await route.fetch();
+      const json = (await res.json()) as Record<string, unknown>;
+      await route.fulfill({ response: res, json: { ...json, date_of_birth: "1990-03-14", age: 36, country_code: "FR", birth_details_shared: false, birth_details: undefined } });
+    });
+    let requests = 0;
+    const count = (r: { url(): string }) => {
+      if (/\/chat\/conversations\/[^/]+\/client$/.test(r.url())) requests++;
+    };
+    psychic.on("request", count);
+    await psychic.reload();
+    await expect(psychic.getByTestId("chat-header-dob")).toContainText("March 14, 1990");
+    const panel = psychic.getByTestId("client-panel").filter({ visible: true });
+    await expect(panel.getByTestId("client-birth-date")).toContainText("Mar 14, 1990 · 36 years old");
+    // The city is not shared: the panel falls back to the country, never a place of birth.
+    await expect(panel.getByTestId("client-location")).toHaveText(/^\S*\s*France$/);
+    expect(requests).toBe(1);
+    psychic.off("request", count);
+    await psychic.unroute(pattern);
+    // Clients never see a date of birth under the advisor's name.
+    await expect(client.getByTestId("chat-header-dob")).toHaveCount(0);
   });
 
   test("a multiline message with a link and emoji keeps its formatting", async () => {
@@ -116,7 +143,7 @@ test.describe.serial("live chat between a client and an advisor", () => {
   test("an image attachment uploads and displays for both sides", async () => {
     await client.getByTestId("attach-input").setInputFiles({ name: "spread.png", mimeType: "image/png", buffer: pngFixture() });
     await expect(client.getByTestId("composer-attachment")).toBeVisible();
-    const upload = client.waitForResponse((r) => /\/chat\/sessions\/[^/]+\/attachments$/.test(r.url()) && r.status() === 201);
+    const upload = client.waitForResponse((r) => /\/chat\/(sessions|conversations)\/[^/]+\/attachments$/.test(r.url()) && r.status() === 201);
     const box = client.getByRole("textbox", { name: "Message" });
     await box.fill("My spread\nthis morning");
     await box.press("Enter");

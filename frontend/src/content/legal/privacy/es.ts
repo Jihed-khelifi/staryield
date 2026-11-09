@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-07",
-    "effective": "2026-11-07",
-    "lastUpdated": "2026-11-07",
+    "version": "2026-11-09",
+    "effective": "2026-11-09",
+    "lastUpdated": "2026-11-09",
     "badge": "ACUERDO DE PRIVACIDAD DE STARYIELD",
     "title": "Política de Privacidad"
   },
@@ -153,11 +153,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Mensajes e imágenes. Guardamos los mensajes, emojis e imágenes que intercambia en las consultas en vivo para que usted y su asesor puedan ver el historial de la conversación. Las imágenes se vuelven a codificar al subirlas, lo que elimina los metadatos incrustados, como la ubicación GPS y los datos de la cámara. Se guardan en un almacenamiento privado y solo pueden abrirlas los dos participantes de la conversación; nuestras herramientas de administración no permiten que el personal las abra. Las transcripciones de texto solo pueden ser revisadas por personal autorizado para gestionar una disputa, una denuncia de seguridad o una obligación legal; cada uno de esos accesos exige indicar un motivo y queda registrado en un registro de auditoría."
+          "text": "Mensajes e imágenes. Guardamos los mensajes, emojis e imágenes que intercambia en las consultas en vivo para que usted y su asesor puedan ver el historial de la conversación. Las imágenes se vuelven a codificar al subirlas, lo que elimina los metadatos incrustados, como la ubicación GPS y los datos de la cámara. Antes del envío, una imagen también puede redimensionarse y comprimirse en su dispositivo (su lado más largo se reduce a un máximo de 2048 píxeles), y las fotos HEIC, HEIF o AVIF se convierten cuando su navegador lo permite. Se guardan en un almacenamiento privado y solo pueden abrirlas los dos participantes de la conversación; nuestras herramientas de administración no permiten que el personal las abra. Las transcripciones de texto solo pueden ser revisadas por personal autorizado para gestionar una disputa, una denuncia de seguridad o una obligación legal; cada uno de esos accesos exige indicar un motivo y queda registrado en un registro de auditoría."
         },
         {
           "type": "p",
-          "text": "Información que ve su asesor. Durante una conversación, su asesor ve una ficha de cliente con su nombre o apodo, su foto de perfil, su estado de conexión, su país, su edad, su signo solar y los signos de sus demás posiciones natales (su signo lunar solo cuando es seguro a partir de su fecha y hora de nacimiento, y los grados, las casas y su ascendente solo cuando nos facilitó una hora y un lugar de nacimiento), su horóscopo diario y el número y la duración de sus consultas anteriores con él. Su fecha de nacimiento y su ciudad de nacimiento solo se muestran si activa «Compartir los datos de nacimiento con los asesores» en sus preferencias de privacidad; puede desactivarlo en cualquier momento. Nunca mostramos a los asesores su dirección de correo electrónico, su saldo de créditos, sus compras, su membresía ni su hora exacta o sus coordenadas de nacimiento."
+          "text": "Información que ve su asesor. Durante una conversación, su asesor ve una ficha de cliente con su nombre o apodo, su foto de perfil, su estado de conexión, su país, su edad, su fecha de nacimiento completa, su signo solar y los signos de sus demás posiciones natales (su signo lunar solo cuando es seguro a partir de su fecha y hora de nacimiento, y los grados, las casas y su ascendente solo cuando nos facilitó una hora y un lugar de nacimiento), su horóscopo diario y el número y la duración de sus consultas anteriores con él. Su fecha de nacimiento se muestra siempre a los asesores con los que chatea, bajo su nombre en el chat y en el panel del cliente, porque las consultas dependen de ella; lo hacemos para ejecutar nuestro contrato con usted, es decir, para prestar la consulta que solicita. Su ciudad de nacimiento solo se muestra si activa «Compartir mi ciudad de nacimiento con los asesores» en sus preferencias de privacidad (está desactivado por defecto); puede desactivarlo en cualquier momento. Nunca mostramos a los asesores su dirección de correo electrónico, su saldo de créditos, sus compras, su membresía ni su hora exacta o sus coordenadas de nacimiento."
         },
         {
           "type": "p",
@@ -269,7 +269,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Las notificaciones push sobre mensajes de chat nuevos nunca incluyen el texto del mensaje: solo te avisan de que ha llegado un mensaje nuevo. Un mensaje que has escrito pero no enviado se guarda como borrador únicamente en tu dispositivo, en el almacenamiento local de tu navegador, hasta 7 días; los borradores nunca se nos envían."
+          "text": "Las notificaciones push sobre mensajes de chat nuevos nunca incluyen el texto del mensaje: solo te avisan de que ha llegado un mensaje nuevo; lo mismo ocurre con los mensajes enviados fuera de las consultas en vivo (véase la [Sección 2.13](#messages-outside-live-readings)). Un mensaje que has escrito pero no enviado se guarda como borrador únicamente en tu dispositivo, en el almacenamiento local de tu navegador, hasta 7 días; los borradores nunca se nos envían."
         },
         {
           "type": "h3",
@@ -280,6 +280,20 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Cuando hacemos gratis el chat en vivo para todos durante un tiempo limitado («modo gratuito», véanse los [Términos de uso](/terms#free-trials-and-promotional-offers)), los chats solicitados en ese periodo se registran como sesiones patrocinadas, con sus minutos y los créditos que cubre Staryield. Usamos estos registros para facturar las sesiones a Staryield y calcular las ganancias de los asesores y las estadísticas de la plataforma, sobre la base de nuestro contrato con los asesores y de nuestro interés legítimo en gestionar los Servicios."
+        },
+        {
+          "type": "h3",
+          "id": "messages-outside-live-readings",
+          "n": "2.13",
+          "title": "Mensajes fuera de las consultas en vivo"
+        },
+        {
+          "type": "p",
+          "text": "Cuando no hay ninguna consulta en vivo en curso (después de que termine una consulta, mientras una solicitud está pendiente o mientras una consulta está en pausa), usted y el asesor pueden seguir intercambiando mensajes de texto e imágenes en una conversación existente que haya tenido al menos una consulta en vivo. Tratamos estos mensajes e imágenes para prestar la función de mensajería de los Servicios, sobre la base de nuestro contrato con usted. No forman parte de una consulta y no se facturan por minuto."
+        },
+        {
+          "type": "p",
+          "text": "Almacenamos y protegemos estos mensajes como los demás mensajes descritos en la [Sección 2.5](#live-readings-ratings-and-notifications): solo son visibles para los dos participantes de la conversación, se conservan mientras la conversación exista (véase la [Sección 8](#data-retention)), y el personal autorizado solo puede revisar el texto para gestionar una disputa, una denuncia de seguridad o una obligación legal, con un motivo indicado y una anotación en el registro de auditoría. El otro participante recibe una notificación dentro de la aplicación y un contador de no leídos y, si la tiene activada, una notificación push, ninguna de las cuales incluye el texto del mensaje (véase la [Sección 2.11](#chat-notifications-and-drafts)). Para que la función sea equitativa, contamos los mensajes que envía cada participante por conversación durante un periodo móvil de 24 horas y registramos que se ha rechazado un mensaje cuando se alcanza el límite. Los mensajes escritos mientras una consulta en vivo está en pausa pertenecen a esa consulta. Las reglas de uso de esta función figuran en nuestros [Términos de uso](/terms#messages-outside-live-readings)."
         }
       ]
     },
@@ -313,7 +327,7 @@ const content: LegalDocumentContent = {
             [
               "Permitir la comunicación con los asesores, incluidas la ficha de cliente y las notas de los asesores",
               "Identificadores; Datos de registro y de perfil; Datos de nacimiento; Datos de comunicaciones; Notas escritas por los asesores",
-              "Ejecución de un contrato con usted; Su consentimiento (para compartir su fecha y ciudad de nacimiento); Interés legítimo (para las notas de los asesores; consulte la descripción)"
+              "Ejecución de un contrato con usted (incluida la visualización de su fecha de nacimiento por el asesor con el que chatea); Su consentimiento (para compartir su ciudad de nacimiento); Interés legítimo (para las notas de los asesores; consulte la descripción)"
             ],
             [
               "Investigar, analizar y mejorar los Servicios",
@@ -435,7 +449,7 @@ const content: LegalDocumentContent = {
             "Analítica: nuestra analítica y nuestros informes de errores son propios y funcionan en nuestros propios sistemas. No utilizamos herramientas de analítica, de grabación de sesiones ni de publicidad de terceros.",
             "Proveedores de servicios técnicos, administrativos y de información: de vez en cuando, podemos utilizar herramientas de terceros para la gestión de proyectos y tareas, la comunicación y la colaboración internas o la automatización de flujos de trabajo. En algunos casos, se pueden compartir datos personales limitados con estos proveedores de servicios.",
             "Asesores, consultores y contratistas independientes. De vez en cuando, podemos compartir información personal limitada con nuestros contratistas independientes, consultores, especialistas externos, socios y asesores. Procesan esta información en nuestro nombre para operar, mantener, proteger y mejorar los Servicios, y garantizar el cumplimiento legal y normativo. Les exigimos que utilicen la información sólo para estos fines, la protejan adecuadamente y la mantengan confidencial.",
-            "Asesores (psíquicos): los asesores con los que chatea reciben sus mensajes y la ficha de cliente descrita en la [Sección 2.5](#live-readings-ratings-and-notifications). Una nota que un asesor escribe sobre usted solo se comparte con otros asesores si su autor decide compartirla, y únicamente con asesores que también han tenido una sesión con usted (véase la [Sección 2.7](#advisor-notes))."
+            "Asesores (psíquicos): los asesores con los que chatea reciben sus mensajes (incluidos los enviados fuera de las consultas en vivo, véase la [Sección 2.13](#messages-outside-live-readings)) y la ficha de cliente descrita en la [Sección 2.5](#live-readings-ratings-and-notifications); la ficha incluye siempre su fecha de nacimiento y solo muestra su ciudad de nacimiento si decide compartirla. Una nota que un asesor escribe sobre usted solo se comparte con otros asesores si su autor decide compartirla, y únicamente con asesores que también han tenido una sesión con usted (véase la [Sección 2.7](#advisor-notes))."
           ]
         },
         {
@@ -527,7 +541,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Para retirar su consentimiento a la analítica, a la atribución de marketing o a la personalización, o para dejar de compartir sus datos de nacimiento con los asesores, utilice Preferencias de privacidad en la [configuración de su cuenta](/profile/settings). Para dejar de recibir comunicaciones comerciales, utilice el enlace «Cancelar suscripción» del mensaje, desactive Novedades comerciales en la configuración de su cuenta o envíe su solicitud mediante este [formulario de solicitud](/contact?topic=privacy)."
+          "text": "Para retirar su consentimiento a la analítica, a la atribución de marketing o a la personalización, o para dejar de compartir su ciudad de nacimiento con los asesores, utilice Preferencias de privacidad en la [configuración de su cuenta](/profile/settings). Para dejar de recibir comunicaciones comerciales, utilice el enlace «Cancelar suscripción» del mensaje, desactive Novedades comerciales en la configuración de su cuenta o envíe su solicitud mediante este [formulario de solicitud](/contact?topic=privacy)."
         },
         {
           "type": "h4",
@@ -846,7 +860,7 @@ const content: LegalDocumentContent = {
             [
               "sy_rt",
               "Cookie",
-              "Renueva su sesión sin pedirle que vuelva a iniciarla",
+              "Renueva su sesión sin pedirle que vuelva a iniciarla, de modo que permanece con la sesión iniciada en este dispositivo hasta 30 días de uso, salvo que cierre sesión",
               "Hasta 30 días",
               "Esencial"
             ],
@@ -854,7 +868,7 @@ const content: LegalDocumentContent = {
               "sy_csrf",
               "Cookie",
               "Protege su cuenta frente a la falsificación de solicitudes entre sitios",
-              "Sesión",
+              "Hasta 30 días, renovada mientras use el sitio",
               "Esencial"
             ],
             [

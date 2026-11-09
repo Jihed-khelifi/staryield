@@ -11,12 +11,13 @@
 import { chatApi, ATTACHMENT_MAX_BYTES } from "@/lib/api/endpoints";
 
 export const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"] as const;
-export const ACCEPT_ATTRIBUTE = ACCEPTED_IMAGE_TYPES.join(",");
+/** The picker offers every image (validation is by content, §22.4); HEIC files often have no usable type. */
+export const ACCEPT_ATTRIBUTE = "image/*,.heic,.heif";
 export { ATTACHMENT_MAX_BYTES };
 
 export type AttachmentProblem = "type" | "size" | "empty";
 
-/** Validate a picked, pasted or dropped file. Returns null when it can be sent. */
+/** Validate the file that will be uploaded (after `prepareImage`, which normalises the format and size). Returns null when it can be sent. */
 export function validateAttachment(file: Pick<File, "type" | "size">): AttachmentProblem | null {
   if (!(ACCEPTED_IMAGE_TYPES as readonly string[]).includes(file.type)) return "type";
   if (file.size <= 0) return "empty";

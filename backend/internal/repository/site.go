@@ -50,6 +50,14 @@ type SiteRepository interface {
 	SponsoredTotals(ctx context.Context, since time.Time) (SponsoredTotals, error)
 	// SponsoredEarnings sums the advisors' net earnings of those chats.
 	SponsoredEarnings(ctx context.Context, since time.Time) (int64, error)
+
+	// OffSessionTotals counts the messages written outside a live chat since
+	// the given time and their distinct senders (revisions 3.3;
+	// chat_messages_off_session_recent_idx).
+	OffSessionTotals(ctx context.Context, since time.Time) (messages, senders int64, err error)
+	// OffSessionLimitHits counts the sends refused by the daily cap since the
+	// given time (chat.off_session_refused events with reason "limit").
+	OffSessionLimitHits(ctx context.Context, since time.Time) (int64, error)
 }
 
 // GormSiteRepository implements SiteRepository.
@@ -187,5 +195,23 @@ func (r *GormSiteRepository) SponsoredEarnings(ctx context.Context, since time.T
 		FROM chat_sessions s
 		JOIN psychic_earnings e ON e.source_type = 'chat_session' AND e.source_id = s.id AND e.entry_kind = 'earning'
 		WHERE s.sponsored AND s.requested_at >= ? AND s.sponsored_minutes > 0`, since).Scan(&n).Error
+	return n, err
+}
+
+// OffSessionTotals implements SiteRepository.
+func (r *GormSiteRepository) OffSessionTotals(ctx context.Context, since time.Time) (int64, int64, error) {
+	var out struct{ Messages, Senders int64 }
+	err := database.Conn(ctx, r.db).Raw(`
+		SELECT count(*) AS messages, count(DISTINCT sender_id) AS senders
+		FROM chat_messages WHERE session_id IS NULL AND created_at > ?`, since).Scan(&out).Error
+	return out.Messages, out.Senders, err
+}
+
+// OffSessionLimitHits implements SiteRepository.
+func (r *GormSiteRepository) OffSessionLimitHits(ctx context.Context, since time.Time) (int64, error) {
+	var n int64
+	err := database.Conn(ctx, r.db).Raw(`
+		SELECT count(*) FROM analytics_events
+		WHERE name = 'chat.off_session_refused' AND occurred_at > ? AND properties ->> 'reason' = 'limit'`, since).Scan(&n).Error
 	return n, err
 }

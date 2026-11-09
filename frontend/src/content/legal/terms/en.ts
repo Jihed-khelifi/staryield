@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-07",
-    "effective": "2026-11-07",
-    "lastUpdated": "2026-11-07",
+    "version": "2026-11-09",
+    "effective": "2026-11-09",
+    "lastUpdated": "2026-11-09",
     "badge": "STARYIELD SYSTEM AGREEMENT",
     "title": "Terms of Use"
   },
@@ -401,7 +401,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "During a live reading you can send text messages, emoji and images. Only image files (PNG, JPEG, WebP or GIF, which is converted to a still image) can be attached; other files are refused. To protect your privacy, we remove hidden information such as location data from every image before storing it."
+          "text": "During a live reading you can send text messages, emoji and images; in an existing conversation you can also send messages outside a live reading (see [Section 4.16](#messages-outside-live-readings)). Only image files can be attached: PNG, JPEG, WebP or GIF (converted to a still image), and HEIC, HEIF or AVIF photos where your browser can convert them; other files are refused. Before sending, an image may be resized and compressed on your device (its longest side is reduced to at most 2048 pixels). To protect your privacy, we remove hidden information such as location data from every image before storing it."
         },
         {
           "type": "p",
@@ -409,7 +409,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "What your advisor sees. To personalise your reading, the advisor you chat with sees a client card with your first name or nickname, profile picture, online status, country, age, the astrological details derived from your birth data (your sun sign and the signs of your other natal placements, plus moon and rising signs when you provided a birth time and place), your daily horoscope and how many readings you have had with them. Your date of birth and birth city are shown only if you choose to share them in your privacy preferences. Advisors never see your email address, credit balance, purchases, membership, or your exact birth time or coordinates."
+          "text": "What your advisor sees. To personalise your reading, the advisor you chat with sees a client card with your first name or nickname, profile picture, online status, country, age, your full date of birth, the astrological details derived from your birth data (your sun sign and the signs of your other natal placements, plus moon and rising signs when you provided a birth time and place), your daily horoscope and how many readings you have had with them. Your date of birth is always shown to the advisor you chat with, because readings rely on it. Your birth city is shown only if you turn on “Share my birth city with advisors” in your privacy preferences. Advisors never see your email address, credit balance, purchases, membership, or your exact birth time or coordinates."
         },
         {
           "type": "h3",
@@ -450,6 +450,24 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "When an advisor is busy or offline, you can join their waiting list. We will notify you once, in the app and through the channels you have enabled, when the advisor comes online; Premium members may be notified before other users. Joining a waiting list does not reserve the advisor or guarantee a reading, entries expire after 7 days, and you can leave a waiting list at any time."
+        },
+        {
+          "type": "h3",
+          "id": "messages-outside-live-readings",
+          "n": "4.16",
+          "title": "Messages Outside Live Readings"
+        },
+        {
+          "type": "p",
+          "text": "When no live reading is running (after a reading has ended, while a request is pending or while a reading is paused), you and the advisor can keep exchanging text messages and images in an existing conversation that has had at least one live reading. These messages are free: they are not billed per minute. They are limited to a number of messages per conversation in any rolling period of 24 hours, which Staryield sets and may change or switch off at any time; the limit in force is shown in the app. The limit does not apply during free-mode periods (see [Section 6.2.5](#free-trials-and-promotional-offers)). Messages written while a live reading is paused belong to that reading and are not billed while it is paused."
+        },
+        {
+          "type": "p",
+          "text": "A message outside a live reading is not a reading. Advisors are not obliged to reply, and we do not guarantee any response time. The same conduct rules apply as in a live reading: [Section 4.7](#prohibited-conduct) and [Section 4.11](#live-readings-messages-and-images) (no harassment, and no requests for contact or payment outside Staryield) and the [Advisor Integrity Standards](/standards)."
+        },
+        {
+          "type": "p",
+          "text": "These messages are stored and kept like other chat messages and are visible only to you and the advisor. Authorised Staryield staff may review them only as described in our [Privacy Policy](/privacy#messages-outside-live-readings), for example to handle a dispute, a safety report or a legal obligation. The other participant is notified in the app and by push notification, without the text of the message."
         }
       ]
     },

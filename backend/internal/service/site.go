@@ -33,7 +33,8 @@ const (
 	// which instances announce a site configuration change.
 	SiteChangedChannel = "site:config:changed"
 
-	siteCacheKey      = "site:config:v1"
+	siteCacheKey      = "site:config:v2" // v2: adds off_session (an older copy would read as disabled)
+	siteCacheKeyV1    = "site:config:v1" // written by instances that predate off_session; dropped with v2
 	siteStatsKey      = "site:free-mode:stats:v1"
 	siteLocalTTL      = 10 * time.Second
 	siteRedisTTL      = 5 * time.Minute
@@ -81,6 +82,23 @@ type SignupOffer struct {
 	UpdatedBy   *UserRef  `json:"updated_by,omitempty"`
 }
 
+// OffSessionSettings are the kill switch and per-role daily caps of messages
+// outside a live chat (revisions 3.3, §22.3). The zero value is "disabled":
+// it is what an unreadable setting resolves to.
+type OffSessionSettings struct {
+	Enabled           bool `json:"enabled"`
+	ClientDailyLimit  int  `json:"client_daily_limit"`
+	AdvisorDailyLimit int  `json:"advisor_daily_limit"`
+}
+
+// LimitFor returns the cap of a role (the conversation's client or advisor).
+func (o OffSessionSettings) LimitFor(asPsychic bool) int {
+	if asPsychic {
+		return o.AdvisorDailyLimit
+	}
+	return o.ClientDailyLimit
+}
+
 // UserRef names the admin behind a change.
 type UserRef struct {
 	ID   uuid.UUID `json:"id"`
@@ -111,11 +129,14 @@ func (d freeModeDoc) activeAt(now time.Time) bool {
 // derived from it at request time, so schedules and free-mode expiry are
 // exact even while the snapshot itself is cached.
 type siteSnapshot struct {
-	Banners  BannerSettings      `json:"banners"`
-	Signup   SignupOffer         `json:"signup"`
-	Free     freeModeDoc         `json:"free"`
-	Items    []domain.SiteBanner `json:"items"`
-	Defaults bool                `json:"defaults,omitempty"`
+	Banners BannerSettings `json:"banners"`
+	Signup  SignupOffer    `json:"signup"`
+	Free    freeModeDoc    `json:"free"`
+	// OffSession is disabled (the zero value) in the defaults served when
+	// nothing can be read: never open the feature by accident.
+	OffSession OffSessionSettings  `json:"off_session"`
+	Items      []domain.SiteBanner `json:"items"`
+	Defaults   bool                `json:"defaults,omitempty"`
 }
 
 // SiteService serves and administers the site configuration.
@@ -172,7 +193,7 @@ func (s *SiteService) dropLocal() {
 func (s *SiteService) changed(ctx context.Context) {
 	s.dropLocal()
 	if s.d.Cache != nil {
-		warnErr(ctx, "site: drop cached config", s.d.Cache.Del(ctx, siteCacheKey, siteStatsKey))
+		warnErr(ctx, "site: drop cached config", s.d.Cache.Del(ctx, siteCacheKey, siteCacheKeyV1, siteStatsKey))
 	}
 	if s.d.Bus != nil {
 		warnErr(ctx, "site: announce config change", s.d.Bus.Publish(ctx, SiteChangedChannel, "changed"))
@@ -277,6 +298,8 @@ func (s *SiteService) fromDB(ctx context.Context) (*siteSnapshot, error) {
 			snap.Signup = signupOfferFrom(st, s.d.Cfg.SignupFallbackMinutes)
 		case domain.SiteSettingFreeMode:
 			snap.Free = freeModeFrom(st)
+		case domain.SiteSettingOffSession:
+			snap.OffSession = offSessionFrom(st)
 		}
 	}
 	return snap, nil
@@ -305,6 +328,17 @@ func (s *SiteService) SignupFreeMinutes(ctx context.Context) int {
 // accident.
 func (s *SiteService) FreeModeActive(ctx context.Context) bool {
 	return s.snapshot(ctx).Free.activeAt(s.d.Clock.Now())
+}
+
+// OffSessionSettings returns the messages-outside-a-live-chat settings
+// (at most 10 s stale). When they cannot be read and nothing is cached the
+// feature is disabled.
+func (s *SiteService) OffSessionSettings(ctx context.Context) OffSessionSettings {
+	snap := s.snapshot(ctx)
+	if snap.Defaults {
+		return OffSessionSettings{}
+	}
+	return snap.OffSession
 }
 
 // ---------------------------------------------------------------------------
@@ -496,6 +530,16 @@ func bannerSettingsFrom(st domain.SiteSetting) BannerSettings {
 func signupOfferFrom(st domain.SiteSetting, fallback int) SignupOffer {
 	return SignupOffer{Enabled: mBool(st.Value, "enabled"), FreeMinutes: mInt(st.Value, "free_minutes", fallback),
 		Version: st.Version, UpdatedAt: st.UpdatedAt}
+}
+
+// offSessionFrom reads the stored document; anything malformed or out of
+// range reads as disabled / clamped, never as more permissive.
+func offSessionFrom(st domain.SiteSetting) OffSessionSettings {
+	clamp := func(key string) int {
+		return min(max(mInt(st.Value, key, 0), domain.OffSessionLimitMin), domain.OffSessionLimitMax)
+	}
+	return OffSessionSettings{Enabled: mBool(st.Value, "enabled"),
+		ClientDailyLimit: clamp("client_daily_limit"), AdvisorDailyLimit: clamp("advisor_daily_limit")}
 }
 
 func freeModeFrom(st domain.SiteSetting) freeModeDoc {

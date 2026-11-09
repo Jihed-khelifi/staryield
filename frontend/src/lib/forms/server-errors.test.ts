@@ -50,7 +50,12 @@ describe("applyApiError", () => {
     applyApiError(form, new TypeError("Failed to fetch"), { text });
     expect(form.setError).toHaveBeenLastCalledWith("root.server", {
       type: "network_error",
-      message: "[t] You appear to be offline. Check your connection and try again.",
+      message: "[t] We couldn't reach Staryield. Please try again in a moment.",
+    });
+    applyApiError(form, new RangeError("boom"), { text });
+    expect(form.setError).toHaveBeenLastCalledWith("root.server", {
+      type: "client_error",
+      message: "[t] Something went wrong on this page. Please try again.",
     });
   });
 

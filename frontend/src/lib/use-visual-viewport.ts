@@ -1,6 +1,17 @@
 "use client";
 import * as React from "react";
 
+/** The keyboard counts as open above this inset and as closed below `KEYBOARD_CLOSE_PX` (§22.5). */
+export const KEYBOARD_OPEN_PX = 120;
+export const KEYBOARD_CLOSE_PX = 80;
+
+/** Whether the keyboard is open for a covered-area inset, given the previous state. */
+export function keyboardState(inset: number, wasOpen: boolean): boolean {
+  if (inset > KEYBOARD_OPEN_PX) return true;
+  if (inset < KEYBOARD_CLOSE_PX) return false;
+  return wasOpen;
+}
+
 /**
  * Publish `window.visualViewport.height` as the CSS variable `--vvh` (plus
  * `--vv-top`, the covered bottom area `--kb-inset` and `data-keyboard=open`) on <html>, so layouts follow the
@@ -25,7 +36,10 @@ export function useVisualViewport(enabled = true, onChange?: (keyboardInset: num
       root.style.setProperty("--kb-inset", `${inset}px`);
       root.style.setProperty("--vv-top", `${Math.round(vv.offsetTop)}px`);
       // A keyboard is a large covered area; small insets are browser toolbars.
-      if (inset > 120) root.dataset.keyboard = "open";
+      // Hysteresis: opens above 120 px, closes below 80 px, so the state cannot
+      // flap while typing (an inset in between keeps the current state).
+      const next = keyboardState(inset, root.dataset.keyboard === "open");
+      if (next) root.dataset.keyboard = "open";
       else delete root.dataset.keyboard;
       cb.current?.(inset);
     };

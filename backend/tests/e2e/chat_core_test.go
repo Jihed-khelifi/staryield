@@ -131,13 +131,14 @@ func insertMessages(t *testing.T, e *env, s service.SessionView, clientID, psych
 	t.Helper()
 	base := e.clock.Now()
 	rows := make([]domain.Message, 0, to-from+1)
+	sid := s.ID
 	for seq := from; seq <= to; seq++ {
 		sender := clientID
 		if seq%2 == 0 {
 			sender = psychicID
 		}
 		at := base.Add(time.Duration(seq) * time.Millisecond)
-		rows = append(rows, domain.Message{ID: domain.NewID(), ConversationID: s.ConversationID, SessionID: s.ID, Seq: seq,
+		rows = append(rows, domain.Message{ID: domain.NewID(), ConversationID: s.ConversationID, SessionID: &sid, Seq: seq,
 			SenderID: &sender, Kind: domain.MessageText, Body: fmt.Sprintf("bulk %d", seq), CreatedAt: at, UpdatedAt: at})
 	}
 	if err := e.app.DB.CreateInBatches(rows, 1000).Error; err != nil {

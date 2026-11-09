@@ -4,8 +4,10 @@
  * - Cookies carry the session (HttpOnly); `credentials: "include"`.
  * - Unsafe requests send the CSRF double-submit token (fetched once, rotated
  *   by the server, retried once when stale).
- * - An expired access token triggers a single-flight refresh, then the
- *   original request is retried once.
+ * - An expired access token triggers a single-flight refresh (one per
+ *   browser: Web Lock + BroadcastChannel across tabs), then the original
+ *   request is retried once. Only a definitive 401 from the refresh endpoint
+ *   ends the session; network errors, timeouts, 429 and 5xx leave it intact.
  * - Every request has a timeout and an X-Request-ID that appears in server
  *   logs and in error responses.
  * - Idempotent requests retry transient failures with exponential backoff,
@@ -30,6 +32,11 @@ export type RequestOptions = {
   idempotent?: boolean;
   /** Do not try to refresh the session on 401 (auth endpoints). */
   skipRefresh?: boolean;
+  /**
+   * Send no CSRF token (default true). Only for the stateless public POSTs the
+   * API exempts from CSRF (calculators), so a blocked /auth/csrf cannot stop them.
+   */
+  csrf?: boolean;
   /** Keep the request alive while the page unloads. */
   keepalive?: boolean;
   /** Decode the body as JSON (default) or return it as a Blob (images). */
@@ -41,8 +48,22 @@ export type RequestOptions = {
 const AUTH_HINT = "staryield.auth-hint";
 let csrfToken: string | null = null;
 let csrfPromise: Promise<string> | null = null;
-let refreshPromise: Promise<boolean> | null = null;
+let refreshPromise: Promise<RefreshResult> | null = null;
 const expiredListeners = new Set<() => void>();
+const signedOutListeners = new Set<() => void>();
+
+/** Outcome of a session refresh (docs §22.1). */
+export type RefreshOutcome = "refreshed" | "expired" | "unavailable";
+export type RefreshResult = { outcome: RefreshOutcome; error?: ApiError };
+
+const REFRESH_TIMEOUT_MS = 15_000;
+/** A refresh finished less than this long ago (by any tab) is not repeated. */
+const REFRESH_SKIP_MS = 10_000;
+const REFRESH_LOCK = "staryield:auth-refresh";
+const AUTH_CHANNEL = "staryield:auth";
+type AuthMessage = { type: "refreshed"; at: number } | { type: "signed_out" };
+let lastRefreshAt = 0;
+let authChannel: BroadcastChannel | null | undefined;
 
 export function newId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
@@ -79,7 +100,55 @@ function hasAuthHint(): boolean {
   }
 }
 
-/** Subscribe to "the session is gone" (refresh failed). */
+/**
+ * End the local session hint and tell the other tabs: explicit sign-out,
+ * account closure, or a definitive expiry. Never call it for transient
+ * failures (that is what used to disable refresh for every tab).
+ */
+export function endSession() {
+  setAuthHint(false);
+  postAuth({ type: "signed_out" });
+}
+
+/** The BroadcastChannel shared by this browser's tabs (null where unsupported). */
+function channel(): BroadcastChannel | null {
+  if (authChannel !== undefined) return authChannel;
+  authChannel = null;
+  if (typeof BroadcastChannel === "undefined") return authChannel;
+  try {
+    const ch = new BroadcastChannel(AUTH_CHANNEL);
+    ch.onmessage = (event: MessageEvent<AuthMessage>) => {
+      const msg = event.data;
+      if (msg?.type === "refreshed" && typeof msg.at === "number") lastRefreshAt = Math.max(lastRefreshAt, msg.at);
+      else if (msg?.type === "signed_out") {
+        // Another tab signed out (or found the session gone): follow it.
+        csrfToken = null;
+        signedOutListeners.forEach((fn) => fn());
+      }
+    };
+    authChannel = ch;
+  } catch {
+    authChannel = null;
+  }
+  return authChannel;
+}
+
+function postAuth(msg: AuthMessage) {
+  try {
+    channel()?.postMessage(msg);
+  } catch {
+    // A closed channel only costs the cross-tab shortcut.
+  }
+}
+
+/** Subscribe to "another tab signed out" (explicit sign-out or expiry). */
+export function onSignedOutElsewhere(fn: () => void): () => void {
+  channel(); // start listening
+  signedOutListeners.add(fn);
+  return () => signedOutListeners.delete(fn);
+}
+
+/** Subscribe to "the session is gone" (refresh answered 401). */
 export function onSessionExpired(fn: () => void): () => void {
   expiredListeners.add(fn);
   return () => expiredListeners.delete(fn);
@@ -91,14 +160,38 @@ export function setCsrfToken(token: string | null) {
 
 export { currentLocale };
 
+/**
+ * `fetch` with a timeout whose rejections are already ApiErrors
+ * (network_error / timeout), so callers never see a bare TypeError.
+ */
+async function fetchBounded(url: string, init: RequestInit, timeoutMs: number, requestId?: string): Promise<Response> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (timedOut) throw new ApiError({ code: "timeout", message: "Request timed out.", requestId, cause: error });
+    throw new ApiError({ code: "network_error", message: "Network request failed.", requestId, cause: error });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchCsrf(): Promise<string> {
   if (csrfToken) return csrfToken;
   if (!csrfPromise) {
     csrfPromise = (async () => {
-      const res = await fetch(`${API_URL}/api/v1/auth/csrf`, {
-        credentials: "include",
-        headers: { Accept: "application/json", "X-Request-ID": newId() },
-      });
+      const requestId = newId();
+      const res = await fetchBounded(
+        `${API_URL}/api/v1/auth/csrf`,
+        { credentials: "include", headers: { Accept: "application/json", "X-Request-ID": requestId } },
+        REFRESH_TIMEOUT_MS,
+        requestId,
+      );
       if (!res.ok) throw await errorFrom(res);
       const body = (await res.json()) as { csrf_token: string };
       csrfToken = body.csrf_token;
@@ -135,42 +228,102 @@ async function errorFrom(res: Response): Promise<ApiError> {
   return new ApiError({ code, message: res.statusText || "Request failed", status: res.status, requestId, retryAfter });
 }
 
-/** Refresh the access token once for all concurrent callers. */
-export function refreshSession(): Promise<boolean> {
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      try {
-        const token = await fetchCsrf();
-        const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
-          method: "POST",
-          credentials: "include",
-          headers: { Accept: "application/json", "X-CSRF-Token": token, "X-Request-ID": newId() },
-        });
-        if (res.ok) {
+/**
+ * One refresh attempt, with one retry when the CSRF token was stale. The
+ * server no longer rotates the CSRF token on refresh, but another browser
+ * profile of an old deployment or a cleared cookie can still make it stale.
+ */
+async function runRefresh(): Promise<RefreshResult> {
+  try {
+    for (let attempt = 0; ; attempt++) {
+      const requestId = newId();
+      const token = await fetchCsrf();
+      const res = await fetchBounded(
+        `${API_URL}/api/v1/auth/refresh`,
+        { method: "POST", credentials: "include", headers: { Accept: "application/json", "X-CSRF-Token": token, "X-Request-ID": requestId } },
+        REFRESH_TIMEOUT_MS,
+        requestId,
+      );
+      if (res.ok) {
+        const rotated = res.headers.get("X-CSRF-Token");
+        if (rotated) csrfToken = rotated;
+        try {
           const body = (await res.json()) as { csrf_token?: string };
           if (body.csrf_token) csrfToken = body.csrf_token;
-          setAuthHint(true);
-          return true;
+        } catch {
+          // The cookies are already rotated; an unreadable body changes nothing.
         }
-        const err = await errorFrom(res);
-        if (err.code === "refresh_conflict") {
-          // Another tab rotated the cookie; the jar already holds the new one.
-          await sleep(300);
-          return true;
-        }
-        if (err.code === "csrf_failed") csrfToken = null;
-        setAuthHint(false);
-        expiredListeners.forEach((fn) => fn());
-        return false;
-      } catch (error) {
-        logger.warn("session refresh failed", error);
-        return false;
+        return refreshed();
       }
-    })().finally(() => {
+      const err = await errorFrom(res);
+      if (err.code === "csrf_failed" && attempt === 0) {
+        csrfToken = null; // stale token: fetch the current one and retry once
+        continue;
+      }
+      if (err.code === "refresh_conflict") {
+        // Old API: another tab rotated the cookie; the jar already holds the new one.
+        await sleep(500);
+        return refreshed();
+      }
+      // Only a definitive "this session is over" ends it. 429, 5xx and the
+      // like are transient: nothing is cleared.
+      if (res.status === 401 || err.code === "account_disabled") {
+        endSession();
+        expiredListeners.forEach((fn) => fn());
+        return { outcome: "expired", error: err };
+      }
+      logger.warn("session refresh unavailable", err, { code: String(err.code), requestId: err.requestId, status: res.status });
+      return { outcome: "unavailable", error: err };
+    }
+  } catch (raw) {
+    const error = toApiError(raw);
+    logger.warn("session refresh unavailable", error, { code: String(error.code), requestId: error.requestId });
+    return { outcome: "unavailable", error };
+  }
+}
+
+function refreshed(): RefreshResult {
+  lastRefreshAt = Date.now();
+  setAuthHint(true);
+  postAuth({ type: "refreshed", at: lastRefreshAt });
+  return { outcome: "refreshed" };
+}
+
+/** Run `fn` under the cross-tab refresh lock (per-tab when Web Locks are missing). */
+async function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  if (!locks?.request) return fn();
+  try {
+    return await locks.request(REFRESH_LOCK, fn);
+  } catch (error) {
+    // The lock itself failed (not fn): degrade to the per-tab single flight.
+    logger.debug("web lock unavailable", { reason: error instanceof Error ? error.name : "unknown" });
+    return fn();
+  }
+}
+
+/**
+ * Refresh the access token once for all concurrent callers in this tab and,
+ * through a Web Lock, in every tab. A refresh any tab completed within the
+ * last 10 s is not repeated unless `force` is set (the caller just saw a 401
+ * after such a refresh).
+ */
+export function refreshSessionOutcome(opts: { force?: boolean } = {}): Promise<RefreshResult> {
+  if (!refreshPromise) {
+    channel(); // listen for other tabs' refreshes before waiting for the lock
+    refreshPromise = withRefreshLock(async () => {
+      if (!opts.force && Date.now() - lastRefreshAt < REFRESH_SKIP_MS) return { outcome: "refreshed" } as RefreshResult;
+      return runRefresh();
+    }).finally(() => {
       refreshPromise = null;
     });
   }
   return refreshPromise;
+}
+
+/** Refresh the session; true when the access cookie is fresh (see refreshSessionOutcome for the detail). */
+export async function refreshSession(): Promise<boolean> {
+  return (await refreshSessionOutcome()).outcome === "refreshed";
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -204,7 +357,7 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
   const maxRetries = opts.retries ?? (unsafe && !opts.idempotent ? 0 : 2);
   const timeoutMs = opts.timeoutMs ?? 15_000;
   let csrfRetried = false;
-  let refreshed = false;
+  let refreshes = 0;
   let conflictRetried = false;
 
   for (let attempt = 0; ; attempt++) {
@@ -231,7 +384,7 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
         headers["Content-Type"] = "application/json";
         body = JSON.stringify(opts.body);
       }
-      if (unsafe) headers["X-CSRF-Token"] = await fetchCsrf();
+      if (unsafe && opts.csrf !== false) headers["X-CSRF-Token"] = await fetchCsrf();
 
       let res: Response;
       try {
@@ -274,9 +427,18 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
         csrfToken = null;
         continue;
       }
-      if ((err.code === "session_expired" || err.code === "unauthenticated") && !opts.skipRefresh && !refreshed && hasAuthHint()) {
-        refreshed = true;
-        if (await refreshSession()) continue;
+      if ((err.code === "session_expired" || err.code === "unauthenticated") && !opts.skipRefresh && refreshes < 2 && hasAuthHint()) {
+        // A second refresh (forced, never skipped) only happens when the
+        // first one succeeded or was shared and the request still got a 401.
+        const result = await refreshSessionOutcome({ force: refreshes === 1 });
+        if (result.outcome === "refreshed") {
+          refreshes++;
+          continue;
+        }
+        // The session is intact but could not be refreshed now: surface the
+        // retryable refresh error (network_error, timeout, rate_limited, ...)
+        // instead of a misleading 401.
+        if (result.outcome === "unavailable" && result.error) throw result.error;
       }
       if (err.code === "refresh_conflict" && !conflictRetried) {
         conflictRetried = true;

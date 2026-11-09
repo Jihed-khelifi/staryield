@@ -183,6 +183,21 @@ func TestExplainHotQueries(t *testing.T) {
 		{"chat: unread totals (client)", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
 			_, _, _ = repository.NewChatRepository(d).UnreadTotals(ctx, ids.sessionClient, false)
 		}},
+		// revisions 3.3: messages outside a live chat. The quota count runs under
+		// the conversation row lock on every off-session send; the totals read the
+		// partial indexes of migration 0021.
+		{"chat: off-session quota count", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewChatRepository(d).CountOffSession(ctx, ids.busyConversation, ids.sessionClient, time.Now().Add(-24*time.Hour))
+		}},
+		{"chat: conversation had a started session", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewChatRepository(d).HasStartedSession(ctx, ids.busyConversation)
+		}},
+		{"site: off-session totals (24 h)", 50 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _, _ = repository.NewSiteRepository(d).OffSessionTotals(ctx, time.Now().Add(-24*time.Hour))
+		}},
+		{"site: off-session limit hits (24 h)", 50 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewSiteRepository(d).OffSessionLimitHits(ctx, time.Now().Add(-24*time.Hour))
+		}},
 		{"advisor photos: current submission", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
 			_, _ = repository.NewPhotoSubmissionRepository(d).Current(ctx, ids.sessionPsychic)
 		}},

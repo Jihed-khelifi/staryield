@@ -374,12 +374,26 @@ func (s *AuthService) issueSession(ctx context.Context, user *domain.User, famil
 		RefreshToken: raw, RefreshExpires: rt.ExpiresAt}, nil
 }
 
-// refreshReuseGrace distinguishes concurrent refreshes from several tabs
-// (benign) from replay of a stolen, already-rotated token (theft).
-const refreshReuseGrace = 30 * time.Second
+// Refresh-token rotation tolerance (revisions 3.3). A rotated token is not
+// proof of theft by itself: several tabs, a retried request or a lost
+// response all present a token that was just rotated.
+const (
+	// refreshReuseGrace: within this time of its rotation, a token is
+	// honoured again and the successor stays valid (concurrent refreshes).
+	refreshReuseGrace = 2 * time.Minute
+	// refreshRecoveryWindow: after the grace and up to this time, a token
+	// is honoured once more when no token of its family was rotated since
+	// (the responses carrying its successors were lost); those successors
+	// are revoked ("superseded"). Anything else is replay of a stolen token.
+	// A signed-out family is never reopened, in either window.
+	refreshRecoveryWindow = 10 * time.Minute
 
-// ErrRefreshConflict signals a concurrent refresh; the client should retry
-// its original request, which now carries the rotated cookie.
+	revokeRotated    = "rotated"
+	revokeSuperseded = "superseded"
+)
+
+// ErrRefreshConflict is no longer returned by Refresh (concurrent refreshes
+// succeed within refreshReuseGrace); the code is kept for old clients.
 var ErrRefreshConflict = apperror.New("refresh_conflict", 409, "Your session was refreshed in another tab. Please retry.")
 
 // Refresh rotates a refresh token and issues a new access token.
@@ -399,17 +413,23 @@ func (s *AuthService) Refresh(ctx context.Context, raw string) (*AuthResult, err
 			return err
 		}
 		if rt.RevokedAt != nil {
-			if rt.RevokeReason == "rotated" && now.Sub(*rt.RevokedAt) < refreshReuseGrace {
-				return ErrRefreshConflict
+			if rt.RevokeReason != revokeRotated && rt.RevokeReason != revokeSuperseded {
+				return apperror.SessionExpired()
 			}
-			if rt.RevokeReason == "rotated" {
+			honour, err := s.honourRotated(ctx, rt, now)
+			if errors.Is(err, errRefreshFamilyEnded) {
+				// Signed out (logout, password reset, device removed…): a
+				// recently rotated token must never reopen the session.
+				return apperror.SessionExpired()
+			}
+			if err != nil {
+				return err
+			}
+			if !honour {
 				reused = rt
-				if _, err := s.tokens.RevokeFamily(ctx, rt.FamilyID, "reuse_detected", now); err != nil {
-					return err
-				}
-				return nil
+				_, err := s.tokens.RevokeFamily(ctx, rt.FamilyID, "reuse_detected", now)
+				return err
 			}
-			return apperror.SessionExpired()
 		}
 		if !now.Before(rt.ExpiresAt) {
 			return apperror.SessionExpired()
@@ -430,7 +450,10 @@ func (s *AuthService) Refresh(ctx context.Context, raw string) (*AuthResult, err
 		if err != nil {
 			return err
 		}
-		return s.tokens.RevokeRefresh(ctx, rt.ID, "rotated", &newID, now)
+		if rt.RevokedAt != nil {
+			return nil // already rotated: this refresh adds a sibling successor
+		}
+		return s.tokens.RevokeRefresh(ctx, rt.ID, revokeRotated, &newID, now)
 	})
 	if reused != nil {
 		// Token theft suspected: the family is revoked; also invalidate
@@ -445,6 +468,47 @@ func (s *AuthService) Refresh(ctx context.Context, raw string) (*AuthResult, err
 		return nil, mapRepoErr(err, "Session")
 	}
 	return result, nil
+}
+
+// errRefreshFamilyEnded: the token's family was signed out; the token is
+// simply expired (no reuse detection, never a new token).
+var errRefreshFamilyEnded = errors.New("auth: refresh family ended")
+
+// honourRotated decides whether a refresh token that was already rotated is
+// still honoured (see refreshReuseGrace / refreshRecoveryWindow). The
+// family's open tokens are locked (after the presented row) first:
+//   - a family that was signed out is never reopened (errRefreshFamilyEnded);
+//   - within the grace the token is honoured (its successors stay valid);
+//   - within the recovery window it is honoured only when no token of the
+//     family was rotated since (the browser never received the successors,
+//     siblings included); those open successors are then superseded.
+//
+// false means replay (reuse detection).
+func (s *AuthService) honourRotated(ctx context.Context, rt *domain.RefreshToken, now time.Time) (bool, error) {
+	if rt.RevokeReason != revokeRotated {
+		return false, nil // a superseded token is never honoured again
+	}
+	age := now.Sub(*rt.RevokedAt)
+	if age >= refreshRecoveryWindow {
+		return false, nil
+	}
+	fam, err := s.tokens.RefreshFamilyState(ctx, rt.FamilyID, rt.ID, *rt.RevokedAt)
+	if err != nil {
+		return false, err
+	}
+	if !fam.Live {
+		return false, errRefreshFamilyEnded
+	}
+	if age < refreshReuseGrace {
+		return true, nil
+	}
+	if fam.Advanced {
+		return false, nil // the chain moved on without this token: replay
+	}
+	if _, err := s.tokens.SupersedeOpenRefresh(ctx, rt.FamilyID, now); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *AuthService) tokenIDByRaw(ctx context.Context, raw string) (uuid.UUID, error) {

@@ -1646,3 +1646,286 @@ Advisors see the chatroom notification prompt without waiting for their first
 message ("Never miss a chat request"), because chat requests are the
 notification they need most. The service worker shows `chat.requested` pushes
 with `requireInteraction` and a vibration pattern.
+
+## 22. Revisions 3.3: session reliability, messages outside live chats, chat images
+
+All of §22 is the contract shared by the API, the web app and the admin
+console for this round. Error envelopes are unchanged
+(`{"error":{"code","message","details","request_id"}}`); every new message is
+added to the server i18n catalogue (en/fr/es) and every new code gets copy in
+`frontend/src/lib/api/errors.ts` + `copy-{en,fr,es}.json`.
+
+### 22.1 Sessions stay signed in (bug: "signed out after a few minutes")
+
+Root causes fixed: (1) every refresh and every `GET /auth/csrf` minted a new
+CSRF token and overwrote the shared cookie, so other tabs kept a stale token
+and their next refresh failed with 403 `csrf_failed`, which the web app
+treated as "session expired"; (2) any refresh failure (403/429/5xx) cleared
+the local auth hint, which disabled refresh for every tab for good; (3)
+refresh shared the per-IP, fail-closed `auth` rate-limit bucket with login;
+(4) a lost refresh response (or two tabs refreshing at once) ended in 409 or
+in reuse detection; (5) the `auth.revoked` handler signed out on transient
+errors and counted each revocation twice.
+
+API
+- `GET /auth/csrf` is stable: when the request carries a CSRF cookie whose
+  signature is valid, the same token is returned (cookie re-set with the same
+  value to extend its lifetime). A new token is minted only when the cookie
+  is missing or invalid. Response unchanged: `{csrf_token}` + `X-CSRF-Token`.
+- `POST /auth/refresh` no longer rotates the CSRF token: the response's
+  `csrf_token` is the current valid token (minted only if missing/invalid).
+  Login, register, logout, password reset/change still rotate it.
+- Refresh-token rotation tolerance (`service/auth.go`, constants with tests):
+  - token rotated **< 2 min** ago (`refreshReuseGrace`): 200 with a new
+    refresh token in the same family; the successor stays valid (concurrent
+    tabs, retried requests). 409 `refresh_conflict` is no longer returned
+    (clients keep handling it for old deployments).
+  - rotated **2–10 min** ago (`refreshRecoveryWindow`) **and its successor was
+    never presented**: lost-response recovery — the successor is revoked with
+    reason `superseded` and a new token is issued in the same family.
+  - otherwise (successor already used, or rotated > 10 min ago): reuse
+    detected, unchanged (family revoked, `token_version` bumped, realtime
+    closed with 4001). Presenting a `superseded` token is reuse as well.
+- `POST /auth/refresh` gets its own rate-limit rule `refresh`
+  (`STARYIELD_RATE_LIMIT_REFRESH_RATE=30`, `_PERIOD=1m`, `_BURST=20`), keyed
+  by the SHA-256 of the refresh cookie (IP when absent), **fail-open** (a
+  256-bit token cannot be brute-forced). The `auth` rule no longer applies to
+  refresh.
+- Stateless calculator POSTs (`/api/v1/astrology/natal`, `/numerology`,
+  `/sun-sign`, `/chart` — each verified to read no principal and write no
+  state) are exempt from CSRF like `/aztro`.
+
+Web app (`lib/api/client.ts`, `lib/auth/session-provider.tsx`)
+- Refresh outcome is one of `refreshed | expired | unavailable`:
+  - `expired` only when `POST /auth/refresh` answers 401 (after one retry with
+    a re-fetched CSRF token when it answered 403 `csrf_failed`). Only then is
+    the auth hint cleared and "session expired" announced.
+  - `unavailable` (network error, timeout, 429, 5xx): nothing is cleared, the
+    caller gets a retryable error (`network_error`, `timeout`,
+    `rate_limited`, `service_unavailable`) with its normal copy; the next
+    request tries again (Retry-After honoured).
+  - `refresh_conflict` (old API): wait 500 ms, treat as `refreshed`.
+- Cross-tab single flight: refresh runs under the Web Lock
+  `staryield:auth-refresh`; a `BroadcastChannel("staryield:auth")` message
+  `{type:"refreshed", at}` lets other tabs skip a refresh done < 10 s ago, and
+  `{type:"signed_out"}` (explicit logout or `expired`) signs other tabs out.
+  Without Web Locks / BroadcastChannel it degrades to per-tab single flight
+  (the API's grace window makes that safe). No new storage keys.
+- The refresh request has a 15 s timeout.
+- `auth.revoked` (frame and 4001 close are deduplicated within 2 s) re-reads
+  `/me`; only a definitive 401 after refresh signs out. Transient failures
+  keep the user signed in and retry with backoff.
+- On page load a transient `/me` failure does not sign out or clear the hint.
+
+### 22.2 "You're offline" on calculators (bug)
+
+- `toApiError` converts a `TypeError` into `network_error` only when it is a
+  fetch failure (raised by `api()`/`fetchCsrf()`/refresh, which now wrap
+  their own `fetch` rejections; fallback recognition of
+  "Failed to fetch" / "Load failed" / "NetworkError when attempting to fetch
+  resource" / "Network request failed"). Any other thrown error becomes
+  `client_error` ("Something went wrong on this page. Please try again.") and
+  is logged.
+- `network_error` copy depends on `navigator.onLine`: `false` → "You appear to
+  be offline. Check your connection and try again." (unchanged); otherwise →
+  "We couldn't reach Staryield. Please try again in a moment." (new).
+- Calculator forms separate the API call from post-processing: only API
+  errors use API copy; post-processing errors show `client_error` copy and a
+  "Try again" action.
+- Deploy configuration (not code): `STARYIELD_SECURITY_ALLOWED_ORIGINS` must
+  include every origin the site is served from (e.g. `https://www.staryield.net`
+  unless www redirects to the apex), and `STARYIELD_HTTP_IP_SOURCE` must match
+  whether `api.staryield.net` is proxied by Cloudflare.
+
+### 22.3 Messages outside a live chat ("off-session messages") — sensitive
+
+A conversation's participants may keep writing (text and images) when no
+live chat is running: after a chat ended, while a request is pending, or
+while a live chat is paused. Messages written while a live chat is `active`
+or `disconnected` (paused) belong to that session exactly as before (never
+capped, never billed per message). All other messages are **off-session**:
+`chat_messages.session_id IS NULL`, free, capped, and labelled in the UI.
+
+Server rules (the API is the only authority; checked in this order):
+1. Caller is a participant of the conversation (else 404 `not_found`).
+2. Routing: if the conversation has a session in `active` or
+   `disconnected`, the message goes into it (no further checks below). Lock
+   order is unchanged: session row first, then conversation.
+3. `off_session_messages.enabled` is true and the caller's role limit is
+   > 0, else 409 `off_session_disabled`.
+4. The conversation is eligible: it has at least one session that started
+   (`started_at IS NOT NULL`), else 409 `off_session_not_eligible`.
+5. The other participant can receive messages (account active, not deleted,
+   suspended or deactivated; advisor not removed), else 409
+   `recipient_unavailable`.
+6. Daily cap unless free mode is active (`SiteService.FreeModeActive`): the
+   caller's off-session messages (text + image) in this conversation during
+   the last rolling 24 h must be < limit (`client_daily_limit` for clients,
+   `advisor_daily_limit` for advisors), else 429 `off_session_limit_reached`
+   with `details {limit, used, resets_at}` and `Retry-After` (seconds until
+   `resets_at`). The count and the insert happen in one transaction holding
+   the conversation row lock (`GetConversationForUpdate`), so concurrent
+   sends cannot exceed the cap. Idempotent replays (same `client_msg_id`)
+   return the original message and never count twice.
+7. The per-user message rate limit (`STARYIELD_CHAT_MESSAGE_RATE/_EVERY`) and
+   all body rules (length, cleaning) apply as for live messages.
+- Images: checks 1–6 run before the image is decoded or stored (cheap
+  pre-check, no lock) and again inside the transaction; a stored object whose
+  transaction fails is deleted (best effort, logged).
+- Typing indicators are only relayed inside an active session (unchanged).
+- Delivery: `message.created` in seq order, unread counters and Web Push
+  exactly like live messages.
+- Settings read through the site-settings cache (≤ 10 s stale). If the
+  setting cannot be read and nothing is cached, off-session messages are
+  refused (`off_session_disabled`): never open the feature by accident.
+- Analytics: `chat.off_session_message_sent {conversation_id, role, kind,
+  length}` (never the text). Admin transcripts by session do not include
+  off-session messages; conversation-level views (reports, exports) do.
+
+Data (migration `0021_off_session_messages.sql`)
+- `chat_messages.session_id` becomes nullable; CHECK
+  `kind <> 'system' OR session_id IS NOT NULL`.
+- Index `chat_messages_off_session_quota_idx ON chat_messages
+  (conversation_id, sender_id, created_at) WHERE session_id IS NULL`.
+- `site_settings` key `off_session_messages`
+  `{"enabled": bool, "client_daily_limit": 0..500, "advisor_daily_limit": 0..500}`
+  (CHECK constraint like the other keys), seeded
+  `{"enabled": true, "client_daily_limit": 20, "advisor_daily_limit": 20}`.
+
+Endpoints (`/api/v1`, signed-in participants)
+
+| Method & path | Notes |
+| --- | --- |
+| `POST /chat/conversations/:id/messages` | `{body, client_msg_id}` → 201 `{message: ChatMessage, allowance: OffSessionAllowance}` (200 for an idempotent replay). |
+| `POST /chat/conversations/:id/attachments` | multipart `image`, `caption?`, `client_msg_id?` → 201 `{message, allowance}`. Same limits as §9.1. |
+| `GET /chat/conversations/:id/allowance` | → `OffSessionAllowance` for the caller. |
+| WS `message.send` | `{conversation_id, body, client_msg_id}` (new). With only `session_id` (old clients) the session's conversation is used and the same routing applies, so an ended session no longer rejects the send. Ack data `{message, allowance}`. |
+| `POST /chat/sessions/:id/messages`, `/attachments` | Kept for old clients; same routing as above. |
+
+```ts
+type OffSessionAllowance = {
+  live: boolean;        // an active/paused live chat exists: messages go into it, no cap
+  enabled: boolean;     // feature on and the caller's role limit > 0
+  eligible: boolean;    // the conversation has had at least one started live chat
+  unlimited: boolean;   // free mode is active: no cap
+  limit: number;        // caller's cap per rolling 24 h (0 when disabled)
+  used: number;         // caller's off-session messages here in the last 24 h
+  remaining: number;    // max(0, limit - used); equals limit when unlimited
+  resets_at?: string;   // when the oldest counted message leaves the window (used > 0)
+};
+// ChatMessage changes: session_id becomes optional; new field
+//   off_session: boolean   // true when session_id is null and kind != "system"
+```
+
+Admin (`/api/v1/admin`, 🔐 = step-up)
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /site/off-session-messages` | `OffSessionMessagesSetting` |
+| 🔐 `PUT /site/off-session-messages` | `{enabled: boolean, client_daily_limit: 0–500, advisor_daily_limit: 0–500, expected_version?}` → `OffSessionMessagesSetting`. 409 on a stale `expected_version`. Audited `site.off_session_messages_updated` (before and after). |
+
+```ts
+type OffSessionMessagesSetting = {
+  enabled: boolean; client_daily_limit: number; advisor_daily_limit: number;
+  version: number; updated_at: string; updated_by?: { id: string; name: string };
+  // Oversight (last rolling 24 h, all conversations): off-session messages
+  // stored, distinct senders, and sends refused by the cap.
+  stats: { messages_24h: number; senders_24h: number; limit_hits_24h: number };
+};
+```
+
+`limit_hits_24h` counts `chat.off_session_refused` analytics events with
+`reason = "limit"` (recorded for every refusal: `{conversation_id, role,
+reason: "disabled" | "not_eligible" | "recipient" | "limit"}`). A second
+partial index `chat_messages_off_session_recent_idx ON chat_messages
+(created_at) WHERE session_id IS NULL` serves the totals.
+
+Web app
+- Messages are queued per **conversation** (outbox entries keep
+  `conversation_id`; `session_id` is optional and ignored for routing) and
+  sent while the connection is open. Error handling: `off_session_*` and
+  `recipient_unavailable` are final for that message (shown on the bubble
+  with copy, retry offered); `rate_limited`/transient errors retry with
+  backoff.
+- Composer state: enabled when a live chat is active or paused, or when the
+  allowance says `enabled && eligible && (unlimited || remaining > 0)`.
+  Otherwise disabled with the reason ("Start a live chat to send messages",
+  "You've used today's {limit} messages outside a live chat. Start a live
+  chat to keep talking." with the start CTA for clients, etc.).
+- The composer note shows "Outside a live chat: free · {remaining} of
+  {limit} left today" (or "Outside a live chat: free · unlimited during free
+  mode"); advisors see "Outside a live chat: not billed · …".
+- Off-session bubbles carry a small "Outside a live chat" label.
+- The allowance is fetched when the conversation on screen has no live
+  session, refreshed from every send response and after `session.ended`.
+
+### 22.4 Chat images (bug: "some users can't send images") and drag and drop
+
+API
+- Chat image uploads use their own rate-limit rule `chat_image`
+  (`STARYIELD_RATE_LIMIT_CHAT_IMAGE_RATE=60`, `_PERIOD=1h`, `_BURST=20`,
+  per user); avatars and admin images keep `upload`.
+- Chat attachment routes get `STARYIELD_HTTP_UPLOAD_TIMEOUT` (default 120s)
+  instead of the 15 s request timeout, and extend the connection read
+  deadline to match (`http.ResponseController.SetReadDeadline`).
+- Image rejections keep their codes; dimension/decoding problems are 422
+  `validation_failed` with a translated `fields.image` message, which the web
+  app shows as is.
+- The WebP decoder is registered explicitly in `service/images.go`.
+
+Web app
+- Before upload every image is normalised in the browser
+  (`lib/chat/prepare-image.ts`): the real type is sniffed from the bytes
+  (PNG, JPEG, GIF, WebP, HEIC/HEIF, AVIF — `file.type` may be empty or
+  wrong); anything larger than 2048 px on its longest side, larger than
+  1.5 MB, or not PNG/JPEG/WebP/GIF is decoded (EXIF orientation applied) and
+  re-encoded to ≤ 2048 px (JPEG q 0.85; WebP/PNG when the image has
+  transparency). GIFs ≤ 8 MB are sent as is. Files above 40 MB are refused
+  before decoding. A format the browser cannot decode (e.g. HEIC outside
+  Safari) gets: "This photo format can't be sent from this browser. Choose
+  JPEG or PNG, or send a screenshot."
+- The picker accepts `image/*` plus `.heic,.heif` (validation is by content).
+- Uploads are sent with `idempotent: true` (the API deduplicates on
+  `client_msg_id`) so transient failures retry automatically; every failure
+  is visible (failed bubble with specific copy + Retry; toast for non-network
+  failures).
+- Drag and drop: dropping an image anywhere on the conversation on screen
+  (feed, panels, composer) attaches it to the composer with the same checks
+  (`useFileDrop`, one implementation shared with the composer); an overlay
+  says "Drop the image to send it to {name}". Files dropped elsewhere on the
+  chatroom page never navigate the browser away.
+
+### 22.5 Composer and feed stay still while typing (bug)
+
+- The composer grows with its content without collapsing the live textarea
+  (hidden measuring mirror; height written only when it changes).
+- "Draft saved" and the character counter never change the composer's
+  height.
+- The feed re-pins to the newest message only when messages or the typing
+  indicator change, or when its viewport/content size changes — never on
+  unrelated re-renders (e.g. the 1 s session timer).
+- The typing indicator lives in a fixed-height slot at the end of the feed
+  that is always rendered, so showing/hiding it never changes the scroll
+  height.
+- Keyboard detection (`use-visual-viewport`) uses hysteresis (open above
+  120 px, closed below 80 px) so it cannot flap while typing.
+
+### 22.6 Client date of birth for advisors
+
+- `ClientProfile` gains `date_of_birth?: string` (`YYYY-MM-DD`), always
+  present when the client's birth date is known (not for deleted accounts).
+  `birth_details` keeps its meaning: present only when the client shares
+  their birth details, and only the **birth city** depends on that choice now.
+  Birth time and coordinates are still never sent.
+- Chatroom (advisor view): the client's full date of birth (locale-aware long
+  date) appears under the client's name in the chat header and in the client
+  panel (panel: "{date} · {age} years old"). Header and panel share one
+  cached fetch (`useClientProfile`).
+- Account settings: the switch "Share birth details with advisors" now reads
+  "Share my birth city with advisors", with the help text "Advisors you chat
+  with always see your date of birth, which readings rely on. Your birth time
+  and exact location are never shown."
+- Legal: Privacy Policy §2.5/§4 and Terms §4.11 say advisors see the date of
+  birth (legal basis: performance of the reading service); birth city stays
+  opt-in. New clauses cover messages outside live chats (free, capped, not a
+  reading, advisors not obliged to reply, same conduct rules and retention).

@@ -7,7 +7,7 @@ export function TypingBubble({ authorName }: { authorName: string }) {
   const { t } = useI18n()
 
   return (
-    <li className="flex w-full items-end">
+    <div className="flex w-full items-end">
       <div
         role="status"
         aria-label={t("chatroom.feed.typing", { name: authorName })}
@@ -28,6 +28,6 @@ export function TypingBubble({ authorName }: { authorName: string }) {
           ))}
         </span>
       </div>
-    </li>
+    </div>
   )
 }

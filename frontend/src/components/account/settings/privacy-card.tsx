@@ -15,8 +15,9 @@ import { SettingsCard, SettingsRowButton } from "./settings-ui";
 
 /**
  * Data & Privacy (Figma "Card / Data & Privacy"): data export, consent
- * choices and — for clients — whether advisors may see the birthplace and
- * date of birth (off by default, part of the settings form).
+ * choices and — for clients — whether advisors may see the birth city
+ * (off by default, part of the settings form). The date of birth is always
+ * shown to the advisors a client chats with (§22.6).
  */
 export function PrivacyCard({ showShareSwitch }: { showShareSwitch: boolean }) {
   const { text } = useI18n();
@@ -51,10 +52,10 @@ export function PrivacyCard({ showShareSwitch }: { showShareSwitch: boolean }) {
             <FormItem className="settings-switch-row settings-switch-row-described">
               <div>
                 <p id={shareId} className="settings-switch-label">
-                  {text("Share birth details with advisors")}
+                  {text("Share my birth city with advisors")}
                 </p>
                 <p id={`${shareId}-description`} className="settings-description">
-                  {text("Advisors you chat with see your birthplace and date of birth. Your signs and chart stay visible either way.")}
+                  {text("Advisors you chat with always see your date of birth, which readings rely on. Your birth time and exact location are never shown.")}
                 </p>
               </div>
               <FormControl>

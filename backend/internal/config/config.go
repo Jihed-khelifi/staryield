@@ -73,8 +73,12 @@ type HTTPConfig struct {
 	WriteTimeout      time.Duration `env:"write_timeout"`
 	IdleTimeout       time.Duration `env:"idle_timeout"`
 	RequestTimeout    time.Duration `env:"request_timeout"`
-	ShutdownTimeout   time.Duration `env:"shutdown_timeout"`
-	BodyLimit         string        `env:"body_limit"`
+	// UploadTimeout replaces RequestTimeout on the chat attachment routes
+	// (slow mobile uploads) and extends the connection read deadline to
+	// match (revisions 3.3, §22.4).
+	UploadTimeout   time.Duration `env:"upload_timeout"`
+	ShutdownTimeout time.Duration `env:"shutdown_timeout"`
+	BodyLimit       string        `env:"body_limit"`
 	// IPSource selects how the client IP is resolved: "direct", "xff"
 	// (X-Forwarded-For from trusted proxies), "x-real-ip" (X-Real-IP from
 	// trusted proxies, set by Railway's edge) or "cloudflare"
@@ -208,9 +212,16 @@ type RateLimitConfig struct {
 	Writes   Rule `env:"writes"`
 	Ingest   Rule `env:"ingest"`
 	Upload   Rule `env:"upload"`
+	// ChatImage bounds chat image uploads per user (revisions 3.3); avatars
+	// and admin images keep Upload.
+	ChatImage Rule `env:"chat_image"`
 	// Push bounds Web Push subscribe/unsubscribe calls per user.
-	Push  Rule    `env:"push"`
-	Scale float64 `env:"scale"`
+	Push Rule `env:"push"`
+	// Refresh (revisions 3.3) bounds POST /auth/refresh per refresh cookie
+	// (per IP when absent); it is not shared with the login bucket and
+	// fails open.
+	Refresh Rule    `env:"refresh"`
+	Scale   float64 `env:"scale"`
 }
 
 // Rule is a token bucket: Rate tokens per Period, up to Burst.
@@ -430,6 +441,7 @@ func defaults() Config {
 			WriteTimeout:      0, // streaming endpoints manage their own deadlines
 			IdleTimeout:       120 * time.Second,
 			RequestTimeout:    15 * time.Second,
+			UploadTimeout:     120 * time.Second,
 			ShutdownTimeout:   20 * time.Second,
 			BodyLimit:         "64KB",
 			IPSource:          "direct",
@@ -515,15 +527,17 @@ func defaults() Config {
 			TypingMinInterval: 1500 * time.Millisecond,
 		},
 		RateLimit: RateLimitConfig{
-			Enabled:  true,
-			FailOpen: true,
-			Global:   Rule{Rate: 300, Period: time.Minute, Burst: 120},
-			Auth:     Rule{Rate: 10, Period: time.Minute, Burst: 10},
-			Writes:   Rule{Rate: 60, Period: time.Minute, Burst: 30},
-			Ingest:   Rule{Rate: 120, Period: time.Minute, Burst: 60},
-			Upload:   Rule{Rate: 10, Period: time.Hour, Burst: 5},
-			Push:     Rule{Rate: 30, Period: time.Hour, Burst: 10},
-			Scale:    1,
+			Enabled:   true,
+			FailOpen:  true,
+			Global:    Rule{Rate: 300, Period: time.Minute, Burst: 120},
+			Auth:      Rule{Rate: 10, Period: time.Minute, Burst: 10},
+			Writes:    Rule{Rate: 60, Period: time.Minute, Burst: 30},
+			Ingest:    Rule{Rate: 120, Period: time.Minute, Burst: 60},
+			Upload:    Rule{Rate: 10, Period: time.Hour, Burst: 5},
+			ChatImage: Rule{Rate: 60, Period: time.Hour, Burst: 20},
+			Push:      Rule{Rate: 30, Period: time.Hour, Burst: 10},
+			Refresh:   Rule{Rate: 30, Period: time.Minute, Burst: 20},
+			Scale:     1,
 		},
 		Storage: StorageConfig{
 			Driver:               "memory",

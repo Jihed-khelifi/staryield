@@ -21,7 +21,7 @@ type SessionResponse struct {
 
 func (h *Handler) session(c echo.Context, res *service.AuthResult, status int) error {
 	h.setSession(c, res)
-	csrf := h.issueCSRF(c)
+	csrf := h.rotateCSRF(c)
 	me, err := h.svc.Users.Me(c.Request().Context(), res.UserID)
 	if err != nil {
 		return err
@@ -31,7 +31,7 @@ func (h *Handler) session(c echo.Context, res *service.AuthResult, status int) e
 
 // CSRFToken issues a CSRF token (call before the first unsafe request).
 func (h *Handler) CSRFToken(c echo.Context) error {
-	return ok(c, map[string]string{"csrf_token": h.issueCSRF(c)})
+	return ok(c, map[string]string{"csrf_token": h.ensureCSRF(c)})
 }
 
 type registerRequest struct {
@@ -97,7 +97,7 @@ func (h *Handler) Refresh(c echo.Context) error {
 		return err
 	}
 	h.setSession(c, res)
-	return ok(c, map[string]any{"access_expires_at": res.AccessExpires, "csrf_token": h.issueCSRF(c)})
+	return ok(c, map[string]any{"access_expires_at": res.AccessExpires, "csrf_token": h.ensureCSRF(c)})
 }
 
 // Logout ends this device's session.

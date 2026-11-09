@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -238,5 +239,78 @@ func TestAuthenticateAndRBAC(t *testing.T) {
 	bearer.Header.Set("Authorization", "Bearer good")
 	if _, err := run(t, bearer, okHandler, Authenticate(auth, names, true)); err != nil {
 		t.Fatalf("bearer: %v", err)
+	}
+}
+
+func TestByCookieHash(t *testing.T) {
+	key := ByCookieHash("sy_rt")
+	ctx := func(cookie string) echo.Context {
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req.RemoteAddr = "203.0.113.9:4000"
+		if cookie != "" {
+			req.AddCookie(&http.Cookie{Name: "sy_rt", Value: cookie})
+		}
+		return echo.New().NewContext(req, httptest.NewRecorder())
+	}
+	a, b, none := key(ctx("token-a")), key(ctx("token-b")), key(ctx(""))
+	if a == b || a != key(ctx("token-a")) {
+		t.Fatalf("keys must be stable per token and differ across tokens: %q %q", a, b)
+	}
+	if strings.Contains(a, "token-a") {
+		t.Fatalf("the raw token must never be part of the key: %q", a)
+	}
+	if none != "ip:203.0.113.9" {
+		t.Fatalf("without a cookie the key is the IP: %q", none)
+	}
+}
+
+// revisions 3.3: chat image uploads outlive the server's global ReadTimeout.
+func TestExtendReadDeadlineLetsSlowUploadsFinish(t *testing.T) {
+	slowBody := func() *io.PipeReader {
+		pr, pw := io.Pipe()
+		go func() {
+			_, _ = pw.Write([]byte("first half "))
+			time.Sleep(600 * time.Millisecond)
+			_, _ = pw.Write([]byte("second half"))
+			_ = pw.Close()
+		}()
+		return pr
+	}
+	serve := func(extend bool) (int, string) {
+		e := echo.New()
+		if extend {
+			e.Use(ExtendReadDeadline(5*time.Second, func(c echo.Context) bool { return c.Path() == "/upload" }))
+		}
+		read := func(c echo.Context) error {
+			b, err := io.ReadAll(c.Request().Body)
+			if err != nil {
+				return c.String(http.StatusRequestTimeout, err.Error())
+			}
+			return c.String(http.StatusOK, string(b))
+		}
+		e.POST("/upload", read)
+		e.POST("/other", read)
+		srv := httptest.NewUnstartedServer(e)
+		srv.Config.ReadTimeout = 250 * time.Millisecond // the global server timeout
+		srv.Start()
+		defer srv.Close()
+		resp, err := http.Post(srv.URL+"/upload", "text/plain", slowBody())
+		if err != nil {
+			return 0, err.Error()
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+	if st, body := serve(false); st == http.StatusOK {
+		t.Fatalf("without the extension the global ReadTimeout must cut the slow upload, got %d %q", st, body)
+	}
+	if st, body := serve(true); st != http.StatusOK || body != "first half second half" {
+		t.Fatalf("slow upload with the extension: %d %q", st, body)
+	}
+	// Writers without deadline support are left alone.
+	req := httptest.NewRequest(http.MethodPost, "/upload", strings.NewReader("x"))
+	if _, err := run(t, req, func(c echo.Context) error { return c.NoContent(http.StatusNoContent) }, ExtendReadDeadline(time.Second, nil)); err != nil {
+		t.Fatalf("unsupported writer: %v", err)
 	}
 }

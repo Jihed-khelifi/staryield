@@ -129,18 +129,18 @@ Admin dashboard endpoints (served to the admin console, see below):
 | Me | `GET me` · `PATCH me/profile` · `POST/DELETE me/avatar` · `GET me/chart` · `GET me/horoscope` · `GET me/numerology` |
 | Credits | `GET credit-packs` · `GET wallet` · `GET wallet/ledger` · `POST/GET credits/purchases` · `POST webhooks/payments` |
 | Advisors | `GET psychics` · `GET psychics/:slug` · `PATCH psychic/availability` · `PATCH psychic/profile` · `GET psychic/earnings` |
-| Chat | `GET chat/conversations` · `GET chat/unread-count` · `GET chat/conversations/:id/messages[/since]` · `POST chat/conversations/:id/read` · `GET chat/psychics/:slug` · `POST/GET chat/sessions` · `GET chat/sessions/:id[/summary]` · `POST chat/sessions/:id/{accept,decline,cancel,end,messages,typing}` · `GET/PUT/DELETE chat/saved[/:messageId]` |
+| Chat | `GET chat/conversations` · `GET chat/unread-count` · `GET chat/conversations/:id/messages[/since]` · `POST chat/conversations/:id/read` · `POST chat/conversations/:id/messages` · `GET chat/conversations/:id/allowance` · `GET chat/psychics/:slug` · `POST/GET chat/sessions` · `GET chat/sessions/:id[/summary]` · `POST chat/sessions/:id/{accept,decline,cancel,end,messages,typing}` · `GET/PUT/DELETE chat/saved[/:messageId]` |
 | Realtime | `POST realtime/ticket` · `GET realtime/ws` · `GET realtime/stream` · `POST realtime/presence` |
 | Requests | `GET/POST custom-requests` · `GET custom-requests/:id` · `POST custom-requests/:id/{cancel,dispute,accept,decline,deliver}` |
 | Astrology | `GET astrology/places[/:id]` · `POST astrology/{natal,numerology,sun-sign,chart}` · `GET astrology/horoscope/:sign` · `GET astrology/events` · `GET/POST aztro` |
 | Telemetry | `POST analytics/events` · `POST client-logs` |
 | Notifications | `GET me/notifications` · `GET me/notifications/unread-count` · `POST me/notifications/read` |
 | Ratings | `POST chat/sessions/:id/review` · `GET psychics/:slug/reviews` · `GET psychic/reviews` |
-| Chat media | `POST chat/sessions/:id/attachments` · `GET chat/attachments/:id` · `GET chat/conversations/:id/client` |
+| Chat media | `POST chat/sessions/:id/attachments` · `POST chat/conversations/:id/attachments` · `GET chat/attachments/:id` · `GET chat/conversations/:id/client` |
 | Advisor tools | `GET psychic/analytics` · `GET/POST psychic/withdrawals` · `POST psychic/withdrawals/:id/cancel` |
 | Short links | `GET /l/:code` (API root) |
 | Admin auth | `admin/auth/{login,enroll,enroll/confirm,verify,session,step-up,logout,sessions,recovery-codes}` |
-| Admin | `users[/:id[/credits,/logout-all]]`, `psychics[/:id[/image,/earnings,/analytics,/services]]`, `services/:id`, `credit-packs[/:id]`, `custom-requests[/:id/resolve]`, `chat/sessions[/:id[/transcript,/terminate]]`, `reviews[/:id]`, `withdrawals[/:id/{destination,approve,pay,reject}]`, `broadcasts[/:id]`, `presence`, `campaigns[/:id[/report]]`, `links[/:id[/report]]`, `acquisition/overview`, `insights/{audience,engagement,retention,top-users,users/:id}`, `reports/*`, `analytics/*`, `audit-logs` |
+| Admin | `users[/:id[/credits,/logout-all]]`, `psychics[/:id[/image,/earnings,/analytics,/services]]`, `services/:id`, `credit-packs[/:id]`, `custom-requests[/:id/resolve]`, `chat/sessions[/:id[/transcript,/terminate]]`, `reviews[/:id]`, `withdrawals[/:id/{destination,approve,pay,reject}]`, `broadcasts[/:id]`, `presence`, `campaigns[/:id[/report]]`, `links[/:id[/report]]`, `site/{banners,signup-offer,free-mode,off-session-messages}`, `acquisition/overview`, `insights/{audience,engagement,retention,top-users,users/:id}`, `reports/*`, `analytics/*`, `audit-logs` |
 
 Health: `GET /healthz` (liveness), `GET /readyz` (PostgreSQL + Redis).
 

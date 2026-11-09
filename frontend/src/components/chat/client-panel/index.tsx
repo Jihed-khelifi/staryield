@@ -1,9 +1,7 @@
 "use client";
 
 import { useI18n } from "@/i18n/i18n-provider";
-import { chatApi } from "@/lib/api/endpoints";
 import type { ChatMessage, Participant } from "@/lib/api/types";
-import { useAsync } from "@/lib/use-async";
 import type { PagedList } from "@/lib/use-paged-list";
 import { ErrorState } from "@/components/feedback/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +10,7 @@ import { ClientIdentity } from "@/components/chat/client-panel/client-identity";
 import { ClientNotes } from "@/components/chat/client-panel/client-notes";
 import { PlacementsOverview } from "@/components/chat/client-panel/placements-overview";
 import { SavedSection } from "@/components/chat/client-panel/saved-section";
+import { useClientProfile } from "@/components/chat/use-client-profile";
 import { placementsFor } from "@/components/chat/client-panel/panel-helpers";
 
 export type ClientPanelProps = {
@@ -30,12 +29,13 @@ export type ClientPanelProps = {
  * What an advisor sees about the client of the open conversation (§9.3,
  * Figma 1172:1191): who they are, their placements, saved messages and the
  * advisor's notes. The API never includes balance, e-mail or payment data;
- * location and birth date only appear when the client shares them.
+ * the birth city only appears when the client shares it (§22.6).
  */
 export function ClientPanel({ conversationId, counterpart, online, saved, onRemove, variant = "column" }: ClientPanelProps) {
   const { text } = useI18n();
-  const profile = useAsync((signal) => chatApi.clientProfile(conversationId!, signal), [conversationId], Boolean(conversationId));
-  const p = profile.data && profile.data.id ? profile.data : null;
+  // One cached request shared with the chat header.
+  const profile = useClientProfile(conversationId);
+  const p = profile.profile;
   const isOnline = online ?? p?.online ?? counterpart.status === "online";
   const name = p?.name || counterpart.name;
 
@@ -45,7 +45,7 @@ export function ClientPanel({ conversationId, counterpart, online, saved, onRemo
       online={isOnline}
       sessions={p?.history.sessions}
       location={p?.birth_details?.place}
-      birthDate={p?.birth_details?.date_of_birth}
+      birthDate={p?.date_of_birth ?? p?.birth_details?.date_of_birth}
       countryCode={p?.country_code}
       age={p?.age}
     />

@@ -250,12 +250,12 @@ async function withZone<T>(request: (tz: string | undefined) => Promise<T>): Pro
 export const astroApi = {
   /** Anonymous natal chart, Twelve Houses spread and numerology (never stored). */
   natal: (input: NatalInput, signal?: AbortSignal) =>
-    withZone((tz) => api<NatalResult>("/api/v1/astrology/natal", { method: "POST", body: { ...input, tz }, signal, idempotent: true })),
+    withZone((tz) => api<NatalResult>("/api/v1/astrology/natal", { method: "POST", body: { ...input, tz }, signal, idempotent: true, csrf: false })),
   /** The canonical sun sign; cusp births report `uncertain` with both signs. */
   sunSign: (input: SunSignInput, signal?: AbortSignal) =>
-    api<SunSignResult>("/api/v1/astrology/sun-sign", { method: "POST", body: input, signal, idempotent: true }),
+    api<SunSignResult>("/api/v1/astrology/sun-sign", { method: "POST", body: input, signal, idempotent: true, csrf: false }),
   numerology: (birth_date: string, signal?: AbortSignal) =>
-    withZone((tz) => api<NumerologyView>("/api/v1/astrology/numerology", { method: "POST", body: { birth_date, tz }, signal, idempotent: true })),
+    withZone((tz) => api<NumerologyView>("/api/v1/astrology/numerology", { method: "POST", body: { birth_date, tz }, signal, idempotent: true, csrf: false })),
   /** Gazetteer search (≥ 2 characters), keyset-paginated. */
   places: (params: { q: string; limit?: number; cursor?: string }, signal?: AbortSignal) =>
     api<PlacesPage>("/api/v1/astrology/places", { query: params, signal }),

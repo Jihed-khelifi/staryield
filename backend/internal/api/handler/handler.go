@@ -247,9 +247,26 @@ func (h *Handler) clearSession(c echo.Context) {
 // refreshPath scopes the refresh cookie to the auth endpoints only.
 const refreshPath = "/api/v1/auth"
 
-// issueCSRF rotates the CSRF token (cookie + response value).
-func (h *Handler) issueCSRF(c echo.Context) string {
-	token := h.csrf.Issue()
+// rotateCSRF mints a new CSRF token (cookie + response value). Used by
+// sign-in, sign-out and password flows so a token never outlives the session
+// it was issued for.
+func (h *Handler) rotateCSRF(c echo.Context) string {
+	return h.setCSRF(c, h.csrf.Issue())
+}
+
+// ensureCSRF returns the CSRF token the browser already holds when its
+// signature is valid (re-setting the cookie with the same value to extend its
+// lifetime) and mints one only when it is missing or invalid. The cookie is
+// shared by every tab, so handing out a new value on each call (revisions
+// 3.3) left other tabs with a stale header and failed their next refresh.
+func (h *Handler) ensureCSRF(c echo.Context) string {
+	if ck, err := c.Request().Cookie(h.cookies.Names.CSRF); err == nil && len(ck.Value) <= 256 && h.csrf.Valid(ck.Value) {
+		return h.setCSRF(c, ck.Value)
+	}
+	return h.rotateCSRF(c)
+}
+
+func (h *Handler) setCSRF(c echo.Context, token string) string {
 	c.SetCookie(h.cookie(h.cookies.Names.CSRF, token, "/", h.cookies.RefreshTTL, false, http.SameSiteLaxMode))
 	c.Response().Header().Set(middleware.CSRFHeader, token)
 	return token

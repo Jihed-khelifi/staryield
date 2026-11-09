@@ -115,17 +115,19 @@ func TestRefreshRotationAndReuseDetection(t *testing.T) {
 		t.Fatal("refresh token was not rotated")
 	}
 
-	// Replaying the old token inside the grace window is a benign race.
+	// Replaying the old token inside the grace window is a benign race: it
+	// succeeds (revisions 3.3) and the first successor stays valid.
 	thief := e.client()
 	u, _ := url.Parse(e.srv.URL + "/api/v1/auth/refresh")
 	thief.http.Jar.SetCookies(u, []*http.Cookie{{Name: "sy_rt", Value: old.Value, Path: "/api/v1/auth"}})
-	if r := thief.call(http.MethodPost, "/api/v1/auth/refresh", nil); r.status != http.StatusConflict || r.errCode(t) != "refresh_conflict" {
+	if r := thief.call(http.MethodPost, "/api/v1/auth/refresh", nil); r.status != http.StatusOK {
 		t.Fatalf("replay within grace: %d %s", r.status, r.body)
 	}
-	// After the grace window, replay means theft: the whole family dies.
-	e.clock.Advance(time.Minute)
+	// Long after the recovery window, replay means theft: the whole family dies.
+	e.clock.Advance(11 * time.Minute)
+	thief.http.Jar.SetCookies(u, []*http.Cookie{{Name: "sy_rt", Value: old.Value, Path: "/api/v1/auth"}})
 	if r := thief.call(http.MethodPost, "/api/v1/auth/refresh", nil); r.status != http.StatusUnauthorized {
-		t.Fatalf("replay after grace: %d %s", r.status, r.body)
+		t.Fatalf("replay after the recovery window: %d %s", r.status, r.body)
 	}
 	if r := c.call(http.MethodPost, "/api/v1/auth/refresh", nil); r.status != http.StatusUnauthorized {
 		t.Fatalf("family should be revoked, got %d", r.status)

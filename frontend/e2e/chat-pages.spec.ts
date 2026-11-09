@@ -79,8 +79,9 @@ test.describe("inbox pages @responsive", () => {
     const inbox = await openInbox(page);
     const rows = inbox.getByTestId("inbox-row");
     // The phone switcher lists the other conversations (the open one is the "current advisor").
+    // Wait for the first page to render before counting it.
+    await expect.poll(() => rows.count()).toBeGreaterThanOrEqual(19);
     const firstPage = await rows.count();
-    expect(firstPage).toBeGreaterThanOrEqual(19);
     expect(calls[0]).toContain("limit=20");
     await expect(inbox.getByTestId("inbox-load-more")).toBeVisible();
     await expect(inbox.getByLabel("4 unread messages")).toBeVisible();

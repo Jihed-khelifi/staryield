@@ -115,6 +115,7 @@ describe("AdvisorHeaderActions", () => {
     mocks.psychicsApi.balance.mockResolvedValue({ available_cents: 0, available_credits: 0, currency: "USD", reserved_credits: 0, lifetime_net_credits: 0 });
     mocks.psychicsApi.get.mockResolvedValue({ slug: "ramone", status: "online" });
     mocks.psychicsApi.setAvailability.mockRejectedValue(new ApiError({ code: "network_error", message: "x", status: 0 }));
+    const online = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
     renderWithI18n(
       <ToastProvider>
         <AdvisorHeaderActions />
@@ -124,6 +125,7 @@ describe("AdvisorHeaderActions", () => {
     openMenu(trigger);
     fireEvent.click(await screen.findByTestId("availability-away"));
     expect(await screen.findByText("You appear to be offline. Check your connection and try again.")).toBeTruthy();
+    online.mockRestore();
     expect(trigger.getAttribute("data-status")).toBe("online");
     expect(mocks.session.setUser).not.toHaveBeenCalled();
   });

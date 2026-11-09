@@ -245,7 +245,10 @@ export type ChatAttachment = {
 export type ChatMessage = {
   id: string;
   conversation_id: string;
-  session_id: string;
+  /** Absent for messages written outside a live chat (§22.3). */
+  session_id?: string;
+  /** True when the message was written outside a live chat (no session, never billed). */
+  off_session?: boolean;
   sender_id?: string;
   kind: "text" | "system" | "image";
   /** Text, or the (possibly empty) caption of an image message. */
@@ -256,6 +259,22 @@ export type ChatMessage = {
   saved?: boolean;
   /** FE-CHAT (wave 3): position in the conversation (1, 2, 3, … without gaps). */
   seq?: number;
+};
+
+/** What the caller may still send outside a live chat in one conversation (§22.3). */
+export type OffSessionAllowance = {
+  /** An active/paused live chat exists: messages go into it, no cap. */
+  live: boolean;
+  /** Feature on and the caller's role limit is above 0. */
+  enabled: boolean;
+  /** The conversation has had at least one started live chat. */
+  eligible: boolean;
+  /** Free mode: no cap. */
+  unlimited: boolean;
+  limit: number;
+  used: number;
+  remaining: number;
+  resets_at?: string;
 };
 
 export type Conversation = {
@@ -548,6 +567,8 @@ export type ClientProfile = {
   locale: string;
   country_code?: string;
   age?: number;
+  /** YYYY-MM-DD; present whenever the client's birth date is known (§22.6). */
+  date_of_birth?: string;
   member_since: string;
   astro?: {
     sun_sign: string;
@@ -559,9 +580,9 @@ export type ClientProfile = {
     /** Natal planets; degree and house only when the birth time is known. */
     placements?: { body: string; sign: string; degree?: number; house?: number; retrograde: boolean }[];
   };
-  /** Whether the client chose to share their date and place of birth. */
+  /** Whether the client chose to share their birth city (the date of birth is always shared, §22.6). */
   birth_details_shared: boolean;
-  /** Only present when shared: never the birth time or coordinates. */
+  /** Only present when the city is shared: never the birth time or coordinates. */
   birth_details?: { date_of_birth: string; place?: string };
   horoscope?: { sign: string; date: string; text: string; focus: string; mood: string; affirmation: string };
   history: { sessions: number; minutes: number; first_session_at?: string; last_session_at?: string };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, errorCopy, errorMessage } from "@/lib/api/errors";
+import { ApiError, errorCopy, errorMessage, unreachableCopy } from "@/lib/api/errors";
 import { isTempNote, noteErrorCopy, noteErrorMessage, placementsFor, sinceLabel } from "@/components/chat/client-panel/panel-helpers";
 
 describe("placementsFor", () => {
@@ -44,7 +44,7 @@ describe("note errors", () => {
   });
 
   it("uses the generic copy for anything else", () => {
-    expect(noteErrorMessage(new TypeError("Failed to fetch"))).toBe(errorCopy.network_error);
+    expect(noteErrorMessage(new TypeError("Failed to fetch"))).toBe(unreachableCopy);
     expect(noteErrorMessage(new ApiError({ code: "rate_limited", message: "x", status: 429 }))).toBe(errorCopy.rate_limited);
   });
 

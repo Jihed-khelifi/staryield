@@ -505,7 +505,10 @@ const (
 type Message struct {
 	ID             uuid.UUID `gorm:"type:uuid;primaryKey"`
 	ConversationID uuid.UUID `gorm:"type:uuid;not null"`
-	SessionID      uuid.UUID `gorm:"type:uuid;not null"`
+	// SessionID is nil for an off-session message (revisions 3.3: written
+	// while no live chat was active or paused); system notices always have
+	// one (CHECK chat_messages_system_has_session).
+	SessionID *uuid.UUID `gorm:"type:uuid"`
 	// Seq orders messages within the conversation (1, 2, 3, … without gaps).
 	Seq         int64       `gorm:"not null"`
 	SenderID    *uuid.UUID  `gorm:"type:uuid"`

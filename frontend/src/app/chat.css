@@ -15,6 +15,10 @@
   border-color: var(--sage);
   background: rgb(193 187 169 / 0.4);
 }
+/* The drop overlay (§22.4) covers the whole conversation column. */
+.chat-workspace .chat-column {
+  position: relative;
+}
 /* "Changed chatroom right side frame color" (PDF p.5): #d3cbb9, lighter frame. */
 .chat-workspace .chat-detail-column {
   border-color: #dcd8ca;
@@ -1107,4 +1111,42 @@
   .incoming-request-icon {
     animation: none;
   }
+}
+
+/* Typing indicator slot (§22.5): always in the list at a fixed height (the bubble:
+   12 px padding twice plus one 18 px line), so it never changes the scroll height. */
+.chat-workspace .chat-typing-slot {
+  display: flex;
+  height: 42px;
+  flex: none;
+  align-items: flex-end;
+}
+
+/* The client's date of birth under the name in the advisor's chat header (§22.6). */
+.chat-workspace .chat-header-dob {
+  display: flex;
+  min-width: 0;
+  height: 16px;
+  align-items: center;
+  color: var(--ink);
+  line-height: 16px;
+}
+@media (max-width: 767px) {
+  .chat-workspace .chat-header-dob {
+    height: 14px;
+    font-size: 10px;
+    line-height: 14px;
+  }
+  /* The compact header (keyboard open) keeps the name and the status only. */
+  html[data-keyboard="open"] .chat-workspace .chat-header-dob {
+    display: none;
+  }
+}
+
+/* "Outside a live chat" label on messages written without a live session (§22.3). */
+.chat-workspace .message-off-session {
+  color: #5e5a4b;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  letter-spacing: 0.01em;
 }

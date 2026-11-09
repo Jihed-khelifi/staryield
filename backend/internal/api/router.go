@@ -49,7 +49,9 @@ var uploadRoutes = map[string]bool{
 	"/api/v1/me/avatar":                     true,
 	"/api/v1/admin/psychics/:id/image":      true,
 	"/api/v1/chat/sessions/:id/attachments": true,
-	"/api/v1/psychic/photo":                 true, // advisor settings
+	// revisions 3.3: conversation-scoped chat images.
+	"/api/v1/chat/conversations/:id/attachments": true,
+	"/api/v1/psychic/photo":                      true, // advisor settings
 }
 
 // CookieNamesFor returns cookie names, using the __Host-/__Secure- prefixes
@@ -68,6 +70,21 @@ func CookieNamesFor(cfg config.SecurityConfig) mw.CookieNames {
 
 func rule(name string, r config.Rule, scale float64) ratelimit.Rule {
 	return ratelimit.Rule{Name: name, Rate: r.Rate, Period: r.Period, Burst: r.Burst}.Scaled(scale)
+}
+
+// statelessAstrologyPOST lists the calculator POSTs exempt from CSRF.
+var statelessAstrologyPOST = map[string]bool{
+	"/api/v1/astrology/natal":      true,
+	"/api/v1/astrology/numerology": true,
+	"/api/v1/astrology/sun-sign":   true,
+	"/api/v1/astrology/chart":      true,
+}
+
+// isChatUpload reports the chat image routes. They get the upload timeout
+// (slow mobile connections) instead of the short request timeout.
+func isChatUpload(c echo.Context) bool {
+	p := c.Path()
+	return p == "/api/v1/chat/sessions/:id/attachments" || p == "/api/v1/chat/conversations/:id/attachments"
 }
 
 func isStreaming(c echo.Context) bool {
@@ -124,12 +141,23 @@ func NewRouter(d Deps) *echo.Echo {
 		MaxAge:           600,
 	}))
 	e.Use(mw.BodyLimit(bodyLimit, func(c echo.Context) bool { return uploadRoutes[c.Path()] }))
-	e.Use(mw.Timeout(cfg.HTTP.RequestTimeout, isStreaming))
+	uploadTimeout := cfg.HTTP.UploadTimeout
+	if uploadTimeout <= 0 {
+		uploadTimeout = cfg.HTTP.RequestTimeout
+	}
+	e.Use(mw.Timeout(cfg.HTTP.RequestTimeout, func(c echo.Context) bool { return isStreaming(c) || isChatUpload(c) }))
+	// revisions 3.3: chat image uploads have their own deadline, and the
+	// connection's read deadline is extended to match.
+	e.Use(mw.ExtendReadDeadline(uploadTimeout, isChatUpload))
+	e.Use(mw.Timeout(uploadTimeout, func(c echo.Context) bool { return !isChatUpload(c) }))
 	e.Use(mw.RateLimit(limiter, rule("global", cfg.RateLimit.Global, scale), mw.ByIP, cfg.RateLimit.FailOpen))
 	e.Use(mw.CSRF(d.CSRF, d.Cookies, allowed, func(c echo.Context) bool {
 		// astrology: /aztro accepts POST only for parity with the aztro API;
 		// it is stateless, reads no cookies and returns public data.
-		return strings.HasPrefix(c.Path(), "/api/v1/webhooks/") || c.Path() == "/api/v1/aztro"
+		// revisions 3.3: the calculator POSTs are stateless too (no principal,
+		// no state written, birth data in the body only, answered no-store),
+		// so a missing CSRF token must not block them.
+		return strings.HasPrefix(c.Path(), "/api/v1/webhooks/") || c.Path() == "/api/v1/aztro" || statelessAstrologyPOST[c.Path()]
 	}))
 
 	e.GET("/healthz", h.Healthz)
@@ -147,6 +175,8 @@ func NewRouter(d Deps) *echo.Echo {
 	writeRL := mw.RateLimit(limiter, rule("writes", cfg.RateLimit.Writes, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
 	ingestRL := mw.RateLimit(limiter, rule("ingest", cfg.RateLimit.Ingest, scale), mw.ByIP, true)
 	uploadRL := mw.RateLimit(limiter, rule("upload", cfg.RateLimit.Upload, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
+	// revisions 3.3: chat images have their own per-user budget.
+	chatImageRL := mw.RateLimit(limiter, rule("chat_image", cfg.RateLimit.ChatImage, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
 	client := mw.RequireRole(domain.RoleClient)
 	psychic := mw.RequireRole(domain.RolePsychic)
 
@@ -157,7 +187,10 @@ func NewRouter(d Deps) *echo.Echo {
 	a.GET("/csrf", h.CSRFToken)
 	a.POST("/register", h.Register, authRL)
 	a.POST("/login", h.Login, authRL)
-	a.POST("/refresh", h.Refresh, authRL)
+	// revisions 3.3: refresh has its own bucket (keyed by the refresh cookie,
+	// fail-open); sharing the per-IP, fail-closed login bucket signed users out.
+	refreshRL := mw.RateLimit(limiter, rule("refresh", cfg.RateLimit.Refresh, scale), mw.ByCookieHash(d.Cookies.Refresh), true)
+	a.POST("/refresh", h.Refresh, refreshRL)
 	a.POST("/logout", h.Logout)
 	a.POST("/logout-all", h.LogoutAll, authed)
 	a.POST("/password/forgot", h.ForgotPassword, authRL)
@@ -331,7 +364,11 @@ func NewRouter(d Deps) *echo.Echo {
 	ch.POST("/sessions/:id/end", h.EndSession)
 	ch.POST("/sessions/:id/messages", h.SendMessage)
 	ch.POST("/sessions/:id/typing", h.Typing)
-	ch.POST("/sessions/:id/attachments", h.SendImage, uploadRL)
+	ch.POST("/sessions/:id/attachments", h.SendImage, chatImageRL)
+	// revisions 3.3: messages outside a live chat (§22.3) are conversation-scoped.
+	ch.POST("/conversations/:id/messages", h.SendConversationMessage)
+	ch.POST("/conversations/:id/attachments", h.SendConversationImage, chatImageRL)
+	ch.GET("/conversations/:id/allowance", h.OffSessionAllowance)
 	ch.POST("/sessions/:id/review", h.SubmitReview, client, writeRL)
 	ch.GET("/attachments/:id", h.Attachment)
 	ch.GET("/saved", h.SavedMessages)
@@ -505,6 +542,8 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.DELETE("/site/banners/:id", h.AdminDeleteSiteBanner, stepUp, adminRL)
 	ad.GET("/site/signup-offer", h.AdminSignupOffer)
 	ad.PUT("/site/signup-offer", h.AdminUpdateSignupOffer, stepUp, adminRL)
+	ad.GET("/site/off-session-messages", h.AdminOffSessionMessages)                        // revisions 3.3
+	ad.PUT("/site/off-session-messages", h.AdminUpdateOffSessionMessages, stepUp, adminRL) // revisions 3.3
 	ad.GET("/site/free-mode", h.AdminFreeMode)
 	ad.PUT("/site/free-mode", h.AdminUpdateFreeMode, stepUp, adminRL)
 	// --- end site settings ---

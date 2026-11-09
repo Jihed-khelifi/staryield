@@ -94,6 +94,16 @@ describe("AccountSettings", () => {
     expect(m.settingsApi.update).not.toHaveBeenCalled();
   });
 
+  it("the advisor switch is about the birth city only; the date of birth is always shared (§22.6)", async () => {
+    view();
+    const toggle = await screen.findByTestId("share-birth-details");
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText("Share my birth city with advisors")).toBeTruthy();
+    expect(screen.getByText("Advisors you chat with always see your date of birth, which readings rely on. Your birth time and exact location are never shown.")).toBeTruthy();
+    expect(screen.queryByText("Share birth details with advisors")).toBeNull();
+    expect(toggle.getAttribute("aria-labelledby")).toBeTruthy();
+  });
+
   it("sends one PATCH with only the changed fields and the loaded version", async () => {
     const u = userEvent.setup();
     m.settingsApi.update.mockResolvedValue({ ...base, version: 4, account: { ...base.account, display_name: "Jane D" }, notifications: { ...base.notifications, marketing: true } });

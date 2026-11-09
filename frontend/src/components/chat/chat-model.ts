@@ -22,6 +22,8 @@ export type UiMessage = ChatMessage & {
   localFile?: File;
   /** Error code of the last failed delivery attempt. */
   failure?: string;
+  /** The server's own explanation of the failure (e.g. `fields.image`), shown as is. */
+  failureDetail?: string;
 };
 
 const isLocal = (m: UiMessage) => Boolean(m.pending);

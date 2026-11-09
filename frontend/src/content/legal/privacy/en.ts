@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-07",
-    "effective": "2026-11-07",
-    "lastUpdated": "2026-11-07",
+    "version": "2026-11-09",
+    "effective": "2026-11-09",
+    "lastUpdated": "2026-11-09",
     "badge": "STARYIELD PRIVACY AGREEMENT",
     "title": "Privacy Policy"
   },
@@ -153,11 +153,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Messages and images. We store the messages, emoji and images you exchange in live readings so that you and your advisor can see your conversation history. Images are re-encoded when you upload them, which removes embedded metadata such as GPS location and camera details. They are kept in private storage and can only be opened by the two participants of the conversation; our administration tools do not allow staff to open them. Text transcripts can be reviewed by authorised staff only to handle a dispute, a safety report or a legal obligation; every such access requires a stated reason and is recorded in an audit log."
+          "text": "Messages and images. We store the messages, emoji and images you exchange in live readings so that you and your advisor can see your conversation history. Images are re-encoded when you upload them, which removes embedded metadata such as GPS location and camera details. Before sending, an image may also be resized and compressed on your device (its longest side is reduced to at most 2048 pixels), and HEIC, HEIF or AVIF photos are converted where your browser supports it. They are kept in private storage and can only be opened by the two participants of the conversation; our administration tools do not allow staff to open them. Text transcripts can be reviewed by authorised staff only to handle a dispute, a safety report or a legal obligation; every such access requires a stated reason and is recorded in an audit log."
         },
         {
           "type": "p",
-          "text": "Information shown to your advisor. During a conversation, your advisor sees a client card with your first name or nickname, profile picture, online status, country, age, your sun sign and the signs of your other natal placements (your moon sign only when it is certain from your birth date and time, and degrees, houses and your rising sign only when you gave a birth time and place), your daily horoscope and the number and length of your past readings with them. Your date of birth and your birth city are shown only if you turn on “Share birth details with advisors” in your privacy preferences; you can turn it off at any time. We never show advisors your email address, credit balance, purchases, membership, or your exact birth time or coordinates."
+          "text": "Information shown to your advisor. During a conversation, your advisor sees a client card with your first name or nickname, profile picture, online status, country, age, your full date of birth, your sun sign and the signs of your other natal placements (your moon sign only when it is certain from your birth date and time, and degrees, houses and your rising sign only when you gave a birth time and place), your daily horoscope and the number and length of your past readings with them. Your date of birth is always shown to the advisors you chat with, under your name in the chat and in the client panel, because readings rely on it; we do this to perform our contract with you, namely to provide the reading you request. Your birth city is shown only if you turn on “Share my birth city with advisors” in your privacy preferences (it is off by default); you can turn it off at any time. We never show advisors your email address, credit balance, purchases, membership, or your exact birth time or coordinates."
         },
         {
           "type": "p",
@@ -269,7 +269,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Push notifications about new chat messages never contain the text of the message: they only tell you that a new message has arrived. A message you have typed but not yet sent is kept as a draft only on your device, in your browser’s local storage, for up to 7 days; drafts are never sent to us."
+          "text": "Push notifications about new chat messages never contain the text of the message: they only tell you that a new message has arrived; the same applies to messages sent outside live readings (see [Section 2.13](#messages-outside-live-readings)). A message you have typed but not yet sent is kept as a draft only on your device, in your browser’s local storage, for up to 7 days; drafts are never sent to us."
         },
         {
           "type": "h3",
@@ -280,6 +280,20 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "When we make live chat free for everyone for a limited time (“free mode”, see [Terms of Use](/terms#free-trials-and-promotional-offers)), the chats requested during that time are recorded as sponsored sessions, with their minutes and the credits Staryield covers. We use these records to bill the sessions to Staryield and to compute advisor earnings and platform statistics, on the basis of our contract with advisors and our legitimate interest in running the Services."
+        },
+        {
+          "type": "h3",
+          "id": "messages-outside-live-readings",
+          "n": "2.13",
+          "title": "Messages outside live readings"
+        },
+        {
+          "type": "p",
+          "text": "When no live reading is running (after a reading has ended, while a request is pending or while a reading is paused), you and the advisor can keep exchanging text messages and images in an existing conversation that has had at least one live reading. We process these messages and images to provide the messaging feature of the Services, on the basis of our contract with you. They are not part of a reading, and they are not billed per minute."
+        },
+        {
+          "type": "p",
+          "text": "We store and protect these messages like the other messages described in [Section 2.5](#live-readings-ratings-and-notifications): they are visible only to the two participants of the conversation, they are kept for as long as the conversation exists (see [Section 8](#data-retention)), and authorised staff may review text only to handle a dispute, a safety report or a legal obligation, with a stated reason and an entry in the audit log. The other participant receives an in-app notification and an unread counter and, if enabled, a push notification, none of which contains the text of the message (see [Section 2.11](#chat-notifications-and-drafts)). To keep the feature fair, we count the messages each participant sends per conversation over a rolling period of 24 hours, and we record that a message was refused when the limit is reached. Messages written while a live reading is paused belong to that reading. The rules for using this feature are in our [Terms of Use](/terms#messages-outside-live-readings)."
         }
       ]
     },
@@ -313,7 +327,7 @@ const content: LegalDocumentContent = {
             [
               "To enable communication with advisors, including the client card and advisor notes",
               "Identifiers; Onboarding and profile data; Birth data; Communications data; Notes written by advisors",
-              "Performance of a contract with you; Your consent (for sharing your date and city of birth); Legitimate interest (for advisor notes — check the description)"
+              "Performance of a contract with you (including showing your date of birth to the advisor you chat with); Your consent (for sharing your birth city); Legitimate interest (for advisor notes — check the description)"
             ],
             [
               "To research, analyze and improve the Services",
@@ -435,7 +449,7 @@ const content: LegalDocumentContent = {
             "Analytics: Our analytics and error reporting are first-party and run on our own systems. We do not use third-party analytics, session-recording or advertising tools.",
             "Technical, administrative, and information service providers: From time to time, we may use third-party tools for project and task management, internal communication and collaboration, or to automate workflows. In some cases, limited personal data may be shared with these service providers.",
             "Advisors, consultants, and independent contractors. From time to time, we may share limited personal information with our independent contractors, consultants, third-party specialists, partners, and advisors. They process this information on our behalf to operate, maintain, secure, and improve the Services, and ensure legal and regulatory compliance. We require them to use the information only for these purposes, protect it appropriately, and keep it confidential.",
-            "Advisors (psychics): The advisors you chat with receive your messages and the client card described in [Section 2.5](#live-readings-ratings-and-notifications). A note an advisor writes about you is shared with other advisors only if its author chooses to share it, and only with advisors who have also had a session with you (see [Section 2.7](#advisor-notes))."
+            "Advisors (psychics): The advisors you chat with receive your messages (including messages sent outside live readings, see [Section 2.13](#messages-outside-live-readings)) and the client card described in [Section 2.5](#live-readings-ratings-and-notifications); the card always includes your date of birth and shows your birth city only if you choose to share it. A note an advisor writes about you is shared with other advisors only if its author chooses to share it, and only with advisors who have also had a session with you (see [Section 2.7](#advisor-notes))."
           ]
         },
         {
@@ -527,7 +541,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "To withdraw your consent to analytics, marketing attribution or personalisation, or to stop sharing your birth details with advisors, use Privacy preferences in your [account settings](/profile/settings). To stop marketing communications, use the “Unsubscribe” link in the message, turn off Marketing updates in your account settings, or submit your request using this [request form](/contact?topic=privacy)."
+          "text": "To withdraw your consent to analytics, marketing attribution or personalisation, or to stop sharing your birth city with advisors, use Privacy preferences in your [account settings](/profile/settings). To stop marketing communications, use the “Unsubscribe” link in the message, turn off Marketing updates in your account settings, or submit your request using this [request form](/contact?topic=privacy)."
         },
         {
           "type": "h4",
@@ -846,7 +860,7 @@ const content: LegalDocumentContent = {
             [
               "sy_rt",
               "Cookie",
-              "Renews your session without asking you to sign in again",
+              "Renews your session without asking you to sign in again, so you stay signed in on this device for up to 30 days of use unless you sign out",
               "Up to 30 days",
               "Essential"
             ],
@@ -854,7 +868,7 @@ const content: LegalDocumentContent = {
               "sy_csrf",
               "Cookie",
               "Protects your account against cross-site request forgery",
-              "Session",
+              "Up to 30 days, renewed while you use the site",
               "Essential"
             ],
             [

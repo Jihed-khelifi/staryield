@@ -20,7 +20,7 @@
  * state the server publishes.
  */
 import { API_URL, WS_URL, currentLocale } from "@/lib/api/config";
-import { refreshSession } from "@/lib/api/client";
+import { refreshSessionOutcome } from "@/lib/api/client";
 import { chatApi, realtimeApi } from "@/lib/api/endpoints";
 import { ApiError, toApiError } from "@/lib/api/errors";
 import { logger } from "@/lib/logger";
@@ -270,8 +270,10 @@ export class RealtimeClient {
       if (es.readyState === EventSource.CLOSED) {
         // The server refused the stream (likely an expired session).
         this.es = null;
-        void refreshSession().then((ok) => {
-          if (!ok) {
+        void refreshSessionOutcome().then(({ outcome }) => {
+          // Only a definitive expiry revokes; a refresh that could not run
+          // (offline, 429, 5xx) is retried by the normal reconnect backoff.
+          if (outcome === "expired") {
             this.emit({ type: "auth.revoked", ts: new Date().toISOString(), data: { reason: "session_expired" } });
             this.stop();
           } else this.scheduleReconnect();
@@ -382,7 +384,10 @@ export class RealtimeClient {
       throw new ApiError({ code: "realtime_unavailable", message: "Not connected yet." });
     switch (type) {
       case "message.send":
-        return (await chatApi.send(d.session_id, d.body, d.client_msg_id)) as T;
+        // Conversation sends (§22.3) use the conversation endpoint; old frames name a session.
+        return (d.conversation_id
+          ? await chatApi.sendToConversation(d.conversation_id, d.body, d.client_msg_id)
+          : await chatApi.send(d.session_id, d.body, d.client_msg_id)) as T;
       case "session.join":
         return (await realtimeApi.presence(this.connectionId!, d.session_id, "join")) as T;
       case "session.leave":

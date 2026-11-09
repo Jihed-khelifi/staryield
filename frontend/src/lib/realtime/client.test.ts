@@ -4,9 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const ticket = vi.fn();
 vi.mock("@/lib/api/endpoints", () => ({
   realtimeApi: { ticket: () => ticket(), presence: vi.fn() },
-  chatApi: { send: vi.fn(), typing: vi.fn(), markRead: vi.fn(), markReadSeq: vi.fn() },
+  chatApi: { send: vi.fn(), sendToConversation: vi.fn(), typing: vi.fn(), markRead: vi.fn(), markReadSeq: vi.fn() },
 }));
-vi.mock("@/lib/api/client", () => ({ refreshSession: vi.fn(async () => true) }));
+vi.mock("@/lib/api/client", () => ({ refreshSessionOutcome: vi.fn(async () => ({ outcome: "refreshed" })) }));
 
 class MockWebSocket {
   static OPEN = 1;
@@ -272,6 +272,27 @@ describe("RealtimeClient", () => {
     rt.reconnect();
     await vi.advanceTimersByTimeAsync(0);
     expect(MockWebSocket.instances).toHaveLength(2);
+    rt.stop();
+  });
+
+  it("sends messages over the REST fallback: conversation sends use the conversation endpoint (§22.3), old frames the session one", async () => {
+    const { chatApi } = await import("@/lib/api/endpoints");
+    vi.mocked(chatApi.sendToConversation).mockResolvedValue({ message: { id: "m1" } } as never);
+    vi.mocked(chatApi.send).mockResolvedValue({ message: { id: "m2" } } as never);
+    vi.useFakeTimers();
+    vi.stubGlobal("EventSource", class { static CLOSED = 2; readyState = 0; close() {} });
+    const rt = await client();
+    rt.start();
+    for (let i = 0; i < 3; i++) {
+      await vi.advanceTimersByTimeAsync(0);
+      latest().close(1006, "handshake failed");
+      await vi.advanceTimersByTimeAsync(31_000);
+    }
+    expect(rt.connection.transport).toBe("sse");
+    await expect(rt.request("message.send", { conversation_id: "c1", session_id: "s1", body: "hi", client_msg_id: "k1" })).resolves.toEqual({ message: { id: "m1" } });
+    expect(chatApi.sendToConversation).toHaveBeenCalledWith("c1", "hi", "k1");
+    await expect(rt.request("message.send", { session_id: "s1", body: "old", client_msg_id: "k2" })).resolves.toEqual({ message: { id: "m2" } });
+    expect(chatApi.send).toHaveBeenCalledWith("s1", "old", "k2");
     rt.stop();
   });
 

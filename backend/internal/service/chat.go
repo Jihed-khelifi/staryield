@@ -64,6 +64,10 @@ type ChatService struct {
 	// revisions 3.0: site settings. freeModeActive reports whether chats
 	// requested now are free (SiteService.FreeModeActive); nil means never.
 	freeModeActive func(ctx context.Context) bool
+	// offSession reads the messages-outside-a-live-chat settings
+	// (SiteService.OffSessionSettings); nil means the feature is disabled
+	// (revisions 3.3, §22.3).
+	offSession func(ctx context.Context) OffSessionSettings
 }
 
 // SetDiscounts installs the member discount lookup (billing.DiscountFor).
@@ -943,7 +947,8 @@ func (c *ChatService) SweepPresence(ctx context.Context, limit int) error {
 // addSystemMessage records a system notice in the transcript. It takes the
 // conversation's next seq and counts as unread for both participants.
 func (c *ChatService) addSystemMessage(ctx context.Context, s *domain.Session, body string, at time.Time, post *afterCommit) error {
-	m := &domain.Message{ID: domain.NewID(), ConversationID: s.ConversationID, SessionID: s.ID, Kind: domain.MessageSystem, Body: body,
+	sessionID := s.ID
+	m := &domain.Message{ID: domain.NewID(), ConversationID: s.ConversationID, SessionID: &sessionID, Kind: domain.MessageSystem, Body: body,
 		CreatedAt: at, UpdatedAt: at}
 	if _, err := c.chat.AppendMessage(ctx, m); err != nil {
 		return err

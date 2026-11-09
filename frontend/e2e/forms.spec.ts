@@ -62,7 +62,7 @@ test.describe("sign-up", { tag: "@responsive" }, () => {
 
     // Birth information: a time needs a birthplace.
     const form = page.getByTestId("birth-info-form");
-    await expect(form.getByText("Your birth details stay private and are only used for your charts.")).toBeVisible();
+    await expect(form.getByText("Your birth time and exact location stay private. Advisors you chat with see your date of birth, which readings rely on.")).toBeVisible();
     await form.getByRole("textbox", { name: /Day$/ }).fill("14");
     await form.getByRole("textbox", { name: "Month", exact: true }).fill("03");
     await form.getByRole("textbox", { name: "Year", exact: true }).fill("1990");

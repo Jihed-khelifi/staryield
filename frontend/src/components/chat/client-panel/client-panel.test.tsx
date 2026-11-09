@@ -16,10 +16,12 @@ vi.mock("@/lib/api/endpoints", () => mocks);
 vi.mock("@/lib/auth/session-provider", () => ({ useRealtimeEvent: () => undefined }));
 
 import { ClientPanel } from "@/components/chat/client-panel";
+import { clearClientProfileCache } from "@/components/chat/use-client-profile";
 
 beforeAll(stubResizeObserver);
 afterEach(cleanup);
 beforeEach(() => {
+  clearClientProfileCache();
   mocks.chatApi.clientProfile.mockReset();
   mocks.notesApi.list.mockReset().mockResolvedValue({ items: [] });
 });
@@ -81,10 +83,18 @@ describe("ClientPanel", () => {
     expect(await axeViolations()).toEqual([]);
   });
 
-  it("shows the shared location and birth date when the client consents", async () => {
+  it("always shows the date of birth with the age, and the country when the city is not shared (§22.6)", async () => {
+    mocks.chatApi.clientProfile.mockResolvedValue(profile({ date_of_birth: "1999-06-18", age: 27 }));
+    renderPanel();
+    await waitFor(() => expect(screen.getByTestId("client-birth-date").textContent).toContain("Jun 18, 1999 · 27 years old"));
+    expect(screen.getByTestId("client-location").textContent).toContain("United States");
+  });
+
+  it("shows the shared birth city and the date of birth when the client consents", async () => {
     mocks.chatApi.clientProfile.mockResolvedValue(
       profile({
         birth_details_shared: true,
+        date_of_birth: "1999-06-18",
         birth_details: { place: "US, Tennessee, Memphis", date_of_birth: "1999-06-18" },
         history: { sessions: 0, minutes: 0 },
       }),

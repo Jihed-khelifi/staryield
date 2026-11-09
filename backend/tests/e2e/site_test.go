@@ -834,7 +834,7 @@ func TestSignupOfferIsSharedAcrossInstances(t *testing.T) {
 	}
 	// The Redis snapshot is dropped by writers; emulate that too.
 	kv := cache.NewRedis(e.app.Redis, e.app.Config.Redis.KeyPrefix)
-	_ = kv.Del(context.Background(), "site:config:v1")
+	_ = kv.Del(context.Background(), "site:config:v2")
 	deadline := time.Now().Add(3 * time.Second)
 	for {
 		cfg, _ := e.siteConfig("en")

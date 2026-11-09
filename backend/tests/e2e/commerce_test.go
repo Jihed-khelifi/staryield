@@ -238,7 +238,9 @@ func TestAdminConsoleAndReports(t *testing.T) {
 	}
 	admin.must(http.StatusOK, http.MethodGet, "/api/v1/admin/chat/sessions/"+s.ID.String()+"/transcript?reason=Quality+review", nil, nil)
 	var audit service.Page[service.AuditView]
-	admin.must(http.StatusOK, http.MethodGet, "/api/v1/admin/audit-logs", nil, &audit)
+	// Only this admin's entries: the suite shares one database, and other tests
+	// leave entries with far-future fake-clock timestamps at the top of the list.
+	admin.must(http.StatusOK, http.MethodGet, "/api/v1/admin/audit-logs?actor_id="+admin.adminID.String(), nil, &audit)
 	actions := map[string]bool{}
 	for _, a := range audit.Items {
 		actions[a.Action] = true

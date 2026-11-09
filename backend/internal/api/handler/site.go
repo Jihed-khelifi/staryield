@@ -147,6 +147,29 @@ func (h *Handler) AdminUpdateSignupOffer(c echo.Context) error {
 	return ok(c, out)
 }
 
+// AdminOffSessionMessages returns the messages-outside-a-live-chat setting
+// with its 24 h oversight totals (revisions 3.3).
+func (h *Handler) AdminOffSessionMessages(c echo.Context) error {
+	out, err := h.svc.Site.OffSessionMessages(c.Request().Context())
+	if err != nil {
+		return err
+	}
+	return ok(c, out)
+}
+
+// AdminUpdateOffSessionMessages replaces the setting.
+func (h *Handler) AdminUpdateOffSessionMessages(c echo.Context) error {
+	var in service.OffSessionInput
+	if err := bind(c, &in); err != nil {
+		return err
+	}
+	out, err := h.svc.Site.UpdateOffSessionMessages(c.Request().Context(), in)
+	if err != nil {
+		return err
+	}
+	return ok(c, out)
+}
+
 // AdminFreeMode returns the free-mode state and its statistics.
 func (h *Handler) AdminFreeMode(c echo.Context) error {
 	out, err := h.svc.Site.FreeMode(c.Request().Context())

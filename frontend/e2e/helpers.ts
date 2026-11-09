@@ -124,3 +124,26 @@ export function wavFixture(seconds = 0.5, sampleRate = 8000): Buffer {
   header.writeUInt32LE(data.length, 40);
   return Buffer.concat([header, data]);
 }
+
+/**
+ * Make sure the client signed in on `page` can pay for live chats. The suite
+ * shares one seed client whose credits run out over many chat specs, and a
+ * request it cannot pay for never reaches the advisor. Buys a credit pack
+ * (sandbox payments in development) until the balance reaches `min`.
+ */
+export async function ensureCredits(page: Page, min = 400) {
+  const req = page.context().request;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const wallet = (await (await req.get(`${API_URL}/api/v1/wallet`)).json()) as { balance?: number };
+    if ((wallet.balance ?? 0) >= min) return;
+    const { csrf_token } = (await (await req.get(`${API_URL}/api/v1/auth/csrf`)).json()) as { csrf_token: string };
+    const { items } = (await (await req.get(`${API_URL}/api/v1/credit-packs`)).json()) as { items: { id: string; credits: number }[] };
+    const pack = items.reduce((a, b) => (b.credits > a.credits ? b : a));
+    const res = await req.post(`${API_URL}/api/v1/credits/purchases`, {
+      headers: { "X-CSRF-Token": csrf_token },
+      data: { pack_id: pack.id, idempotency_key: `e2e-credits-${Date.now()}-${attempt}` },
+    });
+    expect(res.ok(), `credit purchase: ${res.status()} ${await res.text()}`).toBe(true);
+  }
+  throw new Error(`could not top the client up to ${min} credits`);
+}

@@ -183,4 +183,107 @@ describe("ChatFeed", () => {
     act(() => rerender({ messages: [m(1), m(2)], scrollToken: 1 }));
     expect(g.top).toBe(800);
   });
+
+  it("does not re-pin on re-renders that do not change the messages (§22.5)", () => {
+    const messages = [m(1), m(2)];
+    const { rerender } = feed({ messages });
+    const scroller = screen.getByTestId("chat-feed");
+    const g = geometry(scroller, { height: 800, client: 400, top: 400 });
+    fireEvent.scroll(scroller); // at the bottom
+    // Content grew without a message change (e.g. the 1 s session timer re-renders the shell).
+    g.height = 900;
+    rerender({ messages, announcements: [{ id: "x", text: "tick" }] });
+    rerender({ messages, savedIds: new Set(["m1"]) });
+    expect(g.top).toBe(400);
+    // The other person starting or stopping to type never moves the feed (fixed-height slot).
+    rerender({ messages, typing: true });
+    rerender({ messages, typing: false });
+    expect(g.top).toBe(400);
+    // A new message does pin.
+    rerender({ messages: [m(1), m(2), m(3)] });
+    expect(g.top).toBe(500);
+  });
+
+  it("follows content that grows later (an image loading) while the reader is at the bottom", () => {
+    const observers: { cb: ResizeObserverCallback; targets: Element[] }[] = [];
+    class RO {
+      targets: Element[] = [];
+      constructor(public cb: ResizeObserverCallback) {
+        observers.push(this);
+      }
+      observe(el: Element) {
+        this.targets.push(el);
+      }
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("ResizeObserver", RO);
+    const messages = [m(1)];
+    feed({ messages });
+    const scroller = screen.getByTestId("chat-feed");
+    const g = geometry(scroller, { height: 800, client: 400, top: 400 });
+    fireEvent.scroll(scroller);
+    // The observer watches both the viewport and the content list.
+    const ro = observers.at(-1)!;
+    expect(ro.targets).toContain(scroller);
+    const content = ro.targets.find((t) => t !== scroller) as HTMLElement;
+    expect(content.contains(screen.getByRole("list", { name: /Theo/ }))).toBe(true);
+    Object.defineProperty(content, "offsetHeight", { configurable: true, value: 1200 });
+    g.height = 1200;
+    act(() => ro.cb([], ro as unknown as ResizeObserver));
+    expect(g.top).toBe(800);
+    // A reader who scrolled up is left where they are.
+    g.top = 100;
+    fireEvent.scroll(scroller);
+    Object.defineProperty(content, "offsetHeight", { configurable: true, value: 1300 });
+    g.height = 1300;
+    act(() => ro.cb([], ro as unknown as ResizeObserver));
+    expect(g.top).toBe(100);
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps the typing indicator in an always-rendered fixed slot (hidden from assistive tech when idle)", () => {
+    const { rerender } = feed({ typing: false });
+    const slot = screen.getByTestId("typing-slot");
+    expect(slot.className).toBe("chat-typing-slot");
+    expect(slot.getAttribute("aria-hidden")).toBe("true");
+    expect(within(slot).queryByRole("status")).toBeNull();
+    rerender({ typing: true });
+    // The same element stays in the list; only its content changes.
+    expect(screen.getByTestId("typing-slot")).toBe(slot);
+    expect(slot.getAttribute("aria-hidden")).toBeNull();
+    expect(within(slot).getByRole("status", { name: "Theo is typing" })).toBeTruthy();
+    rerender({ typing: false });
+    expect(slot.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("labels messages written outside a live chat, and explains why one was not delivered", () => {
+    const off = { ...m(3, THEM), off_session: true, session_id: undefined };
+    const failed: UiMessage = { ...m(0, ME), id: "f1", seq: undefined, client_msg_id: "f1", pending: "failed", failure: "off_session_limit_reached", body: "hello?" };
+    feed({ messages: [m(1), off, failed] });
+    expect(screen.getAllByTestId("message-off-session")).toHaveLength(1);
+    expect(screen.getByTestId("message-off-session").textContent).toBe("Outside a live chat");
+    expect(screen.getByTestId("message-failed").textContent).toContain("Not delivered: you've used today's messages outside a live chat.");
+  });
+
+  it("explains image failures: too large, the server's own message, and a network problem", () => {
+    const image = (failure: string, failureDetail?: string): UiMessage => ({
+      ...m(0, ME),
+      id: `i-${failure}`,
+      seq: undefined,
+      client_msg_id: `i-${failure}`,
+      kind: "image",
+      body: "",
+      attachments: [{ id: "local-1", content_type: "image/jpeg", width: 10, height: 10, bytes: 10 }],
+      pending: "failed",
+      failure,
+      failureDetail,
+    });
+    const { rerender } = feed({ messages: [image("payload_too_large")] });
+    expect(screen.getByTestId("message-failed").textContent).toContain("Not delivered: this image is too large.");
+    rerender({ messages: [image("validation_failed", "The image is too small.")] });
+    expect(screen.getByTestId("message-failed").textContent).toContain("Not delivered: The image is too small.");
+    rerender({ messages: [image("network_error")] });
+    expect(screen.getByTestId("message-failed").textContent).toContain("Not delivered: check your connection and try again.");
+  });
 });

@@ -20,6 +20,18 @@ const failureCopy: Record<string, string> = {
   rate_limited: "Not delivered: you are sending too fast.",
   validation_failed: "Not delivered: this message cannot be sent.",
   payload_too_large: "Not delivered: this message is too long.",
+  off_session_limit_reached: "Not delivered: you've used today's messages outside a live chat.",
+  off_session_disabled: "Not delivered: messages outside a live chat are turned off right now.",
+  off_session_not_eligible: "Not delivered: you can write once the live chat starts.",
+  recipient_unavailable: "Not delivered: this person can't receive messages right now.",
+  network_error: "Not delivered: check your connection and try again.",
+  timeout: "Not delivered: the connection was too slow. Try again.",
+  unsupported_media_type: "Not delivered: this image type isn't supported.",
+};
+/** Image-specific wording for the codes that read differently for a photo. */
+const imageFailureCopy: Record<string, string> = {
+  payload_too_large: "Not delivered: this image is too large.",
+  validation_failed: "Not delivered: this image cannot be sent.",
 };
 
 export function MessageBubble({
@@ -85,6 +97,11 @@ export function MessageBubble({
       {/* Rendered as text: React escapes it, so message content can never inject markup. */}
       {message.body ? <MessageText body={message.body} className="w-full font-serif text-[13px] leading-[1.4]" /> : null}
       <span className="message-meta flex w-full items-center justify-end gap-2 font-ui text-[10px]">
+        {message.off_session ? (
+          <span className="message-off-session mr-auto" data-testid="message-off-session">
+            {text("Outside a live chat")}
+          </span>
+        ) : null}
         {status ? (
           <span className="inline-flex items-center gap-1" data-testid="message-status">
             {delivery === "waiting" ? <FiClock aria-hidden className="size-3" /> : null}
@@ -98,7 +115,9 @@ export function MessageBubble({
         <span className="message-failure flex flex-wrap items-center gap-x-3 gap-y-1 font-ui text-[11px]" data-testid="message-failed">
           <span className="inline-flex items-center gap-1">
             <FiAlertCircle aria-hidden className="size-3.5" />
-            {text(failureCopy[message.failure ?? ""] ?? "Not delivered.")}
+            {message.failureDetail
+              ? `${text("Not delivered:")} ${message.failureDetail}`
+              : text((image ? imageFailureCopy[message.failure ?? ""] : undefined) ?? failureCopy[message.failure ?? ""] ?? "Not delivered.")}
           </span>
           <button type="button" className="underline" onClick={onRetry}>
             {text("Retry")}

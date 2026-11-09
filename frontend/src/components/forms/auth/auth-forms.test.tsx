@@ -168,7 +168,7 @@ describe("BirthInfoForm", () => {
     const u = userEvent.setup();
     api.updateMe.mockResolvedValue({ ...user, profile: { birth_date: "1990-03-14" } });
     renderWithI18n(<BirthInfoForm />);
-    expect(screen.getByText("Your birth details stay private and are only used for your charts.")).toBeTruthy();
+    expect(screen.getByText("Your birth time and exact location stay private. Advisors you chat with see your date of birth, which readings rely on.")).toBeTruthy();
     await fillDate(u);
     await u.click(submitButton());
     expect(await screen.findByText("Choose where you were born so we can place your rising sign.")).toBeTruthy();

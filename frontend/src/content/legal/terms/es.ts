@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-07",
-    "effective": "2026-11-07",
-    "lastUpdated": "2026-11-07",
+    "version": "2026-11-09",
+    "effective": "2026-11-09",
+    "lastUpdated": "2026-11-09",
     "badge": "ACUERDO DEL SISTEMA STARYIELD",
     "title": "Términos de uso"
   },
@@ -401,7 +401,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Durante una consulta en vivo puede enviar mensajes de texto, emojis e imágenes. Solo se pueden adjuntar archivos de imagen (PNG, JPEG, WebP o GIF, que se convierte en una imagen fija); el resto de archivos se rechaza. Para proteger su privacidad, eliminamos de cada imagen la información oculta, como los datos de ubicación, antes de almacenarla."
+          "text": "Durante una consulta en vivo puede enviar mensajes de texto, emojis e imágenes; en una conversación existente también puede enviar mensajes fuera de una consulta en vivo (véase la [Sección 4.16](#messages-outside-live-readings)). Solo se pueden adjuntar archivos de imagen: PNG, JPEG, WebP o GIF (que se convierte en una imagen fija), y fotos HEIC, HEIF o AVIF cuando su navegador pueda convertirlas; el resto de archivos se rechaza. Antes del envío, una imagen puede redimensionarse y comprimirse en su dispositivo (su lado más largo se reduce a un máximo de 2048 píxeles). Para proteger su privacidad, eliminamos de cada imagen la información oculta, como los datos de ubicación, antes de almacenarla."
         },
         {
           "type": "p",
@@ -409,7 +409,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Lo que ve su asesor. Para personalizar su consulta, el asesor con el que chatea ve una ficha de cliente con su nombre o apodo, su foto de perfil, su estado de conexión, su país, su edad, los datos astrológicos derivados de sus datos de nacimiento (su signo solar y los signos de sus demás posiciones natales, además de los signos lunar y ascendente si nos facilitó una hora y un lugar de nacimiento), su horóscopo diario y cuántas consultas ha tenido con él. Su fecha de nacimiento y su ciudad de nacimiento solo se muestran si decide compartirlas en sus preferencias de privacidad. Los asesores nunca ven su dirección de correo electrónico, su saldo de créditos, sus compras, su membresía ni su hora exacta o sus coordenadas de nacimiento."
+          "text": "Lo que ve su asesor. Para personalizar su consulta, el asesor con el que chatea ve una ficha de cliente con su nombre o apodo, su foto de perfil, su estado de conexión, su país, su edad, su fecha de nacimiento completa, los datos astrológicos derivados de sus datos de nacimiento (su signo solar y los signos de sus demás posiciones natales, además de los signos lunar y ascendente si nos facilitó una hora y un lugar de nacimiento), su horóscopo diario y cuántas consultas ha tenido con él. Su fecha de nacimiento se muestra siempre al asesor con el que chatea, porque las consultas dependen de ella. Su ciudad de nacimiento solo se muestra si activa «Compartir mi ciudad de nacimiento con los asesores» en sus preferencias de privacidad. Los asesores nunca ven su dirección de correo electrónico, su saldo de créditos, sus compras, su membresía ni su hora exacta o sus coordenadas de nacimiento."
         },
         {
           "type": "h3",
@@ -450,6 +450,24 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Cuando un asesor está ocupado o desconectado, puede unirse a su lista de espera. Le avisaremos una sola vez, en la aplicación y por los canales que tenga activados, cuando el asesor se conecte; los miembros Premium pueden recibir el aviso antes que otros usuarios. Unirse a una lista de espera no reserva al asesor ni garantiza una consulta; las solicitudes caducan a los 7 días y puede salir de una lista de espera en cualquier momento."
+        },
+        {
+          "type": "h3",
+          "id": "messages-outside-live-readings",
+          "n": "4.16",
+          "title": "Mensajes fuera de las consultas en vivo"
+        },
+        {
+          "type": "p",
+          "text": "Cuando no hay ninguna consulta en vivo en curso (después de que termine una consulta, mientras una solicitud está pendiente o mientras una consulta está en pausa), usted y el asesor pueden seguir intercambiando mensajes de texto e imágenes en una conversación existente que haya tenido al menos una consulta en vivo. Estos mensajes son gratuitos: no se facturan por minuto. Están limitados a un número de mensajes por conversación en cualquier periodo móvil de 24 horas, que Staryield fija y puede modificar o desactivar en cualquier momento; el límite vigente se muestra en la aplicación. El límite no se aplica durante los periodos de modo gratuito (véase la [Sección 6.2.5](#free-trials-and-promotional-offers)). Los mensajes escritos mientras una consulta en vivo está en pausa pertenecen a esa consulta y no se facturan mientras dure la pausa."
+        },
+        {
+          "type": "p",
+          "text": "Un mensaje fuera de una consulta en vivo no es una consulta. Los asesores no están obligados a responder y no garantizamos ningún plazo de respuesta. Se aplican las mismas reglas de conducta que en una consulta en vivo: la [Sección 4.7](#prohibited-conduct) y la [Sección 4.11](#live-readings-messages-and-images) (sin acoso y sin solicitudes de contacto o pago fuera de Staryield) y las [Normas de integridad de los asesores](/standards)."
+        },
+        {
+          "type": "p",
+          "text": "Estos mensajes se almacenan y conservan como los demás mensajes del chat y solo son visibles para usted y el asesor. El personal autorizado de Staryield solo puede revisarlos en los términos descritos en nuestra [Política de privacidad](/privacy#messages-outside-live-readings), por ejemplo para gestionar una disputa, una denuncia de seguridad o una obligación legal. El otro participante recibe un aviso en la aplicación y una notificación push, sin el texto del mensaje."
         }
       ]
     },

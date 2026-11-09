@@ -415,6 +415,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 			IPHashSecret: cfg.Analytics.IPHashSecret}})
 	authSvc.SetSignupOffer(siteSvc.SignupFreeMinutes)
 	chatSvc.SetFreeMode(siteSvc.FreeModeActive)
+	chatSvc.SetOffSessionSettings(siteSvc.OffSessionSettings) // revisions 3.3: messages outside a live chat
 	// --- end site settings ---
 	// --- identity: devices, settings, consents, exports, closure ---
 	sessionsRepo := repository.NewSessionRepository(db)

@@ -44,4 +44,17 @@ describe("ComposerNote", () => {
     setup({ role: "psychic", free: true, advisorLabel: "Message" });
     expect(note()).toBe("Message");
   });
+  it("outside a live chat, clients see it is free and how many messages are left today (§22.3)", () => {
+    setup({ offSession: { live: false, enabled: true, eligible: true, unlimited: false, limit: 20, used: 3, remaining: 17 } });
+    expect(note()).toBe("Outside a live chat: free · 17 of 20 left today");
+    expect(note()).not.toContain("credits");
+  });
+  it("outside a live chat, advisors see it is not billed", () => {
+    setup({ role: "psychic", offSession: { live: false, enabled: true, eligible: true, unlimited: false, limit: 20, used: 20, remaining: 0 } });
+    expect(note()).toBe("Outside a live chat: not billed · 0 of 20 left today");
+  });
+  it("in free mode there is no count", () => {
+    setup({ offSession: { live: false, enabled: true, eligible: true, unlimited: true, limit: 20, used: 3, remaining: 20 } });
+    expect(note()).toBe("Outside a live chat: free · unlimited during free mode");
+  });
 });

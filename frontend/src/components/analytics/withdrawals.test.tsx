@@ -74,6 +74,7 @@ describe("Withdrawals form", () => {
 
   it("requests a withdrawal with one idempotency key across retries", async () => {
     const { form, onChanged, u } = setup();
+    const online = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false); // the offline copy
     api.request
       .mockRejectedValueOnce(new ApiError({ code: "network_error", message: "offline", status: 0 }))
       .mockResolvedValueOnce(created);
@@ -81,6 +82,7 @@ describe("Withdrawals form", () => {
     await u.type(within(form).getByRole("textbox", { name: "IBAN or account number" }), "  FR76 3000 6000 0112 3456 7890 189 ");
     await u.click(within(form).getByRole("button", { name: "Request withdrawal" }));
     expect((await within(form).findByRole("alert")).textContent).toContain("You appear to be offline.");
+    online.mockRestore();
     await u.click(within(form).getByRole("button", { name: "Request withdrawal" }));
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     const [first, second] = api.request.mock.calls.map((call) => call[0]);

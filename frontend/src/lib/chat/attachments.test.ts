@@ -36,7 +36,7 @@ describe("validateAttachment", () => {
   });
 
   it("advertises only accepted types to the file picker", () => {
-    expect(ACCEPT_ATTRIBUTE).toBe("image/png,image/jpeg,image/webp,image/gif");
+    expect(ACCEPT_ATTRIBUTE).toBe("image/*,.heic,.heif");
   });
 
   it("firstFile prefers images", () => {

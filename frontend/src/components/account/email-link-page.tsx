@@ -6,7 +6,7 @@ import { CheckCircle2, LinkIcon, Loader2, MailWarning } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { accountApi, emailChangeApi } from "@/lib/api/account";
-import { setAuthHint } from "@/lib/api/client";
+import { endSession } from "@/lib/api/client";
 import { errorMessage, toApiError, type ApiError } from "@/lib/api/errors";
 import { useSession } from "@/lib/auth/session-provider";
 import { AuthLegal, AuthShell } from "@/components/forms/auth/auth-card";
@@ -113,7 +113,7 @@ export function EmailLinkPage({ action }: { action: EmailLinkAction }) {
       token.current = null;
       // Confirming or undoing a change signs every device out, this one too.
       if (result.status === "confirmed" || result.status === "restored") {
-        setAuthHint(false);
+        endSession();
         void reload();
       }
       setPhase({ kind: "done", status: result.status });

@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { placeLabel } from "@/lib/api/astrology";
 import { decodeFragment, encodeFragment } from "@/lib/astro/fragment";
 import { useLocationHash, writeLocationHash } from "@/lib/astro/hash-store";
+import { logger } from "@/lib/logger";
 import { useAsync } from "@/lib/use-async";
 import {
   emptyCalculatorValues,
@@ -129,7 +130,13 @@ function ResultView({
   const state = useAsync(
     async (signal) => {
       const result = await calculate(kind, values, signal);
-      rememberResult(key, result);
+      try {
+        rememberResult(key, result);
+      } catch (error) {
+        // The in-memory cache is an optimisation: never turn a good API
+        // answer into an error screen.
+        logger.warn("calculator result cache failed", error);
+      }
       return result;
     },
     [key],

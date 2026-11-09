@@ -7,7 +7,9 @@ import { ChevronDown, LockKeyhole } from "lucide-react";
 import { useI18n } from "@/i18n/i18n-provider";
 import { track } from "@/lib/analytics";
 import { astroApi, type HouseSystem } from "@/lib/api/astrology";
+import { ApiError } from "@/lib/api/errors";
 import { applyApiError } from "@/lib/forms/server-errors";
+import { logger } from "@/lib/logger";
 import { keepFocusOnPress } from "@/lib/forms/submit-press";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import {
@@ -105,13 +107,23 @@ export function CalculatorForm({ kind, initialValues, serverError, invalidLink =
   }, [placeId, form, text]);
 
   async function submit(values: FieldValues) {
+    // The API call and what the page does with its answer fail differently:
+    // only the former is an API error (offline, rate limit, 422 fields...).
+    let result: CalculatorResult;
     try {
-      const result = await calculate(kind, values as CalculatorFormValues);
-      track("calculator_completed", { kind });
-      onCalculated(values as CalculatorFormValues, result);
+      result = await calculate(kind, values as CalculatorFormValues);
     } catch (err) {
       const e = applyApiError(form, err, { text, fieldMap: CALCULATOR_FIELD_MAP });
       if (e.code !== "aborted") track("error_displayed", { code: String(e.code), area: "calculator" });
+      return;
+    }
+    try {
+      track("calculator_completed", { kind });
+      onCalculated(values as CalculatorFormValues, result);
+    } catch (err) {
+      logger.error("calculator post-processing failed", err, { kind });
+      applyApiError(form, new ApiError({ code: "client_error", message: "Unexpected error.", cause: err }), { text, fieldMap: CALCULATOR_FIELD_MAP });
+      track("error_displayed", { code: "client_error", area: "calculator" });
     }
   }
 
@@ -141,7 +153,13 @@ export function CalculatorForm({ kind, initialValues, serverError, invalidLink =
               {text("This link's birth details are incomplete or invalid. Please check them below.")}
             </p>
           ) : null}
-          <FormRootError className="mt-6" />
+          <FormRootError className="mt-6">
+            {form.formState.errors.root?.server?.type === "client_error" ? (
+              <Button type="button" variant="outline" size="sm" className="justify-self-start" onClick={() => void form.handleSubmit(submit)()}>
+                {text("Try again")}
+              </Button>
+            ) : null}
+          </FormRootError>
 
           <div className="mt-8 grid gap-5">
             <FieldRow control={form.control} name="birth" label={text("Date of birth")} labelClassName="sr-only" showValid={false}>
