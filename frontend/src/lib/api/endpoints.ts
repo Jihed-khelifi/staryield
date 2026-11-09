@@ -1,5 +1,5 @@
 /** Typed wrappers for every API route used by the web app. */
-import { api, newId, setAuthHint, setCsrfToken } from "@/lib/api/client";
+import { api, endSession, newId, setAuthHint, setCsrfToken } from "@/lib/api/client";
 import type {
   ChatReportInput,
   AnalyticsInterval,
@@ -9,6 +9,7 @@ import type {
   ClientProfile,
   Chart,
   ChatMessage,
+  OffSessionAllowance,
   ChatSession,
   ChatUnread,
   Conversation,
@@ -77,8 +78,8 @@ export const authApi = {
   login: (email: string, password: string) =>
     api<SessionResponse>("/api/v1/auth/login", { method: "POST", body: { email, password }, skipRefresh: true }).then(rememberSession),
   logout: () =>
-    api<void>("/api/v1/auth/logout", { method: "POST", skipRefresh: true }).finally(() => setAuthHint(false)),
-  logoutAll: () => api<void>("/api/v1/auth/logout-all", { method: "POST" }).finally(() => setAuthHint(false)),
+    api<void>("/api/v1/auth/logout", { method: "POST", skipRefresh: true }).finally(endSession),
+  logoutAll: () => api<void>("/api/v1/auth/logout-all", { method: "POST" }).finally(endSession),
   forgotPassword: (email: string, locale: string) =>
     api<{ status: string }>("/api/v1/auth/password/forgot", { method: "POST", body: { email, locale }, skipRefresh: true }),
   resetPassword: (token: string, password: string) =>
@@ -182,6 +183,9 @@ export const notificationsApi = {
   markAllRead: () => api<{ unread: number }>("/api/v1/me/notifications/read", { method: "POST", body: { all: true }, idempotent: true }),
 };
 
+/** A stored message plus the caller's refreshed off-session allowance (absent from old servers). */
+export type SentMessage = { message: ChatMessage; allowance?: OffSessionAllowance };
+
 export const chatApi = {
   conversations: (signal?: AbortSignal) => api<{ items: Conversation[] }>("/api/v1/chat/conversations", { signal }).then((r) => r.items),
   thread: (slug: string, signal?: AbortSignal) => api<PsychicThread>(`/api/v1/chat/psychics/${encodeURIComponent(slug)}`, { signal }),
@@ -204,6 +208,16 @@ export const chatApi = {
   end: (id: string) => api<SessionSummary>(`/api/v1/chat/sessions/${id}/end`, { method: "POST", idempotent: true }),
   send: (sessionId: string, body: string, client_msg_id: string) =>
     api<{ message: ChatMessage }>(`/api/v1/chat/sessions/${sessionId}/messages`, { method: "POST", body: { body, client_msg_id }, idempotent: true }),
+  /** Send text into a conversation: the API routes it to the live chat when there is one, else it is off-session (§22.3). */
+  sendToConversation: (conversationId: string, body: string, client_msg_id: string) =>
+    api<SentMessage>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/messages`, {
+      method: "POST",
+      body: { body, client_msg_id },
+      idempotent: true,
+    }),
+  /** What the caller may still send outside a live chat here. */
+  allowance: (conversationId: string, signal?: AbortSignal) =>
+    api<OffSessionAllowance>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/allowance`, { signal }),
   typing: (sessionId: string, typing: boolean) => api<void>(`/api/v1/chat/sessions/${sessionId}/typing`, { method: "POST", body: { typing } }),
   /** Upload an image message (multipart, §9.1). Resolves with the created message. */
   uploadAttachment: (sessionId: string, file: Blob, caption?: string, clientMsgId?: string) =>
@@ -211,6 +225,15 @@ export const chatApi = {
       method: "POST",
       body: attachmentForm(file, caption, clientMsgId),
       timeoutMs: 60_000,
+    }),
+  /** Upload an image message into a conversation (live or off-session, §22.3). Safe to retry: the API deduplicates on `client_msg_id`. */
+  uploadToConversation: (conversationId: string, file: Blob, caption: string | undefined, clientMsgId: string, signal?: AbortSignal) =>
+    api<SentMessage>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/attachments`, {
+      method: "POST",
+      body: attachmentForm(file, caption, clientMsgId),
+      timeoutMs: 120_000,
+      idempotent: true,
+      signal,
     }),
   /** Image bytes, only for the two participants (cookies + refresh handled by the client). */
   attachment: (id: string, signal?: AbortSignal) =>

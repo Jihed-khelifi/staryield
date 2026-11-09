@@ -8,9 +8,9 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/service"
 )
 
-// The advisor's client card shows natal placements from stored birth data;
-// the date and place of birth only appear once the client opts in, and the
-// birth time and coordinates never do.
+// The advisor's client card shows natal placements from stored birth data and
+// always the date of birth (revisions 3.3); the birth city only appears once
+// the client opts in, and the birth time and coordinates never do.
 func TestClientCardBirthDetailsNeedConsent(t *testing.T) {
 	e := newEnv(t)
 	client, psychic, _, _, s := startedSession(t, e, 10, 250)
@@ -20,6 +20,12 @@ func TestClientCardBirthDetailsNeedConsent(t *testing.T) {
 	psychic.must(http.StatusOK, http.MethodGet, cardPath, nil, &card)
 	if card.BirthDetailsShared || card.BirthDetails != nil {
 		t.Fatalf("birth details shown without consent: %+v", card)
+	}
+	if card.DateOfBirth != "1990-05-17" {
+		t.Fatalf("the date of birth is always shown to the advisor: %+v", card)
+	}
+	if raw := psychic.must(http.StatusOK, http.MethodGet, cardPath, nil, nil); !strings.Contains(string(raw.body), `"date_of_birth":"1990-05-17"`) || strings.Contains(string(raw.body), `"birth_details":`) {
+		t.Fatalf("card JSON: %s", raw.body)
 	}
 	if card.Astro == nil || len(card.Astro.Placements) < 8 || card.Astro.TimeKnown {
 		t.Fatalf("placements from the birth date: %+v", card.Astro)
@@ -39,7 +45,7 @@ func TestClientCardBirthDetailsNeedConsent(t *testing.T) {
 	}, nil)
 	card = service.ClientProfileView{}
 	r := psychic.must(http.StatusOK, http.MethodGet, cardPath, nil, &card)
-	if !card.BirthDetailsShared || card.BirthDetails == nil || card.BirthDetails.DateOfBirth != "1990-05-17" ||
+	if card.DateOfBirth != "1990-05-17" || !card.BirthDetailsShared || card.BirthDetails == nil || card.BirthDetails.DateOfBirth != "1990-05-17" ||
 		card.BirthDetails.Place != "Paris, Île-de-France, France" {
 		t.Fatalf("shared birth details: %+v", card.BirthDetails)
 	}
@@ -69,6 +75,9 @@ func TestClientCardBirthDetailsNeedConsent(t *testing.T) {
 		"privacy": map[string]any{"share_birth_details_with_advisors": false}}, nil)
 	var after service.ClientProfileView
 	psychic.must(http.StatusOK, http.MethodGet, cardPath, nil, &after)
+	if after.DateOfBirth != "1990-05-17" {
+		t.Fatalf("the date of birth must stay visible: %+v", after)
+	}
 	if after.BirthDetailsShared || after.BirthDetails != nil {
 		t.Fatalf("birth details still shown after opting out: %+v", after.BirthDetails)
 	}

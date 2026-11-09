@@ -186,9 +186,10 @@ func TestNatalCalculator(t *testing.T) {
 	if f["place_id"] != "Choisissez votre lieu de naissance pour utiliser une heure de naissance." {
 		t.Fatalf("fr: %v", f)
 	}
-	// The calculators are CSRF-protected like every other write.
+	// revisions 3.3: the calculators are stateless and exempt from CSRF
+	// (like /aztro), so a missing token cannot block them.
 	if r := c.raw(http.MethodPost, "/api/v1/astrology/natal", jsonBody(t, map[string]any{"birth_date": "1990-05-01"}),
-		map[string]string{"Content-Type": "application/json"}); r.status != http.StatusForbidden {
+		map[string]string{"Content-Type": "application/json"}); r.status != http.StatusOK {
 		t.Fatalf("without a CSRF token: %d", r.status)
 	}
 }

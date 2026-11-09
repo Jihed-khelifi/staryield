@@ -87,6 +87,13 @@ var allowedRawSQL = map[string]int{
 	"analytics.go:GormReportRepository.SponsoredUsage": 1,
 	"site.go:GormSiteRepository.SponsoredEarnings":     1,
 	"site.go:GormSiteRepository.SponsoredTotals":       1,
+	// revisions 3.3: messages outside a live chat. Index-backed counters and an
+	// EXISTS probe (chat_messages_off_session_*_idx, chat_sessions_conversation_idx);
+	// every value is a bound parameter, no identifiers.
+	"chat.go:GormChatRepository.CountOffSession":     1,
+	"chat.go:GormChatRepository.HasStartedSession":   1,
+	"site.go:GormSiteRepository.OffSessionLimitHits": 1,
+	"site.go:GormSiteRepository.OffSessionTotals":    1,
 	// revisions 3.0: support desk. Index-only counters in one statement and a
 	// batched DELETE ... FOR UPDATE SKIP LOCKED; every value is bound, no identifiers.
 	"support.go:GormSupportRepository.DeleteClosed": 1,

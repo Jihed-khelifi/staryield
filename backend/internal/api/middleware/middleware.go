@@ -229,11 +229,39 @@ func Timeout(d time.Duration, skip func(echo.Context) bool) echo.MiddlewareFunc 
 	}
 }
 
+// ExtendReadDeadline pushes the connection's read deadline d into the future
+// for requests the predicate selects (slow uploads outlive the server's
+// global ReadTimeout). Writers that do not support deadlines are left alone.
+func ExtendReadDeadline(d time.Duration, only func(echo.Context) bool) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if d > 0 && (only == nil || only(c)) {
+				// ErrNotSupported (tests, wrapped writers) is not an error here.
+				_ = http.NewResponseController(c.Response()).SetReadDeadline(time.Now().Add(d))
+			}
+			return next(c)
+		}
+	}
+}
+
 // KeyFunc derives a rate-limit key from the request.
 type KeyFunc func(c echo.Context) string
 
 // ByIP keys by client IP.
 func ByIP(c echo.Context) string { return "ip:" + c.RealIP() }
+
+// ByCookieHash keys by the SHA-256 of a cookie's value (never the value
+// itself), falling back to the client IP when the cookie is absent. Used for
+// POST /auth/refresh: the refresh token is 256 bits, so it identifies the
+// session without sharing the per-IP login bucket.
+func ByCookieHash(name string) KeyFunc {
+	return func(c echo.Context) string {
+		if ck, err := c.Request().Cookie(name); err == nil && ck.Value != "" {
+			return "rt:" + security.HashToken(ck.Value)
+		}
+		return ByIP(c)
+	}
+}
 
 // ByUserOrIP keys by authenticated user, falling back to IP.
 func ByUserOrIP(c echo.Context) string {

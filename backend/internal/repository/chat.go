@@ -99,6 +99,14 @@ type ChatRepository interface {
 	// CountUnread counts messages after afterSeq that viewerID did not send.
 	CountUnread(ctx context.Context, conversationID, viewerID uuid.UUID, afterSeq int64) (int64, error)
 	CountSessionMessages(ctx context.Context, sessionID uuid.UUID) (int64, error)
+	// CountOffSession counts the messages (text and image) senderID wrote in
+	// the conversation outside a live chat strictly after since, and returns
+	// the oldest of them (nil when none). It is served by
+	// chat_messages_off_session_quota_idx (revisions 3.3, §22.3).
+	CountOffSession(ctx context.Context, conversationID, senderID uuid.UUID, since time.Time) (OffSessionCount, error)
+	// HasStartedSession reports whether the conversation ever had a live chat
+	// that started (started_at set; chat_sessions_conversation_idx).
+	HasStartedSession(ctx context.Context, conversationID uuid.UUID) (bool, error)
 
 	SaveBookmark(ctx context.Context, b *domain.SavedMessage) error
 	DeleteBookmark(ctx context.Context, userID, messageID uuid.UUID) error
@@ -474,6 +482,31 @@ func (r *GormChatRepository) CountUnread(ctx context.Context, conversationID, vi
 		Where("conversation_id = ? AND seq > ? AND sender_id IS DISTINCT FROM ?", conversationID, afterSeq, viewerID).
 		Count(&n).Error
 	return n, err
+}
+
+// OffSessionCount is a sender's rolling off-session usage in a conversation.
+type OffSessionCount struct {
+	Count  int64
+	Oldest *time.Time
+}
+
+// CountOffSession implements ChatRepository.
+func (r *GormChatRepository) CountOffSession(ctx context.Context, conversationID, senderID uuid.UUID, since time.Time) (OffSessionCount, error) {
+	var out OffSessionCount
+	err := database.Conn(ctx, r.db).Raw(`
+		SELECT count(*) AS count, min(created_at) AS oldest
+		FROM chat_messages
+		WHERE conversation_id = ? AND sender_id = ? AND session_id IS NULL AND created_at > ?`,
+		conversationID, senderID, since).Scan(&out).Error
+	return out, err
+}
+
+// HasStartedSession implements ChatRepository.
+func (r *GormChatRepository) HasStartedSession(ctx context.Context, conversationID uuid.UUID) (bool, error) {
+	var ok bool
+	err := database.Conn(ctx, r.db).Raw(
+		`SELECT EXISTS (SELECT 1 FROM chat_sessions WHERE conversation_id = ? AND started_at IS NOT NULL)`, conversationID).Scan(&ok).Error
+	return ok, err
 }
 
 func (r *GormChatRepository) CountSessionMessages(ctx context.Context, sessionID uuid.UUID) (int64, error) {

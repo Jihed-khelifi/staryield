@@ -166,6 +166,14 @@ func escapeLike(s string) string {
 type TokenRepository interface {
 	CreateRefresh(ctx context.Context, t *domain.RefreshToken) error
 	GetRefreshByHashForUpdate(ctx context.Context, hash string) (*domain.RefreshToken, error)
+	// RefreshFamilyState locks the family's open tokens (always after the
+	// presented row, in id order) and reports whether the family is still
+	// signed in and whether a token other than `presented` was rotated at or
+	// after `since` (revisions 3.3).
+	RefreshFamilyState(ctx context.Context, familyID, presented uuid.UUID, since time.Time) (RefreshFamilyState, error)
+	// SupersedeOpenRefresh revokes the family's open tokens as "superseded"
+	// (their responses never reached the browser); the device stays signed in.
+	SupersedeOpenRefresh(ctx context.Context, familyID uuid.UUID, at time.Time) (int64, error)
 	RevokeRefresh(ctx context.Context, id uuid.UUID, reason string, replacedBy *uuid.UUID, at time.Time) error
 	RevokeFamily(ctx context.Context, familyID uuid.UUID, reason string, at time.Time) (int64, error)
 	RevokeAllForUser(ctx context.Context, userID uuid.UUID, reason string, at time.Time) (int64, error)
@@ -192,6 +200,55 @@ func (r *GormTokenRepository) GetRefreshByHashForUpdate(ctx context.Context, has
 		return nil, notFound(err)
 	}
 	return &t, nil
+}
+
+// RefreshFamilyState is what Refresh needs to know about a token family
+// before honouring a token that was already rotated.
+type RefreshFamilyState struct {
+	// Live: no token of the family was revoked for a reason other than
+	// rotation (logout, password reset, reuse, account status…) and the
+	// device (user_sessions row) is not signed out.
+	Live bool
+	// Advanced: another token of the family was rotated at or after the
+	// given time, i.e. the browser kept using the chain (ties count: fail
+	// closed).
+	Advanced bool
+	// Open: tokens of the family that are still valid.
+	Open int
+}
+
+// rotationReasons are the revocations that do not end a family.
+var rotationReasons = []string{"rotated", "superseded"}
+
+func (r *GormTokenRepository) RefreshFamilyState(ctx context.Context, familyID, presented uuid.UUID, since time.Time) (RefreshFamilyState, error) {
+	conn := database.Conn(ctx, r.db)
+	var open []domain.RefreshToken
+	if err := conn.Clauses(forUpdate).Select("id").Where("family_id = ? AND revoked_at IS NULL", familyID).
+		Order("id").Find(&open).Error; err != nil {
+		return RefreshFamilyState{}, err
+	}
+	var ended, endedDevice, advanced int64
+	if err := conn.Model(&domain.RefreshToken{}).
+		Where("family_id = ? AND revoked_at IS NOT NULL AND revoke_reason NOT IN ?", familyID, rotationReasons).
+		Count(&ended).Error; err != nil {
+		return RefreshFamilyState{}, err
+	}
+	if err := conn.Model(&domain.UserSession{}).Where("id = ? AND revoked_at IS NOT NULL", familyID).
+		Count(&endedDevice).Error; err != nil {
+		return RefreshFamilyState{}, err
+	}
+	if err := conn.Model(&domain.RefreshToken{}).
+		Where("family_id = ? AND id <> ? AND revoke_reason = ? AND revoked_at >= ?", familyID, presented, "rotated", since).
+		Count(&advanced).Error; err != nil {
+		return RefreshFamilyState{}, err
+	}
+	return RefreshFamilyState{Live: ended == 0 && endedDevice == 0, Advanced: advanced > 0, Open: len(open)}, nil
+}
+
+func (r *GormTokenRepository) SupersedeOpenRefresh(ctx context.Context, familyID uuid.UUID, at time.Time) (int64, error) {
+	res := database.Conn(ctx, r.db).Model(&domain.RefreshToken{}).Where("family_id = ? AND revoked_at IS NULL", familyID).
+		Updates(map[string]any{"revoked_at": at, "revoke_reason": "superseded"})
+	return res.RowsAffected, res.Error
 }
 
 func (r *GormTokenRepository) RevokeRefresh(ctx context.Context, id uuid.UUID, reason string, replacedBy *uuid.UUID, at time.Time) error {

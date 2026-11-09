@@ -18,7 +18,7 @@ import type {
   SessionBilledEvent,
   SessionSummary,
 } from "@/lib/api/types";
-import { imageSize, seedAttachment } from "@/lib/chat/attachments";
+import { firstFile, imageSize, seedAttachment } from "@/lib/chat/attachments";
 import { outboxMessage } from "@/lib/chat/outbox";
 import { track } from "@/lib/analytics";
 import { useRealtimeEvent, useRealtimeEvents, useSession } from "@/lib/auth/session-provider";
@@ -26,6 +26,7 @@ import { loginUrl } from "@/lib/navigation";
 import { shouldToastOtherConversation } from "@/lib/chat/chat-alerts";
 import { useChatUnread } from "@/lib/chat/chat-unread-provider";
 import { useNotifications } from "@/lib/notifications/notifications-provider";
+import { useBlockStrayFileDrops, useFileDrop } from "@/lib/use-file-drop";
 import { useVisualViewport } from "@/lib/use-visual-viewport";
 import { useFreeMode } from "@/lib/site-config/site-config-provider";
 import { logger } from "@/lib/logger";
@@ -40,7 +41,9 @@ import type { ReportIssueTarget } from "@/components/chat/report-issue";
 import { ComposerNote } from "@/components/chat/composer-note";
 import { ChatPushPrompt } from "@/components/chat/push-prompt";
 import { ConversationList } from "@/components/chat/conversation-list";
-import { MessageComposer, type ComposerSubmit } from "@/components/chat/message-composer";
+import { composerAvailability, reasonCopy } from "@/components/chat/composer-availability";
+import { MessageComposer, type ComposerHandle, type ComposerSubmit } from "@/components/chat/message-composer";
+import { useOffSessionAllowance } from "@/components/chat/use-off-session-allowance";
 import { ReaderPanel } from "@/components/chat/reader-panel";
 import { ClientPanel } from "@/components/chat/client-panel";
 import { SAVED_PAGE_SIZE } from "@/components/chat/saved-list";
@@ -142,6 +145,35 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const session = snap?.session ?? null;
   // The open session of the conversation on screen (messages go to it).
   const liveSession = session && isOpen(session) && (!activeConvId || session.conversation_id === activeConvId) ? session : null;
+  // Messages go into the session while it is active or paused; otherwise they are written outside a live chat (§22.3).
+  const inLiveChat = liveSession?.status === "active" || liveSession?.status === "disconnected";
+  const requestPending = liveSession?.status === "requested" || liveSession?.status === "accepted";
+  const composerRef = React.useRef<ComposerHandle>(null);
+  const allowance = useOffSessionAllowance(activeConvId, inLiveChat);
+  const availability = composerAvailability({
+    role,
+    hasConversation: Boolean(activeConvId),
+    live: inLiveChat,
+    requestPending,
+    allowance: allowance.allowance,
+    allowanceLoading: allowance.loading,
+    allowanceError: allowance.error,
+  });
+  const unavailableReason = availability.enabled ? "" : text(reasonCopy(availability.reason, role), { value0: allowance.allowance?.limit ?? 0 });
+  // The whole conversation is the drop target (§22.4); a file dropped elsewhere on the page never navigates away.
+  const drop = useFileDrop({
+    disabled: !counterpart || !availability.enabled,
+    onFiles: (files) => {
+      const file = firstFile(files);
+      if (file) void composerRef.current?.attach(file);
+    },
+    onBlocked: () => {
+      if (!counterpart) return;
+      toast.show({ tone: "info", message: unavailableReason });
+      announce(unavailableReason, "assertive");
+    },
+  });
+  useBlockStrayFileDrops();
 
   // --- authentication gate --------------------------------------------------
   React.useEffect(() => {
@@ -192,11 +224,19 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   // --- outbox (text messages survive refresh and offline spells) --------------
   const outbox = useOutbox({
     userId: meId,
-    session: liveSession,
+    conversationId: activeConvId,
+    liveSessionId: liveSession?.id ?? null,
     realtime,
     connection: connection.state,
-    onDelivered: (message) => receive([message]),
-    onFailed: () => announce(text("A message was not delivered. You can retry it."), "assertive"),
+    onDelivered: (message, fresh) => {
+      receive([message]);
+      allowance.update(fresh);
+    },
+    onFailed: (_entry, error) => {
+      announce(text("A message was not delivered. You can retry it."), "assertive");
+      // A refusal means the allowance is not what the composer believed: read it again.
+      if (String(error.code).startsWith("off_session_") || error.code === "recipient_unavailable") allowance.reload();
+    },
   });
   // Entries the server already confirmed (seen in history or events) leave the outbox.
   const confirmedIds = React.useMemo(() => {
@@ -527,24 +567,24 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   );
 
   function send(body: string) {
-    if (!liveSession || liveSession.status !== "active") return;
+    if (!availability.enabled) return;
     if (outbox.send(body)) setScrollToken((n) => n + 1);
   }
 
   /** Upload an image message with an optimistic pending/failed/retry flow (kept in memory: files are not persisted). */
-  async function sendImage(file: File, caption: string, retryOf?: UiMessage) {
-    if (!liveSession || liveSession.status !== "active") return;
-    const current = liveSession;
+  async function sendImage(file: File, caption: string, retryOf?: UiMessage, knownSize?: { width: number; height: number }) {
+    const conversationId = retryOf?.conversation_id ?? activeConvId;
+    if (!conversationId || !availability.enabled) return;
     const cmid = retryOf?.client_msg_id ?? newClientMsgId();
     let local: UiMessage;
-    if (retryOf) local = { ...retryOf, pending: "sending", failure: undefined };
+    if (retryOf) local = { ...retryOf, pending: "sending", failure: undefined, failureDetail: undefined };
     else {
-      const size = await imageSize(file);
+      const size = knownSize ?? (await imageSize(file));
       local = {
         id: cmid,
         client_msg_id: cmid,
-        conversation_id: current.conversation_id,
-        session_id: current.id,
+        conversation_id: conversationId,
+        session_id: liveSession?.id,
         sender_id: meId,
         kind: "image",
         body: caption,
@@ -557,33 +597,46 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     setImages((list) => mergeMessages(list, [local]));
     setScrollToken((n) => n + 1);
     try {
-      const { message } = await chatApi.uploadAttachment(current.id, file, caption || undefined, cmid);
+      // The API routes it into the live chat or sends it outside one; it deduplicates on the client id, so transient failures retry.
+      const { message, allowance: fresh } = await chatApi.uploadToConversation(conversationId, file, caption || undefined, cmid);
       const attachment = message.attachments?.[0];
       // Show our own copy instead of downloading it again (GIFs are stored as their first frame).
       if (attachment && file.type !== "image/gif") seedAttachment(attachment.id, file);
       receive([message]);
+      allowance.update(fresh);
       setImages((list) => list.filter((x) => x.client_msg_id !== cmid));
     } catch (err) {
       const e = toApiError(err);
-      setImages((list) => list.map((x) => (x.client_msg_id === cmid ? { ...x, pending: "failed", failure: String(e.code) } : x)));
-      if (e.code !== "network_error" && e.code !== "timeout") toast.showError(e);
+      // The server explains image problems itself (dimensions, decoding); show that as is.
+      const detail = e.code === "validation_failed" ? e.fields.image : undefined;
+      setImages((list) => list.map((x) => (x.client_msg_id === cmid ? { ...x, pending: "failed", failure: String(e.code), failureDetail: detail } : x)));
+      if (String(e.code).startsWith("off_session_") || e.code === "recipient_unavailable") allowance.reload();
+      if (e.code !== "network_error" && e.code !== "timeout") {
+        if (detail) toast.show({ tone: "error", message: detail });
+        else toast.showError(e);
+        announce(text("A message was not delivered. You can retry it."), "assertive");
+      }
       logger.warn("image upload failed", e, { code: String(e.code) });
     }
   }
 
-  function submit({ body, file }: ComposerSubmit) {
-    if (file) void sendImage(file, body);
+  function submit({ body, file, size }: ComposerSubmit) {
+    if (file) void sendImage(file, body, undefined, size);
     else send(body);
   }
 
   function retry(m: UiMessage) {
     if (m.kind === "image") {
-      if (m.localFile) void sendImage(m.localFile, m.body, m);
+      if (!availability.enabled) toast.show({ tone: "info", message: unavailableReason });
+      else if (m.localFile) void sendImage(m.localFile, m.body, m);
       return;
     }
-    if (m.client_msg_id && !outbox.retry(m.client_msg_id)) {
-      toast.show({ tone: "info", message: text("Start a live chat to send messages") });
+    if (!availability.enabled) {
+      // Say why instead of failing again (e.g. the daily limit is used up).
+      toast.show({ tone: "info", message: unavailableReason });
+      return;
     }
+    if (m.client_msg_id) outbox.retry(m.client_msg_id);
   }
 
   function discard(m: UiMessage) {
@@ -656,11 +709,24 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   // Phones: unread elsewhere (other conversations) or unread notifications dot the menu button.
   const unreadHere = conversationRow?.unread ?? 0;
   const activity = Math.max(0, chatUnread.count - unreadHere) > 0 || notifications.unread > 0;
-  const composerDisabled = liveSession?.status !== "active";
   const free = wallet?.free_minutes ?? 0;
   const freeChat = freeMode || Boolean(session?.sponsored);
+  const a = allowance.allowance;
+  // Outside a live chat the note shows the allowance instead of the rate.
+  const offSessionNote = !inLiveChat && a && a.enabled && a.eligible && !a.live ? a : null;
+  const offlineAdvisor = Boolean(counterpart && counterpart.status && counterpart.status !== "online");
+  const disabledAction = availability.enabled ? null : availability.canRetry ? (
+    <button type="button" className="underline" onClick={allowance.reload}>
+      {text("Try again")}
+    </button>
+  ) : availability.canStartChat && slug ? (
+    <Button variant="cta" size="sm" onClick={() => void startChat()} disabled={busy || offlineAdvisor} data-testid="composer-start-chat">
+      {text("Start a live chat")}
+    </Button>
+  ) : null;
   const note = (
     <ComposerNote
+      offSession={offSessionNote}
       role={role}
       free={freeChat}
       freeMinutes={free}
@@ -731,7 +797,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
         <ConversationList {...listProps} />
       </aside>
       {/* overflow-clip (not hidden): the column can never be scrolled by scrollIntoView or focus. */}
-      <section className="chat-column flex min-h-0 flex-col overflow-clip rounded-xl border">
+      <section className="chat-column flex min-h-0 flex-col overflow-clip rounded-xl border" {...drop.handlers} data-dragging={drop.dragging || undefined}>
         {connectionBanner ? (
           <p className="chat-connection-banner" role="status" data-testid="connection-banner" data-state={connection.state}>
             {connectionBanner}
@@ -741,6 +807,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
           <>
             <ChatHeader
               counterpart={counterpart}
+              conversationId={activeConvId}
               viewerRole={role}
               session={session}
               elapsedSeconds={elapsed}
@@ -839,15 +906,22 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
             )}
             <ChatPushPrompt userId={meId} hasSent={hasSent} role={role} />
             <MessageComposer
+              ref={composerRef}
               userId={meId}
               draftId={activeConvId ?? (slug ? `reader:${slug}` : null)}
               draftFallbackId={activeConvId && slug ? `reader:${slug}` : null}
               onSend={submit}
               onTyping={onTyping}
-              disabled={composerDisabled}
-              disabledReason={text(session?.status === "disconnected" ? "Paused while reconnecting…" : "Start a live chat to send messages")}
+              disabled={!availability.enabled}
+              disabledReason={unavailableReason}
+              disabledAction={disabledAction}
               note={note}
             />
+            {drop.dragging ? (
+              <div className="chat-drop-overlay" aria-hidden data-testid="drop-overlay">
+                {text("Drop the image to send it to {value0}", { value0: counterpart.name })}
+              </div>
+            ) : null}
           </>
         ) : inbox.status === "error" && inbox.error ? (
           // No conversation to show because the inbox failed: retry from here (phones have no inbox column).

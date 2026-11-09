@@ -31,6 +31,8 @@ type memSiteRepo struct {
 	totals   repository.SponsoredTotals
 	earnings int64
 	statsN   int
+	// off-session oversight totals
+	offMessages, offSenders, offHits int64
 }
 
 var errDown = errors.New("database is down")
@@ -41,7 +43,13 @@ func newMemSiteRepo() *memSiteRepo {
 		domain.SiteSettingBanners:     {Key: "banners", Value: domain.JSONMap{"enabled": true, "rotation_seconds": float64(6)}, Version: 1, UpdatedAt: now},
 		domain.SiteSettingSignupOffer: {Key: "signup_offer", Value: domain.JSONMap{"enabled": true, "free_minutes": float64(5)}, Version: 1, UpdatedAt: now},
 		domain.SiteSettingFreeMode:    {Key: "free_mode", Value: domain.JSONMap{"enabled": false, "reason": ""}, Version: 1, UpdatedAt: now},
+		domain.SiteSettingOffSession:  {Key: "off_session_messages", Value: domain.JSONMap{"enabled": true, "client_daily_limit": float64(20), "advisor_daily_limit": float64(20)}, Version: 1, UpdatedAt: now},
 	}}
+}
+
+// settingsWith builds a document value (tests that store malformed values).
+func (r *memSiteRepo) settingsWith(v map[string]any) domain.SiteSetting {
+	return domain.SiteSetting{Key: "off_session_messages", Value: domain.JSONMap(v), Version: 1}
 }
 
 func (r *memSiteRepo) check() error {
@@ -196,6 +204,18 @@ func (r *memSiteRepo) SponsoredTotals(context.Context, time.Time) (repository.Sp
 
 func (r *memSiteRepo) SponsoredEarnings(context.Context, time.Time) (int64, error) {
 	return r.earnings, nil
+}
+
+func (r *memSiteRepo) OffSessionTotals(context.Context, time.Time) (int64, int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.offMessages, r.offSenders, nil
+}
+
+func (r *memSiteRepo) OffSessionLimitHits(context.Context, time.Time) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.offHits, nil
 }
 
 // siteAudit records audit entries.

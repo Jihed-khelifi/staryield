@@ -246,7 +246,7 @@ func (s *ExportService) collectChat(ctx context.Context, b *ExportBundle, u *dom
 		case *m.SenderID == u.ID:
 			from = "you"
 		}
-		msg = append(msg, map[string]any{"id": m.ID, "conversation_id": m.ConversationID, "session_id": m.SessionID, "from": from,
+		msg = append(msg, map[string]any{"id": m.ID, "conversation_id": m.ConversationID, "session_id": m.SessionID, "off_session": m.SessionID == nil && m.Kind != domain.MessageSystem, "from": from,
 			"kind": m.Kind, "body": m.Body, "at": m.CreatedAt})
 	}
 	var saved []domain.SavedMessage

@@ -17,7 +17,7 @@ describe("classifyReportError", () => {
     [err("timeout", 0), "retry"],
     [err("internal_error", 500), "retry"],
     [err("bad_request", 400), "other"],
-    [new TypeError("x"), "retry"],
+    [new TypeError("Failed to fetch"), "retry"],
   ])("%#", (error, kind) => expect(classifyReportError(error).kind).toBe(kind));
 
   it("carries the retry-after seconds and the existing reference", () => {

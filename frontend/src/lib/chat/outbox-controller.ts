@@ -2,19 +2,19 @@
  * The outbox delivery pump: holds the user's queued text messages (mirrored
  * to sessionStorage on every change) and sends them in order — one in
  * flight at a time, only while the connection is open and the target
- * session is active. Transient failures retry with exponential backoff, and
- * right away when the connection comes back; a paused session keeps
- * messages queued; anything else marks the message failed for the user.
+ * conversation is on screen (§22.3: the API routes each message into the live
+ * chat or sends it outside one). Transient failures retry with exponential
+ * backoff, and right away when the connection comes back; anything else
+ * (including the off-session refusals) marks the message failed for the user.
  *
  * Framework-free so it can be unit tested; React reads it through
  * `useSyncExternalStore` (see use-outbox.ts).
  */
 import { toApiError, type ApiError } from "@/lib/api/errors";
-import type { ChatMessage } from "@/lib/api/types";
+import type { ChatMessage, OffSessionAllowance } from "@/lib/api/types";
 import {
   afterFailure,
   enqueue,
-  failClosedSessions,
   newEntry,
   nextRetryAt,
   nextToSend,
@@ -26,23 +26,24 @@ import {
   type OutboxEntry,
 } from "@/lib/chat/outbox";
 
-export type OutboxTransport = (entry: OutboxEntry) => Promise<ChatMessage>;
+/** What a send resolves with: the stored message and the refreshed allowance (old servers omit it). */
+export type OutboxTransport = (entry: OutboxEntry) => Promise<{ message: ChatMessage; allowance?: OffSessionAllowance }>;
 
 export type OutboxHooks = {
   /** The server confirmed a message (merge it into the timeline). */
-  onDelivered?: (message: ChatMessage, entry: OutboxEntry) => void;
+  onDelivered?: (message: ChatMessage, entry: OutboxEntry, allowance?: OffSessionAllowance) => void;
   /** A message stopped retrying automatically. */
   onFailed?: (entry: OutboxEntry, error: ApiError) => void;
 };
 
-type Target = { sessionId: string | null; ready: boolean };
+type Target = { conversationId: string | null; ready: boolean };
 
 export class OutboxController {
   private entries: OutboxEntry[];
   private listeners = new Set<() => void>();
   private inFlight: string | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
-  private target: Target = { sessionId: null, ready: false };
+  private target: Target = { conversationId: null, ready: false };
   private stopped = false;
 
   private transport: OutboxTransport | null = null;
@@ -86,15 +87,15 @@ export class OutboxController {
 
   // --- intents ---------------------------------------------------------------------
 
-  /** Where messages go and whether they can go now (connection open, session active). */
-  setTarget(sessionId: string | null, ready: boolean) {
-    const regained = ready && sessionId !== null && (!this.target.ready || this.target.sessionId !== sessionId);
-    this.target = { sessionId, ready };
-    if (regained && sessionId) {
+  /** Where messages go and whether they can go now (connection open, conversation on screen). */
+  setTarget(conversationId: string | null, ready: boolean) {
+    const regained = ready && conversationId !== null && (!this.target.ready || this.target.conversationId !== conversationId);
+    this.target = { conversationId, ready };
+    if (regained && conversationId) {
       // The connection came back: skip the remaining backoff.
       let changed = false;
       const next = this.entries.map((e) => {
-        if (e.session_id !== sessionId || e.state !== "queued" || e.retry_at === 0) return e;
+        if (e.conversation_id !== conversationId || e.state !== "queued" || e.retry_at === 0) return e;
         changed = true;
         return { ...e, retry_at: 0 };
       });
@@ -104,17 +105,17 @@ export class OutboxController {
   }
 
   /** Queue a text message; returns the entry (its client id is the idempotency key). */
-  send(init: { client_msg_id: string; conversation_id: string; session_id: string; body: string }): OutboxEntry {
+  send(init: { client_msg_id: string; conversation_id: string; body: string }): OutboxEntry {
     const entry = newEntry({ ...init, sender_id: this.userId }, this.now());
     this.commit(enqueue(this.entries, entry));
     this.pump();
     return entry;
   }
 
-  /** Queue a failed message again, in `sessionId` (the conversation's open session). */
-  retry(clientMsgId: string, sessionId: string) {
+  /** Queue a failed message again. */
+  retry(clientMsgId: string) {
     if (!this.entries.some((e) => e.client_msg_id === clientMsgId && e.state === "failed")) return;
-    this.commit(retryEntry(this.entries, clientMsgId, sessionId));
+    this.commit(retryEntry(this.entries, clientMsgId));
     this.pump();
   }
 
@@ -131,14 +132,6 @@ export class OutboxController {
     if (!this.entries.some((e) => ids.has(e.client_msg_id))) return;
     this.commit(this.entries.filter((e) => !ids.has(e.client_msg_id)));
     this.pump();
-  }
-
-  /** The session ended: what it still holds cannot be delivered into it. */
-  sessionClosed(sessionId: string) {
-    const inFlight = this.inFlight;
-    const rest = this.entries.filter((e) => e.client_msg_id !== inFlight);
-    const failed = failClosedSessions(rest, (id) => id === sessionId);
-    if (failed !== rest) this.commit(this.entries.map((e) => failed.find((f) => f.client_msg_id === e.client_msg_id) ?? e));
   }
 
   /** Resume delivery (after `stop`). */
@@ -160,12 +153,12 @@ export class OutboxController {
     if (this.stopped || this.inFlight || !this.transport) return;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
-    const { sessionId, ready } = this.target;
-    if (!ready || !sessionId) return;
+    const { conversationId, ready } = this.target;
+    if (!ready || !conversationId) return;
     const now = this.now();
-    const entry = nextToSend(this.entries, sessionId, now);
+    const entry = nextToSend(this.entries, conversationId, now);
     if (!entry) {
-      const at = nextRetryAt(this.entries, sessionId);
+      const at = nextRetryAt(this.entries, conversationId);
       if (at !== null && at > now) this.timer = setTimeout(() => this.pump(), at - now);
       return;
     }
@@ -174,10 +167,10 @@ export class OutboxController {
     const sending = { ...entry, state: "sending" as const, attempts: entry.attempts + 1 };
     this.commit(patchEntry(this.entries, cmid, { state: "sending", attempts: sending.attempts }));
     this.transport(sending).then(
-      (message) => {
+      ({ message, allowance }) => {
         this.inFlight = null;
         this.commit(removeEntry(this.entries, cmid));
-        this.hooks.onDelivered?.({ ...message, client_msg_id: message.client_msg_id || cmid }, sending);
+        this.hooks.onDelivered?.({ ...message, client_msg_id: message.client_msg_id || cmid }, sending, allowance);
         this.pump();
       },
       (err) => {

@@ -8,7 +8,7 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 
 import { useI18n } from "@/i18n/i18n-provider";
-import { onSessionExpired, setAuthHint } from "@/lib/api/client";
+import { endSession, onSessionExpired, onSignedOutElsewhere, readAuthHint, setAuthHint } from "@/lib/api/client";
 import { authApi, meApi } from "@/lib/api/endpoints";
 import { ApiError, toApiError } from "@/lib/api/errors";
 import type { User, Wallet } from "@/lib/api/types";
@@ -39,6 +39,20 @@ type SessionContextValue = {
    */
   signOut: (opts?: { everywhere?: boolean; to?: string }) => Promise<void>;
 };
+
+/** The session is definitively gone (not a network or server hiccup). */
+export function isSessionEnd(code: string | number): boolean {
+  return code === "unauthenticated" || code === "session_expired" || code === "account_disabled";
+}
+
+/** Two auth.revoked signals this close are one revocation (frame + 4001 close). */
+export const REVOKED_DEDUPE_MS = 2000;
+
+/** Retry delay for transient session reads: 2 s, 4 s, ... capped at 30 s. */
+export function sessionRetryDelay(attempt: number): number {
+  const base = Math.min(2000 * 2 ** attempt, 30_000);
+  return base / 2 + Math.random() * (base / 2);
+}
 
 const SessionContext = React.createContext<SessionContextValue | null>(null);
 const IDLE = { state: "idle", transport: "ws" } as const;
@@ -77,7 +91,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       return me;
     } catch (raw) {
       const err = toApiError(raw);
-      if (err.code === "unauthenticated" || err.code === "session_expired" || err.code === "account_disabled") {
+      if (isSessionEnd(err.code)) {
         setAuthHint(false);
         clear();
         if (err.code === "account_disabled") toast.show({ tone: "error", message: text("This account has been deactivated. Please contact support.") });
@@ -92,23 +106,46 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     const ctrl = new AbortController();
-    meApi.get(ctrl.signal).then(
-      (me) => setUser(me),
-      (raw) => {
-        const err = toApiError(raw);
-        if (err.code === "aborted") return;
-        if (err.code === "unauthenticated" || err.code === "session_expired" || err.code === "account_disabled") {
-          setAuthHint(false);
-          clear();
-          return;
-        }
-        logger.warn("could not load the session", err, { code: String(err.code), requestId: err.requestId });
-        setError(err);
-        setStatus("anonymous");
-      },
-    );
-    return () => ctrl.abort();
+    let timer: number | undefined;
+    let attempt = 0;
+    const load = () => {
+      meApi.get(ctrl.signal).then(
+        (me) => setUser(me),
+        (raw) => {
+          const err = toApiError(raw);
+          if (err.code === "aborted") return;
+          if (isSessionEnd(err.code)) {
+            setAuthHint(false);
+            clear();
+            return;
+          }
+          logger.warn("could not load the session", err, { code: String(err.code), requestId: err.requestId });
+          setError(err);
+          if (!readAuthHint()) {
+            setStatus("anonymous");
+            return;
+          }
+          // This browser has a session: a network or server hiccup must not
+          // sign it out nor clear the hint. Keep loading and retry.
+          timer = window.setTimeout(load, sessionRetryDelay(attempt++));
+        },
+      );
+    };
+    load();
+    return () => {
+      ctrl.abort();
+      window.clearTimeout(timer);
+    };
   }, [clear, setUser]);
+
+  // Another tab signed out (or found the session gone): follow it.
+  React.useEffect(
+    () =>
+      onSignedOutElsewhere(() => {
+        if (!signingOut.current) clear();
+      }),
+    [clear],
+  );
 
   // Refresh failed somewhere in the app: the session is gone.
   React.useEffect(
@@ -136,30 +173,52 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       if ((e.data as { reconnected?: boolean })?.reconnected) track("realtime_reconnected");
     });
     const revocations: number[] = [];
-    const offRevoked = client.on("auth.revoked", () => {
-      if (signingOut.current) return;
-      // account settings: a password change revokes every connection, but this
-      // browser already holds the new session — keep it when it still works
-      // (at most a few times a minute, so a revoked session cannot loop).
-      const now = Date.now();
-      revocations.push(now);
-      while (revocations.length && now - revocations[0] > 60_000) revocations.shift();
-      void (revocations.length <= 3 ? meApi.get() : Promise.reject(new Error("revoked"))).then(
+    let lastRevoked = 0;
+    let retry: number | undefined;
+    let stopped = false;
+    // Re-read the account after a revocation signal. Only a definitive 401
+    // (after a refresh) signs out; a transient failure keeps the session and
+    // tries again with backoff.
+    const verify = (attempt: number) => {
+      void meApi.get().then(
         (me) => {
-          if (signingOut.current) return;
+          if (signingOut.current || stopped) return;
           setUser(me);
           client.start();
         },
         (raw: unknown) => {
-          if (signingOut.current) return;
-          // A failed refresh has already announced the expired session.
+          if (signingOut.current || stopped) return;
           const code = toApiError(raw).code;
+          if (!isSessionEnd(code)) {
+            if (attempt < 5) retry = window.setTimeout(() => verify(attempt + 1), sessionRetryDelay(attempt));
+            return;
+          }
+          // A failed refresh has already announced the expired session.
           if (code !== "unauthenticated" && code !== "session_expired")
             toast.show({ tone: "info", message: text("You were signed out. Please sign in again.") });
-          setAuthHint(false);
+          endSession();
           clear();
         },
       );
+    };
+    const offRevoked = client.on("auth.revoked", () => {
+      if (signingOut.current) return;
+      // The frame and the 4001 close of one revocation arrive back to back.
+      const now = Date.now();
+      if (now - lastRevoked < REVOKED_DEDUPE_MS) return;
+      lastRevoked = now;
+      // account settings: a password change revokes every connection, but this
+      // browser already holds the new session — keep it when it still works
+      // (at most a few times a minute, so a revoked session cannot loop).
+      revocations.push(now);
+      while (revocations.length && now - revocations[0] > 60_000) revocations.shift();
+      if (revocations.length > 3) {
+        toast.show({ tone: "info", message: text("You were signed out. Please sign in again.") });
+        endSession();
+        clear();
+        return;
+      }
+      verify(0);
     });
     const offResync = client.on("resync_required", () => {
       void meApi.get().then((me) => setWallet(me.wallet ?? null)).catch(() => undefined);
@@ -171,6 +230,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       offHello();
       offRevoked();
       offResync();
+      stopped = true;
+      window.clearTimeout(retry);
       client.stop();
     };
   }, [realtime, clear, setUser, text, toast]);
@@ -189,7 +250,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       logger.warn("logout request failed", err);
     } finally {
-      setAuthHint(false);
+      endSession();
       try {
         if (userId) sessionStorage.removeItem(`staryield.rt.last:${userId}`);
       } catch {

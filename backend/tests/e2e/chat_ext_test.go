@@ -164,9 +164,10 @@ func TestChatImagesArePrivateAndSanitised(t *testing.T) {
 	}
 	cl.must(http.StatusNoContent, http.MethodPut, "/api/v1/chat/saved/"+m.ID.String(), nil, nil)
 
-	// After the session ends, uploads are refused.
+	// After the session ends, uploads on the legacy route are routed
+	// outside a live chat (revisions 3.3): stored without a session.
 	cl.must(http.StatusOK, http.MethodPost, "/api/v1/chat/sessions/"+sid+"/end", nil, nil)
-	if r := cl.sendImage(sid, pngBytes(t, 32, 32), nil); r.errCode(t) != "invalid_state" {
+	if r := cl.sendImage(sid, pngBytes(t, 32, 32), nil); r.status != http.StatusCreated || !strings.Contains(string(r.body), `"off_session":true`) {
 		t.Fatalf("upload after end: %d %s", r.status, r.body)
 	}
 }

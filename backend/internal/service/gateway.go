@@ -59,9 +59,12 @@ type (
 		SessionID uuid.UUID `json:"session_id"`
 	}
 	sendFrame struct {
-		SessionID   uuid.UUID `json:"session_id"`
-		Body        string    `json:"body"`
-		ClientMsgID string    `json:"client_msg_id"`
+		// ConversationID addresses the send (revisions 3.3, §22.3); old
+		// clients send only SessionID, whose conversation is used.
+		ConversationID uuid.UUID `json:"conversation_id"`
+		SessionID      uuid.UUID `json:"session_id"`
+		Body           string    `json:"body"`
+		ClientMsgID    string    `json:"client_msg_id"`
 	}
 	typingFrame struct {
 		SessionID uuid.UUID `json:"session_id"`
@@ -125,14 +128,20 @@ func (g *RealtimeGateway) HandleFrame(ctx context.Context, c *realtime.Client, f
 		if err := decodeStrict(data, &f); err != nil {
 			return nil, err
 		}
-		if err := requireID(f.SessionID, "session_id"); err != nil {
-			return nil, err
+		var res *SendResult
+		var err error
+		switch {
+		case f.ConversationID != uuid.Nil:
+			res, err = g.chat.SendToConversation(ctx, p, ConversationSendInput{ConversationID: f.ConversationID, Body: f.Body, ClientMsgID: f.ClientMsgID})
+		case f.SessionID != uuid.Nil:
+			res, err = g.chat.SendMessageForSession(ctx, p, SendMessageInput{SessionID: f.SessionID, Body: f.Body, ClientMsgID: f.ClientMsgID})
+		default:
+			return nil, requireID(uuid.Nil, "conversation_id")
 		}
-		msg, err := g.chat.SendMessage(ctx, p, SendMessageInput{SessionID: f.SessionID, Body: f.Body, ClientMsgID: f.ClientMsgID})
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"message": msg}, nil
+		return map[string]any{"message": res.Message, "allowance": res.Allowance}, nil
 	case realtime.FrameTyping:
 		var f typingFrame
 		if err := decodeStrict(data, &f); err != nil {

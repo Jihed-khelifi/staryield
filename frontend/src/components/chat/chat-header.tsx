@@ -4,18 +4,22 @@ import { FiInfo, FiMenu } from "react-icons/fi";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import type { ChatSession, Participant } from "@/lib/api/types";
-import { formatDuration } from "@/lib/format";
+import { formatDate, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ReaderAvatar } from "@/components/chat/reader-avatar";
 import { RatePrice } from "@/components/chat/rate-price";
 import { formatMoney, type RateView } from "@/components/chat/chat-model";
 import { ReportIssueButton, type ReportIssueTarget } from "@/components/chat/report-issue";
+import { useClientProfile } from "@/components/chat/use-client-profile";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Earnings = { credits: number; cents?: number; currency?: string };
 
 type ChatHeaderProps = {
   counterpart: Participant;
+  /** The conversation on screen: advisors see the client's date of birth under the name (§22.6). */
+  conversationId?: string | null;
   /** The viewer's role: advisors see their client's online/offline presence and their earnings. */
   viewerRole?: "client" | "psychic";
   session: ChatSession | null;
@@ -82,8 +86,13 @@ export function ChatroomTopBar({ onOpenInbox, activity = false }: { onOpenInbox:
   );
 }
 
-export function ChatHeader({ counterpart, viewerRole = "client", session, elapsedSeconds, rate, earnings, onOpenInbox, onOpenDetails, onEnd, ending, activity = false, report }: ChatHeaderProps) {
-  const { text, t } = useI18n();
+export function ChatHeader({ counterpart, conversationId = null, viewerRole = "client", session, elapsedSeconds, rate, earnings, onOpenInbox, onOpenDetails, onEnd, ending, activity = false, report }: ChatHeaderProps) {
+  const { text, t, locale } = useI18n();
+  // Advisors only; shares one cached request with the client panel.
+  const advisor = viewerRole === "psychic";
+  const clientProfile = useClientProfile(advisor ? conversationId : null);
+  const dateOfBirth = clientProfile.profile?.date_of_birth ?? clientProfile.profile?.birth_details?.date_of_birth;
+  const born = dateOfBirth ? formatDate(dateOfBirth, locale, "long") : "";
   const live = session && (session.status === "active" || session.status === "disconnected" || session.status === "accepted");
   const presence = viewerRole === "psychic" && counterpart.status ? (counterpart.status === "offline" ? "offline" : "online") : null;
   const statusLine =
@@ -112,6 +121,16 @@ export function ChatHeader({ counterpart, viewerRole = "client", session, elapse
         </button>
         <div className="flex min-w-0 flex-col gap-0.5 text-ink">
           <span className="chat-header-name truncate font-serif text-[18px] font-bold">{text(counterpart.name)}</span>
+          {advisor && conversationId && clientProfile.loading ? (
+            <span className="chat-header-dob" aria-hidden data-testid="chat-header-dob-loading">
+              <Skeleton className="h-3 w-24 bg-cream/70" />
+            </span>
+          ) : born ? (
+            <span className="chat-header-dob truncate font-ui text-xs" data-testid="chat-header-dob">
+              <span className="sr-only">{text("Born")} </span>
+              <time dateTime={dateOfBirth}>{born}</time>
+            </span>
+          ) : null}
           <span className="chat-reader-status font-ui text-xs opacity-80" data-testid="chat-header-status">
             <span className="chat-status-dot" aria-hidden>
               ●{" "}

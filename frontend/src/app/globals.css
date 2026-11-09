@@ -2657,9 +2657,53 @@ html {
 }
 .composer-meta {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+  /* One fixed line at least: nothing below may change the height while typing. */
+  min-height: 14px;
+}
+.composer-note {
+  min-width: 0;
+  flex: 1;
+}
+/* A fixed-size slot for "Draft saved" and the counter: they appear inside it
+   without resizing the note next to it or the composer around it. */
+.composer-meta-aside {
+  display: flex;
+  width: 7rem;
+  height: 14px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 14px;
+}
+/* Measures the textarea's text (see message-composer.tsx): never visible, never in the layout. */
+.composer-mirror {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-style: solid;
+  border-color: transparent;
+}
+.composer-reason {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink);
 }
 .composer-counter {
   flex-shrink: 0;
@@ -2682,12 +2726,11 @@ html {
   background: var(--cream-light);
   padding: 6px;
 }
-.composer-dragging {
-  background: rgb(194 154 61 / 0.12);
-}
-.composer-drop {
+/* The whole conversation is the drop target (§22.4): the overlay covers the column. */
+.chat-drop-overlay {
   position: absolute;
-  inset: 6px;
+  inset: 8px;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2697,6 +2740,8 @@ html {
   font-family: var(--font-ui);
   font-size: 13px;
   font-weight: 600;
+  text-align: center;
+  padding: 16px;
   pointer-events: none;
 }
 

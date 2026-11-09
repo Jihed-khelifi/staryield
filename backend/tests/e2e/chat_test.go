@@ -227,9 +227,11 @@ func TestLiveChatFullLifecycle(t *testing.T) {
 	if !history.Items[1].Saved {
 		t.Fatal("saved flag missing in history")
 	}
-	// Messages are rejected once the session is over.
-	if e := cws.request(realtime.FrameMessageSend, map[string]any{"session_id": s.ID, "body": "still there?"}); e.Err == nil || e.Err.Code != "invalid_state" {
-		t.Fatalf("message after end: %+v", e)
+	// Once the session is over a message is no longer rejected (revisions
+	// 3.3): it is routed outside a live chat and acked with the allowance.
+	if e := cws.request(realtime.FrameMessageSend, map[string]any{"session_id": s.ID, "body": "still there?"}); e.Err != nil ||
+		!strings.Contains(string(e.Data), `"off_session":true`) || !strings.Contains(string(e.Data), `"allowance"`) {
+		t.Fatalf("message after end: %+v %s", e.Err, e.Data)
 	}
 	// Inbox shows the conversation without unread messages for the client.
 	var inbox struct {
@@ -385,11 +387,13 @@ func TestDisconnectGraceAndResume(t *testing.T) {
 	if !strings.Contains(string(ev.Data), `"party":"client"`) {
 		t.Fatalf("disconnected: %s", ev.Data)
 	}
-	// While disconnected, billing pauses and the psychic cannot send.
+	// While disconnected, billing pauses; a message still goes into the
+	// paused session (revisions 3.3), never off-session.
 	pws.drain()
 	e.tick(30 * time.Second)
-	if e := pws.request(realtime.FrameMessageSend, map[string]any{"session_id": s.ID, "body": "are you there?"}); e.Err == nil || e.Err.Code != "invalid_state" {
-		t.Fatalf("send during disconnect: %+v", e)
+	if e := pws.request(realtime.FrameMessageSend, map[string]any{"session_id": s.ID, "body": "are you there?"}); e.Err != nil ||
+		!strings.Contains(string(e.Data), `"session_id":"`+s.ID.String()+`"`) || !strings.Contains(string(e.Data), `"off_session":false`) {
+		t.Fatalf("send during disconnect: %+v %s", e.Err, e.Data)
 	}
 	pws.expectNone(realtime.EventSessionBilled, 300*time.Millisecond)
 

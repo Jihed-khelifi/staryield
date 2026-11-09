@@ -71,7 +71,7 @@ func TestServerMessagesFollowTheUsersLanguage(t *testing.T) {
 	}
 	b, _ := json.Marshal(ev.Err)
 	fields, _ := ev.Err.Details["fields"].(map[string]any)
-	if ev.Err.Message != "Algunos campos necesitan tu atención." || fields["session_id"] != "Este campo es obligatorio." {
+	if ev.Err.Message != "Algunos campos necesitan tu atención." || fields["conversation_id"] != "Este campo es obligatorio." {
 		t.Fatalf("frame not localized: %s", b)
 	}
 }

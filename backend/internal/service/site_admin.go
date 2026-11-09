@@ -529,6 +529,117 @@ func (s *SiteService) UpdateSignupOffer(ctx context.Context, in SignupOfferInput
 }
 
 // ---------------------------------------------------------------------------
+// Messages outside a live chat (revisions 3.3, §22.3)
+// ---------------------------------------------------------------------------
+
+// OffSessionInput is PUT /admin/site/off-session-messages.
+type OffSessionInput struct {
+	Enabled           *bool `json:"enabled"`
+	ClientDailyLimit  *int  `json:"client_daily_limit"`
+	AdvisorDailyLimit *int  `json:"advisor_daily_limit"`
+	ExpectedVersion   *int  `json:"expected_version"`
+}
+
+// OffSessionStats is the oversight of the last rolling 24 h, all conversations.
+type OffSessionStats struct {
+	Messages24h  int64 `json:"messages_24h"`
+	Senders24h   int64 `json:"senders_24h"`
+	LimitHits24h int64 `json:"limit_hits_24h"`
+}
+
+// OffSessionMessagesSetting is the setting as the admin console shows it.
+type OffSessionMessagesSetting struct {
+	OffSessionSettings
+	Version   int             `json:"version"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	UpdatedBy *UserRef        `json:"updated_by,omitempty"`
+	Stats     OffSessionStats `json:"stats"`
+}
+
+func (s *SiteService) offSessionView(ctx context.Context, st *domain.SiteSetting) *OffSessionMessagesSetting {
+	out := &OffSessionMessagesSetting{OffSessionSettings: offSessionFrom(*st), Version: st.Version, UpdatedAt: st.UpdatedAt}
+	if st.UpdatedBy != nil {
+		if name, ok := s.names(ctx, st.UpdatedBy)[*st.UpdatedBy]; ok {
+			out.UpdatedBy = &UserRef{ID: *st.UpdatedBy, Name: name}
+		}
+	}
+	since := s.d.Clock.Now().Add(-domain.OffSessionWindow)
+	if m, n, err := s.d.Repo.OffSessionTotals(ctx, since); err == nil {
+		out.Stats.Messages24h, out.Stats.Senders24h = m, n
+	} else {
+		warnErr(ctx, "site: off-session totals", err)
+	}
+	if n, err := s.d.Repo.OffSessionLimitHits(ctx, since); err == nil {
+		out.Stats.LimitHits24h = n
+	} else {
+		warnErr(ctx, "site: off-session limit hits", err)
+	}
+	return out
+}
+
+// OffSessionMessages returns the stored setting (database, never the cache).
+func (s *SiteService) OffSessionMessages(ctx context.Context) (*OffSessionMessagesSetting, error) {
+	st, err := s.d.Repo.Setting(ctx, domain.SiteSettingOffSession)
+	if err != nil {
+		return nil, mapRepoErr(err, "Setting")
+	}
+	return s.offSessionView(ctx, st), nil
+}
+
+// UpdateOffSessionMessages replaces the setting. Disabling keeps the stored
+// limits. A stale expected_version is a 409 version_conflict.
+func (s *SiteService) UpdateOffSessionMessages(ctx context.Context, in OffSessionInput) (*OffSessionMessagesSetting, error) {
+	fields := map[string]string{}
+	if in.Enabled == nil {
+		fields["enabled"] = msgBannerRequired
+	}
+	for key, v := range map[string]*int{"client_daily_limit": in.ClientDailyLimit, "advisor_daily_limit": in.AdvisorDailyLimit} {
+		if v == nil {
+			fields[key] = msgBannerRequired
+		} else if *v < domain.OffSessionLimitMin || *v > domain.OffSessionLimitMax {
+			fields[key] = msgOffSessionLimit
+		}
+	}
+	if in.ExpectedVersion != nil && *in.ExpectedVersion < 1 {
+		fields["expected_version"] = msgSiteWrongType
+	}
+	if len(fields) > 0 {
+		return nil, apperror.Validation(fields)
+	}
+	var before, after OffSessionSettings
+	var changed bool
+	err := s.d.Tx.WithinTx(ctx, func(ctx context.Context) error {
+		changed = false
+		st, err := s.d.Repo.SettingForUpdate(ctx, domain.SiteSettingOffSession)
+		if err != nil {
+			return err
+		}
+		before = offSessionFrom(*st)
+		if in.ExpectedVersion != nil && *in.ExpectedVersion != st.Version {
+			return apperror.VersionConflict(st.Version)
+		}
+		after = OffSessionSettings{Enabled: *in.Enabled, ClientDailyLimit: *in.ClientDailyLimit, AdvisorDailyLimit: *in.AdvisorDailyLimit}
+		if after == before {
+			return nil
+		}
+		changed = true
+		return s.d.Repo.SaveSetting(ctx, domain.SiteSettingOffSession, domain.JSONMap{"enabled": after.Enabled,
+			"client_daily_limit": after.ClientDailyLimit, "advisor_daily_limit": after.AdvisorDailyLimit},
+			st.Version+1, actor(ctx), s.d.Clock.Now())
+	})
+	if err != nil {
+		return nil, mapRepoErr(err, "Setting")
+	}
+	if changed {
+		s.changed(ctx)
+		s.record(ctx, "site.off_session_messages_updated", "site_setting", domain.SiteSettingOffSession, map[string]any{
+			"before": map[string]any{"enabled": before.Enabled, "client_daily_limit": before.ClientDailyLimit, "advisor_daily_limit": before.AdvisorDailyLimit},
+			"after":  map[string]any{"enabled": after.Enabled, "client_daily_limit": after.ClientDailyLimit, "advisor_daily_limit": after.AdvisorDailyLimit}})
+	}
+	return s.OffSessionMessages(ctx)
+}
+
+// ---------------------------------------------------------------------------
 // Free mode
 // ---------------------------------------------------------------------------
 

@@ -79,17 +79,21 @@ type SessionSummary struct {
 // conversation without gaps (1, 2, 3, …); clients sort by it and fetch any
 // missing range through the "since" endpoint.
 type MessageView struct {
-	ID             uuid.UUID        `json:"id"`
-	ConversationID uuid.UUID        `json:"conversation_id"`
-	SessionID      uuid.UUID        `json:"session_id"`
-	Seq            int64            `json:"seq"`
-	SenderID       *uuid.UUID       `json:"sender_id,omitempty"`
-	Kind           string           `json:"kind"`
-	Body           string           `json:"body"`
-	ClientMsgID    string           `json:"client_msg_id,omitempty"`
-	CreatedAt      time.Time        `json:"created_at"`
-	Saved          bool             `json:"saved,omitempty"`
-	Attachments    []AttachmentView `json:"attachments,omitempty"`
+	ID             uuid.UUID `json:"id"`
+	ConversationID uuid.UUID `json:"conversation_id"`
+	// SessionID is absent for an off-session message (revisions 3.3).
+	SessionID *uuid.UUID `json:"session_id,omitempty"`
+	// OffSession is true when the message was written outside a live chat
+	// (no session, not a system notice).
+	OffSession  bool             `json:"off_session"`
+	Seq         int64            `json:"seq"`
+	SenderID    *uuid.UUID       `json:"sender_id,omitempty"`
+	Kind        string           `json:"kind"`
+	Body        string           `json:"body"`
+	ClientMsgID string           `json:"client_msg_id,omitempty"`
+	CreatedAt   time.Time        `json:"created_at"`
+	Saved       bool             `json:"saved,omitempty"`
+	Attachments []AttachmentView `json:"attachments,omitempty"`
 }
 
 // ConversationView is an inbox row. Unread counts every message kind the
@@ -149,7 +153,8 @@ type viewer struct {
 
 func messageView(m *domain.Message) MessageView {
 	v := MessageView{ID: m.ID, ConversationID: m.ConversationID, SessionID: m.SessionID, Seq: m.Seq, SenderID: m.SenderID,
-		Kind: string(m.Kind), Body: m.Body, CreatedAt: m.CreatedAt}
+		Kind: string(m.Kind), Body: m.Body, CreatedAt: m.CreatedAt,
+		OffSession: m.SessionID == nil && m.Kind != domain.MessageSystem}
 	if m.ClientMsgID != nil {
 		v.ClientMsgID = *m.ClientMsgID
 	}

@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-07",
-    "effective": "2026-11-07",
-    "lastUpdated": "2026-11-07",
+    "version": "2026-11-09",
+    "effective": "2026-11-09",
+    "lastUpdated": "2026-11-09",
     "badge": "ACCORD DE CONFIDENTIALITÉ STARYIELD",
     "title": "Politique de confidentialité"
   },
@@ -153,11 +153,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Messages et images. Nous conservons les messages, emoji et images que vous échangez lors des consultations en direct afin que vous et votre conseiller puissiez voir l'historique de votre conversation. Les images sont réencodées lors de leur envoi, ce qui supprime les métadonnées intégrées comme la position GPS et les informations sur l'appareil photo. Elles sont conservées dans un stockage privé et ne peuvent être ouvertes que par les deux participants de la conversation ; nos outils d'administration ne permettent pas au personnel de les ouvrir. Les transcriptions textuelles ne peuvent être consultées par le personnel autorisé que pour traiter un litige, un signalement de sécurité ou une obligation légale ; chaque accès exige un motif déclaré et est consigné dans un journal d'audit."
+          "text": "Messages et images. Nous conservons les messages, emoji et images que vous échangez lors des consultations en direct afin que vous et votre conseiller puissiez voir l'historique de votre conversation. Les images sont réencodées lors de leur envoi, ce qui supprime les métadonnées intégrées comme la position GPS et les informations sur l'appareil photo. Avant l’envoi, une image peut aussi être redimensionnée et compressée sur votre appareil (son plus grand côté est ramené à 2048 pixels au maximum), et les photos HEIC, HEIF ou AVIF sont converties lorsque votre navigateur le permet. Elles sont conservées dans un stockage privé et ne peuvent être ouvertes que par les deux participants de la conversation ; nos outils d'administration ne permettent pas au personnel de les ouvrir. Les transcriptions textuelles ne peuvent être consultées par le personnel autorisé que pour traiter un litige, un signalement de sécurité ou une obligation légale ; chaque accès exige un motif déclaré et est consigné dans un journal d'audit."
         },
         {
           "type": "p",
-          "text": "Informations visibles par votre conseiller. Pendant une conversation, votre conseiller voit une fiche client indiquant votre prénom ou pseudonyme, votre photo de profil, votre statut de connexion, votre pays, votre âge, votre signe solaire et les signes de vos autres positions natales (votre signe lunaire uniquement s’il est certain d’après votre date et votre heure de naissance, et les degrés, les maisons et votre ascendant uniquement si vous avez indiqué une heure et un lieu de naissance), votre horoscope du jour ainsi que le nombre et la durée de vos lectures précédentes avec lui. Votre date de naissance et votre ville de naissance ne sont affichées que si vous activez « Partager mes données de naissance avec les conseillers » dans vos préférences de confidentialité ; vous pouvez désactiver cette option à tout moment. Nous ne montrons jamais aux conseillers votre adresse e-mail, votre solde de crédits, vos achats, votre abonnement, ni votre heure exacte ou vos coordonnées de naissance."
+          "text": "Informations visibles par votre conseiller. Pendant une conversation, votre conseiller voit une fiche client indiquant votre prénom ou pseudonyme, votre photo de profil, votre statut de connexion, votre pays, votre âge, votre date de naissance complète, votre signe solaire et les signes de vos autres positions natales (votre signe lunaire uniquement s’il est certain d’après votre date et votre heure de naissance, et les degrés, les maisons et votre ascendant uniquement si vous avez indiqué une heure et un lieu de naissance), votre horoscope du jour ainsi que le nombre et la durée de vos lectures précédentes avec lui. Votre date de naissance est toujours affichée aux conseillers avec lesquels vous échangez, sous votre nom dans la conversation et dans le panneau client, car les lectures en dépendent ; nous procédons ainsi pour exécuter notre contrat avec vous, à savoir fournir la lecture que vous demandez. Votre ville de naissance n’est affichée que si vous activez « Partager ma ville de naissance avec les conseillers » dans vos préférences de confidentialité (option désactivée par défaut) ; vous pouvez la désactiver à tout moment. Nous ne montrons jamais aux conseillers votre adresse e-mail, votre solde de crédits, vos achats, votre abonnement, ni votre heure exacte ou vos coordonnées de naissance."
         },
         {
           "type": "p",
@@ -269,7 +269,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Les notifications push sur les nouveaux messages de chat ne contiennent jamais le texte du message : elles indiquent seulement qu’un nouveau message est arrivé. Un message que vous avez saisi mais pas encore envoyé est conservé comme brouillon uniquement sur votre appareil, dans le stockage local de votre navigateur, pendant 7 jours au plus ; les brouillons ne nous sont jamais transmis."
+          "text": "Les notifications push sur les nouveaux messages de chat ne contiennent jamais le texte du message : elles indiquent seulement qu’un nouveau message est arrivé ; il en va de même pour les messages envoyés en dehors des consultations en direct (voir la [section 2.13](#messages-outside-live-readings)). Un message que vous avez saisi mais pas encore envoyé est conservé comme brouillon uniquement sur votre appareil, dans le stockage local de votre navigateur, pendant 7 jours au plus ; les brouillons ne nous sont jamais transmis."
         },
         {
           "type": "h3",
@@ -280,6 +280,20 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Lorsque nous rendons le chat en direct gratuit pour tous pour une durée limitée (« mode gratuit », voir les [Conditions d’utilisation](/terms#free-trials-and-promotional-offers)), les chats demandés pendant cette période sont enregistrés comme séances offertes, avec leurs minutes et les crédits pris en charge par Staryield. Nous utilisons ces enregistrements pour facturer les séances à Staryield et calculer les gains des conseillers et les statistiques de la plateforme, sur la base de notre contrat avec les conseillers et de notre intérêt légitime à faire fonctionner les Services."
+        },
+        {
+          "type": "h3",
+          "id": "messages-outside-live-readings",
+          "n": "2.13",
+          "title": "Messages en dehors des consultations en direct"
+        },
+        {
+          "type": "p",
+          "text": "Lorsqu’aucune consultation en direct n’est en cours (après la fin d’une consultation, pendant qu’une demande est en attente ou pendant qu’une consultation est en pause), vous et le conseiller pouvez continuer à échanger des messages texte et des images dans une conversation existante ayant donné lieu à au moins une consultation en direct. Nous traitons ces messages et ces images pour fournir la fonction de messagerie des Services, sur la base de notre contrat avec vous. Ils ne font pas partie d’une consultation et ne sont pas facturés à la minute."
+        },
+        {
+          "type": "p",
+          "text": "Nous conservons et protégeons ces messages comme les autres messages décrits à la [section 2.5](#live-readings-ratings-and-notifications) : ils ne sont visibles que par les deux participants de la conversation, ils sont conservés tant que la conversation existe (voir la [section 8](#data-retention)), et le personnel autorisé ne peut consulter le texte que pour traiter un litige, un signalement de sécurité ou une obligation légale, avec un motif déclaré et une inscription au journal d’audit. L’autre participant reçoit une notification dans l’application et un compteur de messages non lus et, si elle est activée, une notification push, qui ne contiennent jamais le texte du message (voir la [section 2.11](#chat-notifications-and-drafts)). Pour que la fonction reste équitable, nous comptons les messages envoyés par chaque participant et par conversation sur une période glissante de 24 heures, et nous enregistrons qu’un message a été refusé lorsque la limite est atteinte. Les messages écrits pendant qu’une consultation en direct est en pause appartiennent à cette consultation. Les règles d’utilisation de cette fonction figurent dans nos [Conditions d’utilisation](/terms#messages-outside-live-readings)."
         }
       ]
     },
@@ -313,7 +327,7 @@ const content: LegalDocumentContent = {
             [
               "Permettre la communication avec les conseillers, y compris la fiche client et les notes des conseillers",
               "Identifiants; Données d’inscription et de profil; Données de naissance; Données de communication; Notes rédigées par les conseillers",
-              "Exécution d’un contrat avec vous; Votre consentement (pour le partage de votre date et de votre ville de naissance); Intérêt légitime (pour les notes des conseillers — voir la description)"
+              "Exécution d’un contrat avec vous (y compris l’affichage de votre date de naissance au conseiller avec lequel vous échangez); Votre consentement (pour le partage de votre ville de naissance); Intérêt légitime (pour les notes des conseillers — voir la description)"
             ],
             [
               "Étudier, analyser et améliorer les Services",
@@ -435,7 +449,7 @@ const content: LegalDocumentContent = {
             "Statistiques : nos statistiques et nos rapports d’erreurs sont internes et fonctionnent sur nos propres systèmes. Nous n’utilisons pas d’outils tiers de statistiques, d’enregistrement de sessions ou de publicité.",
             "Prestataires de services techniques, administratifs et informatiques : nous pouvons occasionnellement utiliser des outils tiers pour la gestion de projets et de tâches, la communication et la collaboration internes ou l’automatisation de processus. Dans certains cas, des données personnelles limitées peuvent être partagées avec ces prestataires.",
             "Conseillers, consultants et entrepreneurs indépendants. De temps à autre, nous pouvons partager des informations personnelles limitées avec nos entrepreneurs indépendants, consultants, spécialistes tiers, partenaires et conseillers. Ils traitent ces informations en notre nom pour exploiter, maintenir, sécuriser et améliorer les Services, et garantir la conformité légale et réglementaire. Nous leur demandons d'utiliser les informations uniquement à ces fins, de les protéger de manière appropriée et de les garder confidentielles.",
-            "Conseillers (voyants) : les conseillers avec lesquels vous échangez reçoivent vos messages et la fiche client décrite à la [section 2.5](#live-readings-ratings-and-notifications). Une note rédigée à votre sujet par un conseiller n’est partagée avec d’autres conseillers que si son auteur choisit de la partager, et uniquement avec des conseillers qui ont également eu une séance avec vous (voir la [section 2.7](#advisor-notes))."
+            "Conseillers (voyants) : les conseillers avec lesquels vous échangez reçoivent vos messages (y compris les messages envoyés en dehors des consultations en direct, voir la [section 2.13](#messages-outside-live-readings)) et la fiche client décrite à la [section 2.5](#live-readings-ratings-and-notifications) ; la fiche comprend toujours votre date de naissance et n’affiche votre ville de naissance que si vous choisissez de la partager. Une note rédigée à votre sujet par un conseiller n’est partagée avec d’autres conseillers que si son auteur choisit de la partager, et uniquement avec des conseillers qui ont également eu une séance avec vous (voir la [section 2.7](#advisor-notes))."
           ]
         },
         {
@@ -527,7 +541,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Pour retirer votre consentement aux statistiques, à l’attribution marketing ou à la personnalisation, ou pour cesser de partager vos données de naissance avec les conseillers, utilisez Préférences de confidentialité dans les [paramètres de votre compte](/profile/settings). Pour ne plus recevoir de communications commerciales, utilisez le lien « Se désabonner » du message, désactivez Actualités commerciales dans les paramètres de votre compte ou envoyez votre demande via ce [formulaire de demande](/contact?topic=privacy)."
+          "text": "Pour retirer votre consentement aux statistiques, à l’attribution marketing ou à la personnalisation, ou pour cesser de partager votre ville de naissance avec les conseillers, utilisez Préférences de confidentialité dans les [paramètres de votre compte](/profile/settings). Pour ne plus recevoir de communications commerciales, utilisez le lien « Se désabonner » du message, désactivez Actualités commerciales dans les paramètres de votre compte ou envoyez votre demande via ce [formulaire de demande](/contact?topic=privacy)."
         },
         {
           "type": "h4",
@@ -846,7 +860,7 @@ const content: LegalDocumentContent = {
             [
               "sy_rt",
               "Cookie",
-              "Renouvelle votre session sans vous demander de vous reconnecter",
+              "Renouvelle votre session sans vous demander de vous reconnecter, de sorte que vous restez connecté sur cet appareil jusqu’à 30 jours d’utilisation, sauf si vous vous déconnectez",
               "Jusqu’à 30 jours",
               "Essentiel"
             ],
@@ -854,7 +868,7 @@ const content: LegalDocumentContent = {
               "sy_csrf",
               "Cookie",
               "Protège votre compte contre la falsification de requêtes intersites",
-              "Session",
+              "Jusqu’à 30 jours, renouvelé tant que vous utilisez le site",
               "Essentiel"
             ],
             [

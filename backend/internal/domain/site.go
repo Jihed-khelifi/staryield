@@ -16,6 +16,9 @@ const (
 	SiteSettingBanners     = "banners"
 	SiteSettingSignupOffer = "signup_offer"
 	SiteSettingFreeMode    = "free_mode"
+	// SiteSettingOffSession is the kill switch and per-role daily caps of
+	// messages outside a live chat (revisions 3.3, §22.3).
+	SiteSettingOffSession = "off_session_messages"
 )
 
 // Site configuration bounds.
@@ -35,6 +38,12 @@ const (
 	// SignupFreeMinutesMin and SignupFreeMinutesMax bound the sign-up offer.
 	SignupFreeMinutesMin = 1
 	SignupFreeMinutesMax = 60
+	// OffSessionLimitMin and OffSessionLimitMax bound each role's daily cap of
+	// messages outside a live chat (0 turns the feature off for that role).
+	OffSessionLimitMin = 0
+	OffSessionLimitMax = 500
+	// OffSessionWindow is the rolling window of the cap.
+	OffSessionWindow = 24 * time.Hour
 	// FreeModeMaxDuration is the furthest ends_at may be from now.
 	FreeModeMaxDuration = 90 * 24 * time.Hour
 	// FreeModeConfirmation is the phrase an admin types to switch it on.

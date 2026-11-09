@@ -283,3 +283,23 @@ func TestEncryptionKeyErrorsExplainTheFix(t *testing.T) {
 		})
 	}
 }
+
+func TestRefreshRateLimitDefaultsAndEnv(t *testing.T) {
+	clearPlatformEnv(t)
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := cfg.RateLimit.Refresh; r.Rate != 30 || r.Period.String() != "1m0s" || r.Burst != 20 {
+		t.Fatalf("refresh defaults: %+v", r)
+	}
+	t.Setenv("STARYIELD_RATE_LIMIT_REFRESH_RATE", "5")
+	t.Setenv("STARYIELD_RATE_LIMIT_REFRESH_BURST", "7")
+	cfg, err = Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := cfg.RateLimit.Refresh; r.Rate != 5 || r.Burst != 7 {
+		t.Fatalf("refresh env: %+v", r)
+	}
+}

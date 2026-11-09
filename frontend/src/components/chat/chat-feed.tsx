@@ -71,6 +71,7 @@ export function ChatFeed({
 }) {
   const { text, t } = useI18n();
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const contentRef = React.useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = React.useState(true);
   // Newest confirmed seq seen while at the bottom; incoming ones after it are "new".
   const [seenSeq, setSeenSeq] = React.useState(0);
@@ -85,7 +86,10 @@ export function ChatFeed({
   });
 
   // Keep the reader's place: older pages are prepended without a jump, and
-  // new messages scroll into view only while the reader is at the bottom.
+  // new messages scroll into view only while the reader is at the bottom. This
+  // runs only when the messages change — never on unrelated re-renders (the 1 s
+  // session timer, a draft being saved…) nor when the other person starts or
+  // stops typing: the typing slot has a fixed height, so it never moves the feed.
   React.useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -96,19 +100,27 @@ export function ChatFeed({
       el.scrollTop = el.scrollHeight;
     }
     geometry.current = { firstKey, height: el.scrollHeight };
-  });
+    // `firstKey` is derived from `messages`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
 
-  // The visible area changed (phone keyboard, rotation, composer growing): stay on the latest message if the reader was there.
+  // The visible area (phone keyboard, rotation, composer growing) or the content
+  // (an image finished loading) changed size: stay on the latest message if the reader was there.
   React.useEffect(() => {
     const el = scrollRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
+    const content = contentRef.current;
+    if (!el || !content || typeof ResizeObserver === "undefined") return;
     let height = el.clientHeight;
+    let contentHeight = content.offsetHeight;
     const ro = new ResizeObserver(() => {
-      if (el.clientHeight === height) return;
+      if (el.clientHeight === height && content.offsetHeight === contentHeight) return;
       height = el.clientHeight;
+      contentHeight = content.offsetHeight;
       if (atBottomRef.current) el.scrollTop = el.scrollHeight;
+      geometry.current = { ...geometry.current, height: el.scrollHeight };
     });
     ro.observe(el);
+    ro.observe(content);
     return () => ro.disconnect();
   }, []);
 
@@ -171,6 +183,7 @@ export function ChatFeed({
         data-testid="chat-feed"
         data-at-bottom={atBottom || undefined}
       >
+        <div ref={contentRef} className="chat-feed-content">
         <p className="chat-session-notice">
           <span aria-hidden className="chat-session-notice-star">
             ✦
@@ -213,9 +226,13 @@ export function ChatFeed({
               onDiscard={onDiscard ? () => onDiscard(message) : undefined}
             />
           ))}
-          {typing ? <TypingBubble authorName={authorName} /> : null}
+          {/* Always rendered with a fixed height: showing or hiding the indicator never moves the feed. */}
+          <li className="chat-typing-slot" aria-hidden={typing ? undefined : true} data-testid="typing-slot">
+            {typing ? <TypingBubble authorName={authorName} /> : null}
+          </li>
         </ol>
         {children}
+        </div>
       </div>
       {unseen > 0 ? (
         <button type="button" className="chat-jump-latest" onClick={jumpToLatest} data-testid="jump-to-latest">

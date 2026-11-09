@@ -21,7 +21,7 @@ func (h *Handler) clearAdminCookie(c echo.Context) {
 
 func (h *Handler) adminSessionResponse(c echo.Context, issued *service.IssuedAdminSession) error {
 	h.setAdminCookie(c, issued.Token, issued.Expires)
-	issued.View.CSRFToken = h.issueCSRF(c)
+	issued.View.CSRFToken = h.rotateCSRF(c)
 	return ok(c, issued.View)
 }
 

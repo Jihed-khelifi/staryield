@@ -115,7 +115,7 @@ func (h *Handler) MyReviews(c echo.Context) error {
 
 // --- Chat images and client profile -----------------------------------------------
 
-// SendImage uploads a private image message.
+// SendImage uploads a private image message addressed to a session (old clients).
 func (h *Handler) SendImage(c echo.Context) error {
 	id, err := uuidParam(c, "id")
 	if err != nil {
@@ -125,12 +125,34 @@ func (h *Handler) SendImage(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	out, err := h.svc.Chat.SendImage(c.Request().Context(), principal(c), service.UploadImageInput{
+	out, err := h.svc.Chat.SendImageForSession(c.Request().Context(), principal(c), service.UploadImageInput{
 		SessionID: id, Data: data, Caption: values["caption"], ClientMsgID: values["client_msg_id"]})
 	if err != nil {
 		return err
 	}
-	return created(c, map[string]any{"message": out})
+	return created(c, out)
+}
+
+// SendConversationImage uploads a private image message addressed to a
+// conversation (revisions 3.3, §22.3): 201, or 200 for an idempotent replay.
+func (h *Handler) SendConversationImage(c echo.Context) error {
+	id, err := uuidParam(c, "id")
+	if err != nil {
+		return err
+	}
+	data, values, err := readUpload(c, "image", h.limits.ChatImageBytes)
+	if err != nil {
+		return err
+	}
+	out, err := h.svc.Chat.SendImageToConversation(c.Request().Context(), principal(c), service.UploadImageInput{
+		ConversationID: id, Data: data, Caption: values["caption"], ClientMsgID: values["client_msg_id"]})
+	if err != nil {
+		return err
+	}
+	if out.Replayed {
+		return ok(c, out)
+	}
+	return created(c, out)
 }
 
 // Attachment streams a private chat image to a participant.

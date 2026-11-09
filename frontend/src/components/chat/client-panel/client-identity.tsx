@@ -8,20 +8,20 @@ export type ClientIdentityProps = {
   online: boolean;
   /** Completed sessions together (undefined while loading). */
   sessions?: number;
-  /** City/region/country, only when the client agreed to share it. */
+  /** City/region/country: the birth city only when the client agreed to share it. */
   location?: string;
-  /** YYYY-MM-DD, only when the client agreed to share it. */
+  /** YYYY-MM-DD: advisors always see the date of birth (§22.6). */
   birthDate?: string;
-  /** Fallbacks when location / birth date are not shared. */
+  /** Fallbacks when the birth city / date are unknown. */
   countryCode?: string;
   age?: number;
 };
 
 /**
  * Name, place and birth date of the client (Figma 1172:1191), then their
- * presence and how many sessions you have had together. Location and birth
- * date only appear when the client shares them; otherwise the country and
- * age from the profile summary are shown.
+ * presence and how many sessions you have had together. The birth city only
+ * appears when the client shares it (the country is shown otherwise); the
+ * date of birth always does, with the age ("{date} · {age} years old").
  */
 export function ClientIdentity({ name, online, sessions, location, birthDate, countryCode, age }: ClientIdentityProps) {
   const { text, locale } = useI18n();
@@ -46,6 +46,7 @@ export function ClientIdentity({ name, online, sessions, location, birthDate, co
         <p className="client-identity-meta" data-testid="client-birth-date">
           <span className="sr-only">{text("Born")} </span>
           <time dateTime={birthDate}>{born}</time>
+          {typeof age === "number" ? <> · {text("{count} years old", { count: age })}</> : null}
         </p>
       ) : typeof age === "number" ? (
         <p className="client-identity-meta">{text("{count} years old", { count: age })}</p>

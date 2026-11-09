@@ -258,7 +258,8 @@ type sendMessageRequest struct {
 	ClientMsgID string `json:"client_msg_id"`
 }
 
-// SendMessage is the REST fallback for sending (SSE clients).
+// SendMessage is the REST fallback for sending (SSE clients) and the
+// session-scoped send of old clients; it routes like the conversation send.
 func (h *Handler) SendMessage(c echo.Context) error {
 	id, err := uuidParam(c, "id")
 	if err != nil {
@@ -268,11 +269,46 @@ func (h *Handler) SendMessage(c echo.Context) error {
 	if err := bind(c, &req); err != nil {
 		return err
 	}
-	msg, err := h.svc.Chat.SendMessage(c.Request().Context(), principal(c), service.SendMessageInput{SessionID: id, Body: req.Body, ClientMsgID: req.ClientMsgID})
+	res, err := h.svc.Chat.SendMessageForSession(c.Request().Context(), principal(c), service.SendMessageInput{SessionID: id, Body: req.Body, ClientMsgID: req.ClientMsgID})
 	if err != nil {
 		return err
 	}
-	return created(c, map[string]any{"message": msg})
+	return created(c, res)
+}
+
+// SendConversationMessage sends a text message addressed to a conversation:
+// into its live chat when one is active or paused, else outside a live chat
+// (revisions 3.3, §22.3). 201, or 200 for an idempotent replay.
+func (h *Handler) SendConversationMessage(c echo.Context) error {
+	id, err := uuidParam(c, "id")
+	if err != nil {
+		return err
+	}
+	var req sendMessageRequest
+	if err := bind(c, &req); err != nil {
+		return err
+	}
+	res, err := h.svc.Chat.SendToConversation(c.Request().Context(), principal(c), service.ConversationSendInput{ConversationID: id, Body: req.Body, ClientMsgID: req.ClientMsgID})
+	if err != nil {
+		return err
+	}
+	if res.Replayed {
+		return ok(c, res)
+	}
+	return created(c, res)
+}
+
+// OffSessionAllowance returns the caller's allowance in a conversation.
+func (h *Handler) OffSessionAllowance(c echo.Context) error {
+	id, err := uuidParam(c, "id")
+	if err != nil {
+		return err
+	}
+	out, err := h.svc.Chat.OffSessionAllowanceFor(c.Request().Context(), principal(c), id)
+	if err != nil {
+		return err
+	}
+	return ok(c, out)
 }
 
 type typingRequest struct {

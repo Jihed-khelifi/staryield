@@ -71,95 +71,6 @@ type SendMessageInput struct {
 	ClientMsgID string
 }
 
-// SendMessage stores and delivers a message in an Active session. Retries
-// with the same client message ID return the original message.
-func (c *ChatService) SendMessage(ctx context.Context, p reqctx.Principal, in SendMessageInput) (*MessageView, error) {
-	body, err := normalizeMessageBody(in.Body, c.cfg.MaxMessageLength)
-	if err != nil {
-		return nil, err
-	}
-	var cmid *string
-	if in.ClientMsgID != "" {
-		if !clientMsgID.MatchString(in.ClientMsgID) {
-			return nil, apperror.Validation(map[string]string{"client_msg_id": "Invalid message identifier."})
-		}
-		if existing, err := c.chat.GetMessageByClientID(ctx, p.UserID, in.ClientMsgID); err == nil {
-			v := messageView(existing)
-			return &v, nil
-		} else if !isNotFound(err) {
-			return nil, apperror.Internal(err)
-		}
-		cmid = &in.ClientMsgID
-	}
-	if res, err := c.limiter.Allow(ctx, p.UserID.String(), c.cfg.MessageRule); err == nil && !res.Allowed {
-		return nil, apperror.RateLimited(res.RetryAfter)
-	} else if err != nil {
-		warnErr(ctx, "chat: message rate limiter unavailable", err)
-	}
-
-	var msg *domain.Message
-	var session *domain.Session
-	err = c.tx.WithinTx(ctx, func(ctx context.Context) error {
-		msg, session = nil, nil
-		s, err := c.chat.GetSessionForUpdate(ctx, in.SessionID)
-		if err != nil {
-			return err
-		}
-		if !s.IsParticipant(p.UserID) {
-			return repository.ErrNotFound
-		}
-		if s.Status != domain.SessionActive {
-			msg := "This chat is not active."
-			if s.Status == domain.SessionDisconnected {
-				msg = "The chat is paused while the other person reconnects."
-			} else if s.Status == domain.SessionAccepted || s.Status == domain.SessionRequested {
-				msg = "The chat has not started yet."
-			}
-			return apperror.InvalidState(msg).WithDetails(map[string]any{"status": s.Status})
-		}
-		// Retries of the same send serialise on the session lock: look again
-		// before assigning a sequence number.
-		if cmid != nil {
-			if existing, err := c.chat.GetMessageByClientID(ctx, p.UserID, *cmid); err == nil {
-				msg = existing
-				return nil
-			} else if !isNotFound(err) {
-				return err
-			}
-		}
-		now := c.clock.Now()
-		sender := p.UserID
-		m := &domain.Message{ID: domain.NewID(), ConversationID: s.ConversationID, SessionID: s.ID, SenderID: &sender,
-			Kind: domain.MessageText, Body: body, ClientMsgID: cmid, CreatedAt: now, UpdatedAt: now}
-		// Assigns the seq, marks the sender as having read up to it and
-		// counts it as unread for the other participant.
-		if _, err := c.chat.AppendMessage(ctx, m); err != nil {
-			return err
-		}
-		msg, session = m, s
-		return nil
-	})
-	if errors.Is(err, repository.ErrDuplicate) && cmid != nil {
-		// The same client message ID was stored by a concurrent request (in
-		// another session): the transaction rolled back; return the original.
-		existing, gerr := c.chat.GetMessageByClientID(ctx, p.UserID, *cmid)
-		if gerr != nil {
-			return nil, apperror.Internal(gerr)
-		}
-		v := messageView(existing)
-		return &v, nil
-	}
-	if err != nil {
-		return nil, mapRepoErr(err, "Session")
-	}
-	v := messageView(msg)
-	if session != nil {
-		c.publishMessage(ctx, v, session.ClientID, session.PsychicID)
-		c.tracker.Track(ctx, "chat.message_sent", map[string]any{"session_id": session.ID, "length": utf8.RuneCountInString(body), "role": string(p.Role)})
-	}
-	return &v, nil
-}
-
 // ReadInput moves the caller's read position to Seq, or to the seq of
 // MessageID. Exactly one must be set.
 type ReadInput struct {
@@ -521,7 +432,16 @@ func (c *ChatService) messagesPage(ctx context.Context, viewerID, conversationID
 	if err != nil {
 		return Page[MessageView]{}, err
 	}
-	return Page[MessageView]{Items: mp.Items, NextCursor: mp.NextCursor}, nil
+	// A session transcript never shows messages written outside a live chat
+	// (revisions 3.3, §22.3); conversation-level views (support chat
+	// reports, exports) do.
+	items := make([]MessageView, 0, len(mp.Items))
+	for _, m := range mp.Items {
+		if !m.OffSession {
+			items = append(items, m)
+		}
+	}
+	return Page[MessageView]{Items: items, NextCursor: mp.NextCursor}, nil
 }
 
 // SinceQuery selects messages after AfterSeq, or after a legacy timestamp.

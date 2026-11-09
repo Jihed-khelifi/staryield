@@ -536,7 +536,8 @@ func (d *Dataset) chats() error {
 						}
 						seq++
 						senders = append(senders, sender)
-						messages = append(messages, domain.Message{ID: d.ID(mat), ConversationID: conv.ID, SessionID: s.ID, SenderID: &sender,
+						sessionID := s.ID
+						messages = append(messages, domain.Message{ID: d.ID(mat), ConversationID: conv.ID, SessionID: &sessionID, SenderID: &sender,
 							Kind: domain.MessageText, Body: phrases[d.Rand.IntN(len(phrases))], Seq: seq, CreatedAt: mat, UpdatedAt: mat})
 						last = &messages[len(messages)-1]
 					}

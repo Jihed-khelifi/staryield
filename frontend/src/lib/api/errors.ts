@@ -5,6 +5,8 @@
  * recovery action without parsing strings.
  */
 
+import { logger } from "@/lib/logger";
+
 export type ErrorCode =
   | "bad_request"
   | "validation_failed"
@@ -33,6 +35,7 @@ export type ErrorCode =
   | "feature_unavailable"
   | "internal_error"
   | "network_error"
+  | "client_error"
   | "aborted"
   | "invalid_response"
   | "realtime_unavailable"
@@ -48,7 +51,12 @@ export type ErrorCode =
   | "subscription_exists"
   | "payment_method_required"
   // --- support desk (§16.4) ---
-  | "report_exists";
+  | "report_exists"
+  // --- messages outside live chats (§22.3) ---
+  | "off_session_disabled"
+  | "off_session_not_eligible"
+  | "off_session_limit_reached"
+  | "recipient_unavailable";
 
 export class ApiError extends Error {
   readonly code: ErrorCode | string;
@@ -101,15 +109,30 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
 
+/**
+ * Messages browsers raise when `fetch` itself fails (offline, DNS, CORS,
+ * blocked). `api()`, `fetchCsrf()` and the refresh already wrap their own
+ * rejections; this recognises raw fetch failures from other callers.
+ */
+const FETCH_FAILURE = /^(failed to fetch|load failed|networkerror when attempting to fetch resource|network request failed)/i;
+
+const reported = new WeakSet<object>();
+
 /** Normalize anything thrown into an ApiError. */
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error;
   if (error instanceof DOMException && error.name === "AbortError")
     return new ApiError({ code: "aborted", message: "Request cancelled.", cause: error });
-  if (error instanceof TypeError)
+  if (error instanceof TypeError && FETCH_FAILURE.test(error.message))
     return new ApiError({ code: "network_error", message: "Network request failed.", cause: error });
+  // Anything else is a bug in this page (not a network problem): say so,
+  // and log it once.
+  if (typeof error === "object" && error !== null && !reported.has(error)) {
+    reported.add(error);
+    logger.warn("unexpected client error", error);
+  }
   return new ApiError({
-    code: "internal_error",
+    code: "client_error",
     message: error instanceof Error ? error.message : "Unexpected error.",
     cause: error,
   });
@@ -147,6 +170,7 @@ export const errorCopy: Record<string, string> = {
   feature_unavailable: "This feature is not available yet. Please check back soon.",
   internal_error: "Something went wrong on our side. Please try again.",
   network_error: "You appear to be offline. Check your connection and try again.",
+  client_error: "Something went wrong on this page. Please try again.",
   aborted: "The request was cancelled.",
   invalid_response: "We received an unexpected response. Please try again.",
   realtime_unavailable: "Live updates are reconnecting…",
@@ -163,10 +187,20 @@ export const errorCopy: Record<string, string> = {
   payment_method_required: "Add another card first: your membership renews with this one.",
   // --- support desk (§16.4) ---
   report_exists: "You already reported this conversation.",
+  // --- messages outside live chats (§22.3) ---
+  off_session_disabled: "Messages outside a live chat are turned off right now. Start a live chat to keep talking.",
+  off_session_not_eligible: "You can write once the live chat starts.",
+  off_session_limit_reached: "You've used today's messages outside a live chat. Start a live chat to keep talking.",
+  recipient_unavailable: "This person can't receive messages right now.",
 };
+
+/** `network_error` while the browser believes it is online (API unreachable, blocked, DNS). */
+export const unreachableCopy = "We couldn't reach Staryield. Please try again in a moment.";
 
 /** The English copy for an error (translate with `text()`). */
 export function errorMessage(error: unknown): string {
   const e = toApiError(error);
+  // The copy depends on what the browser knows: "offline" only when it says so.
+  if (e.code === "network_error" && typeof navigator !== "undefined" && navigator.onLine !== false) return unreachableCopy;
   return errorCopy[e.code] ?? errorCopy.internal_error;
 }

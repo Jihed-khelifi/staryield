@@ -434,7 +434,7 @@ test.describe.serial("live chat on a phone: drafts, unread badge, image viewer",
 
   test("an image opens in the full-screen viewer and closes with Escape and the button", async () => {
     await client.getByTestId("attach-input").setInputFiles({ name: "spread.png", mimeType: "image/png", buffer: pngFixture(120, 80) });
-    const upload = client.waitForResponse((r) => /\/chat\/sessions\/[^/]+\/attachments$/.test(r.url()) && r.status() === 201);
+    const upload = client.waitForResponse((r) => /\/chat\/(sessions|conversations)\/[^/]+\/attachments$/.test(r.url()) && r.status() === 201);
     const box = client.getByRole("textbox", { name: "Message" });
     await box.fill(`viewer test ${RUN}`);
     await box.press("Control+Enter");

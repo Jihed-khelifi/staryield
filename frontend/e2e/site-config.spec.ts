@@ -29,6 +29,8 @@ async function mockConfig(page: Page, body: ReturnType<typeof config>, path: str
   await page.route("**/api/v1/site/config*", (route) => route.fulfill({ json: body }));
   await page.clock.install();
   await page.goto(path);
+  // The refresh interval is armed on hydration: jump the clock only after it (a slow dev compile hydrates after "load").
+  await page.waitForLoadState("networkidle");
   await page.clock.fastForward(5 * 60_000 + 1_000);
 }
 

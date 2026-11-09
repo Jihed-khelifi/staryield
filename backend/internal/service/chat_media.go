@@ -97,18 +97,42 @@ func (c *ChatService) withAttachments(ctx context.Context, views []MessageView) 
 	return views
 }
 
-// UploadImageInput is an image message.
+// UploadImageInput is an image message addressed to a session (legacy,
+// old clients) or, with ConversationID set, to a conversation.
 type UploadImageInput struct {
-	SessionID   uuid.UUID
-	Data        []byte
-	Caption     string
-	ClientMsgID string
+	SessionID      uuid.UUID
+	ConversationID uuid.UUID
+	Data           []byte
+	Caption        string
+	ClientMsgID    string
 }
 
-// SendImage stores a private image in the chat bucket and posts it as a
-// message in an active session. Only the two participants can ever fetch
-// the image.
+// SendImage is the session-scoped image send kept for old clients: the
+// session only names the conversation (same routing as SendImageToConversation).
 func (c *ChatService) SendImage(ctx context.Context, p reqctx.Principal, in UploadImageInput) (*MessageView, error) {
+	res, err := c.SendImageForSession(ctx, p, in)
+	if err != nil {
+		return nil, err
+	}
+	return res.Message, nil
+}
+
+// SendImageForSession resolves the session's conversation, then sends.
+func (c *ChatService) SendImageForSession(ctx context.Context, p reqctx.Principal, in UploadImageInput) (*SendResult, error) {
+	convID, err := c.sessionConversation(ctx, p.UserID, in.SessionID)
+	if err != nil {
+		return nil, err
+	}
+	in.ConversationID = convID
+	return c.SendImageToConversation(ctx, p, in)
+}
+
+// SendImageToConversation stores a private image in the chat bucket and
+// posts it as a message of the conversation, with the routing and the gates
+// of §22.3. Gates 1-6 run before the image is decoded or stored (cheap,
+// unlocked pre-check) and again inside the transaction. Only the two
+// participants can ever fetch the image.
+func (c *ChatService) SendImageToConversation(ctx context.Context, p reqctx.Principal, in UploadImageInput) (*SendResult, error) {
 	if c.extras.Store == nil || c.extras.Attachments == nil {
 		return nil, apperror.FeatureUnavailable("Image sharing is not available yet.")
 	}
@@ -125,22 +149,36 @@ func (c *ChatService) SendImage(ctx context.Context, p reqctx.Principal, in Uplo
 		if !clientMsgID.MatchString(in.ClientMsgID) {
 			return nil, apperror.Validation(map[string]string{"client_msg_id": "Invalid message identifier."})
 		}
+		// Before every gate and cap: a replay returns the original.
 		if existing, err := c.chat.GetMessageByClientID(ctx, p.UserID, in.ClientMsgID); err == nil {
-			v := c.withAttachments(ctx, []MessageView{messageView(existing)})[0]
-			return &v, nil
+			return c.replayResult(ctx, p, existing, true), nil
 		} else if !isNotFound(err) {
 			return nil, apperror.Internal(err)
 		}
 		cmid = &in.ClientMsgID
 	}
-	// Cheap checks before the expensive decode: the caller must be in an
-	// active session.
-	sess, err := c.loadParticipantSession(ctx, p.UserID, false, in.SessionID)
+	cfg, free := c.offSessionSettings(ctx), c.freeMode(ctx)
+	// Cheap checks before the expensive decode and the upload.
+	conv, err := c.chat.GetConversation(ctx, in.ConversationID)
 	if err != nil {
-		return nil, err
+		return nil, mapRepoErr(err, "Conversation")
 	}
-	if sess.Status != domain.SessionActive {
-		return nil, apperror.InvalidState("This chat is not active.").WithDetails(map[string]any{"status": sess.Status})
+	if !conv.IsParticipant(p.UserID) {
+		return nil, apperror.NotFound("Conversation")
+	}
+	live, err := c.liveSession(ctx, conv.ID)
+	if err != nil {
+		return nil, apperror.Internal(err)
+	}
+	if live == nil {
+		st, err := c.evaluateOffSession(ctx, p.UserID, conv, cfg, free, c.clock.Now())
+		if err != nil {
+			return nil, apperror.Internal(err)
+		}
+		if st.refusal != nil {
+			c.trackOffSessionRefusal(ctx, p, conv.ID, st.refusal)
+			return nil, st.refusal
+		}
 	}
 	if res, err := c.limiter.Allow(ctx, p.UserID.String(), c.cfg.MessageRule); err == nil && !res.Allowed {
 		return nil, apperror.RateLimited(res.RetryAfter)
@@ -151,48 +189,19 @@ func (c *ChatService) SendImage(ctx context.Context, p reqctx.Principal, in Uplo
 	if err != nil {
 		return nil, err
 	}
-	key := objectKey("chat/"+sess.ConversationID.String(), img.Extension())
+	key := objectKey("chat/"+conv.ID.String(), img.Extension())
 	if _, err := c.extras.Store.Put(ctx, key, img.ContentType, img.Data, "private, no-store"); err != nil {
 		return nil, apperror.Unavailable(err)
 	}
-	var msg *domain.Message
-	var att *domain.Attachment
-	var session *domain.Session
-	err = c.tx.WithinTx(ctx, func(ctx context.Context) error {
-		s, err := c.chat.GetSessionForUpdate(ctx, in.SessionID)
-		if err != nil {
-			return err
-		}
-		if s.Status != domain.SessionActive {
-			return apperror.InvalidState("This chat is not active.").WithDetails(map[string]any{"status": s.Status})
-		}
-		if cmid != nil {
-			// Retries serialise on the session lock: look again before
-			// assigning a sequence number.
-			if existing, err := c.chat.GetMessageByClientID(ctx, p.UserID, *cmid); err == nil {
-				msg = existing
-				return nil
-			} else if !isNotFound(err) {
-				return err
-			}
-		}
-		now := c.clock.Now()
-		sender := p.UserID
-		m := &domain.Message{ID: domain.NewID(), ConversationID: s.ConversationID, SessionID: s.ID, SenderID: &sender,
-			Kind: domain.MessageImage, Body: caption, ClientMsgID: cmid, CreatedAt: now, UpdatedAt: now}
-		if _, err := c.chat.AppendMessage(ctx, m); err != nil {
-			return err
-		}
-		a := &domain.Attachment{ID: domain.NewID(), MessageID: m.ID, ConversationID: s.ConversationID, UploaderID: p.UserID,
-			ObjectKey: key, ContentType: img.ContentType, Width: img.Width, Height: img.Height, Bytes: len(img.Data), CreatedAt: now}
-		if err := c.extras.Attachments.Create(ctx, a); err != nil {
-			return err
-		}
-		msg, att, session = m, a, s
-		return nil
-	})
-	if err != nil || att == nil {
-		// Nothing references the object: remove it.
+	spec := storeSpec{kind: domain.MessageImage, body: caption, cmid: cmid,
+		attach: func(ctx context.Context, m *domain.Message, now time.Time) (*domain.Attachment, error) {
+			a := &domain.Attachment{ID: domain.NewID(), MessageID: m.ID, ConversationID: m.ConversationID, UploaderID: p.UserID,
+				ObjectKey: key, ContentType: img.ContentType, Width: img.Width, Height: img.Height, Bytes: len(img.Data), CreatedAt: now}
+			return a, c.extras.Attachments.Create(ctx, a)
+		}}
+	out, err := c.storeMessage(ctx, p, conv.ID, spec, cfg, free)
+	if err != nil || out.att == nil {
+		// Nothing references the object (refused, replayed or failed): remove it.
 		warnErr(ctx, "chat: delete orphaned image", c.extras.Store.Delete(ctx, key))
 	}
 	if errors.Is(err, repository.ErrDuplicate) && cmid != nil {
@@ -201,23 +210,19 @@ func (c *ChatService) SendImage(ctx context.Context, p reqctx.Principal, in Uplo
 		if gerr != nil {
 			return nil, apperror.Internal(gerr)
 		}
-		v := c.withAttachments(ctx, []MessageView{messageView(existing)})[0]
-		return &v, nil
+		return c.replayResult(ctx, p, existing, true), nil
 	}
 	if err != nil {
-		return nil, mapRepoErr(err, "Session")
+		c.trackOffSessionRefusal(ctx, p, conv.ID, err)
+		return nil, mapRepoErr(err, "Conversation")
 	}
-	v := messageView(msg)
-	if att != nil {
-		v.Attachments = attachmentViews([]domain.Attachment{*att})
+	v := messageView(out.msg)
+	if out.att != nil {
+		v.Attachments = attachmentViews([]domain.Attachment{*out.att})
 	} else {
 		v = c.withAttachments(ctx, []MessageView{v})[0]
 	}
-	if session != nil {
-		c.publishMessage(ctx, v, session.ClientID, session.PsychicID)
-		c.tracker.Track(ctx, "chat.image_sent", map[string]any{"session_id": session.ID, "bytes": len(img.Data), "role": string(p.Role)})
-	}
-	return &v, nil
+	return c.finishSend(ctx, p, out, v, string(domain.MessageImage), len(img.Data)), nil
 }
 
 // ErrAttachmentHidden hides attachments from anyone but the participants.
@@ -278,8 +283,10 @@ type ClientPlacement struct {
 }
 
 // ClientBirthDetails are shown to advisors only when the client turned on
-// share_birth_details_with_advisors (off by default). They never include
-// the birth time or coordinates.
+// share_birth_details_with_advisors (off by default); that choice now
+// governs the birth city only, since the date of birth is always shown
+// (ClientProfileView.DateOfBirth, revisions 3.3). They never include the
+// birth time or coordinates.
 type ClientBirthDetails struct {
 	DateOfBirth string `json:"date_of_birth"`
 	Place       string `json:"place,omitempty"`
@@ -304,21 +311,25 @@ type ClientHistoryView struct {
 	LastSessionAt  *time.Time `json:"last_session_at,omitempty"`
 }
 
-// ClientProfileView is what an advisor may know about a client. It never
-// includes contact details, balances, purchases or the exact birth place
-// and time.
+// ClientProfileView is what an advisor may know about a client. It always
+// includes the date of birth when known (readings rely on it; not for
+// deleted accounts), and never contact details, balances, purchases or the
+// exact birth place and time. The birth city is opt-in.
 type ClientProfileView struct {
-	ID          uuid.UUID    `json:"id"`
-	Name        string       `json:"name"`
-	AvatarURL   string       `json:"avatar_url,omitempty"`
-	Online      bool         `json:"online"`
-	Locale      string       `json:"locale"`
-	CountryCode string       `json:"country_code,omitempty"`
-	Age         *int         `json:"age,omitempty"`
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	AvatarURL   string    `json:"avatar_url,omitempty"`
+	Online      bool      `json:"online"`
+	Locale      string    `json:"locale"`
+	CountryCode string    `json:"country_code,omitempty"`
+	Age         *int      `json:"age,omitempty"`
+	// DateOfBirth (YYYY-MM-DD) is present whenever the client's birth date
+	// is known, whatever the sharing choice.
+	DateOfBirth string       `json:"date_of_birth,omitempty"`
 	MemberSince time.Time    `json:"member_since"`
 	Astro       *ClientAstro `json:"astro,omitempty"`
 	// BirthDetailsShared tells the advisor whether the client chose to share
-	// their date and place of birth (BirthDetails is set only then).
+	// their birth city (BirthDetails, with the place, is set only then).
 	BirthDetailsShared bool                `json:"birth_details_shared"`
 	BirthDetails       *ClientBirthDetails `json:"birth_details,omitempty"`
 	Horoscope          *ClientHoroscope    `json:"horoscope,omitempty"`
@@ -361,6 +372,7 @@ func (c *ChatService) ClientProfile(ctx context.Context, p reqctx.Principal, con
 		if prof.BirthDate != nil {
 			age := ageOn(*prof.BirthDate, now)
 			v.Age = &age
+			v.DateOfBirth = prof.BirthDate.Format("2006-01-02")
 			v.Astro = clientAstro(prof)
 			if prof.ShareBirthDetailsWithAdvisors {
 				place := strings.TrimSpace(prof.BirthPlaceLabel)

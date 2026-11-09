@@ -7,7 +7,7 @@
  * One-time tokens (e-mail links, reactivation) only ever travel in request
  * bodies, never in query strings, so they stay out of logs and referrers.
  */
-import { api, setAuthHint, setCsrfToken } from "@/lib/api/client";
+import { api, endSession, setAuthHint, setCsrfToken } from "@/lib/api/client";
 import type { Page, SessionResponse } from "@/lib/api/types";
 
 // --- Settings (GET/PATCH /me/settings) ---------------------------------------
@@ -217,7 +217,11 @@ export const exportsApi = {
 export const accountApi = {
   /** Pauses the account and signs this browser out (204). */
   deactivate: (password: string) =>
-    api<void>("/api/v1/me/deactivate", { method: "POST", body: { password } }).finally(() => setAuthHint(false)),
+    api<void>("/api/v1/me/deactivate", { method: "POST", body: { password } }).then((res) => {
+      // Only a deactivation that happened ends this browser's session.
+      endSession();
+      return res;
+    }),
   /** Schedules erasure after the grace period (202); 409 closure_blocked for advisors with open business. */
   close: (input: { password: string; confirmation: string; reason?: string }) =>
     api<ClosureResult>("/api/v1/me/close", { method: "POST", body: input }),

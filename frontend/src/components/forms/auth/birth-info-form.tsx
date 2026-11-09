@@ -166,7 +166,7 @@ export function BirthInfoForm() {
           </FieldRow>
           <p className="mt-6 flex items-center justify-center gap-1.5 text-xs font-light">
             <Lock aria-hidden className="size-3.5" />
-            {text("Your birth details stay private and are only used for your charts.")}
+            {text("Your birth time and exact location stay private. Advisors you chat with see your date of birth, which readings rely on.")}
           </p>
         </AuthCard>
       </Form>

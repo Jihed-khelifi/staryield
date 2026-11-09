@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	xdraw "golang.org/x/image/draw"
+	_ "golang.org/x/image/webp" // register decoder explicitly: DetectContentType accepts WebP, image.Decode needs it
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/apperror"
 	"github.com/Jihed-khelifi/staryield/backend/internal/security"

@@ -32,7 +32,10 @@ describe("revisions 3.1 legal updates (Report an issue)", () => {
     expect(para).toContain("(/privacy#support-requests)");
   });
 
-  it.each(locales.flatMap((l) => (["privacy", "terms"] as const).map((d) => [d, l] as const)))("%s/%s keeps version 2026-11-07", (d, l) => {
-    expect(legalDocuments[d][l].meta).toMatchObject({ version: "2026-11-07", effective: "2026-11-07", lastUpdated: "2026-11-07" });
+  it.each(locales.flatMap((l) => (["privacy", "terms"] as const).map((d) => [d, l] as const)))("%s/%s keeps a consistent ISO version and dates", (d, l) => {
+    const m = legalDocuments[d][l].meta;
+    expect(m.version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(m).toMatchObject({ effective: m.version, lastUpdated: m.version });
+    expect(m.version).toBe(legalDocuments[d].en.meta.version);
   });
 });

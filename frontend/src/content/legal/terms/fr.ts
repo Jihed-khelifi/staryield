@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-07",
-    "effective": "2026-11-07",
-    "lastUpdated": "2026-11-07",
+    "version": "2026-11-09",
+    "effective": "2026-11-09",
+    "lastUpdated": "2026-11-09",
     "badge": "ACCORD DU SYSTÈME STARYIELD",
     "title": "Conditions d'utilisation"
   },
@@ -401,7 +401,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Pendant une consultation en direct, vous pouvez envoyer des messages texte, des emoji et des images. Seuls les fichiers image (PNG, JPEG, WebP ou GIF, converti en image fixe) peuvent être joints ; les autres fichiers sont refusés. Pour protéger votre vie privée, nous supprimons les informations cachées, comme les données de localisation, de chaque image avant de l'enregistrer."
+          "text": "Pendant une consultation en direct, vous pouvez envoyer des messages texte, des emoji et des images ; dans une conversation existante, vous pouvez aussi envoyer des messages en dehors d’une consultation en direct (voir la [section 4.16](#messages-outside-live-readings)). Seuls les fichiers image peuvent être joints : PNG, JPEG, WebP ou GIF (converti en image fixe), ainsi que les photos HEIC, HEIF ou AVIF lorsque votre navigateur peut les convertir ; les autres fichiers sont refusés. Avant l’envoi, une image peut être redimensionnée et compressée sur votre appareil (son plus grand côté est ramené à 2048 pixels au maximum). Pour protéger votre vie privée, nous supprimons les informations cachées, comme les données de localisation, de chaque image avant de l'enregistrer."
         },
         {
           "type": "p",
@@ -409,7 +409,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Ce que voit votre conseiller. Pour personnaliser votre lecture, le conseiller avec lequel vous échangez voit une fiche client indiquant votre prénom ou pseudonyme, votre photo de profil, votre statut de connexion, votre pays, votre âge, les éléments astrologiques tirés de vos données de naissance (votre signe solaire et les signes de vos autres positions natales, ainsi que vos signes lunaire et ascendant si vous avez indiqué une heure et un lieu de naissance), votre horoscope du jour et le nombre de lectures que vous avez eues avec lui. Votre date et votre ville de naissance ne sont affichées que si vous choisissez de les partager dans vos préférences de confidentialité. Les conseillers ne voient jamais votre adresse e-mail, votre solde de crédits, vos achats, votre abonnement, ni votre heure exacte ou vos coordonnées de naissance."
+          "text": "Ce que voit votre conseiller. Pour personnaliser votre lecture, le conseiller avec lequel vous échangez voit une fiche client indiquant votre prénom ou pseudonyme, votre photo de profil, votre statut de connexion, votre pays, votre âge, votre date de naissance complète, les éléments astrologiques tirés de vos données de naissance (votre signe solaire et les signes de vos autres positions natales, ainsi que vos signes lunaire et ascendant si vous avez indiqué une heure et un lieu de naissance), votre horoscope du jour et le nombre de lectures que vous avez eues avec lui. Votre date de naissance est toujours affichée au conseiller avec lequel vous échangez, car les lectures en dépendent. Votre ville de naissance n’est affichée que si vous activez « Partager ma ville de naissance avec les conseillers » dans vos préférences de confidentialité. Les conseillers ne voient jamais votre adresse e-mail, votre solde de crédits, vos achats, votre abonnement, ni votre heure exacte ou vos coordonnées de naissance."
         },
         {
           "type": "h3",
@@ -450,6 +450,24 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Lorsqu’un conseiller est occupé ou hors ligne, vous pouvez rejoindre sa liste d’attente. Nous vous préviendrons une seule fois, dans l’application et via les canaux que vous avez activés, lorsque le conseiller se connectera ; les membres Premium peuvent être prévenus avant les autres utilisateurs. Rejoindre une liste d’attente ne réserve pas le conseiller et ne garantit pas une lecture ; les demandes expirent au bout de 7 jours et vous pouvez quitter une liste d’attente à tout moment."
+        },
+        {
+          "type": "h3",
+          "id": "messages-outside-live-readings",
+          "n": "4.16",
+          "title": "Messages en dehors des consultations en direct"
+        },
+        {
+          "type": "p",
+          "text": "Lorsqu’aucune consultation en direct n’est en cours (après la fin d’une consultation, pendant qu’une demande est en attente ou pendant qu’une consultation est en pause), vous et le conseiller pouvez continuer à échanger des messages texte et des images dans une conversation existante ayant donné lieu à au moins une consultation en direct. Ces messages sont gratuits : ils ne sont pas facturés à la minute. Ils sont limités à un certain nombre de messages par conversation sur toute période glissante de 24 heures, que Staryield fixe et peut modifier ou désactiver à tout moment ; la limite en vigueur est indiquée dans l’application. La limite ne s’applique pas pendant les périodes de mode gratuit (voir la [section 6.2.5](#free-trials-and-promotional-offers)). Les messages écrits pendant qu’une consultation en direct est en pause appartiennent à cette consultation et ne sont pas facturés pendant la pause."
+        },
+        {
+          "type": "p",
+          "text": "Un message envoyé en dehors d’une consultation en direct n’est pas une lecture. Les conseillers ne sont pas tenus de répondre et nous ne garantissons aucun délai de réponse. Les mêmes règles de conduite s’appliquent que lors d’une consultation en direct : la [section 4.7](#prohibited-conduct) et la [section 4.11](#live-readings-messages-and-images) (pas de harcèlement, et pas de demande de contact ou de paiement en dehors de Staryield) ainsi que les [Normes d’intégrité des conseillers](/standards)."
+        },
+        {
+          "type": "p",
+          "text": "Ces messages sont conservés comme les autres messages de chat et ne sont visibles que par vous et le conseiller. Le personnel autorisé de Staryield ne peut les consulter que dans les conditions décrites dans notre [Politique de confidentialité](/privacy#messages-outside-live-readings), par exemple pour traiter un litige, un signalement de sécurité ou une obligation légale. L’autre participant est averti dans l’application et par notification push, sans le texte du message."
         }
       ]
     },

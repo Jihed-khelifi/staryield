@@ -34,6 +34,7 @@ const (
 	msgBannerRotation     = "Use between 4 and 30 seconds."
 	msgBannerRequired     = "This field is required."
 	msgSignupMinutes      = "Use between 1 and 60 minutes."
+	msgOffSessionLimit    = "Use a whole number between 0 and 500."
 	msgFreeConfirmation   = "Type ENABLE FREE MODE exactly to confirm."
 	msgFreeReason         = "Give a reason between 5 and 500 characters."
 	msgFreeReasonLong     = "Use at most 500 characters."

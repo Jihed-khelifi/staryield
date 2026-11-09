@@ -18,8 +18,11 @@ function text(doc: LegalDocumentContent): string {
 }
 
 describe("revisions 3.0 legal updates", () => {
-  it.each(locales.flatMap((l) => (["privacy", "terms"] as const).map((d) => [d, l] as const)))("%s/%s is at version and effective date 2026-11-07", (d, l) => {
-    expect(legalDocuments[d][l].meta).toMatchObject({ version: "2026-11-07", effective: "2026-11-07", lastUpdated: "2026-11-07" });
+  it.each(locales.flatMap((l) => (["privacy", "terms"] as const).map((d) => [d, l] as const)))("%s/%s has a consistent ISO version and dates", (d, l) => {
+    const m = legalDocuments[d][l].meta;
+    expect(m.version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(m).toMatchObject({ effective: m.version, lastUpdated: m.version });
+    expect(m.version).toBe(legalDocuments[d].en.meta.version);
   });
 
   it.each(locales)("privacy/%s covers the support desk, calculator measurement, chat drafts and free mode", (l) => {

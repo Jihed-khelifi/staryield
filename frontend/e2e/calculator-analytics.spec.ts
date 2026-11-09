@@ -80,8 +80,10 @@ test("visitors who send Do Not Track or Global Privacy Control send nothing and 
 
 test("sign-up without any UTM touch still sends the anonymous id when analytics is allowed", async ({ page }) => {
   await page.goto("/en/calculators/natal-chart");
-  const aid = await page.evaluate(() => localStorage.getItem("staryield.aid"));
-  expect(aid).toBeTruthy();
+  // The id is created on hydration, which can land after "load" on a dev server.
+  const readAid = () => page.evaluate(() => localStorage.getItem("staryield.aid"));
+  await expect.poll(readAid, { timeout: 20_000 }).toBeTruthy();
+  const aid = await readAid();
   await page.goto("/en/signup");
   await page.locator("input[name=email]").fill(`e2e+aid-${Date.now()}@staryield.test`);
   await page.getByRole("checkbox").check();

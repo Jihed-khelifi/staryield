@@ -4,8 +4,10 @@
  * spell loses nothing. Entries persist in sessionStorage (this tab only,
  * cleared with the tab and on sign-out), per user.
  *
- * Delivery is in order per session: only the oldest unsent entry may be in
- * flight. Sends are idempotent on `client_msg_id`, so resending after an
+ * Delivery is in order per conversation (§22.3): only the oldest unsent
+ * entry may be in flight. Messages are routed by the API (into the live chat
+ * when there is one, else outside a live chat), so entries are scoped to the
+ * conversation; `session_id` is only kept for entries stored by older builds. Sends are idempotent on `client_msg_id`, so resending after an
  * unknown outcome (timeout, lost connection, reload) never duplicates.
  */
 import type { ApiError } from "@/lib/api/errors";
@@ -17,7 +19,8 @@ export type OutboxState = "queued" | "sending" | "failed";
 export type OutboxEntry = {
   client_msg_id: string;
   conversation_id: string;
-  session_id: string;
+  /** Legacy: entries stored before §22.3 name their session; ignored for routing. */
+  session_id?: string;
   sender_id: string;
   body: string;
   created_at: string;
@@ -62,8 +65,7 @@ function valid(raw: unknown): raw is OutboxEntry {
     ID.test(e.client_msg_id) &&
     typeof e.conversation_id === "string" &&
     UUID.test(e.conversation_id) &&
-    typeof e.session_id === "string" &&
-    UUID.test(e.session_id) &&
+    (e.session_id === undefined || (typeof e.session_id === "string" && UUID.test(e.session_id))) &&
     typeof e.sender_id === "string" &&
     e.sender_id.length > 0 &&
     e.sender_id.length <= 64 &&
@@ -124,7 +126,7 @@ export function clearOutbox(userId: string, store: Storage | null = storage()) {
   }
 }
 
-export function newEntry(init: Pick<OutboxEntry, "client_msg_id" | "conversation_id" | "session_id" | "sender_id" | "body">, now = Date.now()): OutboxEntry {
+export function newEntry(init: Pick<OutboxEntry, "client_msg_id" | "conversation_id" | "sender_id" | "body"> & { session_id?: string }, now = Date.now()): OutboxEntry {
   return { ...init, created_at: new Date(now).toISOString(), attempts: 0, state: "queued", retry_at: 0 };
 }
 
@@ -142,22 +144,22 @@ export function removeEntry(entries: OutboxEntry[], clientMsgId: string): Outbox
 }
 
 /**
- * The entry to send next for a session, or null. Order is preserved: when
+ * The entry to send next for a conversation, or null. Order is preserved: when
  * the oldest unsent entry is in flight or waiting for its backoff, nothing
  * newer is sent. Failed entries wait for the user and do not block others.
  */
-export function nextToSend(entries: OutboxEntry[], sessionId: string, now = Date.now()): OutboxEntry | null {
+export function nextToSend(entries: OutboxEntry[], conversationId: string, now = Date.now()): OutboxEntry | null {
   for (const e of entries) {
-    if (e.session_id !== sessionId || e.state === "failed") continue;
+    if (e.conversation_id !== conversationId || e.state === "failed") continue;
     if (e.state === "sending") return null;
     return e.retry_at <= now ? e : null;
   }
   return null;
 }
 
-/** Earliest time a queued entry of the session becomes due (for a timer). */
-export function nextRetryAt(entries: OutboxEntry[], sessionId: string): number | null {
-  const first = entries.find((e) => e.session_id === sessionId && e.state !== "failed");
+/** Earliest time a queued entry of the conversation becomes due (for a timer). */
+export function nextRetryAt(entries: OutboxEntry[], conversationId: string): number | null {
+  const first = entries.find((e) => e.conversation_id === conversationId && e.state !== "failed");
   return first && first.state === "queued" ? first.retry_at : null;
 }
 
@@ -168,16 +170,20 @@ export function backoffMs(attempt: number, random: () => number = Math.random): 
 }
 
 const TRANSIENT = new Set(["network_error", "timeout", "realtime_unavailable", "service_unavailable", "internal_error", "rate_limited", "csrf_failed", "refresh_conflict"]);
-/** The session cannot take messages right now, but may again (paused, starting). */
+/** The session cannot take messages right now, but may again (paused, starting): old servers only. */
 const NOT_YET = new Set(["requested", "accepted", "disconnected"]);
+/** Refused by the server's off-session rules: retrying the same message cannot help (§22.3). */
+const FINAL = new Set(["off_session_disabled", "off_session_not_eligible", "off_session_limit_reached", "recipient_unavailable"]);
 
 /**
  * What to do after a failed send:
  * - "retry": transient (offline, timeout, server busy) — retry with backoff;
  * - "wait": the chat is paused or starting — keep it queued for the resume;
- * - "fatal": the message cannot be delivered as is (chat ended, invalid).
+ * - "fatal": the message cannot be delivered as is (invalid, or refused by the
+ *   off-session rules such as the daily cap: the user sees why and may retry).
  */
 export function classifyFailure(error: Pick<ApiError, "code" | "status" | "details">): "retry" | "wait" | "fatal" {
+  if (FINAL.has(String(error.code))) return "fatal";
   if (error.code === "invalid_state") {
     const status = typeof error.details?.status === "string" ? error.details.status : "";
     return NOT_YET.has(status) ? "wait" : "fatal";
@@ -202,26 +208,9 @@ export function afterFailure(
   return { ...entry, state: "queued", error: code, retry_at: now + delay };
 }
 
-/** Queue a failed entry again (user retry), optionally in another session of the conversation. */
-export function retryEntry(entries: OutboxEntry[], clientMsgId: string, sessionId?: string): OutboxEntry[] {
-  return patchEntry(entries, clientMsgId, {
-    state: "queued",
-    attempts: 0,
-    retry_at: 0,
-    error: undefined,
-    ...(sessionId ? { session_id: sessionId } : {}),
-  });
-}
-
-/** Mark every unsent entry of sessions that can no longer take messages as failed. */
-export function failClosedSessions(entries: OutboxEntry[], isClosed: (sessionId: string) => boolean): OutboxEntry[] {
-  let changed = false;
-  const out = entries.map((e) => {
-    if (e.state === "failed" || !isClosed(e.session_id)) return e;
-    changed = true;
-    return { ...e, state: "failed" as const, error: "session_ended", retry_at: 0 };
-  });
-  return changed ? out : entries;
+/** Queue a failed entry again (user retry). */
+export function retryEntry(entries: OutboxEntry[], clientMsgId: string): OutboxEntry[] {
+  return patchEntry(entries, clientMsgId, { state: "queued", attempts: 0, retry_at: 0, error: undefined });
 }
 
 /** How an outbox entry is shown in the feed. */
