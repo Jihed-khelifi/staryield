@@ -1735,7 +1735,12 @@ Web app (`lib/api/client.ts`, `lib/auth/session-provider.tsx`)
 - Deploy configuration (not code): `STARYIELD_SECURITY_ALLOWED_ORIGINS` must
   include every origin the site is served from (e.g. `https://www.staryield.net`
   unless www redirects to the apex), and `STARYIELD_HTTP_IP_SOURCE` must match
-  whether `api.staryield.net` is proxied by Cloudflare.
+  whether `api.staryield.net` is proxied by Cloudflare: `cloudflare` when it
+  is (orange cloud). In that mode `CF-Connecting-IP` and `CF-IPCountry` are
+  believed only when the request provably came through Cloudflare (the TCP
+  peer is a trusted proxy and Railway's `X-Real-IP` is one of Cloudflare's
+  published ranges, `internal/api/cloudflare.go`), so requests sent to the
+  `*.up.railway.app` domain cannot forge the client address or country.
 
 ### 22.3 Messages outside a live chat ("off-session messages") — sensitive
 

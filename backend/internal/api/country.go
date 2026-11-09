@@ -5,15 +5,14 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
-
 	"github.com/Jihed-khelifi/staryield/backend/internal/config"
 )
 
 // CountryResolver returns how to read the trusted edge country of a
 // request (payment routing): Cloudflare's CF-IPCountry header, honoured
-// only when the deployment runs behind Cloudflare and the TCP peer is one
-// of the trusted proxies, so clients cannot choose their own country.
+// only when the deployment runs behind Cloudflare and the request provably
+// came through it (see cloudflareHop), so clients cannot choose their own
+// country, not even through the *.up.railway.app domain.
 func CountryResolver(cfg config.HTTPConfig) func(*http.Request) string {
 	if cfg.IPSource != "cloudflare" {
 		return func(*http.Request) string { return "" }
@@ -24,9 +23,8 @@ func CountryResolver(cfg config.HTTPConfig) func(*http.Request) string {
 			nets = append(nets, n)
 		}
 	}
-	direct := echo.ExtractIPDirect()
 	return func(r *http.Request) string {
-		if !inNets(direct(r), nets) {
+		if _, viaCloudflare := cloudflareHop(r, nets); !viaCloudflare {
 			return ""
 		}
 		c := strings.ToUpper(strings.TrimSpace(r.Header.Get("CF-IPCountry")))

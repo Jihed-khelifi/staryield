@@ -100,3 +100,50 @@ func TestIPExtractor(t *testing.T) {
 		t.Fatalf("invalid x-real-ip must be ignored: %s", ip)
 	}
 }
+
+// Revisions 3.3: behind Cloudflare on Railway, CF-Connecting-IP is believed
+// only when Railway's edge says Cloudflare connected (X-Real-IP is one of
+// Cloudflare's ranges); requests that bypass Cloudflare keep their own address.
+func TestCloudflareIPOnRailway(t *testing.T) {
+	extract := ipExtractor(config.HTTPConfig{IPSource: "cloudflare", TrustedProxies: []string{"10.0.0.0/8", "100.64.0.0/10"}})
+	request := func(peer, realIP, connecting string) *http.Request {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.RemoteAddr = peer
+		if realIP != "" {
+			r.Header.Set("X-Real-IP", realIP)
+		}
+		if connecting != "" {
+			r.Header.Set("CF-Connecting-IP", connecting)
+		}
+		return r
+	}
+	for _, c := range []struct {
+		name, peer, realIP, connecting, want string
+	}{
+		{"through Cloudflare (IPv4 edge)", "100.64.0.7:1234", "172.70.4.5", "198.51.100.7", "198.51.100.7"},
+		{"through Cloudflare (IPv6 edge)", "100.64.0.7:1234", "2a06:98c1:3120::3", "2001:db8::42", "2001:db8::42"},
+		{"railway.app domain with a forged header", "100.64.0.7:1234", "203.0.113.9", "198.51.100.7", "203.0.113.9"},
+		{"railway.app domain without the header", "100.64.0.7:1234", "203.0.113.9", "", "203.0.113.9"},
+		{"Cloudflare edge but garbage client IP", "100.64.0.7:1234", "162.158.1.1", "not-an-ip", "162.158.1.1"},
+		{"untrusted peer: nothing is believed", "203.0.113.50:4321", "172.70.4.5", "198.51.100.7", "203.0.113.50"},
+		{"Cloudflare connecting directly", "[2606:4700::1]:443", "", "198.51.100.8", "198.51.100.8"},
+	} {
+		peerTrusted := c.peer
+		if c.name == "Cloudflare connecting directly" {
+			// A deployment reached by Cloudflare directly lists its ranges as trusted proxies.
+			if got := ipExtractor(config.HTTPConfig{IPSource: "cloudflare", TrustedProxies: cloudflareRanges})(request(peerTrusted, c.realIP, c.connecting)); got != c.want {
+				t.Errorf("%s: got %s, want %s", c.name, got, c.want)
+			}
+			continue
+		}
+		if got := extract(request(c.peer, c.realIP, c.connecting)); got != c.want {
+			t.Errorf("%s: got %s, want %s", c.name, got, c.want)
+		}
+	}
+}
+
+func TestCloudflareRangesParse(t *testing.T) {
+	if len(cloudflareNets) != len(cloudflareRanges) || len(cloudflareNets) < 20 {
+		t.Fatalf("cloudflare ranges: %d parsed of %d", len(cloudflareNets), len(cloudflareRanges))
+	}
+}

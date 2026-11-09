@@ -602,7 +602,7 @@ func ipExtractor(cfg config.HTTPConfig) echo.IPExtractor {
 	case "x-real-ip":
 		return headerFromTrusted("X-Real-IP", nets) // Railway's edge
 	case "cloudflare":
-		return headerFromTrusted("CF-Connecting-IP", nets)
+		return cloudflareIP(nets)
 	}
 	return echo.ExtractIPDirect()
 }

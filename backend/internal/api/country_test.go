@@ -40,3 +40,26 @@ func TestCountryResolverTrustsOnlyCloudflareProxies(t *testing.T) {
 		}
 	}
 }
+
+// On Railway behind Cloudflare the edge reports the connecting address in
+// X-Real-IP: only a Cloudflare edge there makes CF-IPCountry believable.
+func TestCountryResolverOnRailwayNeedsACloudflareEdge(t *testing.T) {
+	resolve := CountryResolver(config.HTTPConfig{IPSource: "cloudflare", TrustedProxies: []string{"10.0.0.0/8"}})
+	request := func(edge string) *http.Request {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.RemoteAddr = "10.1.2.3:443" // Railway's edge
+		r.Header.Set("X-Real-IP", edge)
+		r.Header.Set("CF-IPCountry", "FR")
+		return r
+	}
+	if got := resolve(request("172.70.4.5")); got != "FR" {
+		t.Fatalf("through Cloudflare: %q", got)
+	}
+	if got := resolve(request("2606:4700:10::ac43:1")); got != "FR" {
+		t.Fatalf("through Cloudflare over IPv6: %q", got)
+	}
+	// Sent to the *.up.railway.app domain: a forged header is ignored.
+	if got := resolve(request("203.0.113.9")); got != "" {
+		t.Fatalf("bypassing Cloudflare must not choose the country: %q", got)
+	}
+}
