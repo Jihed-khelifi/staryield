@@ -70,7 +70,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "Las disposiciones de los \"Términos\" rigen la relación entre usted y Staryield Limited (dirección: 62 Athalassas Avenue, Mezzanine Floor, Strovolos, 2012 Nicosia, Chipre) (\"nosotros\", \"nos\", \"nuestro\" o la \"Compañía\") con respecto a su uso de las aplicaciones móviles, sitios web, dispositivos y servicios relacionados de la Compañía (la \"Aplicación\" o \"Servicio\"), incluida toda la información, texto, gráficos, videos, música, software y otros. contenidos y servicios, disponibles para su uso (el “Contenido”)."
+          "text": "Las disposiciones de los \"Términos\" rigen la relación entre usted y Staryield Media LLC, una sociedad de responsabilidad limitada de Wyoming (dirección: 30 N Gould St, Ste N, Sheridan, WY 82801, Estados Unidos) (\"nosotros\", \"nos\", \"nuestro\" o la \"Compañía\") con respecto a su uso de las aplicaciones móviles, sitios web, dispositivos y servicios relacionados de la Compañía (la \"Aplicación\" o \"Servicio\"), incluida toda la información, texto, gráficos, videos, música, software y otros. contenidos y servicios, disponibles para su uso (el “Contenido”)."
         },
         {
           "type": "p",
@@ -1036,7 +1036,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Usted y Staryield Limited (\"nosotros\" o la \"Compañía\") acuerdan resolver todas las Disputas mediante arbitraje vinculante, como se describe a continuación, excepto por: (i) reclamaciones que caen dentro de la jurisdicción de un tribunal de reclamos menores, siempre que dichas reclamaciones no sean disputas de demanda colectiva y también cumplan con los límites jurisdiccionales y monetarios del tribunal; y (ii) disputas relacionadas con derechos de propiedad intelectual. Una \"Disputa\" significa cualquier reclamo, controversia o acción legal, ya sea que surja de eventos pasados, presentes o futuros, y basada en un contrato, agravio, estatuto o derecho consuetudinario, entre usted y la Compañía con respecto al sitio web, los Servicios o este acuerdo (el \"Acuerdo de Arbitraje\"). \"Disputa\" también incluye disputas sobre la interpretación, aplicabilidad o ejecutabilidad de estos términos o la formación de este Acuerdo de Arbitraje, incluso si alguna parte del mismo es inválida o inaplicable."
+          "text": "Usted y Staryield Media LLC (\"nosotros\" o la \"Compañía\") acuerdan resolver todas las Disputas mediante arbitraje vinculante, como se describe a continuación, excepto por: (i) reclamaciones que caen dentro de la jurisdicción de un tribunal de reclamos menores, siempre que dichas reclamaciones no sean disputas de demanda colectiva y también cumplan con los límites jurisdiccionales y monetarios del tribunal; y (ii) disputas relacionadas con derechos de propiedad intelectual. Una \"Disputa\" significa cualquier reclamo, controversia o acción legal, ya sea que surja de eventos pasados, presentes o futuros, y basada en un contrato, agravio, estatuto o derecho consuetudinario, entre usted y la Compañía con respecto al sitio web, los Servicios o este acuerdo (el \"Acuerdo de Arbitraje\"). \"Disputa\" también incluye disputas sobre la interpretación, aplicabilidad o ejecutabilidad de estos términos o la formación de este Acuerdo de Arbitraje, incluso si alguna parte del mismo es inválida o inaplicable."
         },
         {
           "type": "h3",
@@ -1054,7 +1054,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "62 Athalassas Avenue, Mezzanine Floor, Strovolos, 2012 Nicosia, Chipre Atención: Equipo jurídico"
+          "text": "Staryield Media LLC, 30 N Gould St, Ste N, Sheridan, WY 82801, Estados Unidos Atención: Equipo jurídico"
         },
         {
           "type": "p",
@@ -1094,7 +1094,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "El arbitraje es una forma más informal de resolver nuestros desacuerdos que una demanda judicial. Por ejemplo, el arbitraje utiliza un árbitro neutral en lugar de un juez o un jurado, generalmente implica un descubrimiento más limitado, cuando está permitido, y está sujeto a una revisión muy limitada por parte de los tribunales. Aunque el proceso es más informal, los árbitros pueden otorgar algunos de los mismos daños y compensaciones individualizados que un tribunal puede otorgar. Sin embargo, un árbitro no puede ordenar a una parte que actúe o deje de hacer algo; esto se conoce como “compensación equitativa”. Tanto usted como nosotros podemos acudir a los tribunales y buscar una reparación equitativa, incluso presentando una moción para obligar a la otra parte a cumplir este Acuerdo de arbitraje. Sin embargo, usted y nosotros aceptamos que los únicos tribunales donde buscaremos una reparación equitativa son los tribunales estatales y federales de Delaware. Esta excepción de compensación equitativa no renuncia a este Acuerdo de Arbitraje. Usted y nosotros aceptamos que la Ley Federal de Arbitraje de EE. UU. y la ley federal de arbitraje rigen la interpretación y aplicación de esta disposición. Un tribunal de jurisdicción competente tiene autoridad exclusiva para resolver cualquier disputa relacionada con la interpretación, aplicabilidad o exigibilidad de este acuerdo de arbitraje vinculante. Esta disposición de arbitraje sobrevivirá a la terminación de estos términos y a la cancelación de su cuenta."
+          "text": "El arbitraje es una forma más informal de resolver nuestros desacuerdos que una demanda judicial. Por ejemplo, el arbitraje utiliza un árbitro neutral en lugar de un juez o un jurado, generalmente implica un descubrimiento más limitado, cuando está permitido, y está sujeto a una revisión muy limitada por parte de los tribunales. Aunque el proceso es más informal, los árbitros pueden otorgar algunos de los mismos daños y compensaciones individualizados que un tribunal puede otorgar. Sin embargo, un árbitro no puede ordenar a una parte que actúe o deje de hacer algo; esto se conoce como “compensación equitativa”. Tanto usted como nosotros podemos acudir a los tribunales y buscar una reparación equitativa, incluso presentando una moción para obligar a la otra parte a cumplir este Acuerdo de arbitraje. Sin embargo, usted y nosotros aceptamos que los únicos tribunales donde buscaremos una reparación equitativa son los tribunales estatales y federales de Wyoming. Esta excepción de compensación equitativa no renuncia a este Acuerdo de Arbitraje. Usted y nosotros aceptamos que la Ley Federal de Arbitraje de EE. UU. y la ley federal de arbitraje rigen la interpretación y aplicación de esta disposición. Un tribunal de jurisdicción competente tiene autoridad exclusiva para resolver cualquier disputa relacionada con la interpretación, aplicabilidad o exigibilidad de este acuerdo de arbitraje vinculante. Esta disposición de arbitraje sobrevivirá a la terminación de estos términos y a la cancelación de su cuenta."
         },
         {
           "type": "h3",
@@ -1146,11 +1146,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Si se requiere una audiencia en persona y usted reside en los Estados Unidos, la audiencia se llevará a cabo en Delaware, a menos que el árbitro determine que esto representaría una dificultad para usted, en cuyo caso la audiencia en persona puede llevarse a cabo en el estado y condado de residencia del demandante o a menos que las leyes del estado donde surgió su reclamo prohíban un lugar fuera del estado, en cuyo caso el árbitro determinará el lugar de la audiencia en ese estado. Si reside fuera de los Estados Unidos, el lugar de cualquier audiencia en persona será determinado por las Reglas NAM."
+          "text": "Si se requiere una audiencia en persona y usted reside en los Estados Unidos, la audiencia se llevará a cabo en Wyoming, a menos que el árbitro determine que esto representaría una dificultad para usted, en cuyo caso la audiencia en persona puede llevarse a cabo en el estado y condado de residencia del demandante o a menos que las leyes del estado donde surgió su reclamo prohíban un lugar fuera del estado, en cuyo caso el árbitro determinará el lugar de la audiencia en ese estado. Si reside fuera de los Estados Unidos, el lugar de cualquier audiencia en persona será determinado por las Reglas NAM."
         },
         {
           "type": "p",
-          "text": "El laudo del árbitro será por escrito e incluirá una declaración que exponga los motivos de la disposición de cualquier reclamación. El árbitro aplicará las leyes de la República de Chipre al realizar el arbitraje, excepto cuando las leyes sustantivas del estado donde surgió su reclamo prohíban hacerlo, en cuyo caso el árbitro aplicará la ley sustantiva del estado donde surgió su reclamo. Usted reconoce que estos términos y su uso de los Servicios evidencian una transacción que involucra comercio interestatal. La Ley Federal de Arbitraje de los Estados Unidos regirá la interpretación, la ejecución y los procedimientos."
+          "text": "El laudo del árbitro será por escrito e incluirá una declaración que exponga los motivos de la disposición de cualquier reclamación. El árbitro aplicará las leyes del Estado de Wyoming al realizar el arbitraje, excepto cuando las leyes sustantivas del estado donde surgió su reclamo prohíban hacerlo, en cuyo caso el árbitro aplicará la ley sustantiva del estado donde surgió su reclamo. Usted reconoce que estos términos y su uso de los Servicios evidencian una transacción que involucra comercio interestatal. La Ley Federal de Arbitraje de los Estados Unidos regirá la interpretación, la ejecución y los procedimientos."
         },
         {
           "type": "p",
@@ -1281,7 +1281,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Las leyes de la República de Chipre, excluyendo sus normas sobre conflictos de leyes, rigen este Acuerdo y su uso del Servicio, excepto cuando las leyes sustantivas del estado donde surgió su reclamo prohíban hacerlo. En esa situación, el árbitro aplicará la ley sustantiva del estado donde surgió su reclamo. Su uso de los Servicios también puede estar sujeto a otras leyes locales, estatales, nacionales o internacionales. En la medida en que cualquier acción relacionada con cualquier disputa en virtud del presente se presente ante un tribunal de justicia, dicha acción estará sujeta a la jurisdicción exclusiva de los tribunales estatales y federales ubicados en Delaware, y por la presente usted se somete irrevocablemente a la jurisdicción personal de dichos tribunales y renuncia a cualquier defensa de foro inconveniente."
+          "text": "Las leyes del Estado de Wyoming, excluyendo sus normas sobre conflictos de leyes, rigen este Acuerdo y su uso del Servicio, excepto cuando las leyes sustantivas del estado donde surgió su reclamo prohíban hacerlo. En esa situación, el árbitro aplicará la ley sustantiva del estado donde surgió su reclamo. Su uso de los Servicios también puede estar sujeto a otras leyes locales, estatales, nacionales o internacionales. En la medida en que cualquier acción relacionada con cualquier disputa en virtud del presente se presente ante un tribunal de justicia, dicha acción estará sujeta a la jurisdicción exclusiva de los tribunales estatales y federales ubicados en Wyoming, y por la presente usted se somete irrevocablemente a la jurisdicción personal de dichos tribunales y renuncia a cualquier defensa de foro inconveniente."
         }
       ]
     },

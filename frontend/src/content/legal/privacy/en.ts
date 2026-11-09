@@ -60,7 +60,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "Staryield Limited (with registered office at 62 Athalassas Avenue, Mezzanine Floor, Strovolos, 2012 Nicosia, Cyprus) is the controller of your personal data in most circumstances. In some situations, the Company acts only as a platform enabling you to interact with independent third parties (for example, when you use our services to connect with advisors (psychics)). In those cases, the relevant third party is the controller of your personal data, and the Company is a data processor. Staryield Limited is the controller of the data stored in your Staryield account and on our systems, including your profile, birth data, chat transcripts, client cards and the notes advisors write in the Services."
+          "text": "Staryield Media LLC, a Wyoming limited liability company (with registered office at 30 N Gould St, Ste N, Sheridan, WY 82801, United States) is the controller of your personal data in most circumstances. In some situations, the Company acts only as a platform enabling you to interact with independent third parties (for example, when you use our services to connect with advisors (psychics)). In those cases, the relevant third party is the controller of your personal data, and the Company is a data processor. Staryield Limited is the controller of the data stored in your Staryield account and on our systems, including your profile, birth data, chat transcripts, client cards and the notes advisors write in the Services."
         }
       ]
     },

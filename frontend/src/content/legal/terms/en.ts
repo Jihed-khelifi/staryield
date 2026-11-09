@@ -70,7 +70,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "The provisions of the “Terms” govern the relationship between you and Staryield Limited (address: 62 Athalassas Avenue, Mezzanine Floor, Strovolos, 2012 Nicosia, Cyprus) (“we”, “us”, “our” or the “Company”) regarding your use of the Company’s mobile applications, websites, devices and related services (the “App” or “Service”), including all information, text, graphics, video, music, software and other content and services, available for your use (the “Content”)."
+          "text": "The provisions of the “Terms” govern the relationship between you and Staryield Media LLC, a Wyoming limited liability company (address: 30 N Gould St, Ste N, Sheridan, WY 82801, United States) (“we”, “us”, “our” or the “Company”) regarding your use of the Company’s mobile applications, websites, devices and related services (the “App” or “Service”), including all information, text, graphics, video, music, software and other content and services, available for your use (the “Content”)."
         },
         {
           "type": "p",
@@ -1036,7 +1036,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "You and Staryield Limited (“we” or the “Company”) agree to resolve all Disputes through binding arbitration, as described below, except for: (i) claims that fall within the jurisdiction of a small claims court, provided such claims are not class action disputes and also meet the court’s jurisdictional and monetary limits; and (ii) disputes related to intellectual property rights. A “Dispute” means any claim, controversy, or legal action—whether arising from past, present, or future events, and based on contract, tort, statute, or common law—between you and the Company regarding the Website, Services, or this agreement (the “Arbitration Agreement”). “Dispute” also includes disputes about the interpretation, applicability, or enforceability of these terms or the formation of this Arbitration Agreement, including whether any part of it is invalid or unenforceable."
+          "text": "You and Staryield Media LLC (“we” or the “Company”) agree to resolve all Disputes through binding arbitration, as described below, except for: (i) claims that fall within the jurisdiction of a small claims court, provided such claims are not class action disputes and also meet the court’s jurisdictional and monetary limits; and (ii) disputes related to intellectual property rights. A “Dispute” means any claim, controversy, or legal action—whether arising from past, present, or future events, and based on contract, tort, statute, or common law—between you and the Company regarding the Website, Services, or this agreement (the “Arbitration Agreement”). “Dispute” also includes disputes about the interpretation, applicability, or enforceability of these terms or the formation of this Arbitration Agreement, including whether any part of it is invalid or unenforceable."
         },
         {
           "type": "h3",
@@ -1054,7 +1054,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "62 Athalassas Avenue, Mezzanine Floor, Strovolos, 2012 Nicosia, Cyprus Attention: Legal team"
+          "text": "Staryield Media LLC, 30 N Gould St, Ste N, Sheridan, WY 82801, United States Attention: Legal team"
         },
         {
           "type": "p",
@@ -1094,7 +1094,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Arbitration is a more informal way to resolve our disagreements than a lawsuit in court. For instance, arbitration uses a neutral arbitrator instead of a judge or jury, generally involves more limited discovery, when permissible, and is subject to very limited review by courts. Although the process is more informal, arbitrators can award some of the same individualized damages and relief that a court can award. An arbitrator cannot, however, order a party to act or stop doing something—this is known as “equitable relief.” Either you or we can go to court and seek equitable relief, including by filing a motion to compel the other party to follow this Arbitration Agreement. However, you and we agree that the only courts where we will seek equitable relief are the state and federal courts in Delaware. This exception for equitable relief does not waive this Arbitration Agreement. You and we agree that the U.S. Federal Arbitration Act and federal arbitration law govern the interpretation and enforcement of this provision. A court of competent jurisdiction has exclusive authority to resolve any dispute relating to the interpretation, applicability, or enforceability of this binding arbitration agreement. This arbitration provision shall survive termination of these terms and the termination of your account."
+          "text": "Arbitration is a more informal way to resolve our disagreements than a lawsuit in court. For instance, arbitration uses a neutral arbitrator instead of a judge or jury, generally involves more limited discovery, when permissible, and is subject to very limited review by courts. Although the process is more informal, arbitrators can award some of the same individualized damages and relief that a court can award. An arbitrator cannot, however, order a party to act or stop doing something—this is known as “equitable relief.” Either you or we can go to court and seek equitable relief, including by filing a motion to compel the other party to follow this Arbitration Agreement. However, you and we agree that the only courts where we will seek equitable relief are the state and federal courts in Wyoming. This exception for equitable relief does not waive this Arbitration Agreement. You and we agree that the U.S. Federal Arbitration Act and federal arbitration law govern the interpretation and enforcement of this provision. A court of competent jurisdiction has exclusive authority to resolve any dispute relating to the interpretation, applicability, or enforceability of this binding arbitration agreement. This arbitration provision shall survive termination of these terms and the termination of your account."
         },
         {
           "type": "h3",
@@ -1146,11 +1146,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "If an in-person hearing is required and you reside in the United States, the hearing will take place in Delaware, unless the arbitrator determines that this would pose a hardship for you, in which case the in-person hearing may be conducted in the claimant’s state and county of residence or unless the laws of the state where your claim arose prohibit an out-of-state venue, in which case the arbitrator will determine the hearing venue in that state. If you reside outside the United States, the site of any in-person hearing will be determined by the NAM Rules."
+          "text": "If an in-person hearing is required and you reside in the United States, the hearing will take place in Wyoming, unless the arbitrator determines that this would pose a hardship for you, in which case the in-person hearing may be conducted in the claimant’s state and county of residence or unless the laws of the state where your claim arose prohibit an out-of-state venue, in which case the arbitrator will determine the hearing venue in that state. If you reside outside the United States, the site of any in-person hearing will be determined by the NAM Rules."
         },
         {
           "type": "p",
-          "text": "The award of the arbitrator will be in writing and will include a statement setting forth the reasons for the disposition of any claim. The arbitrator will apply the laws of the Republic of Cyprus in conducting the arbitration, except when the substantive laws of the state where your claim arose prohibit doing so, in which case the arbitrator will apply the substantive law of the state where your claim arose. You acknowledge that these terms and your use of the Services evidence a transaction involving interstate commerce. The United States Federal Arbitration Act will govern the interpretation, enforcement, and proceedings."
+          "text": "The award of the arbitrator will be in writing and will include a statement setting forth the reasons for the disposition of any claim. The arbitrator will apply the laws of the State of Wyoming in conducting the arbitration, except when the substantive laws of the state where your claim arose prohibit doing so, in which case the arbitrator will apply the substantive law of the state where your claim arose. You acknowledge that these terms and your use of the Services evidence a transaction involving interstate commerce. The United States Federal Arbitration Act will govern the interpretation, enforcement, and proceedings."
         },
         {
           "type": "p",
@@ -1281,7 +1281,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "The laws of the Republic of Cyprus, excluding its conflicts of law rules, govern this Agreement and your use of the Service, except when the substantive laws of the state where your claim arose prohibit doing so. In that situation, the arbitrator will apply the substantive law of the state where your claim arose. Your use of the Services may also be subject to other local, state, national, or international laws. To the extent that any action relating to any dispute hereunder shall be brought in a court of law, such action will be subject to the exclusive jurisdiction of the state and federal courts located in Delaware, and you hereby irrevocably submit to personal jurisdiction in such courts, and waive any defense of inconvenient forum"
+          "text": "The laws of the State of Wyoming, excluding its conflicts of law rules, govern this Agreement and your use of the Service, except when the substantive laws of the state where your claim arose prohibit doing so. In that situation, the arbitrator will apply the substantive law of the state where your claim arose. Your use of the Services may also be subject to other local, state, national, or international laws. To the extent that any action relating to any dispute hereunder shall be brought in a court of law, such action will be subject to the exclusive jurisdiction of the state and federal courts located in Wyoming, and you hereby irrevocably submit to personal jurisdiction in such courts, and waive any defense of inconvenient forum"
         }
       ]
     },

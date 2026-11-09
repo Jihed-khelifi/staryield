@@ -16,17 +16,17 @@ Status legend: **Decide**: owner or counsel decision required.
 
 | # | Clause | Status | Why |
 |---|---|---|---|
-| 1 | Terms `#informal-dispute-resolution-procedures-and-arbitration` (§12, incl. 12.3, 12.5, 12.12) and `#for-eea-and-uk-residents` (§13) | Decide | Governing law and venue contradict each other. §12.12 says Cyprus law but exclusive Delaware courts. §12.3 and §12.5 place relief and hearings in Delaware. §13 applies England & Wales law for EEA/UK users. Left untouched per owner decision. |
+| 1 | Terms `#informal-dispute-resolution-procedures-and-arbitration` (§12, incl. 12.3, 12.5, 12.12) and `#for-eea-and-uk-residents` (§13) | Decide | Governing law and venue now consistently point to Wyoming (previously Cyprus law with Delaware courts), matching the Wyoming LLC. §13 still applies England & Wales law and EEA/UK courts for EEA/UK users: confirm with counsel. Wyoming choice made by Claude, not counsel. |
 | 2 | Terms §12.11 (arbitration opt-out, "on or after April 2, 2026") | Decide | The date is tied to the old "Last updated" date and no longer matches 2026-11-04. |
 | 3 | Privacy intro (`#privacy-policy`, uppercase paragraph) | Decide | Allows use at 18+ "or with a parent or guardian's agreement", which conflicts with §6 (`#age-limitation`, under-18s barred). Kept; only the translations' grammar and the App Store/Google Play wording were fixed. |
-| 4 | Privacy §1 `#personal-data-controller`, Terms §1 | Decide | No company registration number or postal/email contact for legal notices. |
+| 4 | Privacy §1 `#personal-data-controller`, Terms §1 | Decide | Registered address now shown. No company registration number or email contact for legal notices. Privacy still describes GDPR rights/DPO although the controller is now a US LLC: confirm whether an EU/UK representative (GDPR Art. 27) is needed. |
 | 5 | Privacy §14 `#contact-us` | Decide | No DPO contact details; the "dedicated contact form" now points to `/contact?topic=privacy`. GDPR Art. 13 requires the DPO's contact details if one is appointed. |
 
 ## Owner decisions applied
 
 | # | Clause | Status | Why |
 |---|---|---|---|
-| 6 | Privacy §1, Terms §1, Terms §12 (first paragraph) | Done | Entity name is "Staryield Limited" everywhere; "Spiritual Staryield Limited" replaced. |
+| 6 | Privacy §1, Terms §1, Terms §12 (first paragraph) | Done | Entity is "Staryield Media LLC", a Wyoming LLC, 30 N Gould St, Ste N, Sheridan, WY 82801 (Articles of Organization filed 2026-10-01, ID 2026-002096924). Replaces "Staryield Limited" (Cyprus). Footer copyright now names the LLC. EIN and bank details are deliberately not published. |
 | 7 | Privacy §2.7 `#advisor-notes`, §5 `#right-to-data-portability`, Terms §4.14 `#client-notes` | Verify | Notes are private to their author by default and can be shared with advisors who also had a session with the client. They are excluded from the self-service export (third-party opinions, GDPR Art. 15(4)) and provided through an admin-assisted, audited request in a structured format. Check this matches the admin "client notes" view (JSON download) and the support procedure. |
 | 8 | Privacy §2.5 `#live-readings-ratings-and-notifications`, Terms §4.11 `#live-readings-messages-and-images` | Verify | Date of birth and birth city are shown to advisors only with the client's opt-in ("Share birth details with advisors"). Confirm the final Settings label and its default (off). |
 
