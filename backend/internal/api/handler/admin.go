@@ -441,3 +441,18 @@ func (h *Handler) AdminAudit(c echo.Context) error {
 	}
 	return ok(c, out)
 }
+
+// AdminClientAlias reveals the advisor's private nickname for a session's
+// client (step-up, reason required, audited without the nickname text).
+func (h *Handler) AdminClientAlias(c echo.Context) error {
+	id, err := uuidParam(c, "id")
+	if err != nil {
+		return err
+	}
+	out, err := h.svc.Admin.ClientAlias(c.Request().Context(), id, c.QueryParam("reason"))
+	if err != nil {
+		return err
+	}
+	c.Response().Header().Set("Cache-Control", "no-store")
+	return ok(c, out)
+}

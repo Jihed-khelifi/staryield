@@ -177,6 +177,9 @@ func NewRouter(d Deps) *echo.Echo {
 	uploadRL := mw.RateLimit(limiter, rule("upload", cfg.RateLimit.Upload, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
 	// revisions 3.3: chat images have their own per-user budget.
 	chatImageRL := mw.RateLimit(limiter, rule("chat_image", cfg.RateLimit.ChatImage, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
+	// revisions 4.0: likes (per user) and private client nicknames (per advisor).
+	likeRL := mw.RateLimit(limiter, rule("like", cfg.RateLimit.Like, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
+	aliasRL := mw.RateLimit(limiter, rule("alias", cfg.RateLimit.Alias, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
 	client := mw.RequireRole(domain.RoleClient)
 	psychic := mw.RequireRole(domain.RolePsychic)
 
@@ -196,6 +199,13 @@ func NewRouter(d Deps) *echo.Echo {
 	a.POST("/password/forgot", h.ForgotPassword, authRL)
 	a.POST("/password/reset", h.ResetPassword, authRL)
 	a.POST("/password/change", h.ChangePassword, authed, authRL)
+	// revisions 4.0: Sign in with Google (server-side OIDC, §23.1). The
+	// callback is a browser GET from Google: it carries no CSRF header and is
+	// protected by state + the sy_oa cookie; it always answers a 303.
+	a.POST("/google/start", h.GoogleStart, optional, authRL)
+	a.GET("/google/callback", h.GoogleCallback, h.GoogleCallbackGuard, authRL)
+	a.GET("/google/pending", h.GooglePending, authRL)
+	a.POST("/google/complete", h.GoogleComplete, authRL)
 
 	// Public catalogue and calculators (FR-01, FR-06).
 	v1.GET("/psychics", h.Psychics)
@@ -299,6 +309,9 @@ func NewRouter(d Deps) *echo.Echo {
 		me.DELETE(base, h.RevokeDevices, writeRL)
 		me.DELETE(base+"/:id", h.RevokeDevice, writeRL)
 	}
+	// revisions 4.0: sign-in methods (Google).
+	me.GET("/sign-in-methods", h.SignInMethods)
+	me.DELETE("/sign-in-methods/google", h.DisconnectGoogle, sensitiveRL)
 	me.POST("/email-change", h.RequestEmailChange, sensitiveRL)
 	a.POST("/email-change/confirm", h.ConfirmEmailChange, authRL)
 	a.POST("/email-change/cancel", h.CancelEmailChange, authRL)
@@ -374,6 +387,13 @@ func NewRouter(d Deps) *echo.Echo {
 	ch.GET("/saved", h.SavedMessages)
 	ch.PUT("/saved/:messageId", h.SaveMessage)
 	ch.DELETE("/saved/:messageId", h.UnsaveMessage)
+
+	// revisions 4.0: likes (§23.3) and private client nicknames (§23.4).
+	ch.PUT("/messages/:id/like", h.LikeMessage, likeRL)
+	ch.DELETE("/messages/:id/like", h.UnlikeMessage, likeRL)
+	ch.PUT("/conversations/:id/alias", h.SetClientAlias, psychic, aliasRL)
+	ch.DELETE("/conversations/:id/alias", h.ClearClientAlias, psychic, aliasRL)
+	ch.GET("/aliases", h.ClientAliases, psychic)
 
 	// Client notes: advisors only; writes have their own hourly bucket.
 	noteRL := mw.RateLimit(limiter, rule("notes", config.Rule{Rate: 30, Period: time.Hour, Burst: 10}, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
@@ -470,6 +490,8 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.GET("/chat/sessions", h.AdminSessions)
 	ad.GET("/chat/sessions/:id", h.AdminSession)
 	ad.GET("/chat/sessions/:id/transcript", h.AdminTranscript, stepUp)
+	// The advisor's private nickname for the client: step-up, reason, audited.
+	ad.GET("/chat/sessions/:id/client-alias", h.AdminClientAlias, stepUp)
 	// Client notes: oversight and access requests (always audited with a reason).
 	ad.GET("/client-notes", h.AdminClientNotes, stepUp)
 	ad.DELETE("/client-notes/:id", h.AdminRemoveClientNote, stepUp, adminRL)

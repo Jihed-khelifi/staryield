@@ -9,6 +9,7 @@ import Terms from "@/components/content/terms";
 import Privacy from "@/components/content/privacy";
 import { PublicFrame } from "@/components/layout/public-frame";
 import { AuthFlow, type AuthStep } from "@/components/forms/auth-flow";
+import { GoogleReturn } from "@/components/forms/auth/google-return";
 import { ContactForm } from "@/components/forms/contact-form";
 import { PsychicsBrowse, PsychicProfile } from "@/components/psychics/psychics";
 import {
@@ -106,6 +107,7 @@ export async function generateMetadata({
     "calculators/natal-chart": "Natal Chart",
     "calculators/path-of-life": "Life Path",
     "calculators/astrology": "Astrology",
+    "auth/google": "Log in",
     "confirm-email": "Confirm your email",
     "cancel-email-change": "Email change",
     "keep-account": "Keep your account",
@@ -119,7 +121,7 @@ export async function generateMetadata({
     advisor?.name ?? text(titles[route.replace(/\/results$/, "")] ?? "Home");
   // One-time links: never indexed, and the URL (with its token) is never
   // sent as a referrer.
-  if (route in emailLinks)
+  if (route in emailLinks || route === "auth/google")
     return { title, referrer: "no-referrer", robots: { index: false, follow: false } };
   // Support desk (requester side): signed-in pages and the private link are never indexed;
   // the private link also never leaks its URL as a referrer.
@@ -165,6 +167,8 @@ export default async function ScreenPage({ params }: RouteProps) {
   if (route in auth) return <AuthFlow key={route} step={auth[route]} />;
   if (route in accounts) return <Account key={route} view={accounts[route]} />;
   if (route in emailLinks) return <EmailLinkPage key={route} action={emailLinks[route]} />;
+  // Google sign-in: where the API sends the browser back (result in the query, read client-side).
+  if (route === "auth/google") return <GoogleReturn key={route} />;
   if (route === "contact") return <ContactForm />;
   const support = supportRoute(screen);
   if (support?.kind === "list") return <SupportRequestsPage />;

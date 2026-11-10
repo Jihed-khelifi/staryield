@@ -7,6 +7,7 @@ import { FiBookmark, FiUser } from "react-icons/fi";
 import { useI18n } from "@/i18n/i18n-provider";
 import type { Participant, Wallet } from "@/lib/api/types";
 import { useSession } from "@/lib/auth/session-provider";
+import { useClientName } from "@/lib/chat/client-alias-provider";
 import { MOBILE_NAV_LINKS, isMobileNavActive } from "@/components/layout/site-header";
 import { UserAvatar } from "@/components/layout/user-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -155,6 +156,8 @@ export function SwitcherHeader({
   liveWith?: string | null;
 }) {
   const { text } = useI18n();
+  // Advisors: their private nickname for the client (§23.4).
+  const shownName = useClientName(role === "psychic" ? counterpart?.id : null, counterpart?.name ?? "");
   return (
     <div className="chat-switcher-head">
       {liveWith ? (
@@ -167,10 +170,10 @@ export function SwitcherHeader({
       ) : null}
       {counterpart ? (
         <div className="chat-switcher-current" data-testid="switcher-current">
-          <ReaderAvatar initial={counterpart.name.charAt(0).toUpperCase()} image={counterpart.avatar_url} className="chat-switcher-avatar" />
+          <ReaderAvatar initial={shownName.charAt(0).toUpperCase()} image={counterpart.avatar_url} className="chat-switcher-avatar" />
           <div className="min-w-0 flex-1">
             <p className="chat-switcher-eyebrow">{text(role === "client" ? "Current advisor" : "Current client")}</p>
-            <p className="chat-switcher-name">{text(counterpart.name)}</p>
+            <p className="chat-switcher-name">{text(shownName)}</p>
             <p className="chat-switcher-meta">
               {counterpart.status ? text(statusCopy[counterpart.status] ?? counterpart.status) : null}
               {rate && rate.rate > 0 ? (

@@ -54,6 +54,8 @@ type AdminUserView struct {
 	Attribution *AttributionView      `json:"attribution,omitempty"`
 	Stats       *repository.UserStats `json:"stats,omitempty"`
 	MFAEnabled  *bool                 `json:"mfa_enabled,omitempty"`
+	// SignInMethods lists how the account can sign in ("password", "google").
+	SignInMethods []string `json:"sign_in_methods"`
 }
 
 // AuditView is an audit log entry.
@@ -200,6 +202,7 @@ type AdminService struct {
 	currency     string
 	advisorImage ImagePolicy
 	eraser       *AccountEraser
+	identities   repository.IdentityRepository // revisions 4.0 (SetIdentities)
 }
 
 // NewAdminService wires the admin service.
@@ -269,7 +272,7 @@ func (s *AdminService) User(ctx context.Context, id uuid.UUID) (*AdminUserView, 
 	if err != nil {
 		return nil, mapRepoErr(err, "User")
 	}
-	v := &AdminUserView{AdminUserRow: adminUserRow(u), DeletedAt: u.DeletedAt}
+	v := &AdminUserView{AdminUserRow: adminUserRow(u), DeletedAt: u.DeletedAt, SignInMethods: s.signInMethods(ctx, u)}
 	if w, err := s.wallets.Get(ctx, id); err == nil {
 		wv := walletView(w)
 		v.Wallet = &wv
@@ -487,6 +490,9 @@ func (s *AdminService) UpdateUser(ctx context.Context, adminID, id uuid.UUID, in
 	s.auth.InvalidateStatus(ctx, id)
 	if disabling || roleChange || fields["email"] != nil {
 		warnErr(ctx, "admin: realtime revoke", s.events.Revoke(ctx, id))
+	}
+	if disabling {
+		s.auth.endPushSessions(ctx, id) // ban or deactivation: no more pushes to their browsers
 	}
 	if disabling || roleChange {
 		s.adminAuth.RevokeAllFor(ctx, id, "account_changed")

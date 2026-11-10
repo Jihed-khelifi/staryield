@@ -23,17 +23,15 @@ func (noopSender) Send(context.Context, push.Subscription, push.Message) push.Re
 func queuedPush(t *testing.T, s *PushService, kind string, data map[string]any) (pushJob, PushPayload) {
 	t.Helper()
 	s.NotifyUser(uuid.New(), "en", &domain.Notification{Kind: kind, Data: data, Link: "/chatroom"})
-	select {
-	case job := <-s.queue:
-		var p PushPayload
-		if err := json.Unmarshal(job.payload, &p); err != nil {
-			t.Fatal(err)
-		}
-		return job, p
-	default:
+	job, ok := s.take(true, false)
+	if !ok {
 		t.Fatalf("%s: nothing queued", kind)
-		return pushJob{}, PushPayload{}
 	}
+	var p PushPayload
+	if err := json.Unmarshal(job.payload, &p); err != nil {
+		t.Fatal(err)
+	}
+	return job, p
 }
 
 func TestNotifyUserChatRequestTagTTLAndUrgency(t *testing.T) {

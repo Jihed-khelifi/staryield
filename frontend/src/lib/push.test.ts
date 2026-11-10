@@ -7,13 +7,18 @@ const api = vi.hoisted(() => ({ pushApi: { config: vi.fn(), subscribe: vi.fn(), 
 vi.mock("@/lib/api/account", () => api);
 
 import {
+  PUSH_ENDPOINT_KEY_PREFIX,
   PUSH_REFRESH_INTERVAL_MS,
   PUSH_RESUBSCRIBE_KEY_PREFIX,
   PUSH_RESUBSCRIBE_RETRY_MS,
   PUSH_SYNC_KEY_PREFIX,
+  PUSH_SIGN_OUT_CAP_MS,
   SERVICE_WORKER_TIMEOUT_MS,
+  clearPushSyncMarkers,
   disablePush,
   enablePush,
+  hashEndpoint,
+  prepareSignOutPush,
   pushAvailability,
   pushOutcomeMessage,
   syncPush,
@@ -388,5 +393,126 @@ describe("syncPush", () => {
     expect(await syncPush(d)).toBe("idle");
     expect(sub.unsubscribe).not.toHaveBeenCalled();
     expect(pushManager.subscribe).not.toHaveBeenCalled();
+  });
+});
+
+describe("syncPush endpoint changes (§23.6)", () => {
+  const deps = () => ({ userId: "u1", pushSwitchOn: vi.fn().mockResolvedValue(true), publicKey: vi.fn().mockResolvedValue(KEY) });
+  const other = () => ({ ...fakeSubscription(), endpoint: "https://updates.push.services.mozilla.com/wpush/v2/new", toJSON: () => ({ endpoint: "https://updates.push.services.mozilla.com/wpush/v2/new", keys: { p256dh: "p", auth: "a" }, expirationTime: null }) });
+
+  it("stores a hash of the endpoint it sent, not the endpoint itself", async () => {
+    const sub = fakeSubscription();
+    setup({ existing: sub });
+    expect(await syncPush(deps())).toBe("refreshed");
+    const stored = window.localStorage.getItem(PUSH_ENDPOINT_KEY_PREFIX + "u1");
+    expect(stored).toBe(await hashEndpoint(sub.endpoint));
+    expect(stored).not.toContain("fcm.googleapis.com");
+  });
+
+  it("re-sends at once when the browser's endpoint differs from the last one sent, despite the 6 h throttle", async () => {
+    setup({ existing: fakeSubscription() });
+    expect(await syncPush(deps())).toBe("refreshed");
+    expect(await syncPush(deps())).toBe("throttled");
+    expect(api.pushApi.subscribe).toHaveBeenCalledTimes(1);
+    setup({ existing: other() });
+    expect(await syncPush(deps())).toBe("refreshed");
+    expect(api.pushApi.subscribe).toHaveBeenCalledTimes(2);
+    expect(api.pushApi.subscribe.mock.calls[1][0].endpoint).toContain("mozilla");
+    expect(await syncPush(deps())).toBe("throttled");
+  });
+
+  it("does not remember an endpoint the API did not accept", async () => {
+    setup({ existing: fakeSubscription() });
+    api.pushApi.subscribe.mockRejectedValue(new Error("offline"));
+    expect(await syncPush(deps())).toBe("idle");
+    expect(window.localStorage.getItem(PUSH_ENDPOINT_KEY_PREFIX + "u1")).toBeNull();
+  });
+
+  it("force (the service worker saw a change) skips the throttles", async () => {
+    setup({ existing: fakeSubscription() });
+    expect(await syncPush(deps())).toBe("refreshed");
+    expect(await syncPush({ ...deps(), force: true })).toBe("refreshed");
+    expect(api.pushApi.subscribe).toHaveBeenCalledTimes(2);
+  });
+
+  it("force also retries a missing subscription inside the hourly window", async () => {
+    const { pushManager } = setup();
+    window.localStorage.setItem(PUSH_RESUBSCRIBE_KEY_PREFIX + "u1", String(Date.now()));
+    expect(await syncPush(deps())).toBe("throttled");
+    expect(await syncPush({ ...deps(), force: true })).toBe("resubscribed");
+    expect(pushManager.subscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("clearPushSyncMarkers forgets everything for that user only", () => {
+    for (const prefix of [PUSH_SYNC_KEY_PREFIX, PUSH_RESUBSCRIBE_KEY_PREFIX, PUSH_ENDPOINT_KEY_PREFIX]) {
+      window.localStorage.setItem(prefix + "u1", "x");
+      window.localStorage.setItem(prefix + "u2", "x");
+    }
+    clearPushSyncMarkers("u1");
+    for (const prefix of [PUSH_SYNC_KEY_PREFIX, PUSH_RESUBSCRIBE_KEY_PREFIX, PUSH_ENDPOINT_KEY_PREFIX]) {
+      expect(window.localStorage.getItem(prefix + "u1")).toBeNull();
+      expect(window.localStorage.getItem(prefix + "u2")).toBe("x");
+    }
+  });
+});
+
+describe("prepareSignOutPush (§23.6)", () => {
+  it("returns this browser's endpoint and unsubscribes on demand", async () => {
+    const sub = fakeSubscription();
+    setup({ existing: sub });
+    const push = await prepareSignOutPush();
+    expect(push.endpoint).toBe(sub.endpoint);
+    expect(sub.unsubscribe).not.toHaveBeenCalled();
+    await push.unsubscribe();
+    expect(sub.unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("has nothing to do when push is unsupported or there is no subscription", async () => {
+    expect((await prepareSignOutPush()).endpoint).toBeNull();
+    setup({ existing: null });
+    const push = await prepareSignOutPush();
+    expect(push.endpoint).toBeNull();
+    await expect(push.unsubscribe()).resolves.toBeUndefined();
+  });
+
+  it("never rejects when reading or removing the subscription fails", async () => {
+    const sub = fakeSubscription();
+    sub.unsubscribe.mockRejectedValue(new Error("boom"));
+    const { sw } = setup({ existing: sub });
+    const push = await prepareSignOutPush();
+    await expect(push.unsubscribe()).resolves.toBeUndefined();
+    sw.getRegistration.mockRejectedValue(new Error("no worker"));
+    expect((await prepareSignOutPush()).endpoint).toBeNull();
+  });
+
+  it("gives up after the 3 s cap when the service worker never answers", async () => {
+    vi.useFakeTimers();
+    const { sw } = setup({ existing: fakeSubscription() });
+    sw.getRegistration.mockReturnValue(new Promise(() => undefined));
+    let done = false;
+    const pending = prepareSignOutPush().then((p) => {
+      done = true;
+      return p;
+    });
+    await vi.advanceTimersByTimeAsync(PUSH_SIGN_OUT_CAP_MS - 10);
+    expect(done).toBe(false);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(done).toBe(true);
+    expect((await pending).endpoint).toBeNull();
+  });
+
+  it("does not wait for a browser unsubscribe that never settles", async () => {
+    vi.useFakeTimers();
+    const sub = fakeSubscription();
+    sub.unsubscribe.mockReturnValue(new Promise(() => undefined));
+    setup({ existing: sub });
+    const push = await prepareSignOutPush();
+    let done = false;
+    const pending = push.unsubscribe().then(() => {
+      done = true;
+    });
+    await vi.advanceTimersByTimeAsync(PUSH_SIGN_OUT_CAP_MS + 10);
+    await pending;
+    expect(done).toBe(true);
   });
 });

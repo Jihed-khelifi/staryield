@@ -55,3 +55,22 @@ export function analyticsRefused(): boolean {
   const choices = readConsentCookie();
   return choices !== null && !choices.analytics;
 }
+
+/**
+ * True when the browser asks not to be tracked: Global Privacy Control or Do
+ * Not Track. Shared by analytics and by third-party embeds (one definition).
+ */
+export function browserPrivacySignal(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const gpc = (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl;
+  return gpc === true || navigator.doNotTrack === "1";
+}
+
+/**
+ * Whether a third-party embed (the Trustpilot widget) may be loaded. There is
+ * no anonymous consent banner, so the only suppression is the browser's own
+ * signal; a plain link is shown instead (Privacy Policy, section 4).
+ */
+export function thirdPartyEmbedsAllowed(): boolean {
+  return typeof navigator !== "undefined" && !browserPrivacySignal();
+}

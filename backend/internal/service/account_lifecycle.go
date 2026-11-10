@@ -101,6 +101,9 @@ func (s *AccountService) record(ctx context.Context, action string, userID uuid.
 // checkPassword verifies the caller's current password (re-authentication
 // for sensitive actions).
 func (s *AccountService) checkPassword(ctx context.Context, u *domain.User, password string) error {
+	if !u.HasPassword() { // created with Google: set a password first
+		return apperror.PasswordNotSet()
+	}
 	if password == "" || len(password) > security.PasswordMaxLength*4 {
 		if err := s.d.Hasher.VerifyDummyContext(ctx, password); err != nil {
 			return hashError(err)
@@ -418,6 +421,7 @@ func (s *AccountService) Deactivate(ctx context.Context, userID uuid.UUID, in Pa
 	if err != nil {
 		return apperror.Internal(err)
 	}
+	s.d.Auth.endPushSessions(ctx, u.ID)
 	s.afterSignOutEverywhere(ctx, u.ID)
 	s.endPresence(ctx, u)
 	s.record(ctx, "user.self_deactivated", u.ID, map[string]any{"role": string(u.Role)})
@@ -537,6 +541,7 @@ func (s *AccountService) Close(ctx context.Context, userID uuid.UUID, in CloseIn
 	if err != nil {
 		return nil, apperror.Internal(err)
 	}
+	s.d.Auth.endPushSessions(ctx, u.ID)
 	s.afterSignOutEverywhere(ctx, u.ID)
 	s.endPresence(ctx, u)
 	meta := map[string]any{"role": string(u.Role), "deletion_scheduled_at": at.Format(time.RFC3339)}

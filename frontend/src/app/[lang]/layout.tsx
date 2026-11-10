@@ -17,6 +17,8 @@ import { NotificationsProvider } from "@/lib/notifications/notifications-provide
 // revisions 3.0: unread chat count for the header shortcut (§18).
 import { ChatUnreadProvider } from "@/lib/chat/chat-unread-provider";
 import { ChatAlerts } from "@/components/chat/chat-alerts";
+// revisions 4.0: advisors' private client nicknames (§23.4); renders names only, nothing for clients.
+import { ClientAliasProvider } from "@/lib/chat/client-alias-provider";
 // revisions 3.2: advisor ringtone (§21.1) and push subscription upkeep (§21.3).
 import { IncomingRequestRinger } from "@/components/chat/incoming-request-ringer";
 import { PushSync } from "@/components/notifications/push-sync";
@@ -114,10 +116,12 @@ export default async function LangLayout({
                 <ThemeSync />
                 <NotificationsProvider>
                   <ChatUnreadProvider>
+                    <ClientAliasProvider>
                     <ChatAlerts />
                     <IncomingRequestRinger />
                     <PushSync />
                     <TooltipProvider>{children}</TooltipProvider>
+                    </ClientAliasProvider>
                   </ChatUnreadProvider>
                 </NotificationsProvider>
               </SessionProvider>

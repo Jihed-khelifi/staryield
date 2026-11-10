@@ -156,7 +156,7 @@ func TestSendEncryptsAndSignsAndClassifies(t *testing.T) {
 		t.Fatal("payload sent in clear")
 	}
 	for status, want := range map[int]Outcome{http.StatusGone: Gone, http.StatusNotFound: Gone, http.StatusTooManyRequests: Throttled,
-		http.StatusBadRequest: Failed, http.StatusInternalServerError: Failed} {
+		http.StatusBadRequest: Failed, http.StatusInternalServerError: Transient} {
 		tr.status = status
 		tr.header = http.Header{"Retry-After": []string{"30"}}
 		res := w.Send(context.Background(), sub, Message{Payload: payload})
@@ -219,5 +219,48 @@ func TestSendTTLFromMessageOrDefault(t *testing.T) {
 		if got := tr.requests[i].Header.Get("TTL"); got != c.want {
 			t.Errorf("ttl %v: header %q, want %q", c.ttl, got, c.want)
 		}
+	}
+}
+
+// Every status or error maps to exactly one action: remove (Gone), count a
+// failure (Failed), retry without counting (Transient, Throttled) or done.
+func TestClassifyTable(t *testing.T) {
+	future := time.Now().Add(90 * time.Second).UTC().Format(http.TimeFormat)
+	cases := []struct {
+		name   string
+		status int
+		err    error
+		header string
+		want   Outcome
+		retry  bool
+		after  time.Duration
+	}{
+		{"created", 201, nil, "", Delivered, false, 0},
+		{"accepted", 202, nil, "", Delivered, false, 0},
+		{"not found", 404, nil, "", Gone, false, 0},
+		{"gone", 410, nil, "", Gone, false, 0},
+		{"too many requests", 429, nil, "30", Throttled, true, 30 * time.Second},
+		{"too many requests without header", 429, nil, "", Throttled, true, 0},
+		{"server error", 500, nil, "", Transient, true, 0},
+		{"bad gateway with retry-after", 502, nil, "7", Transient, true, 7 * time.Second},
+		{"service unavailable", 503, nil, "", Transient, true, 0},
+		{"request timeout", 408, nil, "", Transient, true, 0},
+		{"network error", 0, io.ErrUnexpectedEOF, "", Transient, true, 0},
+		{"bad request", 400, nil, "", Failed, false, 0},
+		{"unauthorized", 401, nil, "", Failed, false, 0},
+		{"forbidden", 403, nil, "", Failed, false, 0},
+		{"payload too large", 413, nil, "", Failed, false, 0},
+		{"other client error", 405, nil, "", Failed, false, 0},
+		{"unexpected redirect", 302, nil, "", Failed, false, 0},
+	}
+	for _, c := range cases {
+		res := Classify(c.status, c.err, c.header)
+		if res.Outcome != c.want || res.Retryable() != c.retry || res.RetryAfter != c.after {
+			t.Errorf("%s: got %+v retryable=%v, want outcome %v retry %v after %v", c.name, res, res.Retryable(), c.want, c.retry, c.after)
+		}
+	}
+	// Retry-After may be an HTTP date.
+	if got := Classify(429, nil, future); got.RetryAfter < 80*time.Second || got.RetryAfter > 91*time.Second {
+		t.Errorf("http-date retry-after: %v", got.RetryAfter)
 	}
 }

@@ -22,11 +22,14 @@ import {
   requestSecondsLeft,
   type PendingRequests,
 } from "@/lib/chat/incoming-requests";
+import { useClientNames } from "@/lib/chat/client-alias-provider";
 import { closeRequestNotification, showRequestNotification } from "@/lib/chat/request-notifications";
 import { preloadRingtone, setPendingRequests, unlockRingtone, useRingtoneState } from "@/lib/chat/ringtone";
 import { pushPermission } from "@/lib/push";
 
 const EVENTS = [...REQUEST_EVENTS, "hello", "resync_required"] as const;
+/** A nickname lookup that takes longer than this no longer holds back the announcement (the real name is used). */
+const ALIAS_WAIT_MS = 1500;
 
 /**
  * Advisors: rings while a chat request is pending and shows a request banner
@@ -55,6 +58,16 @@ function Ringer({ userId }: { userId: string }) {
   React.useEffect(() => {
     inChatroomRef.current = inChatroom;
   });
+
+  // Advisors see their private nickname for the client (§23.4) in the banner, the announcement and the system notification.
+  const clientIds = React.useMemo(() => [...requests.values()].map((snap) => snap.session.client.id), [requests]);
+  const { nameFor, isKnown } = useClientNames(clientIds);
+  const [gaveUp, setGaveUp] = React.useState<ReadonlySet<string>>(() => new Set());
+  React.useEffect(() => {
+    const timers = clientIds.filter((id) => !isKnown(id) && !gaveUp.has(id)).map((id) => window.setTimeout(() => setGaveUp((cur) => new Set(cur).add(id)), ALIAS_WAIT_MS));
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [clientIds, isKnown, gaveUp]);
+  const nameOf = React.useCallback((client: { id: string; name: string }) => nameFor(client.id, client.name), [nameFor]);
 
   const refresh = React.useCallback(() => {
     const seq = ++fetchSeq.current;
@@ -116,18 +129,22 @@ function Ringer({ userId }: { userId: string }) {
     const before = previous.current;
     previous.current = requests;
     for (const [id, snap] of requests) {
-      if (!announced.current.has(id)) {
+      // Wait for the nickname (briefly) so the announcement and the notification use it.
+      if (!isKnown(snap.session.client.id) && !gaveUp.has(snap.session.client.id)) continue;
+      const clientName = nameOf(snap.session.client);
+      const firstSight = !announced.current.has(id);
+      if (firstSight) {
         announced.current.add(id);
         if (!inChatroomRef.current)
-          announce(text("{value0} would like to start a live chat.", { value0: snap.session.client.name }), "assertive");
+          announce(text("{value0} would like to start a live chat.", { value0: clientName }), "assertive");
       }
-      if (before.has(id) || notified.current.has(id)) continue;
+      if (!firstSight || notified.current.has(id)) continue;
       if (document.visibilityState === "hidden" && pushPermission() === "granted") {
         notified.current.add(id);
         void showRequestNotification({
           sessionId: id,
           title: text("New chat request"),
-          body: text("{value0} would like to start a live chat.", { value0: snap.session.client.name }),
+          body: text("{value0} would like to start a live chat.", { value0: clientName }),
           url: `/${locale}/chatroom`,
         });
       }
@@ -138,7 +155,7 @@ function Ringer({ userId }: { userId: string }) {
         void closeRequestNotification(id);
       }
     }
-  }, [requests, text, locale]);
+  }, [requests, text, locale, isKnown, gaveUp, nameOf]);
 
   const newest = newestRequest(requests);
   if (!newest || inChatroom) return null;
@@ -157,7 +174,7 @@ function Ringer({ userId }: { userId: string }) {
     >
       <BellRing className="incoming-request-icon" aria-hidden="true" size={22} />
       <div className="incoming-request-body">
-        <p className="incoming-request-title">{text("{value0} would like to start a live chat.", { value0: newest.session.client.name })}</p>
+        <p className="incoming-request-title">{text("{value0} would like to start a live chat.", { value0: nameOf(newest.session.client) })}</p>
         <p className="incoming-request-meta">
           {text("This request expires in {value0} seconds.", { value0: secondsLeft })}
           {more > 0 ? <span className="incoming-request-more"> {text("+{value0} more", { value0: more })}</span> : null}

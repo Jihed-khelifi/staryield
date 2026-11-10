@@ -65,6 +65,8 @@ type (
 		SessionID      uuid.UUID `json:"session_id"`
 		Body           string    `json:"body"`
 		ClientMsgID    string    `json:"client_msg_id"`
+		// ReplyToID quotes a message of the conversation (revisions 4.0, §23.2).
+		ReplyToID *uuid.UUID `json:"reply_to_id"`
 	}
 	typingFrame struct {
 		SessionID uuid.UUID `json:"session_id"`
@@ -132,9 +134,9 @@ func (g *RealtimeGateway) HandleFrame(ctx context.Context, c *realtime.Client, f
 		var err error
 		switch {
 		case f.ConversationID != uuid.Nil:
-			res, err = g.chat.SendToConversation(ctx, p, ConversationSendInput{ConversationID: f.ConversationID, Body: f.Body, ClientMsgID: f.ClientMsgID})
+			res, err = g.chat.SendToConversation(ctx, p, ConversationSendInput{ConversationID: f.ConversationID, Body: f.Body, ClientMsgID: f.ClientMsgID, ReplyToID: f.ReplyToID})
 		case f.SessionID != uuid.Nil:
-			res, err = g.chat.SendMessageForSession(ctx, p, SendMessageInput{SessionID: f.SessionID, Body: f.Body, ClientMsgID: f.ClientMsgID})
+			res, err = g.chat.SendMessageForSession(ctx, p, SendMessageInput{SessionID: f.SessionID, Body: f.Body, ClientMsgID: f.ClientMsgID, ReplyToID: f.ReplyToID})
 		default:
 			return nil, requireID(uuid.Nil, "conversation_id")
 		}

@@ -385,8 +385,11 @@ export class RealtimeClient {
     switch (type) {
       case "message.send":
         // Conversation sends (§22.3) use the conversation endpoint; old frames name a session.
+        // `reply_to_id` travels only when replying (§23.2).
         return (d.conversation_id
-          ? await chatApi.sendToConversation(d.conversation_id, d.body, d.client_msg_id)
+          ? await (d.reply_to_id
+              ? chatApi.sendToConversation(d.conversation_id, d.body, d.client_msg_id, d.reply_to_id)
+              : chatApi.sendToConversation(d.conversation_id, d.body, d.client_msg_id))
           : await chatApi.send(d.session_id, d.body, d.client_msg_id)) as T;
       case "session.join":
         return (await realtimeApi.presence(this.connectionId!, d.session_id, "join")) as T;

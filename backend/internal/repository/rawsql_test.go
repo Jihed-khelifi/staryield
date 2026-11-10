@@ -21,6 +21,17 @@ import (
 //
 // Adding a raw query means adding it here, in review, with that guarantee.
 var allowedRawSQL = map[string]int{
+	// revisions 4.0: notification hardening. Batched retention delete (ordered,
+	// SKIP LOCKED), the idempotent broadcast chunk insert (multi-row INSERT …
+	// ON CONFLICT … DO NOTHING RETURNING, which the builder cannot return
+	// per-row), the cursor/heartbeat update in the same transaction and the
+	// per-broadcast advisory lock. Every value is bound as a parameter; the only
+	// spliced fragment is the constant retentionSelect.
+	"notifications.go:GormNotificationRepository.BroadcastHeartbeat":   1,
+	"notifications.go:GormNotificationRepository.DeleteOlderThan":      1,
+	"notifications.go:GormNotificationRepository.ExpiredBatch":         1,
+	"notifications.go:GormNotificationRepository.InsertBroadcastChunk": 2,
+	"notifications.go:GormNotificationRepository.WithBroadcastLock":    2,
 	// revisions 3.0: calculator analytics. Multi-row INSERT … ON CONFLICT
 	// upserts of the visitor roll-up, UPDATE … FROM (VALUES …) user links and
 	// report aggregates (CTEs, FILTER, LATERAL, DISTINCT ON, date_trunc with a

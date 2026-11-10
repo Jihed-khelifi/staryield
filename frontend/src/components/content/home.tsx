@@ -7,6 +7,7 @@ import { ContentLink } from "@/components/content/content-link";
 import { PSYCHICS_SECTION_ID } from "@/lib/psychics-link";
 import { useScrollToPsychics } from "@/components/content/use-scroll-to-psychics";
 import { FeaturedAdvisors } from "@/components/content/featured-advisors";
+import { TrustpilotReviewCollector } from "@/components/reviews/trustpilot-review-collector";
 const assetPathPrefix = "https://assets.staryield.net/assets/figma";
 const imgMediaHome = `${assetPathPrefix}/fb9ee.jpg`;
 const imgCardTheMoon = `${assetPathPrefix}/c829e.png`;
@@ -626,6 +627,10 @@ export default function ScreenDesktopHome() {
               {text("Completed Consultations ")}
             </p>
           </div>
+        </div>
+        <div className="w-full max-w-[560px]" data-name="Row / Trustpilot">
+          {/* Same widget for everyone, never conditional on a rating or tied to an incentive. */}
+          <TrustpilotReviewCollector placement="home" />
         </div>
       </div>
       <section

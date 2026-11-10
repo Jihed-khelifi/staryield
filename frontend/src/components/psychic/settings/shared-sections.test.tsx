@@ -49,6 +49,7 @@ vi.mock("@/lib/api/endpoints", () => ({
   advisorApi: m.advisorApi,
   astrologyApi: { places: vi.fn().mockResolvedValue([]) },
   authApi: { changePassword: vi.fn() },
+  signInMethodsApi: { get: vi.fn().mockResolvedValue({ password: true, google_available: false }), disconnectGoogle: vi.fn() },
 }))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }), usePathname: () => "/en/profile/settings" }))
 vi.mock("next/link", () => ({

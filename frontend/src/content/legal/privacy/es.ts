@@ -28,7 +28,7 @@ const content: LegalDocumentContent = {
     },
     {
       "type": "p",
-      "text": "No vendemos sus datos personales ni utilizamos rastreadores publicitarios. Solo compartimos datos personales con los proveedores de servicios que nos ayudan a gestionar Staryield —por ejemplo, Cloudflare para el alojamiento, el almacenamiento y el envío de correos electrónicos, y nuestros procesadores de pagos— y con los asesores con los que usted decide hablar. Lea esta Política para saber qué datos recopilamos ([Sección 2](#categories-of-personal-data-we-collect)), cómo los utilizamos ([Sección 3](#purposes-and-legal-bases-for-processing-your-personal-data)), con quién los compartimos ([Sección 4](#how-we-share-your-personal-data)) y qué derechos tiene ([Sección 5](#your-privacy-rights))."
+      "text": "No vendemos sus datos personales ni utilizamos rastreadores publicitarios. Solo compartimos datos personales con los proveedores de servicios que nos ayudan a gestionar Staryield —por ejemplo, Cloudflare para el alojamiento, el almacenamiento y el envío de correos electrónicos, y nuestros procesadores de pagos— y con los asesores con los que usted decide hablar. Otros dos terceros tienen un papel limitado: Google, solo si decide iniciar sesión con su cuenta de Google, y Trustpilot, cuyo widget de opiniones independientes se carga en algunas páginas (véase la Sección 4). Lea esta Política para saber qué datos recopilamos ([Sección 2](#categories-of-personal-data-we-collect)), cómo los utilizamos ([Sección 3](#purposes-and-legal-bases-for-processing-your-personal-data)), con quién los compartimos ([Sección 4](#how-we-share-your-personal-data)) y qué derechos tiene ([Sección 5](#your-privacy-rights))."
     },
     {
       "type": "p",
@@ -115,7 +115,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Actualmente no ofrecemos el inicio de sesión con Google, Apple, Facebook ni otras cuentas de terceros, y no recibimos datos de tiendas de aplicaciones. Podemos recibir información limitada sobre usted de nuestros procesadores de pagos (por ejemplo, el resultado de un pago, indicadores de prevención del fraude, reembolsos y contracargos) y de nuestro proveedor de correo electrónico (por ejemplo, si no se pudo entregar un mensaje dirigido a usted)."
+          "text": "Inicio de sesión con Google. Puede registrarse o iniciar sesión con su cuenta de Google. En ese caso, Google nos facilita el identificador de su cuenta de Google, su dirección de correo electrónico y si Google ha verificado esa dirección. No pedimos nada más: ni su nombre, ni su foto, ni sus contactos, ni ningún otro dato de Google. No recibimos su contraseña de Google y no almacenamos ningún token de acceso de Google. Utilizamos esta información únicamente para crear y proteger su cuenta y para iniciar su sesión, a fin de ejecutar nuestro contrato con usted. Google sabe que ha utilizado su cuenta de Google para iniciar sesión en Staryield y trata esa información conforme a su propia política de privacidad. Si ya tiene una cuenta de Staryield con la misma dirección de correo electrónico, solo vinculamos Google a ella después de que usted lo confirme con la contraseña de su cuenta. Puede desvincular Google en la configuración de su cuenta, una vez que haya creado una contraseña; el vínculo se elimina cuando desvincula Google o cuando se borra su cuenta. Mientras hay un inicio de sesión con Google en curso, colocamos en su navegador una cookie de seguridad de corta duración (véase [Cookies y tecnologías similares](#cookies))."
+        },
+        {
+          "type": "p",
+          "text": "Actualmente no ofrecemos el inicio de sesión con Apple, Facebook ni otras cuentas de terceros, y no recibimos datos de tiendas de aplicaciones. Podemos recibir información limitada sobre usted de nuestros procesadores de pagos (por ejemplo, el resultado de un pago, indicadores de prevención del fraude, reembolsos y contracargos) y de nuestro proveedor de correo electrónico (por ejemplo, si no se pudo entregar un mensaje dirigido a usted)."
         },
         {
           "type": "h3",
@@ -133,7 +137,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Cookies y tecnologías similares. Utilizamos cookies propias y el almacenamiento del navegador para mantener su sesión iniciada, proteger su cuenta, recordar su idioma y sus preferencias de visualización y, con su consentimiento cuando la ley lo exija, medir cómo se utilizan los Servicios y qué campañas nos traen visitantes. No utilizamos píxeles publicitarios ni cookies de seguimiento de terceros. Consulte [Cookies y tecnologías similares](#cookies) para ver la lista completa."
+          "text": "Cookies y tecnologías similares. Utilizamos cookies propias y el almacenamiento del navegador para mantener su sesión iniciada, proteger su cuenta, recordar su idioma y sus preferencias de visualización y, con su consentimiento cuando la ley lo exija, medir cómo se utilizan los Servicios y qué campañas nos traen visitantes. No utilizamos píxeles publicitarios y no colocamos nosotros ninguna cookie de seguimiento de terceros. El único contenido de terceros que incorporamos es el widget de opiniones de Trustpilot (véase la [Sección 4](#how-we-share-your-personal-data)). Consulte [Cookies y tecnologías similares](#cookies) para ver la lista completa."
         },
         {
           "type": "h3",
@@ -154,6 +158,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Mensajes e imágenes. Guardamos los mensajes, emojis e imágenes que intercambia en las consultas en vivo para que usted y su asesor puedan ver el historial de la conversación. Las imágenes se vuelven a codificar al subirlas, lo que elimina los metadatos incrustados, como la ubicación GPS y los datos de la cámara. Antes del envío, una imagen también puede redimensionarse y comprimirse en su dispositivo (su lado más largo se reduce a un máximo de 2048 píxeles), y las fotos HEIC, HEIF o AVIF se convierten cuando su navegador lo permite. Se guardan en un almacenamiento privado y solo pueden abrirlas los dos participantes de la conversación; nuestras herramientas de administración no permiten que el personal las abra. Las transcripciones de texto solo pueden ser revisadas por personal autorizado para gestionar una disputa, una denuncia de seguridad o una obligación legal; cada uno de esos accesos exige indicar un motivo y queda registrado en un registro de auditoría."
+        },
+        {
+          "type": "p",
+          "text": "Respuestas y «Me gusta». Puede responder a un mensaje, lo que muestra sobre su texto un breve extracto del mensaje al que responde, y puede marcar un mensaje con «Me gusta». Una respuesta o un «Me gusta» se almacena con la conversación, es visible para los dos participantes, se conserva el mismo tiempo que los mensajes de esa conversación (véase la [Sección 8](#data-retention)) y se incluye en su exportación de datos. Los «Me gusta» no se envían como notificaciones."
         },
         {
           "type": "p",
@@ -204,6 +212,10 @@ const content: LegalDocumentContent = {
           "text": "Las notas se conservan hasta que su autor las elimina o hasta que se elimina su cuenta o la del asesor. Como las notas contienen las observaciones propias de los asesores, no se incluyen en la exportación de datos de autoservicio. Puede solicitarlas mediante nuestro [formulario de solicitud](/contact?topic=privacy); nuestro personal revisará su solicitud y, cuando la ley lo exija, le enviará las notas que le conciernen en un formato estructurado y de lectura mecánica. El personal autorizado solo puede acceder a las notas para atender dicha solicitud o para tramitar una reclamación, una denuncia de seguridad o una obligación legal, y cada acceso queda registrado en un registro de auditoría."
         },
         {
+          "type": "p",
+          "text": "Apodos privados. Los asesores también pueden poner a un cliente un apodo privado que solo ese asesor puede ver; nunca se muestra a usted, a otros clientes ni a otros asesores. El personal autorizado de Staryield solo puede consultar un apodo cuando sea necesario, por ejemplo para responder a una solicitud de acceso o revisar un informe de seguridad; primero debe indicar un motivo, y cada consulta queda registrada en nuestro registro de auditoría. Los apodos se almacenan cifrados y se eliminan cuando se borra su cuenta o la del asesor. Al igual que las notas, los apodos no se incluyen en la exportación de datos de autoservicio; puede solicitarlos mediante nuestro [formulario de solicitud](/contact?topic=privacy)."
+        },
+        {
           "type": "h3",
           "id": "account-devices-and-preferences",
           "n": "2.8",
@@ -215,7 +227,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Preferencias, consentimientos y notificaciones. Almacenamos sus preferencias de notificación (correo electrónico, notificaciones push y novedades comerciales), sus preferencias de privacidad junto con la fecha y la versión de la política que aceptó, y su configuración de apariencia. Si activa las notificaciones push, almacenamos cifrada la dirección que su navegador nos proporciona para entregarlas y sus claves de cifrado; la eliminamos cuando desactiva las notificaciones push o cuando su navegador indica que ya no es válida."
+          "text": "Preferencias, consentimientos y notificaciones. Almacenamos sus preferencias de notificación (correo electrónico, notificaciones push y novedades comerciales), sus preferencias de privacidad junto con la fecha y la versión de la política que aceptó, y su configuración de apariencia. Si activa las notificaciones push, almacenamos cifrada la dirección que su navegador nos proporciona para entregarlas y sus claves de cifrado; la eliminamos cuando desactiva las notificaciones push o cuando su navegador indica que ya no es válida. Cerrar sesión elimina de nuestros sistemas la suscripción push de ese navegador. Cerrar sesión en todas partes, cambiar o restablecer su contraseña, y desactivar o cerrar su cuenta eliminan todas sus suscripciones push."
         },
         {
           "type": "p",
@@ -269,7 +281,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Las notificaciones push sobre mensajes de chat nuevos nunca incluyen el texto del mensaje: solo te avisan de que ha llegado un mensaje nuevo; lo mismo ocurre con los mensajes enviados fuera de las consultas en vivo (véase la [Sección 2.13](#messages-outside-live-readings)). Un mensaje que has escrito pero no enviado se guarda como borrador únicamente en tu dispositivo, en el almacenamiento local de tu navegador, hasta 7 días; los borradores nunca se nos envían."
+          "text": "Las notificaciones push sobre mensajes de chat nuevos nunca incluyen el texto del mensaje: solo te avisan de que ha llegado un mensaje nuevo; lo mismo ocurre con los mensajes enviados fuera de las consultas en vivo (véase la [Sección 2.13](#messages-outside-live-readings)). Un mensaje que has escrito pero no enviado se guarda como borrador únicamente en tu dispositivo, en el almacenamiento local de tu navegador, hasta 7 días; los borradores nunca se nos envían. El estado de lectura de las notificaciones se sincroniza entre tus dispositivos: una notificación que leas en uno se muestra como leída en los demás. El contador de no leídas del icono de la aplicación se calcula a partir de notificaciones que ya almacenamos; no recopilamos ningún dato nuevo para ello."
         },
         {
           "type": "h3",
@@ -370,6 +382,16 @@ const content: LegalDocumentContent = {
               "Su consentimiento cuando la ley lo exija; Interés legítimo (consulte la descripción)"
             ],
             [
+              "Permitirle registrarse e iniciar sesión con su cuenta de Google y mantener seguro ese inicio de sesión",
+              "Identificadores (identificador de la cuenta de Google, correo electrónico e indicación de si Google lo ha verificado); Cuenta, dispositivos y preferencias",
+              "Ejecución de un contrato con usted; Interés legítimo (consulte la descripción)"
+            ],
+            [
+              "Mostrar el widget de opiniones de Trustpilot para que pueda leer y dejar opiniones independientes sobre Staryield",
+              "Datos del dispositivo y de ubicación (su dirección IP, datos del navegador y la dirección de la página, que Trustpilot recibe cuando se carga el widget)",
+              "Interés legítimo (consulte la descripción)"
+            ],
+            [
               "Responder a sus solicitudes de privacidad, incluidas las exportaciones de datos y el cierre de la cuenta",
               "Todas las categorías",
               "Obligación legal"
@@ -411,6 +433,14 @@ const content: LegalDocumentContent = {
           "text": "Cuando los asesores conservan notas sobre sus clientes: permitir que los asesores ofrezcan lecturas coherentes y personalizadas a lo largo del tiempo y, cuando un asesor decide compartir una nota, ayudar a los demás asesores que usted consulte a hacer lo mismo. Las notas se limitan a información útil para las lecturas y no deben contener datos sensibles."
         },
         {
+          "type": "p",
+          "text": "Cuando ofrecemos y protegemos el inicio de sesión con Google: permitirle usar una cuenta que ya tiene en lugar de una contraseña nueva, y garantizar que un intento de inicio de sesión solo pueda completarlo el navegador que lo inició, para que nadie más pueda completar su inicio de sesión."
+        },
+        {
+          "type": "p",
+          "text": "Cuando mostramos el widget de opiniones de Trustpilot: permitir que las personas lean y dejen opiniones independientes sobre los Servicios. El widget solo se carga cuando aparece en pantalla y nunca cuando su navegador envía una señal Global Privacy Control o Do Not Track; siempre puede usar el enlace sencillo en su lugar."
+        },
+        {
           "type": "h3",
           "id": "automated-decisions",
           "title": "Información importante"
@@ -446,7 +476,9 @@ const content: LegalDocumentContent = {
             "Notificaciones push: si activa las notificaciones push, se entregan a través del servicio push de su navegador (por ejemplo, Google, Mozilla, Apple o Microsoft). El contenido de cada notificación está cifrado para que el servicio push no pueda leerlo.",
             "Procesamiento de pagos: los pagos con tarjeta de créditos y membresías los procesan procesadores de pagos externos. Según su país, su moneda, su cuenta y el producto adquirido, un pago puede gestionarlo Stripe u otro procesador de tarjetas; usted introduce los datos de su tarjeta directamente en el procesador, que solo comparte con nosotros un token de pago e información limitada de la tarjeta. Los retiros de los asesores se pagan mediante transferencia bancaria o PayPal.",
             "Datos de lugares: utilizamos la base de datos geográfica GeoNames (CC BY 4.0) para sugerir lugares de nacimiento. Alojamos nosotros mismos una copia de esta base de datos, por lo que sus búsquedas no se envían a GeoNames.",
-            "Analítica: nuestra analítica y nuestros informes de errores son propios y funcionan en nuestros propios sistemas. No utilizamos herramientas de analítica, de grabación de sesiones ni de publicidad de terceros.",
+            "Analítica: nuestra analítica y nuestros informes de errores son propios y funcionan en nuestros propios sistemas. No utilizamos herramientas de analítica, de grabación de sesiones ni de publicidad de terceros. El widget de opiniones de Trustpilot descrito a continuación es el único contenido de terceros que incorporamos en nuestras páginas.",
+            "Google (inicio de sesión): si decide registrarse o iniciar sesión con su cuenta de Google, Google actúa como proveedor de identidad. Nos facilita el identificador de su cuenta de Google, su dirección de correo electrónico y si ha verificado esa dirección; nosotros no enviamos a Google nada sobre sus lecturas, compras o mensajes. Google sabe que ha utilizado su cuenta de Google para iniciar sesión en Staryield y trata esa información conforme a su propia política de privacidad. Google no interviene si inicia sesión con su dirección de correo electrónico y su contraseña.",
+            "Trustpilot A/S (opiniones independientes): Trustpilot es una plataforma de opiniones independiente. Su widget de opiniones se carga desde los servidores de Trustpilot cuando aparece en pantalla en la página de inicio, la página de opiniones, el pie de página de nuestras páginas y el resumen de fin del chat. Trustpilot recibe entonces su dirección IP, datos del navegador y la dirección de la página, como ocurre con cualquier contenido incrustado. El widget no se carga cuando su navegador envía una señal Global Privacy Control o Do Not Track; en su lugar se muestra un enlace sencillo. Nunca enviamos a Trustpilot los datos de su cuenta, su dirección de correo electrónico ni nada sobre sus lecturas. Una opinión que decida escribir la publica Trustpilot según sus propias condiciones y su propia política de privacidad. Nunca ofrecemos nada a cambio de una opinión.",
             "Proveedores de servicios técnicos, administrativos y de información: de vez en cuando, podemos utilizar herramientas de terceros para la gestión de proyectos y tareas, la comunicación y la colaboración internas o la automatización de flujos de trabajo. En algunos casos, se pueden compartir datos personales limitados con estos proveedores de servicios.",
             "Asesores, consultores y contratistas independientes. De vez en cuando, podemos compartir información personal limitada con nuestros contratistas independientes, consultores, especialistas externos, socios y asesores. Procesan esta información en nuestro nombre para operar, mantener, proteger y mejorar los Servicios, y garantizar el cumplimiento legal y normativo. Les exigimos que utilicen la información sólo para estos fines, la protejan adecuadamente y la mantengan confidencial.",
             "Asesores (psíquicos): los asesores con los que chatea reciben sus mensajes (incluidos los enviados fuera de las consultas en vivo, véase la [Sección 2.13](#messages-outside-live-readings)) y la ficha de cliente descrita en la [Sección 2.5](#live-readings-ratings-and-notifications); la ficha incluye siempre su fecha de nacimiento y solo muestra su ciudad de nacimiento si decide compartirla. Una nota que un asesor escribe sobre usted solo se comparte con otros asesores si su autor decide compartirla, y únicamente con asesores que también han tenido una sesión con usted (véase la [Sección 2.7](#advisor-notes))."
@@ -554,7 +586,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Puede descargar una copia de sus datos personales en cualquier momento en la [configuración de su cuenta](/profile/settings), en Datos y privacidad. Preparamos un archivo ZIP con su cuenta y su perfil, sus preferencias y consentimientos, los dispositivos con sesión iniciada, sus compras, su membresía y sus transacciones, su historial de créditos, sus conversaciones y las imágenes que subió, sus mensajes guardados, sus notificaciones y sus valoraciones. Cuando está listo, se lo notificamos en la aplicación y por correo electrónico; el enlace de descarga solo puede utilizarse una vez y el archivo se elimina a los 7 días. Las notas que los asesores escribieron sobre usted no forman parte de esta exportación porque contienen las observaciones propias de los asesores; puede solicitarlas mediante este [formulario de solicitud](/contact?topic=privacy) y nuestro personal se las facilitará tras revisar su solicitud."
+          "text": "Puede descargar una copia de sus datos personales en cualquier momento en la [configuración de su cuenta](/profile/settings), en Datos y privacidad. Preparamos un archivo ZIP con su cuenta y su perfil, sus preferencias y consentimientos, los dispositivos con sesión iniciada, sus métodos de inicio de sesión (por ejemplo, el correo electrónico de una cuenta de Google vinculada), sus compras, su membresía y sus transacciones, su historial de créditos, sus conversaciones (con las respuestas y los «Me gusta») y las imágenes que subió, sus mensajes guardados, sus notificaciones y sus valoraciones. Cuando está listo, se lo notificamos en la aplicación y por correo electrónico; el enlace de descarga solo puede utilizarse una vez y el archivo se elimina a los 7 días. Las notas que los asesores escribieron sobre usted no forman parte de esta exportación porque contienen las observaciones propias de los asesores; puede solicitarlas mediante este [formulario de solicitud](/contact?topic=privacy) y nuestro personal se las facilitará tras revisar su solicitud."
         },
         {
           "type": "h4",
@@ -614,7 +646,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "En particular, si transferimos datos personales procedentes del Espacio Económico Europeo o del Reino Unido a países con un nivel adecuado de protección de datos, nos basamos en las decisiones de adecuación de la Comisión Europea; por ejemplo, podemos transferir datos personales a proveedores de servicios de los Estados Unidos que participan en el Marco de Privacidad de Datos UE-EE. UU. Si transferimos datos personales procedentes del Espacio Económico Europeo o del Reino Unido a países sin un nivel adecuado de protección de datos, nos basamos en las Cláusulas Contractuales Tipo aprobadas por la Comisión Europea (con el anexo del Reino Unido cuando corresponda). Nuestros proveedores de servicios, incluidos Cloudflare y nuestros procesadores de pagos, pueden tratar datos personales en los Estados Unidos y en otros países."
+          "text": "En particular, si transferimos datos personales procedentes del Espacio Económico Europeo o del Reino Unido a países con un nivel adecuado de protección de datos, nos basamos en las decisiones de adecuación de la Comisión Europea; por ejemplo, podemos transferir datos personales a proveedores de servicios de los Estados Unidos que participan en el Marco de Privacidad de Datos UE-EE. UU. Si transferimos datos personales procedentes del Espacio Económico Europeo o del Reino Unido a países sin un nivel adecuado de protección de datos, nos basamos en las Cláusulas Contractuales Tipo aprobadas por la Comisión Europea (con el anexo del Reino Unido cuando corresponda). Nuestros proveedores de servicios, incluidos Cloudflare y nuestros procesadores de pagos, pueden tratar datos personales en los Estados Unidos y en otros países. Google (en los Estados Unidos) recibe datos cuando decide iniciar sesión con su cuenta de Google, y Trustpilot A/S (en Dinamarca) los recibe cuando su widget de opiniones se carga en su navegador; cada uno trata esos datos conforme a su propia política de privacidad."
         }
       ]
     },
@@ -735,7 +767,7 @@ const content: LegalDocumentContent = {
           "rows": [
             [
               "Identificadores (nombre de la cuenta, identificador personal único, identificador en línea, dirección IP, dirección de correo electrónico)",
-              "Proveedores de alojamiento, almacenamiento y distribución; Procesadores de pagos; Proveedores de envío de correos electrónicos y notificaciones push; Asesores con los que chatea (solo el nombre o apodo)"
+              "Proveedores de alojamiento, almacenamiento y distribución; Procesadores de pagos; Proveedores de envío de correos electrónicos y notificaciones push; Asesores con los que chatea (solo el nombre o apodo); Google (solo si elige el inicio de sesión con Google; no le enviamos ningún dato sobre usted); Trustpilot (widget de opiniones, dirección IP)"
             ],
             [
               "Categorías de Información personal del artículo 1798.80(e) del Código Civil de California (nombre, número de teléfono, información financiera) e Información comercial (productos o servicios adquiridos)",
@@ -747,7 +779,7 @@ const content: LegalDocumentContent = {
             ],
             [
               "Información de actividad en Internet u otras redes electrónicas (su interacción con nuestro sitio web)",
-              "Proveedores de alojamiento, almacenamiento y distribución"
+              "Proveedores de alojamiento, almacenamiento y distribución; Trustpilot (widget de opiniones, datos del navegador y dirección de la página)"
             ],
             [
               "Datos de geolocalización (solo ubicación aproximada)",
@@ -838,7 +870,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "Utilizamos un pequeño número de cookies propias y de elementos de almacenamiento del navegador, que se enumeran a continuación. No utilizamos píxeles publicitarios ni cookies de seguimiento de terceros. Los elementos esenciales son necesarios para que los Servicios funcionen y no pueden desactivarse. Los elementos de analítica y de atribución de marketing solo se utilizan con su consentimiento cuando la ley lo exige, y no los utilizamos cuando su navegador envía una señal Do Not Track o Global Privacy Control. Puede cambiar sus opciones en cualquier momento en Preferencias de privacidad, en la [configuración de su cuenta](/profile/settings)."
+          "text": "Utilizamos un pequeño número de cookies propias y de elementos de almacenamiento del navegador, que se enumeran a continuación. No utilizamos píxeles publicitarios y no colocamos nosotros ninguna cookie de seguimiento de terceros; el único contenido de terceros que incorporamos es el widget de opiniones de Trustpilot, descrito debajo de la tabla. Los elementos esenciales son necesarios para que los Servicios funcionen y no pueden desactivarse. Los elementos de analítica y de atribución de marketing solo se utilizan con su consentimiento cuando la ley lo exige, y no los utilizamos cuando su navegador envía una señal Do Not Track o Global Privacy Control. Puede cambiar sus opciones en cualquier momento en Preferencias de privacidad, en la [configuración de su cuenta](/profile/settings)."
         },
         {
           "type": "table",
@@ -869,6 +901,27 @@ const content: LegalDocumentContent = {
               "Cookie",
               "Protege su cuenta frente a la falsificación de solicitudes entre sitios",
               "Hasta 30 días, renovada mientras use el sitio",
+              "Esencial"
+            ],
+            [
+              "sy_oa",
+              "Cookie",
+              "Vincula un intento de inicio de sesión con Google a este navegador para que nadie más pueda completarlo",
+              "Hasta 10 minutos",
+              "Esencial"
+            ],
+            [
+              "staryield.google.intent",
+              "Almacenamiento de sesión",
+              "Recuerda si estaba iniciando sesión, registrándose o vinculando Google, para que «Reintentar» reinicie el mismo paso",
+              "Hasta 15 minutos o hasta que cierre la pestaña",
+              "Esencial"
+            ],
+            [
+              "staryield.push.*",
+              "Almacenamiento local",
+              "Recuerda cuándo se nos envió por última vez la suscripción push de este navegador y un hash irreversible de su dirección, para que solo se reenvíe cuando cambie; se elimina al cerrar sesión",
+              "Hasta que cierre sesión o desactive las notificaciones push",
               "Esencial"
             ],
             [
@@ -945,7 +998,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "El personal que utiliza nuestra consola de administración recibe además una cookie de seguridad independiente (sy_adm) que solo es válida en ese sitio."
+          "text": "El personal que utiliza nuestra consola de administración recibe además una cookie de seguridad independiente (sy_adm) que solo es válida en ese sitio. El widget de opiniones de Trustpilot (véase la [Sección 4](#how-we-share-your-personal-data)) se ejecuta en el marco propio de Trustpilot; cualquier almacenamiento que utilice allí depende de Trustpilot y no de esta tabla."
         }
       ]
     },
@@ -956,7 +1009,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "Los Servicios pueden contener enlaces a otros sitios web o aplicaciones y otros sitios web o aplicaciones pueden hacer referencia o vincularse a nuestros Servicios. Estos servicios de terceros no están controlados por nosotros. Alentamos a nuestros usuarios a leer las políticas de privacidad de cada sitio web y aplicación con la que interactúan. No respaldamos, examinamos ni aprobamos, y no somos responsables de, las prácticas de privacidad o el contenido de dichos otros sitios web o aplicaciones. Visitar estos otros sitios web o aplicaciones es bajo su propia responsabilidad."
+          "text": "Los Servicios pueden contener enlaces a otros sitios web o aplicaciones y otros sitios web o aplicaciones pueden hacer referencia o vincularse a nuestros Servicios. Estos servicios de terceros no están controlados por nosotros. Alentamos a nuestros usuarios a leer las políticas de privacidad de cada sitio web y aplicación con la que interactúan. No respaldamos, examinamos ni aprobamos, y no somos responsables de, las prácticas de privacidad o el contenido de dichos otros sitios web o aplicaciones. Visitar estos otros sitios web o aplicaciones es bajo su propia responsabilidad. Esto incluye a Google (Estados Unidos), si decide iniciar sesión con su cuenta de Google, y a Trustpilot (Dinamarca), si sigue nuestro enlace de opiniones al sitio web de Trustpilot o escribe allí una opinión."
         }
       ]
     },

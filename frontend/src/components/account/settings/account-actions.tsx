@@ -24,6 +24,7 @@ import { Form, FormRootError } from "@/components/ui/form";
 import { PasswordInput } from "@/components/ui/password-input";
 
 import { dialogSubmit } from "./dialog-form";
+import { PasswordNotSetNotice, isPasswordNotSet } from "./password-not-set";
 import { SettingsCard, SettingsField, SettingsRowButton } from "./settings-ui";
 
 /** What blocks an advisor's closure, with where to resolve it. */
@@ -49,12 +50,18 @@ function DeactivateDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
   const { text, locale } = useI18n();
   const { signOut } = useSession();
   const form = useSchemaForm(passwordConfirmSchema, { defaultValues: { password: "" } });
+  const [noPassword, setNoPassword] = React.useState(false);
 
   async function submit(values: PasswordConfirmValues) {
+    setNoPassword(false);
     try {
       await accountApi.deactivate(values.password);
       await signOut({ to: `/${locale}/login?notice=deactivated` });
     } catch (err) {
+      if (isPasswordNotSet(err)) {
+        setNoPassword(true);
+        return;
+      }
       applyApiError(form, err, { text });
       form.resetField("password", { keepError: true });
     }
@@ -64,7 +71,10 @@ function DeactivateDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) form.reset({ password: "" });
+        if (!next) {
+          form.reset({ password: "" });
+          setNoPassword(false);
+        }
         onOpenChange(next);
       }}
     >
@@ -77,6 +87,7 @@ function DeactivateDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={(event) => dialogSubmit(form, submit)(event)} noValidate className="settings-dialog-form">
+            {noPassword ? <PasswordNotSetNotice /> : null}
             <FormRootError />
             <SettingsField<PasswordConfirmValues, "password"> name="password" label={text("Confirm your password")} showValid={false}>
               {(field) => (
@@ -125,14 +136,20 @@ function CloseAccountDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   const { signOut } = useSession();
   const form = useSchemaForm(closeAccountSchema, { defaultValues: CLOSE_EMPTY });
   const [blockers, setBlockers] = React.useState<ClosureBlocker[] | null>(null);
+  const [noPassword, setNoPassword] = React.useState(false);
 
   async function submit(values: CloseAccountValues) {
     setBlockers(null);
+    setNoPassword(false);
     try {
       await accountApi.close({ password: values.password, confirmation: values.confirmation.trim(), reason: values.reason?.trim() || undefined });
       await signOut({ to: `/${locale}/login?notice=closure_scheduled` });
     } catch (err) {
       const e = toApiError(err);
+      if (e.code === "password_not_set") {
+        setNoPassword(true);
+        return;
+      }
       if (e.code === "closure_blocked") {
         const reasons = Array.isArray(e.details?.reasons) ? (e.details.reasons as string[]) : [];
         setBlockers(reasons.filter((r): r is ClosureBlocker => r in BLOCKERS));
@@ -150,6 +167,7 @@ function CloseAccountDialog({ open, onOpenChange }: { open: boolean; onOpenChang
         if (!next) {
           form.reset(CLOSE_EMPTY);
           setBlockers(null);
+          setNoPassword(false);
         }
         onOpenChange(next);
       }}
@@ -184,6 +202,7 @@ function CloseAccountDialog({ open, onOpenChange }: { open: boolean; onOpenChang
         ) : null}
         <Form {...form}>
           <form onSubmit={(event) => dialogSubmit(form, submit)(event)} noValidate className="settings-dialog-form">
+            {noPassword ? <PasswordNotSetNotice /> : null}
             <FormRootError />
             <SettingsField<CloseAccountValues, "password"> name="password" label={text("Confirm your password")} showValid={false}>
               {(field) => (

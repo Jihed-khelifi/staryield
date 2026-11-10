@@ -10,7 +10,7 @@
  * seq beyond the contiguous head means events were missed: the gap is
  * filled from REST (`/messages/since?after_seq=`), one walk at a time.
  */
-import type { ChatMessage, ChatSession, SincePage } from "@/lib/api/types";
+import type { ChatMessage, ChatSession, ReplyPreview, SincePage } from "@/lib/api/types";
 
 /** Local delivery state of a message typed in this tab. */
 export type DeliveryState = "queued" | "sending" | "failed";
@@ -68,6 +68,10 @@ export function mergeMessages(current: UiMessage[], incoming: UiMessage[]): UiMe
       ...m,
       // Events and acks omit the viewer's bookmark flag; keep the known one.
       saved: m.saved ?? prev.saved,
+      // An event that omits the quote or the likes never erases what is known
+      // (history pages say "nobody" explicitly, see `authoritativeLikes`).
+      reply_to: m.reply_to ?? prev.reply_to,
+      liked_by: m.liked_by ?? prev.liked_by,
       pending: m.pending,
       failure: m.pending ? m.failure : undefined,
       localFile: m.pending ? (m.localFile ?? prev.localFile) : undefined,
@@ -95,10 +99,20 @@ export type Timeline = {
 
 export const EMPTY_TIMELINE: Timeline = { messages: [], headSeq: 0, loaded: false, hasOlder: false };
 
-function mergeConfirmed(current: UiMessage[], incoming: ChatMessage[]): UiMessage[] {
+/**
+ * Read paths (history, since) omit `liked_by` when nobody liked the message
+ * (§23.3), so for them an omitted list means "no likes": say so explicitly,
+ * otherwise a like removed elsewhere would survive a refetch.
+ */
+export function authoritativeLikes<T extends ChatMessage>(items: T[]): T[] {
+  return items.map((m) => (m.liked_by === undefined ? { ...m, liked_by: [] } : m));
+}
+
+function mergeConfirmed(current: UiMessage[], incoming: ChatMessage[], authoritative = false): UiMessage[] {
+  const items = authoritative ? authoritativeLikes(incoming) : incoming;
   return mergeMessages(
     current,
-    incoming.filter((m) => (m.seq ?? 0) > 0).map((m) => ({ ...m, pending: undefined })),
+    items.filter((m) => (m.seq ?? 0) > 0).map((m) => ({ ...m, pending: undefined })),
   ).filter((m) => !m.pending);
 }
 
@@ -124,21 +138,57 @@ export function oldestSeq(t: Timeline): number {
  * conversation head; events merged before it arrived are kept.
  */
 export function withNewestPage(t: Timeline, page: { items: ChatMessage[]; has_more: boolean }): Timeline {
-  const messages = mergeConfirmed(t.messages, page.items);
+  const messages = mergeConfirmed(t.messages, page.items, true);
   const pageHead = page.items.reduce((max, m) => Math.max(max, m.seq ?? 0), 0);
   return { messages, headSeq: contiguousHead(messages, Math.max(pageHead, t.loaded ? t.headSeq : 0)), loaded: true, hasOlder: page.has_more };
 }
 
 /** An older page (`before_seq`), contiguous with the oldest loaded message. */
 export function withOlderPage(t: Timeline, page: { items: ChatMessage[]; has_more: boolean }): Timeline {
-  return { ...t, messages: mergeConfirmed(t.messages, page.items), hasOlder: page.has_more };
+  return { ...t, messages: mergeConfirmed(t.messages, page.items, true), hasOlder: page.has_more };
 }
 
-/** Confirmed messages from events, acks or gap fills. */
-export function withMessages(t: Timeline, items: ChatMessage[]): Timeline {
+/**
+ * Confirmed messages from events, acks or gap fills. `authoritative`: a read
+ * path (gap fill, refetch) that lists likes completely.
+ */
+export function withMessages(t: Timeline, items: ChatMessage[], opts: { authoritative?: boolean } = {}): Timeline {
   if (items.length === 0) return t;
-  const messages = mergeConfirmed(t.messages, items);
+  const messages = mergeConfirmed(t.messages, items, opts.authoritative);
   return { ...t, messages, headSeq: t.loaded ? contiguousHead(messages, t.headSeq) : t.headSeq };
+}
+
+/**
+ * `message.liked` / the like API's answer: `liked_by` is authoritative. A
+ * message that is not loaded (older than the timeline, another conversation)
+ * is ignored: its likes arrive with the page that loads it.
+ */
+export function withLikes(t: Timeline, likes: { message_id: string; liked_by?: string[] }): Timeline {
+  const idx = t.messages.findIndex((m) => m.id === likes.message_id);
+  if (idx < 0) return t;
+  const next = likes.liked_by ?? [];
+  const prev = t.messages[idx].liked_by ?? [];
+  if (prev.length === next.length && prev.every((id, i) => id === next[i])) return t;
+  const messages = [...t.messages];
+  messages[idx] = { ...messages[idx], liked_by: next };
+  return { ...t, messages };
+}
+
+/** Text and image messages of the conversation can be answered and liked; system notices and undelivered messages cannot. */
+export function isActionable(m: UiMessage): boolean {
+  return !m.pending && (m.kind === "text" || m.kind === "image");
+}
+
+/** The quote shown for a reply to this message (§23.2): the first 140 characters of its text or caption. */
+export function replyPreviewOf(m: ChatMessage): ReplyPreview {
+  const body = m.body.trim();
+  return {
+    id: m.id,
+    seq: m.seq ?? 0,
+    sender_id: m.sender_id,
+    kind: m.kind === "image" ? "image" : "text",
+    excerpt: [...body].slice(0, 140).join(""),
+  };
 }
 
 /** Messages are missing between the contiguous head and a newer one. */

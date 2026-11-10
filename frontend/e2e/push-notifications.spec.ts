@@ -99,11 +99,19 @@ test.describe("push sign-up", () => {
     const toggle = page.getByTestId("notify-push");
     await expect(toggle).toBeEnabled();
     const stored = page.waitForResponse((res) => res.url().includes("/api/v1/me/push-subscriptions") && res.request().method() === "POST");
+    // §23.6: the switch applies at once, no "Save Changes".
+    const saved = page.waitForResponse((res) => res.url().endsWith("/api/v1/me/settings") && res.request().method() === "PATCH");
     await toggle.click();
     const res = await stored;
     expect(res.status()).toBeLessThan(300);
     expect(res.request().postDataJSON()).toMatchObject({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } });
+    const patch = await saved;
+    expect(patch.status()).toBe(200);
+    expect(patch.request().postDataJSON()).toEqual({ notifications: { push: true } });
     await expect(toggle).toBeChecked();
+    await expect(page.locator("[data-slot=save-status]").first()).not.toContainText("Unsaved changes");
+    await page.reload();
+    await expect(page.getByTestId("notify-push")).toBeChecked();
     await ctx.close();
   });
 

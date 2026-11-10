@@ -23,6 +23,7 @@ import { SkeletonList } from "@/components/ui/skeleton";
 
 import { dialogSubmit } from "./dialog-form";
 import { formatBytes, formatDateTime, formatDay } from "./format";
+import { PasswordNotSetNotice } from "./password-not-set";
 import { SettingsField } from "./settings-ui";
 
 const STATUS: Record<DataExport["status"], string> = {
@@ -92,6 +93,7 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const form = useSchemaForm(passwordConfirmSchema, { defaultValues: { password: "" } });
   const list = usePagedList((cursor, signal) => exportsApi.list(cursor, 5, signal), [open], { enabled: open });
   const [downloading, setDownloading] = React.useState<string | null>(null);
+  const [noPassword, setNoPassword] = React.useState(false);
   const active = list.items.find(inProgress);
 
   usePollExport(active?.id, open, (fresh) => {
@@ -101,11 +103,15 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   });
 
   function close(next: boolean) {
-    if (!next) form.reset({ password: "" });
+    if (!next) {
+      form.reset({ password: "" });
+      setNoPassword(false);
+    }
     onOpenChange(next);
   }
 
   async function request(values: PasswordConfirmValues) {
+    setNoPassword(false);
     try {
       const created = await exportsApi.request(values.password);
       list.prependItem(created);
@@ -113,6 +119,10 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       announce(text("We're preparing your export. This usually takes a few minutes."));
     } catch (err) {
       const e = toApiError(err);
+      if (e.code === "password_not_set") {
+        setNoPassword(true);
+        return;
+      }
       if (e.code === "export_in_progress") list.reset();
       if (e.code === "limit_reached") {
         form.setError("root.server", { type: e.code, message: text("You've reached today's export limit. Please try again later.") });
@@ -124,6 +134,7 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 
   async function download(item: DataExport, values: PasswordConfirmValues) {
     setDownloading(item.id);
+    setNoPassword(false);
     try {
       const link = await exportsApi.downloadToken(item.id, values.password);
       const blob = await exportsApi.download(item.id, link.token);
@@ -132,7 +143,8 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       toast.show({ tone: "success", message: text("Your download has started.") });
       list.replaceItem((e) => e.id === item.id, { ...item, download_count: item.download_count + 1 });
     } catch (err) {
-      applyApiError(form, err, { text });
+      if (toApiError(err).code === "password_not_set") setNoPassword(true);
+      else applyApiError(form, err, { text });
     } finally {
       setDownloading(null);
     }
@@ -152,6 +164,7 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         <p className="settings-note">{text("Notes advisors wrote about you are not included. You can ask our support team for them.")}</p>
         <Form {...form}>
           <form onSubmit={(event) => dialogSubmit(form, request)(event)} noValidate className="settings-dialog-form">
+            {noPassword ? <PasswordNotSetNotice /> : null}
             <FormRootError />
             <SettingsField<PasswordConfirmValues, "password">
               name="password"

@@ -79,6 +79,7 @@ export function ReactivationOffer({ offer, onSignedIn }: { offer: Reactivation; 
 const NOTICES: Record<string, string> = {
   deactivated: "Your account is disabled and you are signed out. Sign in again whenever you want to reactivate it.",
   closure_scheduled: "Your account will be deleted in 30 days. Sign in before then if you change your mind.",
+  google_link: "You already have a Staryield account with this e-mail. Sign in with your password once to connect Google.",
 };
 
 const noSubscription = () => () => {};

@@ -408,4 +408,65 @@ describe("OutboxController (delivery pump)", () => {
     expect(listener).toHaveBeenCalled();
     off();
   });
+
+  describe("replies (§23.2)", () => {
+    const TARGET = { id: "55555555-5555-4555-8555-555555555555", seq: 7, sender_id: "peer-1", kind: "text" as const, excerpt: "the original" };
+
+    it("the entry carries the reply (id and quote snapshot) and the optimistic bubble shows the quote", async () => {
+      const sent: OutboxEntry[] = [];
+      const { controller } = setup(async (e) => {
+        sent.push(e);
+        return delivered(e.client_msg_id, 1);
+      });
+      controller.setTarget(CONV, false);
+      const queued = controller.send({ client_msg_id: "cmid-0001", conversation_id: CONV, body: "answer", reply_to: TARGET });
+      expect(queued.reply_to).toEqual(TARGET);
+      expect(outboxMessage(queued).reply_to).toEqual(TARGET);
+      controller.setTarget(CONV, true);
+      await vi.runAllTimersAsync();
+      expect(sent[0].reply_to?.id).toBe(TARGET.id);
+    });
+
+    it("a message that is not a reply has no reply_to at all (older APIs reject unknown fields)", () => {
+      const queued = new OutboxController(USER, { storage: store }).send({ client_msg_id: "cmid-0002", conversation_id: CONV, body: "plain" });
+      expect("reply_to" in queued).toBe(false);
+      expect("reply_to" in outboxMessage(queued)).toBe(false);
+    });
+
+    it("persists and restores the reply across a refresh", () => {
+      const first = new OutboxController(USER, { now: () => clock, storage: store });
+      first.send({ client_msg_id: "cmid-0003", conversation_id: CONV, body: "answer", reply_to: TARGET });
+      const restored = new OutboxController(USER, { now: () => clock, storage: store });
+      expect(restored.getSnapshot()[0].reply_to).toEqual(TARGET);
+      expect(readOutbox(USER, clock, store)[0].reply_to).toEqual(TARGET);
+    });
+
+    it("a failed reply keeps its quote when the user retries it", async () => {
+      let attempt = 0;
+      const sent: (string | undefined)[] = [];
+      const { controller, onFailed } = setup(async (e) => {
+        sent.push(e.reply_to?.id);
+        if (++attempt === 1) throw new ApiError({ code: "reply_target_invalid", message: "gone", status: 422 });
+        return delivered(e.client_msg_id, 1);
+      });
+      controller.setTarget(CONV, true);
+      controller.send({ client_msg_id: "cmid-0004", conversation_id: CONV, body: "answer", reply_to: TARGET });
+      await vi.runAllTimersAsync();
+      expect(onFailed).toHaveBeenCalledTimes(1);
+      expect(controller.getSnapshot()[0]).toMatchObject({ state: "failed", error: "reply_target_invalid" });
+      expect(outboxMessage(controller.getSnapshot()[0]).reply_to).toEqual(TARGET);
+      controller.retry("cmid-0004");
+      await vi.runAllTimersAsync();
+      expect(sent).toEqual([TARGET.id, TARGET.id]);
+      expect(controller.getSnapshot()).toEqual([]);
+    });
+
+    it("drops a stored entry whose reply snapshot is malformed, keeps the others", () => {
+      const good = { ...entry(1), reply_to: TARGET };
+      const bad = { ...entry(2), reply_to: { id: "not-a-uuid", seq: "x", kind: "video", excerpt: 5 } };
+      store.setItem(outboxKey(USER), JSON.stringify([good, bad]));
+      expect(readOutbox(USER, NOW, store).map((e) => e.client_msg_id)).toEqual([good.client_msg_id]);
+    });
+  });
 });
+

@@ -2,7 +2,25 @@
 
 import * as React from "react";
 import { Popover } from "radix-ui";
-import { Bell, CheckCheck, Clock, Coins, ImageIcon, Megaphone, MessageCircle, MessageCircleX, ScrollText, Star, Wallet, type LucideIcon } from "lucide-react";
+import {
+  Bell,
+  CheckCheck,
+  Clock,
+  Coins,
+  CreditCard,
+  Download,
+  ImageIcon,
+  KeyRound,
+  Mail,
+  Megaphone,
+  MessageCircle,
+  MessageCircleX,
+  ScrollText,
+  Star,
+  UserCheck,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { errorMessage } from "@/lib/api/errors";
@@ -26,6 +44,16 @@ const icons: Record<string, LucideIcon> = {
   "photo.approved": ImageIcon, // advisor settings
   "photo.rejected": ImageIcon,
   broadcast: Megaphone,
+  "waitlist.available": MessageCircle,
+  "export.ready": Download,
+  "account.email_change_requested": Mail,
+  "account.email_changed": Mail,
+  "account.reactivated": UserCheck,
+  "account.google_linked": KeyRound,
+  "account.google_unlinked": KeyRound,
+  "subscription.renewed": CreditCard,
+  "subscription.payment_failed": CreditCard,
+  "subscription.canceled": CreditCard,
 };
 
 function useMinuteTick(active: boolean) {

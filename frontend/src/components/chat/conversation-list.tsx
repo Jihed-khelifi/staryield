@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { errorMessage, type ApiError } from "@/lib/api/errors";
 import type { Conversation } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
+import { useClientNames } from "@/lib/chat/client-alias-provider";
 import { ReaderAvatar } from "@/components/chat/reader-avatar";
 import { systemCopy } from "@/components/chat/chat-model";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -79,6 +80,9 @@ export function ConversationList({
   const { t, text } = useI18n();
   const cards = variant === "cards";
   const rows = excludeId ? conversations.filter((c) => c.id !== excludeId) : conversations;
+  // Advisors see their private nickname for each client (§23.4).
+  const clientIds = React.useMemo(() => (viewerRole === "psychic" ? rows.map((c) => c.counterpart.id) : []), [viewerRole, rows]);
+  const { nameFor } = useClientNames(clientIds);
 
   if (status === "loading" && conversations.length === 0) return <ListSkeleton label={text("Loading your conversations…")} />;
   if (status === "error" && conversations.length === 0 && error) {
@@ -114,6 +118,7 @@ export function ConversationList({
                 ? `📷 ${last.body.trim() || text("Photo")}`
                 : last.body
             : "";
+          const shownName = viewerRole === "psychic" ? nameFor(conversation.counterpart.id, conversation.counterpart.name) : conversation.counterpart.name;
           const live = conversation.open_session?.status;
           const status = viewerRole === "psychic" ? conversation.counterpart.status : undefined;
           const online = status ? status !== "offline" : null;
@@ -133,12 +138,12 @@ export function ConversationList({
                 )}
               >
                 <span className="relative shrink-0">
-                  <ReaderAvatar initial={conversation.counterpart.name.charAt(0).toUpperCase()} image={conversation.counterpart.avatar_url} />
+                  <ReaderAvatar initial={shownName.charAt(0).toUpperCase()} image={conversation.counterpart.avatar_url} />
                   {online !== null ? <span className="presence-dot presence-dot-avatar" data-online={online || undefined} aria-hidden /> : null}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden text-ink">
                   <span className="conversation-name block truncate font-serif text-base font-bold">
-                    {conversation.counterpart.name}
+                    {shownName}
                     {advisorStatus ? ` · ${text(statusCopy[advisorStatus] ?? advisorStatus)}` : null}
                     {online !== null ? <span className="sr-only">{` · ${text(online ? "Online" : "Offline")}`}</span> : null}
                   </span>

@@ -20,12 +20,21 @@ export function PlacementsOverview({ placements, timeKnown }: { placements: Plac
           className="placement-grid"
           listLabel={text("Placements")}
           render={(p) => (
-            <li key={`${p.body}-${p.sign}`} className="placement" title={text(p.body)}>
+            <li key={p.body} className={p.unknown ? "placement placement-unknown" : "placement"} title={text(p.body)} data-testid={`placement-${p.body.toLowerCase()}`}>
               <span aria-hidden className="placement-glyph">
                 {p.glyph}
               </span>
-              <span className="sr-only">{text("{value0} in", { value0: text(p.body) })} </span>
-              <span>{text(p.sign)}</span>
+              {p.unknown ? (
+                <>
+                  <span className="sr-only">{text(p.body === "Ascendant" ? "Rising sign unknown" : "{value0} sign unknown", { value0: text(p.body) })}</span>
+                  <span aria-hidden>{text("Unknown")}</span>
+                </>
+              ) : (
+                <>
+                  <span className="sr-only">{text("{value0} in", { value0: text(p.body) })} </span>
+                  <span>{text(p.sign)}</span>
+                </>
+              )}
               {p.retrograde ? <span className="sr-only"> {text("Retrograde")}</span> : null}
             </li>
           )}

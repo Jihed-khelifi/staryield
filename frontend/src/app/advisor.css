@@ -558,3 +558,17 @@
     var(--cream);
   background-blend-mode: normal, overlay, normal;
 }
+
+/* The name on the account, under a nickname (§23.4). */
+.client-identity-account {
+  margin-top: 2px;
+  color: var(--panel-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+/* A placement slot whose sign is unknown (no birth time): kept in place so the rows never shift (§23.5). */
+.placement-unknown {
+  color: var(--panel-secondary);
+  font-style: italic;
+}

@@ -105,4 +105,53 @@ describe("useConversationTimeline", () => {
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current.timeline.messages).toHaveLength(2);
   });
+
+  it("applies message.liked as authoritative, ignores messages that are not loaded and other conversations", async () => {
+    history.mockResolvedValue({ items: range(5, 8), has_more: true, next_before_seq: 5 });
+    const { result } = renderHook(() => useConversationTimeline("conv"));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    const likedBy = () => result.current.timeline.messages.map((m) => m.liked_by ?? []);
+    act(() => result.current.applyLikes({ message_id: "m6", conversation_id: "conv", liked_by: ["a", "b"] }));
+    expect(likedBy()).toEqual([[], ["a", "b"], [], []]);
+    // Older than the loaded page, or another conversation: nothing happens.
+    act(() => result.current.applyLikes({ message_id: "m1", conversation_id: "conv", liked_by: ["a"] }));
+    act(() => result.current.applyLikes({ message_id: "m7", conversation_id: "other", liked_by: ["a"] }));
+    expect(likedBy()).toEqual([[], ["a", "b"], [], []]);
+    act(() => result.current.applyLikes({ message_id: "m6", conversation_id: "conv", liked_by: [] }));
+    expect(likedBy()).toEqual([[], [], [], []]);
+  });
+
+  it("an event that omits likes keeps them; the refetch of the newest page makes likes right again", async () => {
+    history.mockResolvedValueOnce({ items: [msg(1), { ...msg(2), liked_by: ["a"] }], has_more: false });
+    const { result } = renderHook(() => useConversationTimeline("conv"));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    act(() => result.current.receive([msg(2)]));
+    expect(result.current.timeline.messages[1].liked_by).toEqual(["a"]);
+    // The like was removed while the socket was down: the page no longer lists it.
+    history.mockResolvedValueOnce({ items: [msg(1), msg(2)], has_more: false });
+    act(() => result.current.refreshNewest());
+    await waitFor(() => expect(result.current.timeline.messages[1].liked_by).toEqual([]));
+    expect(history).toHaveBeenLastCalledWith("conv", undefined, 50);
+    expect(result.current.timeline.messages).toHaveLength(2);
+  });
+
+  it("loadOlder says what it did: the page, busy while another load runs, none at the start, error on failure", async () => {
+    history.mockImplementation(async (_c, before) => (before ? { items: range(1, 4), has_more: false } : { items: range(5, 8), has_more: true, next_before_seq: 5 }));
+    const { result } = renderHook(() => useConversationTimeline("conv"));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    const first = result.current.loadOlder();
+    const second = result.current.loadOlder();
+    await expect(second).resolves.toEqual({ ok: false, reason: "busy" });
+    const done = await act(() => first);
+    expect(done).toMatchObject({ ok: true });
+    expect((done as { items: ChatMessage[] }).items.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
+    await expect(result.current.loadOlder()).resolves.toEqual({ ok: false, reason: "none" });
+
+    history.mockReset();
+    history.mockResolvedValueOnce({ items: range(5, 8), has_more: true, next_before_seq: 5 }).mockRejectedValueOnce(new Error("offline"));
+    const again = renderHook(() => useConversationTimeline("conv2"));
+    await waitFor(() => expect(again.result.current.status).toBe("ready"));
+    await expect(again.result.current.loadOlder()).resolves.toEqual({ ok: false, reason: "error" });
+  });
 });
+

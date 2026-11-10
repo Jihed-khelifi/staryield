@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { chatApi } from "@/lib/api/endpoints";
 import { toApiError, type ApiError } from "@/lib/api/errors";
-import type { ChatMessage } from "@/lib/api/types";
+import type { ChatMessage, MessageLikes } from "@/lib/api/types";
 import { logger } from "@/lib/logger";
 import {
   Backfill,
@@ -12,6 +12,7 @@ import {
   hasGap,
   isGapAfter,
   oldestSeq,
+  withLikes,
   withMessages,
   withNewestPage,
   withOlderPage,
@@ -26,6 +27,9 @@ const FILL_RETRY_MS = 4_000;
 
 export type TimelineStatus = "idle" | "loading" | "ready" | "error";
 
+/** What `loadOlder` did: the page it added, or why it did nothing. */
+export type LoadOlderResult = { ok: true; items: ChatMessage[] } | { ok: false; reason: "busy" | "none" | "error" };
+
 export type ConversationTimeline = {
   timeline: Timeline;
   status: TimelineStatus;
@@ -33,13 +37,17 @@ export type ConversationTimeline = {
   loadingOlder: boolean;
   olderError: ApiError | null;
   /** Load the page before the oldest loaded message (`before_seq`). */
-  loadOlder: () => Promise<void>;
+  loadOlder: () => Promise<LoadOlderResult>;
   /** Merge confirmed messages (events, acks); fills a gap if one appears. */
   receive: (messages: ChatMessage[]) => void;
   /** Fetch whatever was missed (reconnect, resync, gap). */
   fillGaps: () => void;
   /** Reload the newest page from scratch. */
   reload: () => void;
+  /** `message.liked` or the like API's answer: `liked_by` is authoritative (a message that is not loaded is ignored). */
+  applyLikes: (likes: Pick<MessageLikes, "message_id" | "conversation_id" | "liked_by">) => void;
+  /** Fetch the newest page again and merge it (likes included) without dropping older pages or the scroll position. */
+  refreshNewest: () => void;
 };
 
 type State = {
@@ -117,7 +125,7 @@ export function useConversationTimeline(
       apply: (items) => {
         const known = new Set(timelineRef.current.messages.map((m) => m.id));
         const fresh = items.filter((m) => !known.has(m.id));
-        update(key, (t) => withMessages(t, items));
+        update(key, (t) => withMessages(t, items, { authoritative: true }));
         if (fresh.length) backfilledRef.current?.(fresh);
       },
       // Too much was missed: start again from the newest page.
@@ -199,18 +207,44 @@ export function useConversationTimeline(
     [update, requestFill],
   );
 
+  const applyLikes = React.useCallback(
+    (likes: Pick<MessageLikes, "message_id" | "conversation_id" | "liked_by">) => {
+      const key = convRef.current;
+      if (!key || likes.conversation_id !== key) return;
+      update(key, (t) => withLikes(t, likes));
+    },
+    [update],
+  );
+
+  const refreshNewest = React.useCallback(() => {
+    const key = convRef.current;
+    if (!key || !timelineRef.current.loaded) return;
+    chatApi.history(key, undefined, HISTORY_PAGE_SIZE).then(
+      (page) => update(key, (t) => withMessages(t, page.items, { authoritative: true })),
+      (err) => logger.debug("chat: refresh failed", { code: String(toApiError(err).code) }),
+    );
+  }, [update]);
+
   const olderLoading = older.conv === conversationId && older.loading;
-  const loadOlder = React.useCallback(async () => {
+  // Guards a second call made before React re-rendered `olderLoading`.
+  const olderInFlight = React.useRef(false);
+  const loadOlder = React.useCallback(async (): Promise<LoadOlderResult> => {
     const key = convRef.current;
     const t = timelineRef.current;
-    if (!key || !t.loaded || !t.hasOlder || olderLoading) return;
+    if (!key || !t.loaded || !t.hasOlder) return { ok: false, reason: "none" };
+    if (olderLoading || olderInFlight.current) return { ok: false, reason: "busy" };
+    olderInFlight.current = true;
     setOlder({ conv: key, loading: true, error: null });
     try {
       const page = await chatApi.history(key, oldestSeq(t) || undefined, HISTORY_PAGE_SIZE);
       update(key, (cur) => withOlderPage(cur, page));
       setOlder({ conv: key, loading: false, error: null });
+      return { ok: true, items: page.items };
     } catch (err) {
       setOlder({ conv: key, loading: false, error: toApiError(err) });
+      return { ok: false, reason: "error" };
+    } finally {
+      olderInFlight.current = false;
     }
   }, [olderLoading, update]);
 
@@ -226,5 +260,7 @@ export function useConversationTimeline(
     receive,
     fillGaps,
     reload,
+    applyLikes,
+    refreshNewest,
   };
 }

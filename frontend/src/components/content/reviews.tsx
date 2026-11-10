@@ -4,10 +4,10 @@ import { useI18n } from "@/i18n/i18n-provider";
 /* eslint-disable @next/next/no-img-element */
 import { useSignupFreeMinutes } from "@/lib/site-config/site-config-provider";
 import { ContentLink } from "@/components/content/content-link";
+import { TrustpilotReviewCollector } from "@/components/reviews/trustpilot-review-collector";
 const assetPathPrefix = "https://assets.staryield.net/assets/figma";
 const imgMediaReviews = `${assetPathPrefix}/fb9ee.jpg`;
 const imgInstanceStar = `${assetPathPrefix}/e7e99.png`;
-const imgInstanceStar05 = `${assetPathPrefix}/1c3f4.png`;
 const imgDividerHorizontal = `${assetPathPrefix}/2e925.svg`;
 const imgContainerCheck = `${assetPathPrefix}/ceeda.svg`;
 const imgDividerHorizontal1 = `${assetPathPrefix}/5455a.svg`;
@@ -21,7 +21,7 @@ export default function ScreenDesktopReviews() {
       data-name="Screen / Desktop / Reviews"
     >
       <div
-        className="bg-[var(--cream)] border-[var(--cream)] border-b border-solid content-stretch flex flex-col gap-[16px] h-[252px] items-center overflow-clip pb-[80px] pt-[45px] px-[120px] relative shrink-0 w-full"
+        className="bg-[var(--cream)] border-[var(--cream)] border-b border-solid content-stretch flex flex-col gap-[16px] min-h-[252px] items-center overflow-clip pb-[64px] pt-[45px] px-[120px] relative shrink-0 w-full"
         data-node-id="342:1476"
         data-name="Container / Review Stats Hero"
       >
@@ -38,111 +38,15 @@ export default function ScreenDesktopReviews() {
           </h1>
         </div>
         <div
-          className="content-stretch flex flex-col gap-[6px] items-center justify-center relative shrink-0"
-          data-node-id="378:1501"
-          data-name="Content Group / 17,419 reviews"
+          className="content-stretch flex w-full max-w-[560px] flex-col gap-[16px] items-center relative shrink-0"
+          data-name="Content Group / Trustpilot"
         >
-          <div
-            className="content-stretch flex flex-col gap-[8px] items-center relative shrink-0"
-            data-node-id="342:1481"
-            data-name="Control / 17,419 reviews"
-          >
-            <p
-              className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[20px] text-black whitespace-nowrap"
-              data-node-id="342:1482"
-            >
-              {text("17,419 reviews ")}
-            </p>
-            <div
-              className="content-stretch flex gap-[12px] items-center relative shrink-0"
-              data-node-id="342:1483"
-              data-name="Control / | 4.4 rating"
-            >
-              <div
-                className="content-stretch flex gap-[4px] items-center relative shrink-0"
-                data-node-id="342:1484"
-                data-name="Layout / | 4.4 Rating"
-              >
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1485"
-                  data-name="Instance / Star"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1487"
-                  data-name="Instance / Star / 02"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1489"
-                  data-name="Instance / Star / 03"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1491"
-                  data-name="Instance / Star / 04"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1493"
-                  data-name="Instance / Star / 05"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar05}
-                    width="34.07"
-                  />
-                </div>
-              </div>
-              <p
-                className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[22px] text-black whitespace-nowrap"
-                data-node-id="342:1495"
-              >
-                {text("| 4.4 rating ")}
-              </p>
-            </div>
-          </div>
-          <p
-            className="[word-break:break-word] font-serif font-light leading-[normal] relative shrink-0 text-[24px] text-black text-center tracking-[0.72px] whitespace-nowrap"
-            data-node-id="342:1496"
-          >
-            {text("Reviews from our customers ")}
+          <p className="[word-break:break-word] font-serif font-light leading-[normal] text-[20px] text-black text-center">
+            {text(
+              "Read what people say about Staryield, or share your own experience.",
+            )}
           </p>
+          <TrustpilotReviewCollector placement="reviews" />
         </div>
       </div>
       <section

@@ -84,6 +84,10 @@ type AuthService struct {
 	// free minutes (SiteService.SignupFreeMinutes); nil falls back to
 	// cfg.SignupFreeMinutes.
 	signupMinutes func(ctx context.Context) int
+	// revisions 4.0: Sign in with Google (set by NewGoogleAuth); nil when absent.
+	google *GoogleAuth
+	// push removes browser push subscriptions when sessions end (auth_push.go).
+	push sessionPush
 }
 
 // SetSignupOffer installs the sign-up offer lookup (revisions 3.0).
@@ -171,35 +175,81 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*AuthResu
 		return nil, apperror.Validation(fields)
 	}
 	if name == "" {
-		local := email[:strings.IndexByte(email, '@')]
-		if len(local) > 40 {
-			local = local[:40]
-		}
-		name = local
+		name = defaultDisplayName(email)
 	}
 	hash, err := s.hasher.HashContext(ctx, in.Password)
 	if err != nil {
 		return nil, hashError(err)
 	}
+	acct, err := s.createAccount(ctx, newAccount{Email: email, PasswordHash: hash, DisplayName: name, Locale: in.Locale, Birth: birth})
+	if err != nil {
+		return nil, mapRepoErr(err, "User")
+	}
+	return acct.Result, nil
+}
 
+// defaultDisplayName is the e-mail's local part (at most 40 characters).
+func defaultDisplayName(email string) string {
+	local := email[:strings.IndexByte(email, '@')]
+	if len(local) > 40 {
+		local = local[:40]
+	}
+	return local
+}
+
+// newAccount describes a client account to create. Sign-up with an e-mail
+// and password and sign-up with Google share createAccount, so the wallet,
+// the sign-up offer, the bonus credits, the profile and the terms timestamp
+// can never differ between them.
+type newAccount struct {
+	Email string
+	// PasswordHash is '' for an account created with Google (no password).
+	PasswordHash string
+	DisplayName  string
+	Locale       string
+	Birth        *time.Time
+	// EmailVerified stamps email_verified_at (Google vouches for the address).
+	EmailVerified bool
+	// Provider names the sign-up method for analytics ("" = password).
+	Provider string
+	// InTx runs inside the creating transaction after the wallet exists and
+	// before the session is issued (e.g. linking the Google identity).
+	InTx func(ctx context.Context, user *domain.User) error
+}
+
+// createdAccount is the outcome of createAccount.
+type createdAccount struct {
+	User   *domain.User
+	Result *AuthResult
+}
+
+// createAccount creates a client account (terms accepted now) with its
+// profile, wallet, sign-up offer and bonus, and signs it in, in one
+// transaction. A taken address is the apperror email_taken; errors from InTx
+// are returned as they are.
+func (s *AuthService) createAccount(ctx context.Context, in newAccount) (*createdAccount, error) {
+	now := s.clock.Now()
 	user := &domain.User{
-		ID: domain.NewID(), Email: email, PasswordHash: hash, Role: domain.RoleClient, Status: domain.UserActive,
-		DisplayName: name, Locale: normalizeLocale(in.Locale), TermsAcceptedAt: now,
+		ID: domain.NewID(), Email: in.Email, PasswordHash: in.PasswordHash, Role: domain.RoleClient, Status: domain.UserActive,
+		DisplayName: in.DisplayName, Locale: normalizeLocale(in.Locale), TermsAcceptedAt: now,
 		CreatedAt: now, UpdatedAt: now,
+	}
+	if in.EmailVerified {
+		user.EmailVerifiedAt = &now
 	}
 	var result *AuthResult
 	signupMinutes := s.cfg.SignupFreeMinutes // revisions 3.0: site settings
 	if s.signupMinutes != nil {
 		signupMinutes = max(s.signupMinutes(ctx), 0)
 	}
-	err = s.tx.WithinTx(ctx, func(ctx context.Context) error {
+	err := s.tx.WithinTx(ctx, func(ctx context.Context) error {
 		if err := s.users.Create(ctx, user); err != nil {
 			if errors.Is(err, repository.ErrDuplicate) {
 				return apperror.Conflict(apperror.CodeEmailTaken, "An account with this email already exists.")
 			}
 			return err
 		}
-		if err := s.users.CreateProfile(ctx, newProfile(user.ID, birth, now)); err != nil {
+		if err := s.users.CreateProfile(ctx, newProfile(user.ID, in.Birth, now)); err != nil {
 			return err
 		}
 		if err := s.wallets.Create(ctx, &domain.Wallet{UserID: user.ID, FreeMinutes: signupMinutes, UpdatedAt: now}); err != nil {
@@ -214,18 +264,27 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*AuthResu
 				return err
 			}
 		}
+		if in.InTx != nil {
+			if err := in.InTx(ctx, user); err != nil {
+				return err
+			}
+		}
 		var err error
 		result, err = s.issueSession(ctx, user, uuid.Nil)
 		return err
 	})
 	if err != nil {
-		return nil, mapRepoErr(err, "User")
+		return nil, err
 	}
 	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: user.ID, Role: user.Role})
-	s.tracker.Track(ctx, "user.registered", map[string]any{"role": string(user.Role), "locale": user.Locale, "has_birth_date": birth != nil,
-		"signup_free_minutes": signupMinutes})
+	props := map[string]any{"role": string(user.Role), "locale": user.Locale, "has_birth_date": in.Birth != nil,
+		"signup_free_minutes": signupMinutes}
+	if in.Provider != "" {
+		props["provider"] = in.Provider
+	}
+	s.tracker.Track(ctx, "user.registered", props)
 	logger.FromContext(ctx).Info("user registered", zap.String("user_id", user.ID.String()))
-	return result, nil
+	return &createdAccount{User: user, Result: result}, nil
 }
 
 func newProfile(userID uuid.UUID, birth *time.Time, now time.Time) *domain.Profile {
@@ -240,24 +299,60 @@ func (s *AuthService) throttleKey(email string) string {
 // repeated failures. Unknown e-mails and wrong passwords are
 // indistinguishable in both response and timing.
 func (s *AuthService) Login(ctx context.Context, rawEmail, password string) (*AuthResult, error) {
+	res, _, err := s.LoginLinking(ctx, rawEmail, password, "")
+	return res, err
+}
+
+// LoginLinking is Login for a browser that may hold a Google sign-in cookie
+// (revisions 4.0, §23.1): when the cookie waits for a link_password whose
+// e-mail is this account's, and the password was right, the Google identity
+// is linked in the same transaction as the session. linked is "google" then.
+func (s *AuthService) LoginLinking(ctx context.Context, rawEmail, password, googleCookie string) (res *AuthResult, linked string, err error) {
 	user, err := s.VerifyCredentials(ctx, rawEmail, password)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if !user.Active() {
 		s.tracker.Track(ctx, "user.login_failed", map[string]any{"reason": string(user.Status)})
 		if err := s.offerReactivation(ctx, user); err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		return nil, apperror.AccountDisabled()
+		return nil, "", apperror.AccountDisabled()
 	}
-	result, err := s.issueSession(ctx, user, uuid.Nil)
+	var link *googleLink
+	if googleCookie != "" && s.google != nil {
+		link = s.google.takeLink(ctx, user, googleCookie)
+	}
+	var result *AuthResult
+	if link == nil {
+		result, err = s.issueSession(ctx, user, uuid.Nil)
+	} else {
+		err = s.tx.WithinTx(ctx, func(ctx context.Context) error {
+			if err := s.google.linkInTx(ctx, user, link); err != nil {
+				return err
+			}
+			var err error
+			result, err = s.issueSession(ctx, user, uuid.Nil)
+			return err
+		})
+	}
+	if errors.Is(err, repository.ErrIdentityTaken) {
+		// The Google identity was linked elsewhere in the meantime (the
+		// transaction rolled back): the password was right, so sign in
+		// without linking.
+		link = nil
+		result, err = s.issueSession(ctx, user, uuid.Nil)
+	}
 	if err != nil {
-		return nil, apperror.Internal(err)
+		return nil, "", apperror.Internal(err)
 	}
 	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: user.ID, Role: user.Role})
 	s.tracker.Track(ctx, "user.logged_in", map[string]any{"role": string(user.Role)})
-	return result, nil
+	if link != nil {
+		s.google.afterLinked(ctx, user, link.Email, "password_login")
+		linked = domain.ProviderGoogle
+	}
+	return result, linked, nil
 }
 
 // VerifyCredentials checks an e-mail and password with lockout, constant
@@ -293,6 +388,16 @@ func (s *AuthService) VerifyCredentials(ctx context.Context, rawEmail, password 
 			return nil, hashError(err)
 		}
 		s.recordFailure(ctx, key, "unknown_email")
+		return nil, apperror.InvalidCredentials()
+	}
+	if !user.HasPassword() {
+		// An account created with Google has no password: nothing can match
+		// it. Same work, same answer and same lockout budget as a wrong
+		// password, so the response and its timing reveal nothing.
+		if err := s.hasher.VerifyDummyContext(ctx, password); err != nil {
+			return nil, hashError(err)
+		}
+		s.recordFailure(ctx, key, "no_password")
 		return nil, apperror.InvalidCredentials()
 	}
 	needsRehash, err := s.hasher.VerifyContext(ctx, password, user.PasswordHash)
@@ -531,7 +636,7 @@ func (s *AuthService) revokeAccess(ctx context.Context, userID uuid.UUID) {
 
 // Logout signs this device out: its refresh-token family is revoked, its
 // access token stops working at once and its realtime connections close.
-func (s *AuthService) Logout(ctx context.Context, raw string) error {
+func (s *AuthService) logout(ctx context.Context, raw, pushEndpoint string) error {
 	if raw == "" || len(raw) > 128 {
 		return nil
 	}
@@ -555,6 +660,7 @@ func (s *AuthService) Logout(ctx context.Context, raw string) error {
 	}
 	if signedOut != nil {
 		s.afterFamilyRevoked(ctx, signedOut.UserID, signedOut.FamilyID)
+		s.endPushSubscription(ctx, signedOut.UserID, pushEndpoint)
 	}
 	return nil
 }
@@ -564,6 +670,7 @@ func (s *AuthService) LogoutAll(ctx context.Context, userID uuid.UUID) error {
 	if _, err := s.tokens.RevokeAllForUser(ctx, userID, "logout_all", s.clock.Now()); err != nil {
 		return apperror.Internal(err)
 	}
+	s.endPushSessions(ctx, userID)
 	s.revokeAccess(ctx, userID)
 	s.tracker.Track(ctx, "user.logged_out_all", nil)
 	return nil
@@ -670,6 +777,7 @@ func (s *AuthService) ResetPassword(ctx context.Context, raw, password string) e
 	if err != nil {
 		return mapRepoErr(err, "Reset token")
 	}
+	s.endPushSessions(ctx, userID)
 	s.InvalidateStatus(ctx, userID)
 	warnErr(ctx, "auth: realtime revoke", s.events.Revoke(ctx, userID))
 	s.tracker.Track(reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: userID}), "password.reset_completed", nil)
@@ -682,6 +790,9 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, curr
 	user, err := s.users.GetByID(ctx, userID)
 	if err != nil {
 		return nil, mapRepoErr(err, "User")
+	}
+	if !user.HasPassword() {
+		return nil, apperror.PasswordNotSet()
 	}
 	if _, err := s.hasher.VerifyContext(ctx, current, user.PasswordHash); err != nil {
 		if hasherBusy(err) {
@@ -719,6 +830,7 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, curr
 	if err != nil {
 		return nil, mapRepoErr(err, "User")
 	}
+	s.endPushSessions(ctx, user.ID)
 	s.InvalidateStatus(ctx, user.ID)
 	warnErr(ctx, "auth: realtime revoke", s.events.Revoke(ctx, user.ID))
 	s.tracker.Track(ctx, "password.changed", nil)

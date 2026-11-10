@@ -11,8 +11,10 @@ import { toApiError } from "@/lib/api/errors";
 import { useSession } from "@/lib/auth/session-provider";
 import { applyApiError } from "@/lib/forms/server-errors";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
+import { nextForApi } from "@/lib/auth/google";
 import { safeNext } from "@/lib/navigation";
 import { loginSchema, type LoginValues } from "@/lib/schemas/auth";
+import { useToast } from "@/components/feedback/toast-provider";
 import { FieldRow } from "@/components/ui/field";
 import { Form, FormRootError } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -21,12 +23,16 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { ReactivationOffer, LoginNotice, reactivationFrom, type Reactivation } from "@/components/forms/auth/reactivation-offer";
 
 import { AuthCard, AuthShell, readSignupEmail, useCountdown } from "./auth-card";
+import { AuthDivider } from "./auth-divider";
+import { GoogleButton, useGoogleAvailable } from "./google-button";
 
 /** Sign in. Wrong credentials stay a form-level error (never says which field). */
 export function LoginForm() {
   const { text, locale } = useI18n();
   const router = useRouter();
   const { setUser } = useSession();
+  const toast = useToast();
+  const googleAvailable = useGoogleAvailable();
   const form = useSchemaForm(loginSchema, { defaultValues: { email: "", password: "" } });
   const [lockedFor, setLockedFor] = React.useState<number | undefined>(undefined);
   const left = useCountdown(lockedFor);
@@ -44,6 +50,8 @@ export function LoginForm() {
     try {
       const res = await authApi.login(values.email.trim(), values.password);
       setUser(res.user);
+      // A password sign-in that also connected the Google identity waiting in this browser (§23.1).
+      if (res.linked === "google") toast.show({ tone: "success", message: text("Google is now connected.") });
       const fallback = res.user.role === "psychic" ? `/${locale}/chatroom` : `/${locale}/profile`;
       router.push(safeNext(window.location.search, locale) ?? fallback);
     } catch (err) {
@@ -129,6 +137,19 @@ export function LoginForm() {
           </div>
         </AuthCard>
       </Form>
+      {googleAvailable ? (
+        <div className="mt-5 w-full max-w-[354px] text-center">
+          <AuthDivider />
+          <GoogleButton
+            intent="signin"
+            next={() => nextForApi(window.location.search, locale)}
+            onError={(error) => {
+              applyApiError(form, error, { text });
+              track("error_displayed", { code: String(error.code), step: "login" });
+            }}
+          />
+        </div>
+      ) : null}
     </AuthShell>
   );
 }

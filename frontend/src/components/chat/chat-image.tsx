@@ -126,6 +126,7 @@ export function ChatImage({ attachment, file, alt, caption, compact = false, cla
       <button
         ref={frameRef}
         type="button"
+        data-no-tap
         className={cn("chat-image-frame", !ready && "chat-image-loading", className)}
         style={frameStyle}
         onClick={() => url && setOpen(true)}

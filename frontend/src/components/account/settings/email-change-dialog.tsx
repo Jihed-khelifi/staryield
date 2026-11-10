@@ -15,6 +15,7 @@ import { Form, FormRootError } from "@/components/ui/form";
 import { PasswordInput } from "@/components/ui/password-input";
 
 import { dialogSubmit } from "./dialog-form";
+import { PasswordNotSetNotice, isPasswordNotSet } from "./password-not-set";
 import { SettingsField } from "./settings-ui";
 
 const EMPTY: EmailChangeValues = { email: "", password: "" };
@@ -39,23 +40,31 @@ export function EmailChangeDialog({
   const { text } = useI18n();
   const form = useSchemaForm(emailChangeSchema, { defaultValues: EMPTY, context: { currentEmail } });
   const [sentTo, setSentTo] = React.useState<string | null>(null);
+  const [noPassword, setNoPassword] = React.useState(false);
 
   function change(next: boolean) {
     if (!next) {
       form.reset(EMPTY);
       setSentTo(null);
+      setNoPassword(false);
     }
     onOpenChange(next);
   }
 
   async function submit(values: EmailChangeValues) {
     const email = values.email.trim();
+    setNoPassword(false);
     try {
       await emailChangeApi.request(email, values.password);
       setSentTo(email);
       form.reset(EMPTY);
       onRequested();
     } catch (err) {
+      // Google-only account: offer to create a password instead of a dead end.
+      if (isPasswordNotSet(err)) {
+        setNoPassword(true);
+        return;
+      }
       applyApiError(form, err, { text });
       form.resetField("password", { keepError: true });
     }
@@ -88,6 +97,7 @@ export function EmailChangeDialog({
         ) : (
           <Form {...form}>
             <form onSubmit={(event) => dialogSubmit(form, submit)(event)} noValidate className="settings-dialog-form">
+              {noPassword ? <PasswordNotSetNotice email={currentEmail} /> : null}
               <FormRootError />
               <SettingsField<EmailChangeValues, "email"> name="email" label={text("New email address")}>
                 {(field) => (

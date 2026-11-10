@@ -129,7 +129,11 @@ func (n *NotificationChannels) Deliver(ctx context.Context, rows []domain.Notifi
 	if !relevant {
 		return
 	}
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	timeout := 20 * time.Second
+	if rows[0].BroadcastID != nil {
+		timeout = 2 * time.Minute // a chunk of a broadcast may wait for push workers
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	contacts, err := n.contacts.Contacts(ctx, ids)
 	if err != nil {
@@ -158,7 +162,12 @@ func (n *NotificationChannels) Deliver(ctx context.Context, rows []domain.Notifi
 			}
 		}
 		if n.push != nil && p.wantsPush(c) {
-			n.push.NotifyUser(row.UserID, locale, row)
+			if row.BroadcastID != nil {
+				// Broadcast fan-out is paced by the push workers (bulk lane).
+				n.push.NotifyUserWait(ctx, row.UserID, locale, row)
+			} else {
+				n.push.NotifyUser(row.UserID, locale, row)
+			}
 		}
 	}
 	if len(emails) > 0 {

@@ -176,10 +176,15 @@ const (
 	Delivered Outcome = iota
 	// Gone: the subscription expired or was revoked (404/410); delete it.
 	Gone
-	// Throttled: the push service asked to slow down (429).
+	// Throttled: the push service asked to slow down (429). Transient: the
+	// message is retried after RetryAfter.
 	Throttled
-	// Failed: any other error (counted towards dropping the subscription).
+	// Failed: the push service rejected the request (400, 401, 403, 413 and
+	// other client errors); counted towards dropping the subscription.
 	Failed
+	// Transient: a network error, timeout or 5xx. Retried with backoff, never
+	// counted towards dropping the subscription.
+	Transient
 )
 
 // Result is the outcome of one send.
@@ -250,19 +255,35 @@ func (w *WebPush) Send(ctx context.Context, sub Subscription, m Message) Result 
 		TTL: ttlSeconds(m.TTL, w.cfg.TTL), Urgency: urgency, Topic: topic(m.Topic),
 	})
 	if err != nil {
-		return Result{Outcome: Failed}
+		return Classify(0, err, "")
 	}
 	defer res.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 16<<10))
-	switch {
-	case res.StatusCode >= 200 && res.StatusCode < 300:
-		return Result{Outcome: Delivered, Status: res.StatusCode}
-	case res.StatusCode == http.StatusNotFound || res.StatusCode == http.StatusGone:
-		return Result{Outcome: Gone, Status: res.StatusCode}
-	case res.StatusCode == http.StatusTooManyRequests:
-		return Result{Outcome: Throttled, Status: res.StatusCode, RetryAfter: retryAfter(res.Header.Get("Retry-After"))}
+	return Classify(res.StatusCode, nil, res.Header.Get("Retry-After"))
+}
+
+// Classify maps a push service answer to a Result:
+//
+//	2xx            Delivered
+//	404, 410       Gone (remove the subscription)
+//	429            Throttled (transient, honours Retry-After)
+//	err, 408, 5xx  Transient (retry; never counts towards removal)
+//	400, 401, 403, 413 and any other status  Failed (counts towards removal)
+func Classify(status int, err error, retryAfterHeader string) Result {
+	if err != nil {
+		return Result{Outcome: Transient}
 	}
-	return Result{Outcome: Failed, Status: res.StatusCode}
+	switch {
+	case status >= 200 && status < 300:
+		return Result{Outcome: Delivered, Status: status}
+	case status == http.StatusNotFound || status == http.StatusGone:
+		return Result{Outcome: Gone, Status: status}
+	case status == http.StatusTooManyRequests:
+		return Result{Outcome: Throttled, Status: status, RetryAfter: retryAfter(retryAfterHeader)}
+	case status == http.StatusRequestTimeout || status >= 500:
+		return Result{Outcome: Transient, Status: status, RetryAfter: retryAfter(retryAfterHeader)}
+	}
+	return Result{Outcome: Failed, Status: status}
 }
 
 // ttlSeconds picks the message TTL (or the default when 0), rounded up to
@@ -348,3 +369,6 @@ func GenerateKeys() (publicKey, privateKey string, err error) {
 	}
 	return pub, priv, nil
 }
+
+// Retryable reports whether the send should be tried again later.
+func (r Result) Retryable() bool { return r.Outcome == Transient || r.Outcome == Throttled }

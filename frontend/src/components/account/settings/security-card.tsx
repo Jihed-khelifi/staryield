@@ -4,11 +4,12 @@ import * as React from "react";
 import { useWatch } from "react-hook-form";
 
 import { useI18n } from "@/i18n/i18n-provider";
-import { authApi } from "@/lib/api/endpoints";
+import { authApi, signInMethodsApi } from "@/lib/api/endpoints";
 import { applyApiError } from "@/lib/forms/server-errors";
 import { keepFocusOnPress } from "@/lib/forms/submit-press";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { changePasswordSchema, type ChangePasswordValues } from "@/lib/schemas/settings";
+import { useAsync } from "@/lib/use-async";
 import { useToast } from "@/components/feedback/toast-provider";
 import { PasswordChecklist } from "@/components/forms/auth/auth-card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,8 @@ import { PasswordInput } from "@/components/ui/password-input";
 
 import { DevicesList } from "./devices-list";
 import { dialogSubmit } from "./dialog-form";
+import { isPasswordNotSet, useCreatePasswordLink } from "./password-not-set";
+import { SignInMethodsBlock } from "./sign-in-methods";
 import { SettingsCard, SettingsField } from "./settings-ui";
 
 const EMPTY: ChangePasswordValues = { current_password: "", new_password: "", confirm_password: "" };
@@ -32,6 +35,11 @@ export function SecurityCard({ email, onDirtyChange }: { email: string; onDirtyC
   const newPassword = useWatch({ control: form.control, name: "new_password" });
   const checklistId = React.useId();
   const [devicesKey, setDevicesKey] = React.useState(0);
+  const methods = useAsync((signal) => signInMethodsApi.get(signal), []);
+  const createPassword = useCreatePasswordLink(email);
+  // Google-only accounts have no current password to ask for (§23.1).
+  const noPassword = methods.data?.password === false;
+  const [raceNoPassword, setRaceNoPassword] = React.useState(false);
   const dirty = form.formState.isDirty;
 
   const report = React.useRef(onDirtyChange);
@@ -49,12 +57,24 @@ export function SecurityCard({ email, onDirtyChange }: { email: string; onDirtyC
       toast.show({ tone: "success", message: text("Password updated. Your other devices were signed out.") });
       setDevicesKey((n) => n + 1);
     } catch (err) {
+      // The methods list may be stale (or failed to load): the API is the authority.
+      if (isPasswordNotSet(err)) {
+        setRaceNoPassword(true);
+        methods.reload();
+        return;
+      }
       applyApiError(form, err, { text });
     }
   }
 
   return (
     <SettingsCard id="security" icon="shield" title={text("Password & Security")} testId="settings-security">
+      <SignInMethodsBlock methods={methods} createPassword={createPassword} />
+      {noPassword || raceNoPassword ? (
+        <div className="settings-note grid gap-3" data-testid="password-create-state">
+          <p>{text("You haven't created a password yet, so there is nothing to change here. Create one first with the “Create a password” button under Sign-in methods.")}</p>
+        </div>
+      ) : (
       <Form {...form}>
         <form onSubmit={(event) => dialogSubmit(form, submit)(event)} noValidate className="settings-stack" aria-label={text("Change password")} data-testid="password-form">
           {/* Lets password managers file the new password under this account. */}
@@ -125,6 +145,7 @@ export function SecurityCard({ email, onDirtyChange }: { email: string; onDirtyC
           ) : null}
         </form>
       </Form>
+      )}
       <DevicesList key={devicesKey} />
     </SettingsCard>
   );

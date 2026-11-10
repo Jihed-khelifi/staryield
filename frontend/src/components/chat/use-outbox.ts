@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { chatApi, type SentMessage } from "@/lib/api/endpoints";
 import type { ApiError } from "@/lib/api/errors";
-import type { ChatMessage, OffSessionAllowance } from "@/lib/api/types";
+import type { ChatMessage, OffSessionAllowance, ReplyPreview } from "@/lib/api/types";
 import { OutboxController } from "@/lib/chat/outbox-controller";
 import type { OutboxEntry } from "@/lib/chat/outbox";
 import type { ConnectionState, RealtimeClient } from "@/lib/realtime/client";
@@ -26,8 +26,8 @@ type Options = {
 
 export type Outbox = {
   entries: OutboxEntry[];
-  /** Queue a text message for the conversation on screen; returns its client id. */
-  send: (body: string) => string | null;
+  /** Queue a text message for the conversation on screen (optionally answering a message); returns its client id. */
+  send: (body: string, replyTo?: ReplyPreview) => string | null;
   /** Queue a failed message again; false when it is unknown. */
   retry: (clientMsgId: string) => boolean;
   discard: (clientMsgId: string) => void;
@@ -53,10 +53,17 @@ export function useOutbox({ userId, conversationId, liveSessionId, realtime, con
     controller?.configure(
       async (entry) => {
         // `session_id` is only sent for servers that predate conversation sends.
-        const payload = { conversation_id: entry.conversation_id, body: entry.body, client_msg_id: entry.client_msg_id, ...(liveSessionId ? { session_id: liveSessionId } : {}) };
+        // `reply_to_id` only when replying: older APIs reject fields they do not know (§23.2).
+        const payload = {
+          conversation_id: entry.conversation_id,
+          body: entry.body,
+          client_msg_id: entry.client_msg_id,
+          ...(entry.reply_to ? { reply_to_id: entry.reply_to.id } : {}),
+          ...(liveSessionId ? { session_id: liveSessionId } : {}),
+        };
         return realtime
           ? await realtime.request<SentMessage>("message.send", payload)
-          : await chatApi.sendToConversation(entry.conversation_id, entry.body, entry.client_msg_id);
+          : await chatApi.sendToConversation(entry.conversation_id, entry.body, entry.client_msg_id, entry.reply_to?.id);
       },
       { onDelivered: (message, _entry, allowance) => onDelivered(message, allowance), onFailed },
     );
@@ -74,9 +81,9 @@ export function useOutbox({ userId, conversationId, liveSessionId, realtime, con
   }, [controller, conversationId, ready]);
 
   const send = React.useCallback(
-    (body: string) => {
+    (body: string, replyTo?: ReplyPreview) => {
       if (!controller || !conversationId) return null;
-      return controller.send({ client_msg_id: newClientMsgId(), conversation_id: conversationId, body }).client_msg_id;
+      return controller.send({ client_msg_id: newClientMsgId(), conversation_id: conversationId, body, ...(replyTo ? { reply_to: replyTo } : {}) }).client_msg_id;
     },
     [controller, conversationId],
   );

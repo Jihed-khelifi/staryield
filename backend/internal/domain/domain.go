@@ -515,8 +515,11 @@ type Message struct {
 	Kind        MessageKind `gorm:"not null"`
 	Body        string      `gorm:"not null"`
 	ClientMsgID *string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	// ReplyToID is the quoted message of the same conversation (revisions
+	// 4.0, §23.2); the quote itself is derived at read time.
+	ReplyToID *uuid.UUID `gorm:"type:uuid"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (Message) TableName() string { return "chat_messages" }

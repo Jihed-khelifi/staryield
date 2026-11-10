@@ -94,13 +94,30 @@ type MessageView struct {
 	CreatedAt   time.Time        `json:"created_at"`
 	Saved       bool             `json:"saved,omitempty"`
 	Attachments []AttachmentView `json:"attachments,omitempty"`
+	// ReplyTo quotes the message this one answers (revisions 4.0, §23.2),
+	// derived at read time with one batched query per page.
+	ReplyTo *ReplyView `json:"reply_to,omitempty"`
+	// LikedBy lists who liked the message (at most the two participants,
+	// omitted when nobody did; §23.3).
+	LikedBy []uuid.UUID `json:"liked_by,omitempty"`
+	// replyToID is the stored target, resolved into ReplyTo by decorate.
+	replyToID *uuid.UUID
+}
+
+// CounterpartView is the other side of a conversation as seen by the
+// viewer. Alias is the advisor's private nickname for the client (§23.4): it
+// is only ever set on the advisor's own inbox rows, never on a view the
+// client or another advisor receives, and is never merged into Name.
+type CounterpartView struct {
+	ParticipantView
+	Alias string `json:"alias,omitempty"`
 }
 
 // ConversationView is an inbox row. Unread counts every message kind the
 // viewer did not send after ReadSeq (system notices included).
 type ConversationView struct {
 	ID             uuid.UUID       `json:"id"`
-	Counterpart    ParticipantView `json:"counterpart"`
+	Counterpart    CounterpartView `json:"counterpart"`
 	LastMessage    *MessageView    `json:"last_message,omitempty"`
 	LastMessageAt  *time.Time      `json:"last_message_at,omitempty"`
 	LastActivityAt time.Time       `json:"last_activity_at"`
@@ -154,7 +171,7 @@ type viewer struct {
 func messageView(m *domain.Message) MessageView {
 	v := MessageView{ID: m.ID, ConversationID: m.ConversationID, SessionID: m.SessionID, Seq: m.Seq, SenderID: m.SenderID,
 		Kind: string(m.Kind), Body: m.Body, CreatedAt: m.CreatedAt,
-		OffSession: m.SessionID == nil && m.Kind != domain.MessageSystem}
+		OffSession: m.SessionID == nil && m.Kind != domain.MessageSystem, replyToID: m.ReplyToID}
 	if m.ClientMsgID != nil {
 		v.ClientMsgID = *m.ClientMsgID
 	}

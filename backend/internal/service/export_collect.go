@@ -34,6 +34,17 @@ func (s *ExportService) collect(ctx context.Context, userID uuid.UUID) (*ExportB
 		"locale": u.Locale, "email_verified_at": u.EmailVerifiedAt, "terms_accepted_at": u.TermsAcceptedAt,
 		"last_login_at": u.LastLoginAt, "created_at": u.CreatedAt}
 	doc := map[string]any{"account": account}
+	// Sign-in methods (revisions 4.0): the provider, its e-mail and when it
+	// was linked; never the provider's subject id.
+	var identities []domain.UserIdentity
+	if err := rows(&identities, "user_id"); err != nil {
+		return nil, err
+	}
+	methods := make([]map[string]any, 0, len(identities))
+	for _, i := range identities {
+		methods = append(methods, map[string]any{"provider": i.Provider, "email": i.Email, "linked_at": i.CreatedAt})
+	}
+	doc["sign_in_methods"] = methods
 	p, err := s.d.Users.GetProfile(ctx, userID)
 	if err != nil && !errors.Is(err, repository.ErrNotFound) {
 		return nil, err
@@ -247,7 +258,7 @@ func (s *ExportService) collectChat(ctx context.Context, b *ExportBundle, u *dom
 			from = "you"
 		}
 		msg = append(msg, map[string]any{"id": m.ID, "conversation_id": m.ConversationID, "session_id": m.SessionID, "off_session": m.SessionID == nil && m.Kind != domain.MessageSystem, "from": from,
-			"kind": m.Kind, "body": m.Body, "at": m.CreatedAt})
+			"kind": m.Kind, "body": m.Body, "reply_to_id": m.ReplyToID, "at": m.CreatedAt})
 	}
 	var saved []domain.SavedMessage
 	if err := rows(&saved, "user_id"); err != nil {
@@ -257,8 +268,18 @@ func (s *ExportService) collectChat(ctx context.Context, b *ExportBundle, u *dom
 	for _, x := range saved {
 		sav = append(sav, map[string]any{"message_id": x.MessageID, "saved_at": x.CreatedAt})
 	}
+	// revisions 4.0 (§23.3): the likes the user gave, next to their messages.
+	var liked []domain.MessageLike
+	if err := rows(&liked, "user_id"); err != nil {
+		return err
+	}
+	likes := make([]map[string]any, 0, len(liked))
+	for _, x := range liked {
+		likes = append(likes, map[string]any{"message_id": x.MessageID, "liked_at": x.CreatedAt})
+	}
 	b.Documents = append(b.Documents, ExportDocument{Path: "chat/conversations.json", Data: map[string]any{"conversations": conv, "sessions": sess}},
 		ExportDocument{Path: "chat/messages.json", Data: msg}, ExportDocument{Path: "chat/saved_messages.json", Data: sav})
+	b.Documents = append(b.Documents, ExportDocument{Path: "chat/message_likes.json", Data: likes})
 
 	var attachments []domain.Attachment
 	if err := rows(&attachments, "uploader_id"); err != nil {
@@ -398,6 +419,23 @@ func (s *ExportService) collectAdvisor(ctx context.Context, b *ExportBundle, u *
 		notes = append(notes, map[string]any{"id": n.ID, "conversation_id": n.ConversationID, "body": body, "shared": n.Shared,
 			"created_at": n.CreatedAt, "updated_at": n.UpdatedAt})
 	}
+	// revisions 4.0 (§23.4): the private nicknames the advisor gave their clients.
+	var aliasRows []domain.ClientAlias
+	if err := rows(&aliasRows, "psychic_id"); err != nil {
+		return err
+	}
+	aliases := make([]map[string]any, 0, len(aliasRows))
+	for _, a := range aliasRows {
+		alias := ""
+		if s.d.Sealer != nil {
+			if plain, err := s.d.Sealer.Open(a.AliasEnc, aliasAD(a.PsychicID, a.ClientID)); err == nil {
+				alias = plain
+			} else {
+				warnErr(ctx, "export: open alias", err)
+			}
+		}
+		aliases = append(aliases, map[string]any{"client_id": a.ClientID, "alias": alias, "created_at": a.CreatedAt, "updated_at": a.UpdatedAt})
+	}
 	var earnings []domain.Earning
 	if err := rows(&earnings, "psychic_id"); err != nil {
 		return err
@@ -419,6 +457,7 @@ func (s *ExportService) collectAdvisor(ctx context.Context, b *ExportBundle, u *
 			"processed_at": w.ProcessedAt})
 	}
 	b.Documents = append(b.Documents, ExportDocument{Path: "advisor/notes_written.json", Data: notes},
+		ExportDocument{Path: "advisor/client_aliases.json", Data: aliases},
 		ExportDocument{Path: "advisor/earnings.json", Data: earn}, ExportDocument{Path: "advisor/withdrawals.json", Data: wd})
 	return nil
 }

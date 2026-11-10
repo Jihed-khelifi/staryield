@@ -51,6 +51,8 @@ type SiteSettings struct {
 	// (STARYIELD_BILLING_SIGNUP_FREE_MINUTES).
 	SignupFallbackMinutes int
 	IPHashSecret          string
+	// GoogleEnabled: Sign in with Google is configured (revisions 4.0).
+	GoogleEnabled bool
 }
 
 // SiteDeps are the site service's collaborators.
@@ -374,6 +376,10 @@ type SiteConfigView struct {
 		Active bool       `json:"active"`
 		EndsAt *time.Time `json:"ends_at,omitempty"`
 	} `json:"free_mode"`
+	// Auth tells the web app which sign-in methods to offer (revisions 4.0).
+	Auth struct {
+		Google bool `json:"google"`
+	} `json:"auth"`
 	GeneratedAt time.Time `json:"generated_at"`
 }
 
@@ -408,7 +414,7 @@ func (s *SiteService) Config(ctx context.Context, locale string) (*SiteConfigRes
 		return memo.result, nil
 	}
 
-	res, err := renderSiteConfig(snap, locale, now)
+	res, err := renderSiteConfig(snap, locale, now, s.d.Cfg.GoogleEnabled)
 	if err != nil {
 		return nil, apperror.Internal(err)
 	}
@@ -419,8 +425,9 @@ func (s *SiteService) Config(ctx context.Context, locale string) (*SiteConfigRes
 }
 
 // renderSiteConfig is the pure view builder.
-func renderSiteConfig(snap *siteSnapshot, locale string, now time.Time) (*SiteConfigResult, error) {
+func renderSiteConfig(snap *siteSnapshot, locale string, now time.Time, googleEnabled bool) (*SiteConfigResult, error) {
 	var v SiteConfigView
+	v.Auth.Google = googleEnabled
 	minutes := 0
 	if snap.Signup.Enabled {
 		minutes = snap.Signup.FreeMinutes

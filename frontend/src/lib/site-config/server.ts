@@ -34,7 +34,9 @@ export function parseSiteConfig(body: unknown): SiteConfig | null {
   if (!banners || !Array.isArray(banners.items) || typeof banners.rotation_seconds !== "number") return null;
   if (!c.signup_offer || typeof c.signup_offer.enabled !== "boolean" || typeof c.signup_offer.free_minutes !== "number") return null;
   if (!c.free_mode || typeof c.free_mode.active !== "boolean") return null;
-  return { ...(c as SiteConfig), banners: { ...banners, items: banners.items.filter(isBanner) } };
+  // Older APIs send no `auth`: no sign-in provider is available then (§23.1).
+  const auth = { google: (c.auth as { google?: unknown } | undefined)?.google === true };
+  return { ...(c as SiteConfig), auth, banners: { ...banners, items: banners.items.filter(isBanner) } };
 }
 
 /**

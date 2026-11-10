@@ -12,10 +12,14 @@ import {
   mergeMessages,
   newClientMsgId,
   newestIncomingSeq,
+  authoritativeLikes,
+  isActionable,
+  replyPreviewOf,
   secondsUntil,
   sessionEarnings,
   sessionRate,
   systemCopy,
+  withLikes,
   withMessages,
   withNewestPage,
   withOlderPage,
@@ -294,5 +298,77 @@ describe("copy helpers", () => {
     const id = newClientMsgId();
     expect(id).toMatch(/^[A-Za-z0-9_\-:.]{6,64}$/);
     expect(newClientMsgId()).not.toBe(id);
+  });
+});
+
+describe("replies and likes in the timeline (§23.2, §23.3)", () => {
+  const QUOTE = { id: "m1", seq: 1, sender_id: "u2", kind: "text" as const, excerpt: "first" };
+  const loaded = (items: ChatMessage[]): Timeline => withNewestPage(EMPTY_TIMELINE, { items, has_more: false });
+
+  it("an event or ack that omits reply_to and liked_by never erases what is known", () => {
+    const known = seqMsg(2, { reply_to: QUOTE, liked_by: ["u1", "u2"] });
+    const merged = mergeMessages([known], [seqMsg(2)]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].reply_to).toEqual(QUOTE);
+    expect(merged[0].liked_by).toEqual(["u1", "u2"]);
+    const viaTimeline = withMessages(loaded([known]), [seqMsg(2)]);
+    expect(viaTimeline.messages[0].liked_by).toEqual(["u1", "u2"]);
+    expect(viaTimeline.messages[0].reply_to).toEqual(QUOTE);
+  });
+
+  it("carries the quote and the likes of a new message, and updates them when the event brings new ones", () => {
+    const merged = mergeMessages([seqMsg(2, { liked_by: ["u1"] })], [seqMsg(2, { liked_by: ["u1", "u2"], reply_to: QUOTE })]);
+    expect(merged[0].liked_by).toEqual(["u1", "u2"]);
+    expect(merged[0].reply_to).toEqual(QUOTE);
+  });
+
+  it("the confirmed copy of an optimistic reply keeps its quote when the ack omits it", () => {
+    const pending = msg("cm-1", "2026-01-01T00:00:00Z", { client_msg_id: "cm-1", pending: "sending", reply_to: QUOTE });
+    const merged = mergeMessages([pending], [{ ...seqMsg(3), client_msg_id: "cm-1" }]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].pending).toBeUndefined();
+    expect(merged[0].reply_to).toEqual(QUOTE);
+  });
+
+  it("history pages are authoritative: an omitted liked_by means nobody likes it any more", () => {
+    const before = loaded([seqMsg(1, { liked_by: ["u2"] }), seqMsg(2, { liked_by: ["u1"] })]);
+    const refreshed = withMessages(before, [seqMsg(1), seqMsg(2, { liked_by: ["u1"] })], { authoritative: true });
+    expect(refreshed.messages[0].liked_by).toEqual([]);
+    expect(refreshed.messages[1].liked_by).toEqual(["u1"]);
+    expect(withNewestPage(before, { items: [seqMsg(1), seqMsg(2)], has_more: false }).messages.map((m) => m.liked_by)).toEqual([[], []]);
+    expect(withOlderPage(before, { items: [seqMsg(1)], has_more: false }).messages[0].liked_by).toEqual([]);
+    expect(authoritativeLikes([seqMsg(1)])[0].liked_by).toEqual([]);
+  });
+
+  it("message.liked replaces liked_by (authoritative), including back to empty", () => {
+    let t = loaded([seqMsg(1), seqMsg(2)]);
+    t = withLikes(t, { message_id: "m2", liked_by: ["u1", "u2"] });
+    expect(t.messages[1].liked_by).toEqual(["u1", "u2"]);
+    t = withLikes(t, { message_id: "m2", liked_by: ["u2"] });
+    expect(t.messages[1].liked_by).toEqual(["u2"]);
+    t = withLikes(t, { message_id: "m2", liked_by: [] });
+    expect(t.messages[1].liked_by).toEqual([]);
+    expect(t.messages.map((m) => m.seq)).toEqual([1, 2]);
+  });
+
+  it("message.liked for a message that is not loaded is ignored and returns the same timeline", () => {
+    const t = loaded([seqMsg(5)]);
+    expect(withLikes(t, { message_id: "m1", liked_by: ["u1"] })).toBe(t);
+    // No change at all: the same object, so no re-render.
+    const liked = withLikes(t, { message_id: "m5", liked_by: ["u1"] });
+    expect(withLikes(liked, { message_id: "m5", liked_by: ["u1"] })).toBe(liked);
+  });
+
+  it("builds the quote of a message: 140 characters, Photo for a bare image", () => {
+    expect(replyPreviewOf(seqMsg(4, { body: "x".repeat(300) })).excerpt).toHaveLength(140);
+    expect(replyPreviewOf(seqMsg(4, { kind: "image", body: "  " }))).toMatchObject({ id: "m4", seq: 4, kind: "image", excerpt: "" });
+    expect(replyPreviewOf(seqMsg(4, { body: "😀".repeat(200) })).excerpt).toBe("😀".repeat(140));
+  });
+
+  it("only delivered text and image messages can be answered or liked", () => {
+    expect(isActionable(seqMsg(1))).toBe(true);
+    expect(isActionable(seqMsg(1, { kind: "image" }))).toBe(true);
+    expect(isActionable(seqMsg(1, { kind: "system" }))).toBe(false);
+    expect(isActionable(msg("p", "2026-01-01T00:00:00Z", { pending: "queued" }))).toBe(false);
   });
 });

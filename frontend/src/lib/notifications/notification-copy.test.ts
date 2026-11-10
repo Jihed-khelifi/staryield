@@ -4,16 +4,20 @@ import en from "@/i18n/dictionaries/copy-en.json";
 import es from "@/i18n/dictionaries/copy-es.json";
 import fr from "@/i18n/dictionaries/copy-fr.json";
 import { createTranslateCopy } from "@/i18n/translate-copy";
-import type { AppNotification } from "@/lib/api/types";
+import type { AppNotification, NotificationKind } from "@/lib/api/types";
 import { errorCopy } from "@/lib/api/errors";
 import { attachmentProblemCopy } from "@/lib/chat/attachments";
 import {
+  NOTIFICATION_KINDS,
+  notificationDestination,
+  notificationFallbackLink,
   notificationHref,
   notificationTemplates,
   notificationText,
   pickLocalized,
   relativeTime,
   requestStatusCopy,
+  subscriptionCanceledCopy,
   withdrawalStatusCopy,
 } from "@/lib/notifications/notification-copy";
 
@@ -81,6 +85,92 @@ describe("notificationText", () => {
   });
 });
 
+/** Sample data per kind; typed as a Record so a new NotificationKind must be added here too. */
+const samples: Record<NotificationKind, Record<string, unknown>> = {
+  "chat.requested": { client_name: "Amélie" },
+  "chat.missed": { client_name: "Marco" },
+  "chat.review_prompt": { psychic_name: "Theo" },
+  "review.received": { rating: 4 },
+  "request.created": { service_name: "Love reading", client_name: "Lucía" },
+  "request.updated": { service_name: "Love reading", status: "accepted" },
+  "purchase.succeeded": { credits: 100 },
+  "credits.adjusted": { amount: 10 },
+  "withdrawal.updated": { status: "paid", amount_credits: 100 },
+  "photo.approved": {},
+  "photo.rejected": { reason: "Blurry." },
+  "support.replied": { reference: "SY-1", subject: "Hi" },
+  broadcast: { title: { en: "Full moon" }, body: { en: "Advisors online" } },
+  "waitlist.available": { psychic_name: "Theo", psychic_slug: "theo" },
+  "export.ready": { bytes: 10 },
+  "account.email_change_requested": {},
+  "account.email_changed": {},
+  "account.reactivated": {},
+  "account.google_linked": { email: "j•••@gmail.com" },
+  "account.google_unlinked": { email: "j•••@gmail.com" },
+  "subscription.renewed": { period_end: "2026-12-01T00:00:00Z" },
+  "subscription.payment_failed": { reason: "declined", retry: true },
+  "subscription.canceled": { reason: "period_ended" },
+};
+
+describe("copy for every kind (§23.6)", () => {
+  it("has a sample for exactly the listed kinds (the list is checked against the NotificationKind union at compile time)", () => {
+    expect(new Set(NOTIFICATION_KINDS)).toEqual(new Set(Object.keys(samples)));
+    expect(NOTIFICATION_KINDS.length).toBe(new Set(NOTIFICATION_KINDS).size);
+  });
+
+  it.each([...NOTIFICATION_KINDS].map((k) => [k]))("%s has its own title and body in every language", (kind) => {
+    for (const [locale, text] of [["en", textEn], ["fr", textFr], ["es", textEs]] as const) {
+      const copy = notificationText(n(kind, samples[kind]), locale, text);
+      expect(copy.title, `${kind} ${locale} title`).toBeTruthy();
+      expect(copy.title, `${kind} ${locale} must not use the generic title`).not.toBe(text(notificationTemplates.fallbackTitle));
+      expect(copy.body, `${kind} ${locale} body`).toBeTruthy();
+      expect(`${copy.title} ${copy.body}`).not.toMatch(/\{\w+\}/);
+    }
+    // French and Spanish are translated, not English.
+    const en2 = notificationText(n(kind, samples[kind]), "en", textEn);
+    if (kind !== "broadcast") {
+      expect(notificationText(n(kind, samples[kind]), "fr", textFr).title).not.toBe(en2.title);
+      expect(notificationText(n(kind, samples[kind]), "es", textEs).title).not.toBe(en2.title);
+    }
+  });
+
+  it("renders the new kinds with their data", () => {
+    expect(notificationText(n("waitlist.available", { psychic_name: "Theo" }), "en", textEn)).toEqual({
+      title: "Your advisor is online",
+      body: "Theo is online now. Start your reading while they are available.",
+    });
+    expect(notificationText(n("waitlist.available", {}), "en", textEn).body).toBe("An advisor you waited for is online now.");
+    expect(notificationText(n("account.google_linked", { email: "j•••@gmail.com" }), "en", textEn).body).toBe("You can now sign in with the Google account j•••@gmail.com.");
+    expect(notificationText(n("account.google_linked", {}), "en", textEn).body).toBe("You can now sign in with Google.");
+    expect(notificationText(n("account.google_unlinked", { email: "j•••@gmail.com" }), "fr", textFr).body).toBe("Le compte Google j•••@gmail.com ne permet plus de se connecter.");
+    expect(notificationText(n("account.google_unlinked", {}), "es", textEs).body).toBe("Se ha eliminado el inicio de sesión con Google de tu cuenta.");
+  });
+
+  it("explains why a membership ended and when a failed payment can still be fixed", () => {
+    const reasons = ["period_ended", "payment_failed", "canceled_by_user", "admin", "dispute", "account_closed"];
+    const bodies = reasons.map((reason) => notificationText(n("subscription.canceled", { reason }), "en", textEn).body);
+    expect(new Set(bodies).size).toBe(reasons.length);
+    expect(notificationText(n("subscription.canceled", { reason: "something-new" }), "en", textEn).body).toBe(subscriptionCanceledCopy.other);
+    const date = new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(Date.parse("2026-12-05T00:00:00Z"));
+    expect(notificationText(n("subscription.payment_failed", { grace_until: "2026-12-05T00:00:00Z" }), "en", textEn).body).toBe(
+      `We couldn't charge your payment method. Update it by ${date} to keep your benefits.`,
+    );
+    expect(notificationText(n("subscription.payment_failed", { grace_until: "garbage" }), "en", textEn).body).toBe(notificationTemplates.subscriptionPaymentFailedBody);
+  });
+
+  it("falls back to a sensible link when the API sent none, and never to an unsafe one", () => {
+    expect(notificationDestination(n("waitlist.available", { psychic_slug: "the o" }, ""), "fr")).toBe("/fr/chatroom?reader=the%20o");
+    expect(notificationDestination(n("subscription.canceled", {}, ""), "es")).toBe("/es/profile/settings");
+    expect(notificationDestination(n("export.ready", {}, ""), "en")).toBe("/en/profile/settings#account-actions");
+    expect(notificationDestination(n("account.google_linked", {}, ""), "en")).toBe("/en/profile/settings#security");
+    // The API's own link wins; an unsafe one is replaced by the kind's default or nothing.
+    expect(notificationDestination(n("waitlist.available", { psychic_slug: "theo" }, "/chatroom?reader=theo"), "en")).toBe("/en/chatroom?reader=theo");
+    expect(notificationDestination(n("export.ready", {}, "https://evil.example"), "en")).toBe("/en/profile/settings#account-actions");
+    expect(notificationDestination(n("photo.approved", {}, "//evil.example"), "en")).toBeNull();
+    expect(notificationFallbackLink(n("broadcast", {}, ""))).toBeNull();
+  });
+});
+
 describe("relativeTime", () => {
   const now = Date.parse("2026-10-20T12:00:00Z");
   it("formats with Intl.RelativeTimeFormat in each language", () => {
@@ -112,6 +202,7 @@ describe("dictionary coverage of non-literal copy", () => {
     ...Object.values(notificationTemplates),
     ...Object.values(requestStatusCopy),
     ...Object.values(withdrawalStatusCopy),
+    ...Object.values(subscriptionCanceledCopy),
     ...Object.values(attachmentProblemCopy),
     errorCopy.step_up_required,
     errorCopy.invalid_code,

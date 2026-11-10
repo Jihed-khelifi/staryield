@@ -15,6 +15,7 @@ import type { User, Wallet } from "@/lib/api/types";
 import { track } from "@/lib/analytics";
 import { logger } from "@/lib/logger";
 import { RealtimeClient, type ConnectionState, type TransportKind } from "@/lib/realtime/client";
+import { clearPushSyncMarkers, prepareSignOutPush } from "@/lib/push";
 import { clearOutbox } from "@/lib/chat/outbox";
 import { clearDrafts } from "@/lib/chat/drafts";
 import { clearAttachmentCache } from "@/lib/chat/attachments";
@@ -245,11 +246,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (signingOut.current) return;
     signingOut.current = true;
     realtime?.stop();
+    // This browser stops receiving this person's push notifications (§23.6):
+    // the endpoint goes to the API with the logout, the browser subscription is
+    // removed afterwards. Best effort with a 3 s cap; it never blocks signing out.
+    const push = await prepareSignOutPush();
     try {
-      await (opts?.everywhere ? authApi.logoutAll() : authApi.logout());
+      await (opts?.everywhere ? authApi.logoutAll() : authApi.logout(push.endpoint ? { push_endpoint: push.endpoint } : undefined));
     } catch (err) {
       logger.warn("logout request failed", err);
     } finally {
+      await push.unsubscribe();
+      if (userId) clearPushSyncMarkers(userId);
       endSession();
       try {
         if (userId) sessionStorage.removeItem(`staryield.rt.last:${userId}`);

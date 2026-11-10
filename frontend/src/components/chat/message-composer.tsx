@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import { Loader2 } from "lucide-react";
-import { FiImage, FiSend, FiX } from "react-icons/fi";
+import { FiCornerUpLeft, FiImage, FiSend, FiX } from "react-icons/fi";
 
 import { useI18n } from "@/i18n/i18n-provider";
+import type { ReplyPreview } from "@/lib/api/types";
 import { MESSAGE_MAX_LENGTH } from "@/lib/schemas/message-schema";
 import { ACCEPT_ATTRIBUTE, attachmentProblemCopy, firstFile, validateAttachment } from "@/lib/chat/attachments";
 import { PrepareImageError, prepareImage, prepareProblemCopy } from "@/lib/chat/prepare-image";
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { composerKeyAction } from "@/components/chat/composer-keys";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { ChatImage } from "@/components/chat/chat-image";
+import { useMessageActions } from "@/components/chat/message-actions-context";
 import { Button } from "@/components/ui/button";
 
 /** Typing indicators: announce at most every 2s, stop after 3s idle. */
@@ -29,7 +31,14 @@ export const DRAFT_DEBOUNCE_MS = 400;
 /** How long the "Draft saved" hint stays visible. */
 const DRAFT_HINT_MS = 2200;
 
-export type ComposerSubmit = { body: string; file?: File; /** Pixel size of the prepared image (absent when unknown). */ size?: { width: number; height: number } };
+export type ComposerSubmit = {
+  body: string;
+  file?: File;
+  /** Pixel size of the prepared image (absent when unknown). */
+  size?: { width: number; height: number };
+  /** The message being answered (§23.2); present only when replying. */
+  replyTo?: ReplyPreview;
+};
 
 /** What the conversation column can do with the composer (drop target, §22.4). */
 export type ComposerHandle = {
@@ -103,6 +112,8 @@ export function MessageComposer({
 }) {
   const { t, text, locale } = useI18n();
   const touch = useMediaQuery("(hover: none) and (pointer: coarse)");
+  // The message being answered lives in the chatroom (per conversation); the composer shows and clears it.
+  const { replyTarget, cancelReply, nameOf, viewerId } = useMessageActions();
   const draftsOn = Boolean(userId && draftId);
   const readDraft = React.useCallback(
     () => (userId && draftId ? loadDraft(userId, draftId) || (draftFallbackId ? loadDraft(userId, draftFallbackId) : "") : ""),
@@ -227,6 +238,14 @@ export function MessageComposer({
     return () => window.removeEventListener("storage", onStorage);
   }, [userId, draftId]);
 
+  // Starting a reply puts the caret in the field (not when another conversation brings its own pending reply along).
+  const focusedReply = React.useRef<{ draft: string | null | undefined; id: string | undefined }>({ draft: draftId, id: replyTarget?.id });
+  React.useEffect(() => {
+    const before = focusedReply.current;
+    focusedReply.current = { draft: draftId, id: replyTarget?.id };
+    if (replyTarget && before.draft === draftId && before.id !== replyTarget.id) textareaRef.current?.focus();
+  }, [replyTarget, draftId]);
+
   const placeholder = file ? text("Add a caption…") : t("chatroom.composer.placeholder");
 
   React.useLayoutEffect(() => {
@@ -317,7 +336,8 @@ export function MessageComposer({
       return;
     }
     stopTyping();
-    onSend(file ? { body, file, ...(fileSize ? { size: fileSize } : {}) } : { body });
+    onSend({ body, ...(file ? { file, ...(fileSize ? { size: fileSize } : {}) } : {}), ...(replyTarget ? { replyTo: replyTarget } : {}) });
+    cancelReply();
     // Sent: the draft is done (the outbox keeps the message itself).
     if (userId && draftId) {
       clearDraft(userId, draftId);
@@ -362,6 +382,34 @@ export function MessageComposer({
             </p>
           </div>
           <button type="button" className="composer-tool" onClick={removeFile} aria-label={text("Remove image")}>
+            <FiX className="size-4" aria-hidden />
+          </button>
+        </div>
+      ) : null}
+      {replyTarget ? (
+        <div
+          className="composer-reply"
+          data-testid="composer-reply"
+          role="group"
+          aria-label={text("Replying")}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              cancelReply();
+              textareaRef.current?.focus();
+            }
+          }}
+        >
+          <FiCornerUpLeft aria-hidden className="size-4 shrink-0" />
+          <div className="min-w-0 flex-1 font-ui text-xs">
+            <p className="composer-reply-title truncate font-semibold">
+              {replyTarget.sender_id && replyTarget.sender_id === viewerId
+                ? text("Replying to yourself")
+                : text("Replying to {value0}", { value0: nameOf(replyTarget.sender_id) })}
+            </p>
+            <p className="composer-reply-excerpt truncate">{replyTarget.excerpt || text("Photo")}</p>
+          </div>
+          <button type="button" className="composer-tool" onClick={() => { cancelReply(); textareaRef.current?.focus(); }} aria-label={text("Cancel reply")} data-testid="composer-reply-cancel">
             <FiX className="size-4" aria-hidden />
           </button>
         </div>
@@ -420,6 +468,11 @@ export function MessageComposer({
               typed();
             }}
             onKeyDown={(e) => {
+              if (e.key === "Escape" && replyTarget && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                cancelReply();
+                return;
+              }
               const action = composerKeyAction(
                 {
                   key: e.key,

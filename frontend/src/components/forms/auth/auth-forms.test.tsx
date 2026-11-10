@@ -34,6 +34,8 @@ vi.mock("next/link", () => ({
   ),
 }));
 vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
+const toast = vi.hoisted(() => ({ show: vi.fn(), showError: vi.fn() }));
+vi.mock("@/components/feedback/toast-provider", () => ({ useToast: () => toast }));
 vi.mock("@/lib/attribution", () => ({ attributionForSignup: () => undefined }));
 vi.mock("@/lib/auth/session-provider", () => ({ useSession: () => session.current }));
 vi.mock("@/components/layout/public-frame", () => ({

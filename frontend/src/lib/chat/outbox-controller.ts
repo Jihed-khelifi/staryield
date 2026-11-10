@@ -11,7 +11,7 @@
  * `useSyncExternalStore` (see use-outbox.ts).
  */
 import { toApiError, type ApiError } from "@/lib/api/errors";
-import type { ChatMessage, OffSessionAllowance } from "@/lib/api/types";
+import type { ChatMessage, OffSessionAllowance, ReplyPreview } from "@/lib/api/types";
 import {
   afterFailure,
   enqueue,
@@ -105,7 +105,7 @@ export class OutboxController {
   }
 
   /** Queue a text message; returns the entry (its client id is the idempotency key). */
-  send(init: { client_msg_id: string; conversation_id: string; body: string }): OutboxEntry {
+  send(init: { client_msg_id: string; conversation_id: string; body: string; reply_to?: ReplyPreview }): OutboxEntry {
     const entry = newEntry({ ...init, sender_id: this.userId }, this.now());
     this.commit(enqueue(this.entries, entry));
     this.pump();

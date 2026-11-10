@@ -1150,3 +1150,365 @@
   font-size: 10px;
   letter-spacing: 0.01em;
 }
+
+/* ===========================================================================
+   Revisions 4.0: replies, likes, nicknames (§23.2–§23.4)
+   =========================================================================== */
+
+/* The feed never scrolls sideways: a bubble dragged for "reply" may leave its column for a moment. */
+.chat-workspace .chat-feed-scroll {
+  overflow-x: hidden;
+}
+.chat-workspace .message-bubble {
+  position: relative;
+}
+
+/* Message actions: reply and like show on hover and focus; the bookmark stays as it was. */
+.chat-workspace .message-action {
+  color: var(--ink);
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+.chat-workspace .message-row:hover .message-action,
+.chat-workspace .message-row:focus-within .message-action {
+  opacity: 0.7;
+}
+.chat-workspace .message-action:hover,
+.chat-workspace .message-action:focus-visible,
+.chat-workspace .message-action[aria-pressed="true"] {
+  opacity: 1;
+}
+.chat-workspace .message-action-like[aria-pressed="true"] svg {
+  fill: var(--amber);
+  stroke: var(--ink);
+}
+@media (hover: none) {
+  /* Touch: swipe, double-tap and the long-press menu replace the buttons. */
+  .chat-workspace .message-action {
+    display: none;
+  }
+  .chat-workspace .message-bubble[data-actionable] {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-workspace .message-action {
+    transition: none;
+  }
+}
+
+/* Quote of the answered message, above the text. */
+.chat-workspace .message-quote {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  cursor: pointer;
+  flex-direction: column;
+  gap: 1px;
+  border-left: 3px solid var(--amber);
+  border-radius: 4px;
+  background: rgb(21 16 11 / 0.07);
+  padding: 4px 8px;
+  color: var(--ink);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: left;
+}
+.chat-workspace .message-quote:hover {
+  background: rgb(21 16 11 / 0.11);
+}
+.chat-workspace .message-quote:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.chat-workspace .message-quote[aria-busy="true"] {
+  cursor: progress;
+  background: rgb(21 16 11 / 0.13);
+}
+.chat-workspace .message-quote-author {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-workspace .message-quote-excerpt {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  color: #4e473f;
+}
+
+/* Heart badge on the bubble's edge (dark disc: the gold heart keeps 3:1). */
+.chat-workspace .message-bubble-liked {
+  margin-bottom: 10px;
+}
+.chat-workspace .message-like-badge {
+  position: absolute;
+  right: 8px;
+  bottom: -10px;
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cream-light);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--amber);
+}
+.chat-workspace .message-like-badge svg {
+  fill: currentColor;
+}
+.chat-workspace [data-testid="chat-message"]:not([data-mine]) .message-like-badge {
+  right: auto;
+  left: 8px;
+}
+
+/* The heart that pops on a double-tap. */
+.chat-workspace .message-like-pop {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  color: var(--amber);
+  pointer-events: none;
+}
+.chat-workspace .message-like-pop svg {
+  fill: currentColor;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  animation: message-like-pop 700ms ease-out both;
+}
+@keyframes message-like-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-workspace .message-like-pop svg {
+    animation: message-like-fade 700ms linear both;
+  }
+}
+@keyframes message-like-fade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Swipe right to reply: the bubble follows the finger and springs back. */
+.chat-workspace .message-bubble[data-actionable] {
+  touch-action: pan-y;
+}
+.chat-workspace .message-bubble[data-actionable]:not([data-swiping]) {
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.chat-workspace .message-bubble[data-swiping] {
+  transform: translateX(var(--swipe-x, 0px));
+}
+.chat-workspace .message-swipe-hint {
+  position: absolute;
+  top: 50%;
+  left: -34px;
+  display: none;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--cream-light);
+  color: var(--ink);
+  opacity: var(--swipe-progress, 0);
+  transform: translateY(-50%) scale(calc(0.6 + var(--swipe-progress, 0) * 0.4));
+}
+.chat-workspace .message-bubble[data-swiping] .message-swipe-hint {
+  display: inline-flex;
+}
+.chat-workspace .message-bubble[data-swipe-ready] .message-swipe-hint {
+  background: var(--ink);
+  color: var(--cream-light);
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-workspace .message-bubble[data-actionable]:not([data-swiping]) {
+    transition: none;
+  }
+}
+
+/* Highlight of a message reached from a quote. */
+.chat-workspace .message-row[data-flash] .message-bubble {
+  animation: message-flash 1600ms ease-out;
+}
+@keyframes message-flash {
+  0%,
+  45% {
+    box-shadow: 0 0 0 3px var(--amber);
+    background: var(--cream-soft);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-workspace .message-row[data-flash] .message-bubble {
+    animation: none;
+    box-shadow: 0 0 0 3px var(--amber);
+  }
+}
+
+/* Long-press menu (touch). */
+.message-menu {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  min-width: 176px;
+  flex-direction: column;
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  background: var(--cream-light);
+  padding: 4px;
+  box-shadow: 0 12px 28px rgb(21 16 11 / 0.25);
+}
+.message-menu-item {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--ink);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  text-align: left;
+}
+.message-menu-item:hover,
+.message-menu-item:focus-visible {
+  background: var(--cream);
+  outline: none;
+}
+.message-menu-item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--amber);
+}
+
+/* Reply bar above the composer. */
+.composer-reply {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius-md);
+  background: var(--cream-light);
+  padding: 6px 6px 6px 10px;
+  color: var(--ink);
+}
+.composer-reply-excerpt {
+  color: #4e473f;
+}
+
+/* Nickname editor in the advisor's chat header (§23.4). */
+.chat-workspace .chat-header-name-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+}
+.chat-workspace .chat-nickname-edit {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--ink);
+}
+.chat-workspace .chat-nickname-edit:hover {
+  background: rgb(244 240 234 / 0.4);
+}
+.chat-workspace .chat-nickname-edit:focus-visible,
+.chat-workspace .chat-nickname-button:focus-visible,
+.chat-workspace .chat-nickname-input:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 1px;
+}
+.chat-workspace .chat-nickname-form {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-direction: column;
+  gap: 2px;
+}
+.chat-workspace .chat-nickname-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+}
+.chat-workspace .chat-nickname-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 260px;
+  height: 32px;
+  flex: 1 1 auto;
+  border: 1px solid rgb(21 16 11 / 0.6);
+  border-radius: 6px;
+  background: var(--cream-light);
+  padding: 0 8px;
+  color: var(--ink);
+  /* 16px: iOS does not zoom the page when the field takes focus. */
+  font-family: var(--font-source-serif), Georgia, serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+.chat-workspace .chat-nickname-input::placeholder {
+  color: rgb(21 16 11 / 0.65);
+  font-weight: 400;
+}
+.chat-workspace .chat-nickname-input[aria-invalid="true"] {
+  border: 2px solid #7a2e1d;
+}
+.chat-workspace .chat-nickname-button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--ink);
+}
+.chat-workspace .chat-nickname-button:hover:not(:disabled) {
+  background: rgb(244 240 234 / 0.4);
+}
+.chat-workspace .chat-nickname-button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+.chat-workspace .chat-nickname-error {
+  max-width: 100%;
+  color: var(--ink);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+}

@@ -27,6 +27,7 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
 	"github.com/Jihed-khelifi/staryield/backend/internal/mail"
 	"github.com/Jihed-khelifi/staryield/backend/internal/migrations"
+	"github.com/Jihed-khelifi/staryield/backend/internal/oidc"
 	"github.com/Jihed-khelifi/staryield/backend/internal/payment"
 	"github.com/Jihed-khelifi/staryield/backend/internal/push"
 	"github.com/Jihed-khelifi/staryield/backend/internal/ratelimit"
@@ -66,6 +67,10 @@ type Overrides struct {
 	PaymentProcessor *payment.SandboxProcessor
 	// ExportStorage holds personal-data export archives (identity).
 	ExportStorage storage.ObjectStore
+	// Google replaces the OpenID Connect client of Sign in with Google
+	// (revisions 4.0); tests never reach Google. The feature is still on
+	// only when STARYIELD_GOOGLE_CLIENT_ID/_SECRET/_REDIRECT_URL are set.
+	Google oidc.Provider
 }
 
 // App is a fully wired server.
@@ -256,7 +261,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	pushSvc := service.NewPushService(repository.NewPushRepository(db), sealer, pushSender, clk, log.With(zap.String("component", "push")),
 		service.PushSettings{PublicKey: pushPublicKey, FrontendURL: cfg.App.FrontendURL, HashKey: endpointHashKey,
 			MaxPerUser: cfg.Push.MaxPerUser, Workers: cfg.Push.Workers, QueueSize: cfg.Push.QueueSize,
-			ChatRequestTTL: cfg.Chat.RequestTimeout})
+			ChatRequestTTL: cfg.Chat.RequestTimeout, TTL: cfg.Push.TTL})
 	channels := service.NewNotificationChannels(repository.NewContactRepository(db), mailSvc, pushSvc, cfg.App.FrontendURL,
 		log.With(zap.String("component", "notification-channels")))
 	var provider payment.Provider = payment.NewSandbox(cfg.Payments.WebhookSecret, cfg.Payments.WebhookTolerance)
@@ -287,6 +292,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 			SignupBonusCredits: cfg.Billing.SignupBonusCredits, StatusCacheTTL: cfg.Auth.UserStatusCacheTTL,
 			TicketTTL: cfg.Realtime.TicketTTL, FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret,
 		})
+	authSvc.SetPush(pushSvc) // revisions 4.0: subscriptions end with the session
 	userSvc := service.NewUserService(users, wallets, psychics, store, service.AstroPlaceLookup, track, clk, cfg.Auth.MinimumAge,
 		service.AvatarSettings{MaxBytes: cfg.Storage.MaxAvatarBytes, MaxPixels: cfg.Storage.MaxAvatarPixels, Size: cfg.Storage.AvatarSize})
 	psychicSvc := service.NewPsychicService(psychics, chatRepo, earnings, presence, publisher, track, clk)
@@ -313,6 +319,8 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Notifier: dispatcher, Images: service.ImagePolicy{MaxBytes: cfg.Storage.MaxChatImageBytes, MaxPixels: cfg.Storage.MaxImagePixels,
 			MaxSide: cfg.Storage.ChatImageMaxSide, AllowGIF: true, KeepTransparency: true, Field: "image"}})
 	chatSvc.WithUnread(kv, repository.NewContactRepository(db), pushSvc, cfg.App.FrontendURL) // revisions 3.0: chat unread
+	// revisions 4.0: private client nicknames
+	chatSvc.WithAliases(repository.NewAliasRepository(db), sealer, audit, cfg.Analytics.IPHashSecret)
 	growthSvc := service.NewGrowthService(growth, audit, track, clk, service.GrowthSettings{FrontendURL: cfg.App.FrontendURL,
 		PublicBaseURL: cfg.Links.PublicBaseURL, AllowedHosts: cfg.Links.AllowedHosts, Currency: cfg.Payments.Currency,
 		IPHashSecret: cfg.Analytics.IPHashSecret})
@@ -412,7 +420,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	siteSvc := service.NewSiteService(service.SiteDeps{Tx: txm, Repo: repository.NewSiteRepository(db), Cache: kv,
 		Bus: cache.NewRedisBus(rdb, prefix), Audit: audit, Clock: clk, Log: log.With(zap.String("component", "site")),
 		Cfg: service.SiteSettings{AllowedHosts: cfg.Links.AllowedHosts, SignupFallbackMinutes: cfg.Billing.SignupFreeMinutes,
-			IPHashSecret: cfg.Analytics.IPHashSecret}})
+			IPHashSecret: cfg.Analytics.IPHashSecret, GoogleEnabled: cfg.Google.Enabled()}})
 	authSvc.SetSignupOffer(siteSvc.SignupFreeMinutes)
 	chatSvc.SetFreeMode(siteSvc.FreeModeActive)
 	chatSvc.SetOffSessionSettings(siteSvc.OffSessionSettings) // revisions 3.3: messages outside a live chat
@@ -438,10 +446,29 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	if _, off := exportStore.(storage.Disabled); off {
 		log.Warn("data export storage disabled: set R2_EXPORTS_PRIVATE (or R2_CHAT_IMAGES_PRIVATE) to enable exports")
 	}
+	// revisions 4.0: Sign in with Google. The provider is built only when the
+	// feature is configured; tests inject theirs through Overrides.
+	identities := repository.NewIdentityRepository(db)
+	googleProvider := ov.Google
+	if googleProvider == nil && cfg.Google.Enabled() {
+		googleProvider, err = oidc.NewClient(oidc.Config{Issuer: cfg.Google.Issuer, ClientID: cfg.Google.ClientID,
+			ClientSecret: cfg.Google.ClientSecret, RedirectURL: cfg.Google.RedirectURL,
+			AllowLoopbackHTTP: cfg.Google.Issuer != config.GoogleDefaultIssuer && !cfg.IsProduction(), Now: clk.Now})
+		if err != nil {
+			return nil, fmt.Errorf("google sign-in: %w", err)
+		}
+	}
+	googleSvc := service.NewGoogleAuth(service.GoogleDeps{Auth: authSvc, Provider: googleProvider, Identities: identities, Users: users,
+		Audit: audit, KV: kv, Notifier: dispatcher, Mail: mailSvc, Clock: clk,
+		Settings: service.GoogleSettings{Enabled: cfg.Google.Enabled(), StateTTL: cfg.Google.StateTTL, FrontendURL: cfg.App.FrontendURL,
+			IPHashSecret: cfg.Analytics.IPHashSecret}})
+	adminSvc.SetIdentities(identities)
+	// end revisions 4.0: Sign in with Google
 	eraser := service.NewAccountEraser(service.EraserDeps{Tx: txm, Users: users, Tokens: tokens, Psychics: psychics, Hasher: hasher,
 		Clock: clk, Notes: notesRepo, Push: repository.NewPushRepository(db), Actions: actionsRepo, Exports: exportsRepo,
-		Sessions: sessionsRepo, Consents: consentsRepo, Waitlist: waitlistRepo, Support: supportRepo, Advisor: advisorSvc, AvatarStore: store, ExportStore: exportStore,
-		Auth: authSvc, AdminAuth: adminAuthSvc, Chat: chatSvc, PsychicSvc: psychicSvc, Events: publisher, Mail: mailSvc})
+		Sessions: sessionsRepo, Consents: consentsRepo, Waitlist: waitlistRepo, Support: supportRepo, Advisor: advisorSvc, ChatData: chatSvc, AvatarStore: store, ExportStore: exportStore,
+		Auth: authSvc, AdminAuth: adminAuthSvc, Chat: chatSvc, PsychicSvc: psychicSvc, Events: publisher, Mail: mailSvc,
+		Identities: identities}) // revisions 4.0
 	eraser.SetBilling(billingSvc)        // memberships end and saved cards are forgotten
 	eraser.SetCalculators(calculatorSvc) // revisions 3.0: calculator analytics
 	adminSvc.SetEraser(eraser)
@@ -468,6 +495,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Account: accountSvc, Consents: consentSvc, Exports: exportSvc,
 		Advisor: advisorSvc, // advisor settings
 		Site:    siteSvc}    // revisions 3.0: site settings
+	services.GoogleAuth = googleSvc // revisions 4.0: Sign in with Google
 	cookieNames := api.CookieNamesFor(cfg.Security)
 	health := func(r *http.Request) map[string]error {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -531,6 +559,11 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		_, err := calculatorSvc.RunRetention(ctx, clk.Now())
 		return err
 	}})
+	// revisions 4.0: notification hardening. Interrupted broadcasts resume; the
+	// pipeline counters are logged once a minute when something notable happened.
+	observer := service.NewNotificationObserver(dispatcher, pushSvc, notificationSvc, log.With(zap.String("component", "notification-stats")))
+	scheduler.WithJobs(worker.Job{Name: service.BroadcastRecoveryJob, Every: time.Minute, Run: notificationSvc.RecoverBroadcasts},
+		worker.Job{Name: "notification-stats", Every: time.Minute, Run: observer.Tick})
 	// revisions 3.0: support desk
 	scheduler.WithJobs(worker.Job{Name: service.SupportJob, Every: time.Hour, Run: supportSvc.RunMaintenance})
 	// end revisions 3.0: support desk
@@ -613,7 +646,7 @@ func (a *App) Shutdown(ctx context.Context) {
 	}
 	a.Scheduler.Wait()
 	a.wg.Wait()
-	a.Services.Notifications.Wait()
+	a.Services.Notifications.Shutdown(ctx) // bounded by the shutdown deadline; unfinished broadcasts resume after restart
 	a.Dispatcher.Stop(ctx)
 	// After the dispatcher: draining it may still queue pushes.
 	a.Services.Push.Stop(ctx)

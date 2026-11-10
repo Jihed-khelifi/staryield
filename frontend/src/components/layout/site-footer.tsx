@@ -5,6 +5,7 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { usePsychicsPath } from "@/lib/psychics-link";
 import { SunLogo } from "@/components/brand/sun-logo";
 import { visibleSocialLinks } from "@/config/social";
+import { TrustpilotReviewCollector } from "@/components/reviews/trustpilot-review-collector";
 const groups = [
   {
     name: "Platform",
@@ -70,7 +71,8 @@ export function SiteFooter() {
           </nav>
         ))}
       </div>
-      <div className="mt-12 flex flex-wrap items-center justify-between gap-6 border-t border-ink/60 pt-4 text-xs">
+      <TrustpilotReviewCollector placement="footer" className="mx-auto mt-10 max-w-[360px]" />
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-6 border-t border-ink/60 pt-4 text-xs">
         <p>
           {text(
             "© 2026 Staryield Media LLC. All rights reserved. For entertainment and alignment audits only. ",

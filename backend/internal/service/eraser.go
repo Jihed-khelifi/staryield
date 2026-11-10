@@ -54,9 +54,15 @@ type EraserDeps struct {
 	// Advisor: photo submissions and their private images, the published
 	// profile photo and the sealed phone number (advisor settings).
 	Advisor UserDataPurger
+	// ChatData: advisors' private client aliases (written by or about the user)
+	// and the user's message likes (revisions 4.0, §23.3–23.4).
+	ChatData UserDataPurger
 	// Calculators: web visitors linked to the account and their calculator
 	// rows (revisions 3.0: calculator analytics).
 	Calculators UserDataPurger
+	// Identities: linked sign-in providers (revisions 4.0: Google). The user
+	// row is anonymised, not deleted, so the rows do not cascade.
+	Identities  UserDataPurger
 	AvatarStore storage.ObjectStore
 	ExportStore storage.ObjectStore
 	Auth        *AuthService
@@ -224,7 +230,7 @@ func (e *AccountEraser) eraseExtras(ctx context.Context, id uuid.UUID, now time.
 			return err
 		}
 	}
-	for _, p := range []UserDataPurger{e.d.Waitlist, e.d.Support, e.d.Advisor, e.d.Calculators} {
+	for _, p := range []UserDataPurger{e.d.Waitlist, e.d.Support, e.d.Advisor, e.d.Calculators, e.d.ChatData, e.d.Identities} {
 		if p == nil {
 			continue
 		}

@@ -1,11 +1,14 @@
 "use client";
 
+import * as React from "react";
 import { FiInfo, FiMenu } from "react-icons/fi";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import type { ChatSession, Participant } from "@/lib/api/types";
 import { formatDate, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useClientName, usePrimeClientAliases } from "@/lib/chat/client-alias-provider";
+import { ClientNameField } from "@/components/chat/client-name-field";
 import { ReaderAvatar } from "@/components/chat/reader-avatar";
 import { RatePrice } from "@/components/chat/rate-price";
 import { formatMoney, type RateView } from "@/components/chat/chat-model";
@@ -91,6 +94,11 @@ export function ChatHeader({ counterpart, conversationId = null, viewerRole = "c
   // Advisors only; shares one cached request with the client panel.
   const advisor = viewerRole === "psychic";
   const clientProfile = useClientProfile(advisor ? conversationId : null);
+  // Advisors see their private nickname for the client (§23.4); clients and advisors alike get the real name from `counterpart`.
+  const profileAlias = clientProfile.profile;
+  const aliasEntries = React.useMemo(() => (profileAlias ? [{ clientId: profileAlias.id, alias: profileAlias.alias }] : []), [profileAlias]);
+  usePrimeClientAliases(advisor ? aliasEntries : []);
+  const displayName = useClientName(advisor ? counterpart.id : null, counterpart.name);
   const dateOfBirth = clientProfile.profile?.date_of_birth ?? clientProfile.profile?.birth_details?.date_of_birth;
   const born = dateOfBirth ? formatDate(dateOfBirth, locale, "long") : "";
   const live = session && (session.status === "active" || session.status === "disconnected" || session.status === "accepted");
@@ -114,13 +122,17 @@ export function ChatHeader({ counterpart, conversationId = null, viewerRole = "c
           type="button"
           className="chat-header-avatar relative shrink-0 xl:pointer-events-none"
           onClick={onOpenDetails}
-          aria-label={text("View {value0}'s details", { value0: counterpart.name })}
+          aria-label={text("View {value0}'s details", { value0: displayName })}
         >
-          <ReaderAvatar initial={counterpart.name.charAt(0).toUpperCase()} image={counterpart.avatar_url} />
+          <ReaderAvatar initial={displayName.charAt(0).toUpperCase()} image={counterpart.avatar_url} />
           {presence ? <span className="presence-dot presence-dot-avatar" data-online={presence === "online" || undefined} aria-hidden /> : null}
         </button>
         <div className="flex min-w-0 flex-col gap-0.5 text-ink">
-          <span className="chat-header-name truncate font-serif text-[18px] font-bold">{text(counterpart.name)}</span>
+          {advisor ? (
+            <ClientNameField key={conversationId ?? "none"} conversationId={conversationId} clientId={counterpart.id} realName={counterpart.name} />
+          ) : (
+            <span className="chat-header-name truncate font-serif text-[18px] font-bold">{text(counterpart.name)}</span>
+          )}
           {advisor && conversationId && clientProfile.loading ? (
             <span className="chat-header-dob" aria-hidden data-testid="chat-header-dob-loading">
               <Skeleton className="h-3 w-24 bg-cream/70" />
@@ -153,7 +165,7 @@ export function ChatHeader({ counterpart, conversationId = null, viewerRole = "c
               type="button"
               onClick={onEnd}
               disabled={ending}
-              aria-label={t("chatroom.header.endChatLabel", { name: counterpart.name })}
+              aria-label={t("chatroom.header.endChatLabel", { name: displayName })}
               className="chat-end-button cursor-pointer rounded-sm font-serif text-base font-medium whitespace-nowrap transition-colors hover:text-cream-light focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-60"
             >
               {t("chatroom.header.endChat")}

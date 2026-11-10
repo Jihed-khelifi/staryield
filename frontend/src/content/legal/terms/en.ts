@@ -184,7 +184,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "To access certain features of the Service, you may be required to register an account (“Account”) and provide accurate and complete information during the registration process."
+          "text": "To access certain features of the Service, you may be required to register an account (“Account”) and provide accurate and complete information during the registration process. You may register and sign in with your email address and password or, where this option is offered, with your Google account; see our [Privacy Policy](/privacy#data-we-receive-from-third-parties) for what Google shares with us. The age requirement in [Section 3.3](#age-restriction) and your acceptance of these Terms apply in exactly the same way when you register with Google: you must accept these Terms, with the checkbox on the sign-up page or on the confirmation step, before your Account is created."
         },
         {
           "type": "p",
@@ -232,7 +232,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "You are responsible for maintaining the confidentiality of your Account credentials, including login details and passwords, and for all activity conducted under your Account. You should not share your login information with anyone, as you assume full responsibility for any actions taken through your Account. If you suspect unauthorized access or a security breach, you must notify us immediately at our [Support center](/contact). We are not liable for any loss, unauthorized transactions, or damage resulting from access to your Account due to your failure to protect your credentials. It is your responsibility to use secure passwords and take necessary precautions to prevent unauthorized access. You can review the devices signed in to your Account and sign out any of them in your account settings; changing your password signs out your other devices."
+          "text": "You are responsible for maintaining the confidentiality of your Account credentials, including login details and passwords, and for all activity conducted under your Account. You should not share your login information with anyone, as you assume full responsibility for any actions taken through your Account. If you suspect unauthorized access or a security breach, you must notify us immediately at our [Support center](/contact). We are not liable for any loss, unauthorized transactions, or damage resulting from access to your Account due to your failure to protect your credentials. It is your responsibility to use secure passwords and take necessary precautions to prevent unauthorized access. You can review the devices signed in to your Account and sign out any of them in your account settings; changing your password signs out your other devices. If you register or sign in with Google, you are also responsible for keeping that Google account secure, including its password and recovery options: anyone who can use your Google account can access your Staryield Account. Some actions, such as changing your email address, deactivating or closing your Account or downloading your data, ask you to create a Staryield password first. You can disconnect Google in your account settings once your Account has a password."
         },
         {
           "type": "h3",
@@ -320,6 +320,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "If you wish to request the removal of a Review that you have submitted, you may contact the Company at the [Support center](/contact)."
+        },
+        {
+          "type": "p",
+          "text": "Reviews on independent platforms. Reviews of the Service on independent platforms such as Trustpilot are voluntary and must reflect your genuine experience. We invite everyone to leave a review in the same way, and we never offer credits, discounts or any other benefit for writing a review or for changing or removing one. Advisors, employees, contractors and their close relatives must not review Staryield on such platforms."
         },
         {
           "type": "h3",
@@ -412,6 +416,10 @@ const content: LegalDocumentContent = {
           "text": "What your advisor sees. To personalise your reading, the advisor you chat with sees a client card with your first name or nickname, profile picture, online status, country, age, your full date of birth, the astrological details derived from your birth data (your sun sign and the signs of your other natal placements, plus moon and rising signs when you provided a birth time and place), your daily horoscope and how many readings you have had with them. Your date of birth is always shown to the advisor you chat with, because readings rely on it. Your birth city is shown only if you turn on “Share my birth city with advisors” in your privacy preferences. Advisors never see your email address, credit balance, purchases, membership, or your exact birth time or coordinates."
         },
         {
+          "type": "p",
+          "text": "Replies and likes. In a conversation you can reply to a specific message and like a message. Replies and likes are part of the conversation: both participants can see them, and they are free of charge. A like, including a like from an advisor, is not advice, a confirmation or a commitment by that advisor. See our [Privacy Policy](/privacy#live-readings-ratings-and-notifications) to learn how they are kept."
+        },
+        {
           "type": "h3",
           "id": "ratings-of-advisors",
           "n": "4.12",
@@ -429,7 +437,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "We send notifications about your account and activity — for example chat requests, the end of a reading and invitations to rate it, order updates, completed purchases, membership renewals and payment problems, credit adjustments, waiting-list alerts and, for advisors, new ratings and payout updates — as well as occasional announcements from Staryield. Notifications appear in the bell menu of the website in your chosen language and can be marked as read; we keep them for up to 180 days. Depending on your notification settings, we also send them by email and as browser push notifications. Messages that protect your account, such as a confirmation of a change to your email address, are always sent by email. In-app notifications are part of the Service; they are not marketing emails, and we only send marketing communications if you opt in."
+          "text": "We send notifications about your account and activity — for example chat requests, the end of a reading and invitations to rate it, order updates, completed purchases, membership renewals and payment problems, credit adjustments, waiting-list alerts and, for advisors, new ratings and payout updates — as well as occasional announcements from Staryield. Notifications appear in the bell menu of the website in your chosen language and can be marked as read; we keep them for up to 180 days. Depending on your notification settings, we also send them by email and as browser push notifications. Messages that protect your account, such as a confirmation of a change to your email address, are always sent by email. In-app notifications are part of the Service; they are not marketing emails, and we only send marketing communications if you opt in. Signing out stops push notifications on that device."
         },
         {
           "type": "h3",
@@ -439,7 +447,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "This section applies to advisors. You may keep notes about clients you have had readings with, solely to provide better readings to those clients. Notes are private to you unless you choose to share a note with other advisors, in which case it becomes visible to advisors who have also had a session with that client, together with your display name and the date. You must keep notes factual, respectful and limited to what is useful for readings; you must not record information about a client’s health, sex life or sexual orientation, religion, political opinions or other sensitive details, nor contact details or payment information, and you must not copy notes outside the Service or use them for any other purpose. Notes may be disclosed to the client concerned when the law requires it, and we may remove notes that breach these Terms or our [Advisor Integrity Standards](/standards)."
+          "text": "This section applies to advisors. You may keep notes about clients you have had readings with, solely to provide better readings to those clients. Notes are private to you unless you choose to share a note with other advisors, in which case it becomes visible to advisors who have also had a session with that client, together with your display name and the date. You must keep notes factual, respectful and limited to what is useful for readings; you must not record information about a client’s health, sex life or sexual orientation, religion, political opinions or other sensitive details, nor contact details or payment information, and you must not copy notes outside the Service or use them for any other purpose. Notes may be disclosed to the client concerned when the law requires it, and we may remove notes that breach these Terms or our [Advisor Integrity Standards](/standards). Advisors may also give a client a private nickname, which only that advisor can see. Nicknames must be respectful and must not be discriminatory or insulting, nor contain sensitive information (such as health details or political or religious views), contact details or payment information. We may remove a nickname that breaches these Terms or our [Advisor Integrity Standards](/standards). See our [Privacy Policy](/privacy#advisor-notes) to learn how nicknames are stored."
         },
         {
           "type": "h3",
@@ -478,7 +486,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "The Service may integrate, provide access to, or display content from third-party services, websites, software, advertisements, and other materials (“Third-Party Services” and “Third-Party Materials”). This includes external links, embedded content, and user-generated materials contributed by third parties. While these features may be accessible through the Service, the Company does not control or assume responsibility for the content, functionality, or policies of any Third-Party Services."
+          "text": "The Service may integrate, provide access to, or display content from third-party services, websites, software, advertisements, and other materials (“Third-Party Services” and “Third-Party Materials”). This includes external links, embedded content, and user-generated materials contributed by third parties. While these features may be accessible through the Service, the Company does not control or assume responsibility for the content, functionality, or policies of any Third-Party Services. Two such services are Google, if you choose to sign in with your Google account, and Trustpilot, whose review widget and review link we show on some pages. Each is provided by a third party under its own terms and privacy policy, and we are not responsible for its availability. See our [Privacy Policy](/privacy#how-we-share-your-personal-data) for what each of them receives."
         },
         {
           "type": "h3",

@@ -11,15 +11,18 @@ import type {
   ChatMessage,
   ChatSession,
   Conversation,
+  MessageLikedEvent,
   MessageReadEvent,
   Participant,
   Psychic,
+  ReplyPreview,
   Review,
   SessionBilledEvent,
   SessionSummary,
 } from "@/lib/api/types";
 import { firstFile, imageSize, seedAttachment } from "@/lib/chat/attachments";
 import { outboxMessage } from "@/lib/chat/outbox";
+import { useClientAliasActions, useClientName, useClientNames, usePrimeClientAliases } from "@/lib/chat/client-alias-provider";
 import { track } from "@/lib/analytics";
 import { useRealtimeEvent, useRealtimeEvents, useSession } from "@/lib/auth/session-provider";
 import { loginUrl } from "@/lib/navigation";
@@ -34,7 +37,8 @@ import { usePagedList } from "@/lib/use-paged-list";
 import { announce } from "@/components/feedback/live-region";
 import { ErrorState } from "@/components/feedback/error-state";
 import { useToast } from "@/components/feedback/toast-provider";
-import { ChatFeed, type Announcement } from "@/components/chat/chat-feed";
+import { ChatFeed, type Announcement, type ChatFeedHandle } from "@/components/chat/chat-feed";
+import { MessageActionsProvider, type MessageActions } from "@/components/chat/message-actions-context";
 import { ChatHeader, ChatroomTopBar, useEarningsLabel } from "@/components/chat/chat-header";
 import { SessionTools, SwitcherAccount, SwitcherHeader, SwitcherQuickLinks } from "@/components/chat/chat-mobile";
 import type { ReportIssueTarget } from "@/components/chat/report-issue";
@@ -51,13 +55,17 @@ import { ReviewDialog } from "@/components/reviews/review-form";
 import { SessionPanel } from "@/components/chat/session-panel";
 import { useConversationTimeline } from "@/components/chat/use-conversation-timeline";
 import { useInbox, withMessage } from "@/components/chat/use-inbox";
+import { useJumpToMessage } from "@/components/chat/use-jump-to-message";
+import { useMessageLikes, withLikeOverrides } from "@/components/chat/use-message-likes";
 import { useOutbox } from "@/components/chat/use-outbox";
 import {
   elapsedSeconds,
+  isActionable,
   isOpen,
   mergeMessages,
   newClientMsgId,
   newestIncomingSeq,
+  replyPreviewOf,
   secondsUntil,
   sessionEarnings,
   sessionRate,
@@ -131,6 +139,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const [savedOverride, setSavedOverride] = React.useState<Record<string, boolean>>({});
   const [log, setLog] = React.useState<Announcement[]>([]);
   const [scrollToken, setScrollToken] = React.useState(0);
+  // Client state of replies and likes (§23.2, §23.3): the server state (`reply_to`, `liked_by`) lives on the timeline messages.
+  const [replyTargets, setReplyTargets] = React.useState<Record<string, ReplyPreview>>({});
   const [atBottom, setAtBottom] = React.useState(true);
   const [visible, setVisible] = React.useState(true);
   // Deep link from the `chat.review_prompt` notification (clients only). The
@@ -149,6 +159,11 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const inLiveChat = liveSession?.status === "active" || liveSession?.status === "disconnected";
   const requestPending = liveSession?.status === "requested" || liveSession?.status === "accepted";
   const composerRef = React.useRef<ComposerHandle>(null);
+  const feedRef = React.useRef<ChatFeedHandle>(null);
+  // Advisors see their private nickname for the client everywhere (§23.4); `counterpart.name` stays the name on the account.
+  const aliasActions = useClientAliasActions();
+  const counterpartDisplay = useClientName(role === "psychic" ? counterpart?.id : null, counterpart?.name ?? "");
+  const { nameFor } = useClientNames();
   const allowance = useOffSessionAllowance(activeConvId, inLiveChat);
   const availability = composerAvailability({
     role,
@@ -200,7 +215,15 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   });
 
   // --- history (strict seq order, gap filling) --------------------------------
-  const counterpartName = counterpart?.name ?? "";
+  const counterpartName = counterpartDisplay;
+  // Rows and the open conversation already carry the nickname: cache it before anything asks.
+  const aliasEntries = React.useMemo(() => {
+    if (role !== "psychic") return [];
+    const entries = inbox.items.map((c) => ({ clientId: c.counterpart.id, alias: c.counterpart.alias }));
+    if (counterpart) entries.push({ clientId: counterpart.id, alias: counterpart.alias });
+    return entries;
+  }, [role, inbox.items, counterpart]);
+  usePrimeClientAliases(aliasEntries);
   const pushLog = React.useCallback((entries: Announcement[]) => {
     if (entries.length) setLog((cur) => [...cur, ...entries].slice(-LOG_SIZE));
   }, []);
@@ -214,7 +237,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     },
   });
   const timeline = thread.timeline;
-  const { receive, fillGaps } = thread;
+  const { receive, fillGaps, refreshNewest } = thread;
 
   function describeIncoming(m: ChatMessage): string {
     const body = m.kind === "image" ? m.body.trim() || text("Photo") : m.body;
@@ -362,7 +385,10 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     const s = data.session;
     upsertConversationSession(s);
     if (role === "psychic" && type === "session.requested" && (!session || !isOpen(session))) {
-      toast.show({ tone: "info", message: text("{value0} would like to start a live chat.", { value0: s.client.name }) });
+      // The client's nickname (§23.4) when the advisor has one; the toast waits for it briefly.
+      void aliasActions.resolve(s.client.id).then((alias) =>
+        toast.show({ tone: "info", message: text("{value0} would like to start a live chat.", { value0: alias ?? s.client.name }) }),
+      );
       const conv = inbox.items.find((c) => c.id === s.conversation_id);
       // The client just sent a request, so they are connected (a stale inbox row may still say offline).
       const requester = { ...(conv?.counterpart ?? s.client), status: "online" as const };
@@ -436,7 +462,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
       const row = inbox.items.find((c) => c.id === message.conversation_id);
       toast.show({
         tone: "info",
-        message: row ? text("New message from {value0}", { value0: row.counterpart.name }) : text("New message"),
+        message: row ? text("New message from {value0}", { value0: role === "psychic" ? nameFor(row.counterpart.id, row.counterpart.name) : row.counterpart.name }) : text("New message"),
         actionLabel: row ? text("Open") : undefined,
         onAction: row ? () => openConversation(row) : undefined,
       });
@@ -445,6 +471,11 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     const next = withMessage(inbox.items, message, { meId, activeId: activeConvId });
     if (next) inbox.patch(() => next);
     else inbox.refresh();
+  });
+
+  // `liked_by` is authoritative (§23.3); a message that is not loaded is ignored by the timeline.
+  useRealtimeEvent<MessageLikedEvent>("message.liked", (like) => {
+    if (like?.message_id) thread.applyLikes(like);
   });
 
   useRealtimeEvent<{ session_id: string; user_id: string; typing: boolean }>("typing", (d) => {
@@ -486,6 +517,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
       fillGaps();
       inbox.refresh();
       if (!full) return;
+      // Events (likes among them) may have been lost: the newest page is the truth again.
+      refreshNewest();
       if (role === "client") setThreadNonce((n) => n + 1);
       else if (openSessionId)
         chatApi.session(openSessionId).then(
@@ -493,7 +526,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
           (err) => logger.debug("session refresh failed", { code: String(toApiError(err).code) }),
         );
     },
-    [fillGaps, inbox, role, openSessionId],
+    [fillGaps, refreshNewest, inbox, role, openSessionId],
   );
   useRealtimeEvent("resync_required", () => resync(true));
   useRealtimeEvent<{ reconnected?: boolean; resumed?: boolean }>("hello", (d) => {
@@ -566,16 +599,18 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     [realtime, typingSessionId],
   );
 
-  function send(body: string) {
+  function send(body: string, replyTo?: ReplyPreview) {
     if (!availability.enabled) return;
-    if (outbox.send(body)) setScrollToken((n) => n + 1);
+    if (outbox.send(body, replyTo)) setScrollToken((n) => n + 1);
   }
 
   /** Upload an image message with an optimistic pending/failed/retry flow (kept in memory: files are not persisted). */
-  async function sendImage(file: File, caption: string, retryOf?: UiMessage, knownSize?: { width: number; height: number }) {
+  async function sendImage(file: File, caption: string, retryOf?: UiMessage, knownSize?: { width: number; height: number }, replyTo?: ReplyPreview) {
     const conversationId = retryOf?.conversation_id ?? activeConvId;
     if (!conversationId || !availability.enabled) return;
     const cmid = retryOf?.client_msg_id ?? newClientMsgId();
+    // A retry keeps the reply it was written with.
+    const quoted = retryOf ? retryOf.reply_to : replyTo;
     let local: UiMessage;
     if (retryOf) local = { ...retryOf, pending: "sending", failure: undefined, failureDetail: undefined };
     else {
@@ -589,6 +624,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
         kind: "image",
         body: caption,
         attachments: [{ id: `local-${cmid}`, content_type: file.type, width: size?.width ?? 0, height: size?.height ?? 0, bytes: file.size }],
+        ...(quoted ? { reply_to: quoted } : {}),
         created_at: new Date().toISOString(),
         pending: "sending",
         localFile: file,
@@ -598,7 +634,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     setScrollToken((n) => n + 1);
     try {
       // The API routes it into the live chat or sends it outside one; it deduplicates on the client id, so transient failures retry.
-      const { message, allowance: fresh } = await chatApi.uploadToConversation(conversationId, file, caption || undefined, cmid);
+      const { message, allowance: fresh } = await chatApi.uploadToConversation(conversationId, file, caption || undefined, cmid, undefined, quoted?.id);
       const attachment = message.attachments?.[0];
       // Show our own copy instead of downloading it again (GIFs are stored as their first frame).
       if (attachment && file.type !== "image/gif") seedAttachment(attachment.id, file);
@@ -620,9 +656,9 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     }
   }
 
-  function submit({ body, file, size }: ComposerSubmit) {
-    if (file) void sendImage(file, body, undefined, size);
-    else send(body);
+  function submit({ body, file, size, replyTo }: ComposerSubmit) {
+    if (file) void sendImage(file, body, undefined, size, replyTo);
+    else send(body, replyTo);
   }
 
   function retry(m: UiMessage) {
@@ -663,12 +699,55 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     void setBookmark(m.id, !isSaved(m));
   }
 
+  // --- replies and likes (§23.2, §23.3) ---------------------------------------
+  const activeReply = (activeConvId && replyTargets[activeConvId]) || null;
+  const reply = (m: UiMessage) => {
+    if (!isActionable(m) || !m.conversation_id) return;
+    setReplyTargets((cur) => ({ ...cur, [m.conversation_id]: replyPreviewOf(m) }));
+    composerRef.current?.focus();
+  };
+  const cancelReply = () => {
+    if (!activeConvId) return;
+    setReplyTargets((cur) => {
+      if (!(activeConvId in cur)) return cur;
+      const { [activeConvId]: _gone, ...rest } = cur;
+      void _gone;
+      return rest;
+    });
+  };
+
+  const { override: likeOverride, toggle: toggleLike } = useMessageLikes({
+    meId,
+    messages: timeline.messages,
+    applyLikes: thread.applyLikes,
+    onFailed: (e, retry) => {
+      toast.show({ tone: "error", message: text(errorMessage(e)), actionLabel: text("Try again"), onAction: retry });
+      track("error_displayed", { code: String(e.code), area: "chat_like" });
+    },
+  });
+
+  // Quote → original: scroll to it, loading older pages (bounded) when it is not on screen yet.
+  const { jumpTo, jumpingTo } = useJumpToMessage({
+    scrollTo: (id) => feedRef.current?.scrollToMessage(id) ?? false,
+    loadOlder: thread.loadOlder,
+    conversationId: activeConvId,
+    onSearching: () => announce(text("Loading the original message…")),
+    onFailed: (reason, retry) =>
+      toast.show({
+        tone: "error",
+        message: text(reason === "unavailable" ? "The original message is no longer available." : "Couldn't load the original message."),
+        ...(retry ? { actionLabel: text("Try again"), onAction: retry } : {}),
+      }),
+  });
+
   // --- render ------------------------------------------------------------------
   const localMessages = React.useMemo(() => {
     const queued = outbox.entries.filter((e) => e.conversation_id === activeConvId).map(outboxMessage);
     return [...queued, ...images.filter((m) => m.conversation_id === activeConvId)];
   }, [outbox.entries, images, activeConvId]);
-  const messages = React.useMemo(() => mergeMessages(timeline.messages, localMessages), [timeline.messages, localMessages]);
+  const merged = React.useMemo(() => mergeMessages(timeline.messages, localMessages), [timeline.messages, localMessages]);
+  // Optimistic likes show until the API answers (§23.3).
+  const messages = React.useMemo(() => withLikeOverrides(merged, likeOverride), [merged, likeOverride]);
   const hasSent = React.useMemo(() => messages.some((m) => m.sender_id === meId && m.kind !== "system"), [messages, meId]);
   const savedIds = React.useMemo(() => {
     const ids = new Set<string>();
@@ -677,6 +756,18 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     // isSaved reads savedOverride.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, savedOverride]);
+
+  const messageActions: MessageActions = {
+    enabled: true,
+    viewerId: meId,
+    replyTarget: activeReply,
+    reply,
+    cancelReply,
+    toggleLike,
+    jumpTo: (quote) => void jumpTo(quote),
+    jumpingTo,
+    nameOf: (senderId) => (senderId && senderId === meId ? t("chatroom.feed.you") : counterpartDisplay),
+  };
 
   const rateView = sessionRate(session, psychic?.rate_per_minute ?? 0);
   const earnings = role === "psychic" ? sessionEarnings(session) : null;
@@ -788,6 +879,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     ) : null;
 
   return (
+    <MessageActionsProvider value={messageActions}>
     <main
       aria-label={text("Chatroom")}
       data-role={role}
@@ -859,9 +951,10 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
               </div>
             ) : (
               <ChatFeed
+                ref={feedRef}
                 messages={messages}
                 meId={meId}
-                authorName={counterpart.name}
+                authorName={counterpartDisplay}
                 typing={typing && session?.status === "active"}
                 savedIds={savedIds}
                 peerReadSeq={peerRead}
@@ -919,7 +1012,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
             />
             {drop.dragging ? (
               <div className="chat-drop-overlay" aria-hidden data-testid="drop-overlay">
-                {text("Drop the image to send it to {value0}", { value0: counterpart.name })}
+                {text("Drop the image to send it to {value0}", { value0: counterpartDisplay })}
               </div>
             ) : null}
           </>
@@ -981,7 +1074,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
       <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
         <SheetContent side="right" className="chat-details-sheet w-[300px] gap-0 overflow-y-auto p-0">
           <SheetHeader className="pb-0">
-            <SheetTitle className="sr-only">{text(counterpart?.name ?? "")}</SheetTitle>
+            <SheetTitle className="sr-only">{text(counterpartDisplay)}</SheetTitle>
           </SheetHeader>
           {renderPanel("tabs")}
         </SheetContent>
@@ -1015,6 +1108,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
         />
       ) : null}
     </main>
+    </MessageActionsProvider>
   );
 }
 

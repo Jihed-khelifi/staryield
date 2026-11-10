@@ -4,7 +4,10 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { countryFlag, formatDate, regionName } from "@/lib/format";
 
 export type ClientIdentityProps = {
+  /** What the advisor calls this client: their private nickname when set (§23.4), else the real name. */
   name: string;
+  /** The name on the account, shown underneath when a nickname replaces it. */
+  accountName?: string;
   online: boolean;
   /** Completed sessions together (undefined while loading). */
   sessions?: number;
@@ -23,7 +26,7 @@ export type ClientIdentityProps = {
  * appears when the client shares it (the country is shown otherwise); the
  * date of birth always does, with the age ("{date} · {age} years old").
  */
-export function ClientIdentity({ name, online, sessions, location, birthDate, countryCode, age }: ClientIdentityProps) {
+export function ClientIdentity({ name, accountName, online, sessions, location, birthDate, countryCode, age }: ClientIdentityProps) {
   const { text, locale } = useI18n();
   const flag = countryFlag(countryCode);
   const country = regionName(countryCode, locale);
@@ -32,6 +35,11 @@ export function ClientIdentity({ name, online, sessions, location, birthDate, co
   return (
     <header className="client-identity">
       <h2 className="client-identity-name">{name}</h2>
+      {accountName && accountName !== name ? (
+        <p className="client-identity-account" data-testid="client-account-name">
+          {text("Name on the account: {value0}", { value0: accountName })}
+        </p>
+      ) : null}
       {place ? (
         <p className="client-identity-place" data-testid="client-location">
           {!location && flag ? (

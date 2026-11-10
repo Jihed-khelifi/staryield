@@ -384,7 +384,8 @@ which carry admin-written copy per locale.
 
 Delivery never blocks the triggering request: notifications are queued to an
 in-process async dispatcher (bounded buffer, batch insert, then realtime
-publish). A full buffer drops with an error log rather than slowing the API.
+publish). A full buffer no longer drops: the notification is written
+synchronously instead (§23.6).
 
 ### 7.2 Broadcasts (admin)
 
@@ -1934,3 +1935,407 @@ Web app
   birth (legal basis: performance of the reading service); birth city stays
   opt-in. New clauses cover messages outside live chats (free, capped, not a
   reading, advisors not obliged to reply, same conduct rules and retention).
+
+## 23. Revisions 4.0: Google sign-in, replies, likes, client nicknames, Trustpilot, notification hardening
+
+All of §23 is the contract shared by the API, the web app and the admin
+console for this round. Conventions are unchanged (§22 preamble): strict
+JSON, error envelope, every new server sentence in the en/fr/es catalogue,
+every new code with copy in `frontend/src/lib/api/errors.ts` and
+`copy-{en,fr,es}.json`. **Deploy the API before the web app**: older APIs
+reject the new `reply_to_id` field (strict JSON).
+
+Migrations: `0022_auth_identities.sql` (§23.1), `0023_chat_replies_likes_aliases.sql`
+(§23.2–23.4), `0024_notification_hardening.sql` (§23.6).
+
+New error codes:
+
+| code | HTTP | meaning |
+| --- | --- | --- |
+| `google_unavailable` | 503 | Google sign-in is not configured, or Google could not be reached. Retryable. |
+| `google_state_invalid` | 400 | The sign-in attempt expired, was already used, or does not belong to this browser. Start again. |
+| `google_cancelled` | 400 | The person closed or refused Google's screen. |
+| `google_email_unverified` | 403 | Google reports the e-mail address as unverified. |
+| `google_account_in_use` | 409 | That Google account is already connected to another Staryield account. |
+| `google_not_allowed` | 403 | Google sign-in is not available for this account (admins). |
+| `password_not_set` | 409 | The action needs the account password and the account has none yet (Google-only account). CTA: create a password. |
+| `last_sign_in_method` | 409 | Google cannot be disconnected until the account has a password. |
+| `reply_target_invalid` | 422 | `reply_to_id` is not a text or image message of the same conversation. |
+| `message_not_likeable` | 422 | System notices cannot be liked. |
+
+### 23.1 Sign in / sign up with Google
+
+Server-side OpenID Connect authorization-code flow (Google "OpenID Connect"
+guide), chosen over the Google Identity Services script so that **no Google
+JavaScript, cookie or request exists on any Staryield page** until the person
+presses the button and is navigated to Google. Scope is `openid email` only
+(no `profile`): the display name defaults to the e-mail's local part exactly
+as for e-mail sign-up. No Google access or refresh token is stored; the
+access token is discarded right after the exchange and `access_type` is not
+sent (online).
+
+Security properties (each has a test):
+- `state`: 32 random bytes, single use (`GETDEL`), TTL
+  `STARYIELD_GOOGLE_STATE_TTL` (10 min), stored in Redis with the nonce, the
+  PKCE verifier, intent, locale, `next`, `accept_terms`, attribution and (for
+  `link`) the user id. It is **bound to the browser**: the record keeps the
+  SHA-256 of a second random value that only lives in the HttpOnly cookie
+  `sy_oa` (`__Secure-sy_oa` when secure; SameSite=Lax, Path `/api/v1/auth`,
+  Max-Age = state TTL). A callback without the matching cookie fails with
+  `google_state_invalid` (login-CSRF / code-injection defence).
+- PKCE `S256` (`code_challenge`, `code_verifier` 43 chars) and `nonce`
+  (checked against the ID token) on every request.
+- ID token validation, even though it comes straight from the token
+  endpoint over TLS: RS256 only, key by `kid` from the provider JWKS
+  (cached per `Cache-Control`, min 5 min / max 24 h; one forced refresh on an
+  unknown `kid`, at most once a minute), `iss` ∈ {`https://accounts.google.com`,
+  `accounts.google.com`} (or exactly the configured test issuer), `aud` =
+  client id, `azp` = client id when present, `exp`/`iat` with 60 s leeway,
+  `nonce` match, `sub` 1–255 chars, `email` present, `email_verified` true
+  (else `google_email_unverified`).
+- Endpoints come from the discovery document
+  (`<issuer>/.well-known/openid-configuration`, cached like the JWKS; all
+  endpoint URLs must be `https` — `http` only for a loopback test issuer);
+  the outbound HTTP client has a 10 s timeout, follows no redirects and
+  caps response bodies at 1 MiB.
+- The identity key is Google's `sub`, never the e-mail.
+- **No automatic linking by e-mail.** Staryield does not verify e-mail
+  addresses at sign-up, so linking a Google identity to an existing
+  password account just because the addresses match would let someone who
+  pre-registered a victim's address keep access. An existing account is
+  linked only after its owner proves the password (below) or from a
+  signed-in session.
+- Admin accounts can never use or link Google (`google_not_allowed`); the
+  admin console keeps password + TOTP.
+- `next` must be a locale-less same-site path (same rules as the web app's
+  `safeNext`), else it is dropped.
+
+Storage (`0022_auth_identities.sql`):
+
+```sql
+user_identities(id uuid PK, user_id → users ON DELETE CASCADE, provider text CHECK (provider IN ('google')),
+  subject text (1..255), email text (≤254, lower-case), created_at, updated_at, last_login_at,
+  UNIQUE (provider, subject), UNIQUE (user_id, provider))
+```
+
+`users.password_hash` stays `NOT NULL`; **`''` means "no password"** (Google-only
+account, `User.HasPassword()`). Password sign-in for such an account fails
+like a wrong password (same timing, same `invalid_credentials`). Every
+password-gated action (`/auth/password/change`, `/me/email-change`,
+`/me/deactivate`, `/me/close`, data export) answers 409 `password_not_set`
+for it; the web app then offers "Create a password", which sends the normal
+reset link (`POST /auth/password/forgot`). A new Google account gets
+`email_verified_at = now()` (Google vouches for the address).
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /site/config` | gains `auth: { google: boolean }` (true when the client id, secret and redirect URL are configured). |
+| `POST /auth/google/start` | `{intent: "signin" \| "signup" \| "link", accept_terms?: boolean, next?: string, locale?: "en"\|"fr"\|"es", attribution?: AttributionInput}` → `{authorization_url}` + the `sy_oa` cookie. `link` needs a signed-in, non-admin user (401/403). Rate limit `auth`. 503 `google_unavailable` when not configured. The URL carries `response_type=code`, `scope=openid email`, `state`, `nonce`, `code_challenge`, `code_challenge_method=S256`, `prompt=select_account`, `hl=<locale>`. |
+| `GET /auth/google/callback?code&state` (or `?error&state`) | Called by the browser coming back from Google. No CSRF header (GET); protected by `state` + cookie. **Always answers 303** to `STARYIELD_APP_FRONTEND_URL/{locale}/auth/google?result=<result>[&next=<path>]`, with `Cache-Control: no-store` and `Referrer-Policy: no-referrer`; never renders JSON. Rate limit `auth`. |
+| `GET /auth/google/pending` | What the `sy_oa` cookie is waiting for → `{kind: "signup_consent", email}` \| `{kind: "link_password", email}` \| `{kind: "reactivation", code: "account_deactivated" \| "account_closure_pending", reactivation_token, reactivation_expires_at, deletion_scheduled_at?}` (a fresh 5-minute reactivation token on every read); 404 `not_found` when nothing is pending. E-mails are returned in full only here, to the browser that holds the cookie. Rate limit `auth`. |
+| `POST /auth/google/complete` | `{accept_terms: true, locale?, attribution?}` → 201 `SessionResponse`. Creates the account for a pending `signup_consent` (single use). 400 `google_state_invalid` when nothing is pending, 422 without `accept_terms`, 409 `email_taken` if the address was registered meanwhile. Rate limit `auth`. |
+| `POST /auth/login` | unchanged body. When the request carries a pending `link_password` whose e-mail equals the account's and the password is right, the Google identity is linked in the same transaction; `SessionResponse` gains `linked?: "google"`. |
+| `GET /me/sign-in-methods` | `{password: boolean, google?: {email: string, linked_at: string}, google_available: boolean}`. |
+| `DELETE /me/sign-in-methods/google` | `{password}` → 204. Checked in this order: 404 when not linked, 409 `last_sign_in_method` without a password, 401 `invalid_credentials` on a wrong one. Rate limit `sensitive`. |
+
+Callback results (`result=`):
+
+| result | When | Web app does |
+| --- | --- | --- |
+| `signed_in` | identity known, account active | load `/me`, go to `next` or the usual landing page |
+| `signed_up` | new account created (intent `signup` with `accept_terms: true`) | load `/me`, continue at `/signup/birth` |
+| `linked` | intent `link` succeeded | settings, toast "Google is now connected." |
+| `signup_consent` | no account for this Google identity or e-mail, and terms not accepted yet | show "Create your Staryield account" with the terms checkbox → `POST /auth/google/complete` |
+| `link_password` | an account with this e-mail exists and is not linked | `/login` with the notice "You already have a Staryield account with this e-mail. Sign in with your password once to connect Google." (e-mail prefilled from `/auth/google/pending`) |
+| `reactivation` | linked account is deactivated by its owner or pending closure | reactivation offer (same component as password login) |
+| `account_disabled`, `google_cancelled`, `google_state_invalid`, `google_email_unverified`, `google_account_in_use`, `google_not_allowed`, `google_unavailable` | errors | error screen with the code's copy; "Try again" (restarts the same intent) for `google_cancelled`, `google_state_invalid`, `google_unavailable`; otherwise "Back to sign in" / "Contact support" |
+
+Rules:
+- New accounts are always clients, get the sign-up offer, the `signup`
+  attribution and `terms_accepted_at` exactly like `POST /auth/register`
+  (one shared code path). Advisors (created by admins) may link Google from
+  settings and then sign in with it.
+- Linking from settings refuses a Google identity already linked elsewhere,
+  and a second Google account on an account that already has one
+  (`google_account_in_use` in both cases), and replaces nothing. The device
+  that started the link must still be signed in when Google returns, else
+  `google_state_invalid` (nobody can finish Google's screen after the owner
+  signed out and attach their own Google account).
+- A failed callback that consumed nothing of this browser's attempt (unknown
+  state, wrong cookie) leaves `sy_oa` in place, so a forged cross-site GET
+  cannot cancel a sign-in in progress.
+- Linking, unlinking and Google sign-up are audited
+  (`auth.google.linked|unlinked|signup`) and raise the in-app notifications
+  `account.google_linked` / `account.google_unlinked` (data `{email}` masked
+  as `j•••@gmail.com`); linking and unlinking also send the security e-mail
+  "Google sign-in was added to / removed from your account" through the
+  outbox (category security, always sent).
+- Account erasure deletes the identity rows (cascade). The personal-data
+  export gains `sign_in_methods` (`provider`, `email`, `linked_at`; never the
+  `sub`).
+- Admin `AdminUserView` gains `sign_in_methods: ("password" | "google")[]`;
+  the console's user page shows it in the Profile section.
+
+Configuration (`.env.example`; enabled only when the first three are set;
+setting only one or two of them fails start-up validation):
+
+| Environment variable | Default | Purpose |
+| --- | --- | --- |
+| `STARYIELD_GOOGLE_CLIENT_ID` | empty | OAuth 2.0 Web client id (Google Cloud Console → Clients). |
+| `STARYIELD_GOOGLE_CLIENT_SECRET` | empty | Its secret. Never logged. |
+| `STARYIELD_GOOGLE_REDIRECT_URL` | empty | Exactly the authorised redirect URI, e.g. `https://api.staryield.net/api/v1/auth/google/callback`. Must be https outside development. |
+| `STARYIELD_GOOGLE_ISSUER` | `https://accounts.google.com` | Only for tests: a local mock issuer. Config validation refuses any other value when the app environment is production. |
+| `STARYIELD_GOOGLE_STATE_TTL` | `10m` | Lifetime of a sign-in attempt and of a pending consent/link. |
+
+Web app:
+- One `GoogleButton` (Google's branding rules: white `#FFFFFF` fill, `#747775`
+  1 px border, `#1F1F1F` label, the standard four-colour "G" as inline SVG at
+  18 px, 12/10/12 px padding, 40 px high, full width like the primary
+  button; labels "Continue with Google" on sign-in, "Sign up with Google" on
+  sign-up) rendered only when `siteConfig.auth.google`; shown on `/login`
+  and `/signup` under an "or" divider (`AuthDivider`). On `/signup` it uses
+  the terms checkbox of the form (`accept_terms`); unticked → the same
+  validation message as the e-mail path. Loading state while the start call
+  runs, then `window.location.assign(authorization_url)`.
+- Screen `/{locale}/auth/google` (`noindex`, no referrer) handles every
+  result above with loading, error + retry/CTA and success states.
+- Settings → Password & Security gains "Sign-in methods": password (set /
+  "Create a password"), Google (connected as `{email}` + Disconnect with
+  password confirmation, or "Connect Google").
+- Dialogs that ask for the password (e-mail change, deactivate, close,
+  export) show the `password_not_set` explanation with the "Create a
+  password" action instead of a dead end.
+
+### 23.2 Reply to a message
+
+- `chat_messages.reply_to_id uuid NULL REFERENCES chat_messages(id) ON DELETE SET NULL`
+  (index on `reply_to_id WHERE reply_to_id IS NOT NULL` for the FK).
+- Sending: `reply_to_id?: uuid` on the realtime frame `message.send`, on
+  `POST /chat/conversations/:id/messages`, on the legacy
+  `POST /chat/sessions/:id/messages` and as a multipart field of both
+  attachment uploads. The target must be a `text` or `image` message of the
+  same conversation, else 422 `reply_target_invalid` (checked before the
+  message is stored; an idempotent replay returns the original message
+  unchanged). Replies follow every existing rule of a message (routing,
+  off-session gates and caps, rate limits) and cost nothing extra.
+- `Message` gains
+
+```ts
+reply_to?: { id: string; seq: number; sender_id?: string; kind: "text" | "image";
+             excerpt: string /* first 140 characters of the body or caption, "" for a bare image */ };
+```
+
+  filled on every read path (history, since, saved, thread, `message.created`,
+  send acks) with **one** extra `WHERE id IN (…)` query per page, never one
+  per message. The quoted text is derived at read time (messages are
+  immutable).
+- Web app: reply from the message actions (hover/focus on desktop; swipe
+  right on a bubble or long-press → menu on touch). The composer shows
+  "Replying to {name}" with the excerpt and a cancel button (Esc cancels);
+  the target is kept per conversation until sent or cancelled and travels
+  with the outbox entry so a retry keeps it. The bubble shows the quote
+  above the text; pressing it scrolls to the original and highlights it,
+  loading older pages when needed (bounded; failure → toast with retry).
+
+### 23.3 Like a message
+
+- `message_likes(message_id → chat_messages ON DELETE CASCADE, user_id → users ON DELETE CASCADE, created_at, PRIMARY KEY (message_id, user_id))`.
+- `Message` gains `liked_by?: string[]` (user ids, at most the two
+  participants, omitted when empty), filled on every read path with one
+  batched query per page.
+
+| Method & path | Notes |
+| --- | --- |
+| `PUT /chat/messages/:id/like` | participant of the message's conversation (404 otherwise); text or image message (422 `message_not_likeable`). Idempotent → 200 `MessageLikes`. Rate limit `like` (120/min per user, burst 30). |
+| `DELETE /chat/messages/:id/like` | same guards; idempotent → 200 `MessageLikes`. |
+
+```ts
+type MessageLikes = { message_id: string; conversation_id: string; seq: number; liked_by: string[] /* [] when nobody */ };
+```
+
+- Realtime (durable, both participants, every device): `message.liked`
+  `MessageLikes & { user_id: string; liked: boolean }`, published only when
+  the state changed (a repeated PUT/DELETE answers 200 without an event) and
+  under a row lock on the message, so concurrent likes are delivered in
+  order. Clients apply `liked_by` as authoritative. Likes never notify, never push, never change
+  unread counts, and are free at any time (no session needed).
+- Web app: a heart in the message actions (`aria-pressed`), double-tap on
+  touch and double-click on desktop toggle it, optimistic with rollback and
+  an error toast ("Try again"). A liked message shows a small heart badge on
+  the bubble edge (filled gold; "You", "{name}" or both in its accessible
+  label).
+- The data export gains `chat/message_likes.json` (the likes the caller
+  gave: `{message_id, liked_at}`) and `reply_to_id` on exported messages;
+  erasure removes the caller's likes.
+
+### 23.4 Private client nicknames (advisors)
+
+An advisor can give a client a nickname that **only that advisor** sees. It
+never appears in anything sent to the client or to other advisors: it is
+delivered in its own field on advisor-scoped responses and is never merged
+into `name` on the server.
+
+- `client_aliases(psychic_id → psychics(user_id) ON DELETE CASCADE, client_id → users ON DELETE CASCADE, alias_enc text, created_at, updated_at, PRIMARY KEY (psychic_id, client_id))`;
+  sealed at rest like notes (AES-GCM, associated data
+  `alias:<psychic_id>:<client_id>`).
+- Alias: 1–40 characters after trimming and collapsing inner whitespace
+  (tabs, newlines and no-break spaces count as whitespace); control and
+  format characters such as zero-width and bidirectional overrides are
+  rejected, never stripped (422 `validation_failed`, field `alias`).
+
+| Method & path | Notes |
+| --- | --- |
+| `PUT /chat/conversations/:id/alias` | advisor of that conversation (404 otherwise); `{alias}` → 200 `ClientAlias`. Rate limit `alias` (60/h). Audited `client_alias.set` (never the text). |
+| `DELETE /chat/conversations/:id/alias` | → 204 (idempotent). Audited `client_alias.cleared`. |
+| `GET /chat/aliases?client_ids=<uuid>,<uuid>,…` | advisor only; 1–50 comma-separated ids (422 otherwise) → `{items: ClientAlias[]}` (only the ones that exist). |
+
+```ts
+type ClientAlias = { client_id: string; alias: string; updated_at: string };
+```
+
+- `Conversation.counterpart` on the advisor's inbox rows and `ClientProfile`
+  gain `alias?: string`, **omitted when no nickname is set** (the web app
+  treats an omitted alias on these two responses as "known: none" and makes
+  no lookup). Session views and every realtime event shared with the client
+  are unchanged, and `GET /chat/psychics/:slug` (client only) never carries
+  it.
+- Realtime (durable, to the advisor's own user only):
+  `client_alias.updated` `{client_id, alias: string | null, updated_at}`.
+- **Admin oversight** (same rules as notes, §9.5):
+  `GET /admin/chat/sessions/:id/client-alias?reason=<1–300 chars>` — admin
+  session + step-up 🔐 → `{alias: string | null, updated_at?, client: {id, name}, advisor: {id, name, slug}}`
+  (the nickname the session's advisor gave its client, `null` when none).
+  422 without a valid `reason`, 404 for an unknown session. Every call is
+  audited as `client_alias.viewed` with `{session_id, conversation_id, client_id, psychic_id, reason, found}`,
+  never the text. The session and transcript responses never carry the
+  nickname. Console: in a session's transcript the nickname is hidden by
+  default; "Show nickname" opens a confirmation that requires a reason, then
+  the nickname is shown in a row above the transcript and beside the client's
+  name on each client message until "Hide" or a reload.
+- Erasure of either account deletes the rows (explicitly: erasure
+  anonymises the user row, so the cascade alone would not fire; the same
+  applies to likes and Google identities). Aliases are not part of the
+  client's self-service export (same handling as notes, §9.5); the advisor's
+  export lists the aliases they wrote (`advisor/client_aliases.json`).
+- Web app: `ClientAliasProvider` (advisors only) caches aliases by client
+  id, primed by the inbox and updated by the event; `useClientName(id, name)`
+  returns the alias or the real name everywhere the advisor sees a client
+  (chat header, conversation list, client panel, session card, request
+  banner, toasts, notifications of chat requests). Chat header: a pen icon
+  next to the name switches the name to an input in place with confirm
+  (✓, Enter) and cancel (✗, Esc) icons; saving state, inline error with
+  retry; an empty value clears the nickname. With a nickname set, the
+  client panel shows the real name underneath ("Name on the account:
+  {name}").
+
+### 23.5 Placement order in the advisor's client panel
+
+`placementsFor` returns fixed slots in this order, three per row:
+Sun, Moon, Ascendant (rising) / Mercury, Venus, Mars / Jupiter, Saturn,
+Uranus / Neptune, Pluto. The Ascendant appears once (the API's own
+`Ascendant` entry and `rising_sign` are de-duplicated); the Midheaven is
+not shown. When the chart exists but the Moon or the Ascendant is unknown
+(no birth time), its slot stays in place and reads "Unknown" so the rows
+never shift. The preview stays the first row (3).
+
+### 23.6 Notification hardening
+
+API
+- **No silent drops in the dispatcher.** When the in-memory queue is full,
+  `Notify` writes the notification synchronously (bounded by a 5 s timeout)
+  instead of dropping it. A failed batch insert is retried (3 attempts,
+  backoff 100 ms → 1 s) and then written row by row, so one bad row cannot
+  take 199 others with it. A failed realtime publish is retried once. On
+  shutdown the queue is drained within the shutdown deadline. Remaining
+  window: a process crash loses at most the notifications accepted in the
+  last 250 ms that were not yet written.
+- **Read state is synchronised.** Marking read (ids or all) publishes the
+  ephemeral realtime event `notification.read` `{ids?: string[], all?: true, unread: number}`
+  to the user (every tab and device).
+- **Push subscriptions end with the session.** `POST /auth/logout` accepts
+  an optional body `{push_endpoint?: string}` and removes that subscription
+  for the user; `logout-all`, password reset, password change, account
+  deactivation/closure and admin bans remove **all** of the user's push
+  subscriptions.
+- **Push lanes.** Three bounded queues served by priority: `urgent`
+  (`chat.requested`, `chat.missed`, chat messages, `waitlist.available`),
+  `normal`, `bulk` (broadcasts). Workers always take urgent work first; a
+  full `bulk` lane never blocks or evicts the others. A job older than its
+  TTL is discarded before sending. Devices of one user are sent in parallel
+  (bounded), workers configurable (`STARYIELD_PUSH_WORKERS`, default 8).
+- **Push outcomes.** 404/410 → subscription removed. Network errors, 5xx
+  408 and 429 are **transient**: the job is retried (up to 3 attempts, backoff
+  1 s then 5 s, capped at 30 s, honouring `Retry-After`, never past the TTL) and never counts
+  towards removal. 400/401/403/413 count as failures (removed after 10 in a
+  row; any success resets the counter).
+- **Push payload** gains `id` (the notification id, absent for chat-message
+  pushes) so the web app can mark it read when it is opened.
+- **Broadcasts are idempotent and resumable.** Unique partial index
+  `notifications (broadcast_id, user_id) WHERE broadcast_id IS NOT NULL`
+  with `ON CONFLICT DO NOTHING`; `broadcasts` gains `cursor_user_id` and
+  `heartbeat_at`; the fan-out walks recipients in `user_id` order in chunks
+  and records its position; the job `broadcast-recovery` (every minute)
+  resumes any broadcast in `queued`/`sending` whose heartbeat is older than
+  2 min, one runner at a time (advisory lock), in chunks of 1 000 (one
+  transaction each), and marks a broadcast `failed` when it is still
+  unfinished 24 h after it was created. A crash right after a chunk commits
+  can lose that chunk's realtime event, e-mail and push (the in-app rows are
+  kept and never sent twice). Realtime publishes are
+  pipelined per chunk. Shutdown waits for the fan-out only within the
+  shutdown deadline (it resumes after restart).
+- **Retention.** Old notifications are deleted in batches of 5 000 with a
+  pause between batches, using the new index `notifications (created_at)`;
+  `notifications (broadcast_id)` is covered by the unique index above.
+- **Observability.** The dispatcher, push service and broadcast service keep
+  counters (written, sync fallbacks, retried, dropped, per-lane depth, sent,
+  retried, expired, pruned, resumed) behind `Snapshot()`; the job
+  `notification-stats` logs one summary line a minute, only when something
+  notable moved. There is no admin health endpoint yet to show them on.
+
+Web app
+- `NotificationsProvider` refetches the unread count on `hello`,
+  `resync_required` and when the page becomes visible, applies
+  `notification.read`, and ignores a count response older than a newer
+  event (sequence guard).
+- Copy for every kind (`waitlist.available`, `export.ready`,
+  `account.email_change_requested`, `account.email_changed`,
+  `account.reactivated`, `account.google_linked`, `account.google_unlinked`,
+  `subscription.renewed`, `subscription.payment_failed`,
+  `subscription.canceled`); a test fails when a kind known to the API has no
+  copy.
+- Sign-out removes this browser's push subscription (API + browser) before
+  the session ends, best effort with a 3 s cap, so a shared device stops
+  receiving the previous person's notifications.
+- `PushSync` re-sends at once when the browser's endpoint differs from the
+  last one it sent; the service worker handles `pushsubscriptionchange` by
+  re-subscribing with the same key and telling open pages
+  (`postMessage {type: "push.subscription_changed"}`).
+- The push switch in settings applies immediately (no "Save" needed), with
+  rollback on failure.
+- Service worker: opening a notification adds `sy_n=<id>` to the URL (the
+  app marks it read and removes the parameter); `openWindow` fallback when
+  `navigate()` fails; app badge set on push and cleared when the app is
+  visible (where the Badging API exists).
+
+### 23.7 Trustpilot
+
+The official "Review Collector" TrustBox (template `56278e9abfbbba0bdcd568bc`,
+business unit `6ae3c22a0156593a343fe019`, `https://www.trustpilot.com/review/staryield.net`).
+
+- One component, `TrustpilotReviewCollector` (`components/reviews/`), with
+  the ids in `config/trustpilot.ts`. The markup is Trustpilot's, unmodified;
+  the fallback is the plain link "Review us on Trustpilot" (new tab,
+  `rel="noopener"`), which is also what people see when the script cannot
+  load.
+- The script (`https://widget.trustpilot.com/bootstrap/v5/tp.widget.bootstrap.min.js`)
+  is loaded once, lazily, when a widget first comes within 200 px of the
+  viewport, then `window.Trustpilot.loadFromElement(el, true)`. It is **not**
+  loaded when the browser sends Global Privacy Control or Do Not Track
+  (`thirdPartyEmbedsAllowed()` in `lib/consent.ts`); the link is shown
+  instead. Loading state (skeleton), failure after 8 s → the link.
+- Placements, the same for everyone (Trustpilot forbids selecting who is
+  invited, and incentives): (1) `/reviews` hero, replacing the hard-coded
+  "17,419 reviews · 4.4 rating" figures; (2) home page, under the
+  testimonials and statistics; (3) site footer; (4) the end-of-chat summary
+  for **every** client whose live chat ended, whatever they rated (never for
+  advisors). No reward is ever attached to a review.

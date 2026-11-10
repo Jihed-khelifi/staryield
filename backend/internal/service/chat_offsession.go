@@ -231,6 +231,8 @@ type ConversationSendInput struct {
 	ConversationID uuid.UUID
 	Body           string
 	ClientMsgID    string
+	// ReplyToID quotes a message of the same conversation (revisions 4.0, §23.2).
+	ReplyToID *uuid.UUID
 }
 
 // errReroute asks the caller to evaluate the routing again (a live chat
@@ -240,10 +242,11 @@ var errReroute = errors.New("service: reroute message")
 // storeSpec describes what to store; attach adds the image attachment in the
 // same transaction.
 type storeSpec struct {
-	kind   domain.MessageKind
-	body   string
-	cmid   *string
-	attach func(ctx context.Context, m *domain.Message, now time.Time) (*domain.Attachment, error)
+	kind    domain.MessageKind
+	body    string
+	cmid    *string
+	replyTo *uuid.UUID
+	attach  func(ctx context.Context, m *domain.Message, now time.Time) (*domain.Attachment, error)
 }
 
 // stored is the committed outcome of storeMessage.
@@ -307,8 +310,13 @@ func (c *ChatService) storeOnce(ctx context.Context, p reqctx.Principal, convers
 		return false, nil
 	}
 	build := func(sessionID *uuid.UUID) (*domain.Message, error) {
+		// The target is validated after the replay lookups (a replay returns the
+		// original unchanged) and before anything is stored.
+		if err := c.checkReplyTarget(ctx, conversationID, spec.replyTo); err != nil {
+			return nil, err
+		}
 		m := &domain.Message{ID: domain.NewID(), ConversationID: conversationID, SessionID: sessionID, SenderID: &sender,
-			Kind: spec.kind, Body: spec.body, ClientMsgID: spec.cmid, CreatedAt: now, UpdatedAt: now}
+			Kind: spec.kind, Body: spec.body, ClientMsgID: spec.cmid, ReplyToID: spec.replyTo, CreatedAt: now, UpdatedAt: now}
 		conv, err := c.chat.AppendMessage(ctx, m)
 		if err != nil {
 			return nil, err
@@ -393,6 +401,11 @@ func (c *ChatService) storeOnce(ctx context.Context, p reqctx.Principal, convers
 
 // finishSend publishes, tracks and builds the result of a committed send.
 func (c *ChatService) finishSend(ctx context.Context, p reqctx.Principal, in *stored, view MessageView, kind string, length int) *SendResult {
+	// reply_to is filled before the event is published and the ack built; a
+	// replay may already carry likes, a new message cannot.
+	vs := []MessageView{view}
+	c.decorateBestEffort(ctx, vs, in.replay)
+	view = vs[0]
 	res := &SendResult{Message: &view, Replayed: in.replay}
 	conv := in.conv
 	if !in.replay {
@@ -426,6 +439,9 @@ func (c *ChatService) replayResult(ctx context.Context, p reqctx.Principal, exis
 	if withAttachments {
 		v = c.withAttachments(ctx, []MessageView{v})[0]
 	}
+	vs := []MessageView{v}
+	c.decorateBestEffort(ctx, vs, true)
+	v = vs[0]
 	res := &SendResult{Message: &v, Replayed: true}
 	if conv, err := c.chat.GetConversation(ctx, existing.ConversationID); err == nil && conv.IsParticipant(p.UserID) {
 		if a, err := c.allowanceFor(ctx, p.UserID, conv); err == nil {
@@ -462,7 +478,7 @@ func (c *ChatService) SendToConversation(ctx context.Context, p reqctx.Principal
 		warnErr(ctx, "chat: message rate limiter unavailable", err)
 	}
 	cfg, free := c.offSessionSettings(ctx), c.freeMode(ctx)
-	out, err := c.storeMessage(ctx, p, in.ConversationID, storeSpec{kind: domain.MessageText, body: body, cmid: cmid}, cfg, free)
+	out, err := c.storeMessage(ctx, p, in.ConversationID, storeSpec{kind: domain.MessageText, body: body, cmid: cmid, replyTo: in.ReplyToID}, cfg, free)
 	if errors.Is(err, repository.ErrDuplicate) && cmid != nil {
 		// Stored by a concurrent request (rolled back here): the original.
 		existing, gerr := c.chat.GetMessageByClientID(ctx, p.UserID, *cmid)
@@ -496,7 +512,7 @@ func (c *ChatService) SendMessageForSession(ctx context.Context, p reqctx.Princi
 	if err != nil {
 		return nil, err
 	}
-	return c.SendToConversation(ctx, p, ConversationSendInput{ConversationID: convID, Body: in.Body, ClientMsgID: in.ClientMsgID})
+	return c.SendToConversation(ctx, p, ConversationSendInput{ConversationID: convID, Body: in.Body, ClientMsgID: in.ClientMsgID, ReplyToID: in.ReplyToID})
 }
 
 // SendMessage stores and delivers a message for a session-scoped caller and

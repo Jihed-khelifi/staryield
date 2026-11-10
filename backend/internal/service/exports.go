@@ -141,6 +141,9 @@ func (s *ExportService) reauth(ctx context.Context, userID uuid.UUID, password s
 	if err != nil {
 		return mapRepoErr(err, "User")
 	}
+	if !u.HasPassword() { // created with Google: set a password first
+		return apperror.PasswordNotSet()
+	}
 	if password == "" || len(password) > security.PasswordMaxLength*4 {
 		if err := s.d.Hasher.VerifyDummyContext(ctx, password); err != nil {
 			return hashError(err)

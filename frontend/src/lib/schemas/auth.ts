@@ -17,6 +17,15 @@ export const signupEmailSchema = (text: TranslateCopy) =>
       .oneOf([true], text("Please accept the Terms of Service and Privacy Policy.")),
   })
 
+/** The terms box on the "Create your Staryield account" step after Google (§23.1). */
+export const googleConsentSchema = (text: TranslateCopy) =>
+  yup.object({
+    terms: yup
+      .boolean()
+      .default(false)
+      .oneOf([true], text("Please accept the Terms of Service and Privacy Policy.")),
+  })
+
 export const newPasswordSchema = (text: TranslateCopy) =>
   yup.object({
     password: passwordRule(text),
@@ -35,6 +44,7 @@ export const loginSchema = (text: TranslateCopy) =>
 export const forgotPasswordSchema = (text: TranslateCopy) => yup.object({ email: emailRule(text) })
 
 export type SignupEmailValues = yup.InferType<ReturnType<typeof signupEmailSchema>>
+export type GoogleConsentValues = yup.InferType<ReturnType<typeof googleConsentSchema>>
 export type NewPasswordValues = yup.InferType<ReturnType<typeof newPasswordSchema>>
 export type LoginValues = yup.InferType<ReturnType<typeof loginSchema>>
 export type ForgotPasswordValues = yup.InferType<ReturnType<typeof forgotPasswordSchema>>

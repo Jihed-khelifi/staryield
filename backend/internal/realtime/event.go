@@ -48,6 +48,12 @@ const (
 	EventMessageRead    = "message.read"
 	EventTyping         = "typing"
 
+	// revisions 4.0 (§23.3–23.4), both durable: a like toggled on a message
+	// (both participants) and an advisor's private client alias changed (the
+	// advisor only).
+	EventMessageLiked       = "message.liked"
+	EventClientAliasUpdated = "client_alias.updated"
+
 	EventWalletUpdated = "wallet.updated"
 
 	// revisions 3.0: chat unread (ephemeral)

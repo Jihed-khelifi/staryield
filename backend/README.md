@@ -85,6 +85,7 @@ declined · expired · cancelled            ended ──calculate earnings──
 ### Security
 
 * **Passwords** use Argon2id (RFC 9106) with a policy that matches the sign-up form, a max length (DoS) and a common-password check. Unknown accounts get constant-time dummy verification. Login lockout keys on the account; generic errors prevent enumeration.
+* **Sign in with Google** is the server-side OpenID Connect authorization-code flow with PKCE (`internal/oidc`, config `STARYIELD_GOOGLE_*`): no Google script or cookie exists on any web page until the person presses the button. Every attempt is a single-use Redis record (`GETDEL`) bound to the browser by the HttpOnly `sy_oa` cookie; ID tokens are validated strictly (RS256 by `kid` from the provider JWKS, `iss`, `aud`, `azp`, `exp`/`iat`, `nonce`, verified e-mail). The identity key is Google's `sub`, never the e-mail, and an existing account is **never linked by e-mail**: its owner proves the password once (or links from a signed-in session). `users.password_hash = ''` means "no password" (Google-only account): password sign-in fails like a wrong password and every password-gated action answers 409 `password_not_set` until a password is set through the reset flow.
 * **Sessions** use short-lived HS256 access tokens and rotating opaque refresh tokens; only hashes are stored. Reusing a refresh token after rotation revokes the whole family. A `token_version` claim gives exact, immediate revocation on logout-all, password change or reset, role change and deactivation. Realtime connections are closed on revocation as well.
 * **Cookies** are HttpOnly; Secure with `__Host-`/`__Secure-` prefixes in production. The access cookie is SameSite=Lax; the refresh cookie is SameSite=Strict and scoped to `/api/v1/auth`.
 * **CSRF** uses signed double-submit tokens plus an Origin allow-list on every state-changing request.
@@ -125,7 +126,7 @@ Admin dashboard endpoints (served to the admin console, see below):
 
 | Area | Endpoints |
 | --- | --- |
-| Auth | `GET auth/csrf` · `POST auth/register` · `auth/login` · `auth/refresh` · `auth/logout` · `auth/logout-all` · `auth/password/{forgot,reset,change}` |
+| Auth | `GET auth/csrf` · `POST auth/register` · `auth/login` · `auth/refresh` · `auth/logout` · `auth/logout-all` · `auth/password/{forgot,reset,change}` · `POST auth/google/start` · `GET auth/google/callback` (always a 303 to the web app) · `GET auth/google/pending` · `POST auth/google/complete` · `GET /me/sign-in-methods` · `DELETE /me/sign-in-methods/google` (Sign in with Google, §23.1) |
 | Me | `GET me` · `PATCH me/profile` · `POST/DELETE me/avatar` · `GET me/chart` · `GET me/horoscope` · `GET me/numerology` |
 | Credits | `GET credit-packs` · `GET wallet` · `GET wallet/ledger` · `POST/GET credits/purchases` · `POST webhooks/payments` |
 | Advisors | `GET psychics` · `GET psychics/:slug` · `PATCH psychic/availability` · `PATCH psychic/profile` · `GET psychic/earnings` |

@@ -126,7 +126,8 @@ describe("ClientPanel", () => {
     const toggle = within(section).getByRole("button", { name: "+ expand" });
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(toggle);
-    expect(within(section).getAllByRole("listitem")).toHaveLength(5);
+    // Sun, Moon (unknown), Ascendant, Mercury, Mars, Jupiter: fixed slots (§23.5).
+    expect(within(section).getAllByRole("listitem")).toHaveLength(6);
     expect(within(section).getByRole("button", { name: "- collapse" }).getAttribute("aria-expanded")).toBe("true");
   });
 

@@ -113,4 +113,16 @@ describe("parseSiteConfig", () => {
     expect(parseSiteConfig({ ...good, signup_offer: {} })).toBeNull();
     expect(parseSiteConfig({ ...good, free_mode: undefined })).toBeNull();
   });
+
+  it("reads which sign-in providers are configured (§23.1)", () => {
+    expect(parseSiteConfig({ ...good, auth: { google: true } })?.auth).toEqual({ google: true });
+    expect(parseSiteConfig({ ...good, auth: { google: false } })?.auth).toEqual({ google: false });
+  });
+
+  it("treats a missing or malformed `auth` (older APIs) as Google off", () => {
+    expect(parseSiteConfig(good)?.auth).toEqual({ google: false });
+    expect(parseSiteConfig({ ...good, auth: null })?.auth).toEqual({ google: false });
+    expect(parseSiteConfig({ ...good, auth: {} })?.auth).toEqual({ google: false });
+    expect(parseSiteConfig({ ...good, auth: { google: "yes" } })?.auth).toEqual({ google: false });
+  });
 });

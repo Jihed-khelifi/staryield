@@ -4,12 +4,48 @@
  * source copy translated with the i18n `text()` helper (copy-*.json); only
  * broadcasts carry admin-written copy per locale.
  */
-import type { AppNotification } from "@/lib/api/types";
+import type { AppNotification, NotificationKind } from "@/lib/api/types";
 import type { TranslationValues } from "@/i18n/types";
 
 type Translate = <T>(value: T, values?: TranslationValues) => T;
 
 export type NotificationCopy = { title: string; body: string };
+
+/**
+ * Every kind the API sends (docs §7.1, §23.6). The `NotificationKind` union is
+ * checked against this list in both directions, so a kind added to the type
+ * without copy fails the build, and the copy test walks the list.
+ */
+export const NOTIFICATION_KINDS = [
+  "chat.requested",
+  "chat.missed",
+  "chat.review_prompt",
+  "review.received",
+  "request.created",
+  "request.updated",
+  "purchase.succeeded",
+  "credits.adjusted",
+  "withdrawal.updated",
+  "photo.approved",
+  "photo.rejected",
+  "support.replied",
+  "broadcast",
+  "waitlist.available",
+  "export.ready",
+  "account.email_change_requested",
+  "account.email_changed",
+  "account.reactivated",
+  "account.google_linked",
+  "account.google_unlinked",
+  "subscription.renewed",
+  "subscription.payment_failed",
+  "subscription.canceled",
+] as const satisfies readonly NotificationKind[];
+
+type MissingKinds = Exclude<NotificationKind, (typeof NOTIFICATION_KINDS)[number]>;
+// Compile-time guard: fails when a member of NotificationKind is not in the list.
+const everyKindListed: [MissingKinds] extends [never] ? true : never = true;
+void everyKindListed;
 
 /** English source copy, keyed for tests that check every locale has it. */
 export const notificationTemplates = {
@@ -40,9 +76,44 @@ export const notificationTemplates = {
   supportRepliedTitle: "Support replied to your request",
   supportRepliedBody: "{reference}: {subject}",
   supportRepliedNoSubject: "We answered your request {reference}.",
+  // §23.6: every remaining kind has its own copy.
+  waitlistAvailableTitle: "Your advisor is online",
+  waitlistAvailableBody: "{name} is online now. Start your reading while they are available.",
+  waitlistAvailableNoName: "An advisor you waited for is online now.",
+  exportReadyTitle: "Your data export is ready",
+  exportReadyBody: "Download it from your account settings before the link expires.",
+  emailChangeRequestedTitle: "Email change requested",
+  emailChangeRequestedBody: "We sent a confirmation link to the new address. If this wasn't you, change your password right away.",
+  emailChangedTitle: "Email address changed",
+  emailChangedBody: "Your account now uses a new email address. If this wasn't you, contact support right away.",
+  reactivatedTitle: "Welcome back",
+  reactivatedBody: "Your account is active again.",
+  googleLinkedTitle: "Google sign-in added",
+  googleLinkedBody: "You can now sign in with the Google account {email}.",
+  googleLinkedNoEmail: "You can now sign in with Google.",
+  googleUnlinkedTitle: "Google sign-in removed",
+  googleUnlinkedBody: "The Google account {email} can no longer be used to sign in.",
+  googleUnlinkedNoEmail: "Google sign-in was removed from your account.",
+  subscriptionRenewedTitle: "Membership renewed",
+  subscriptionRenewedBody: "Your membership was renewed. Thank you for staying with us.",
+  subscriptionPaymentFailedTitle: "Membership payment failed",
+  subscriptionPaymentFailedBody: "We couldn't charge your payment method. Update it to keep your benefits.",
+  subscriptionPaymentFailedGrace: "We couldn't charge your payment method. Update it by {date} to keep your benefits.",
+  subscriptionCanceledTitle: "Membership ended",
   fallbackTitle: "Notification",
   someone: "A client",
 } as const;
+
+/** Why a membership ended (`subscription.canceled` data `reason`, §12.1). */
+export const subscriptionCanceledCopy: Record<string, string> = {
+  period_ended: "Your membership has ended. You can subscribe again at any time.",
+  payment_failed: "Your membership ended because we couldn't renew it. You can subscribe again at any time.",
+  canceled_by_user: "You canceled your membership and it has now ended. You can subscribe again at any time.",
+  admin: "Your membership was ended by Staryield. Contact support if you have questions.",
+  dispute: "Your membership was ended after a payment dispute. Contact support if you have questions.",
+  account_closed: "Your membership ended with your account.",
+  other: "Your membership has ended. You can subscribe again at any time.",
+};
 
 /** Request statuses (same copy as the orders list). */
 export const requestStatusCopy: Record<string, string> = {
@@ -148,10 +219,74 @@ export function notificationText(n: AppNotification, locale: string, text: Trans
           : text(T.supportRepliedNoSubject, { reference });
       return { title: text(T.supportRepliedTitle), body };
     }
+    case "waitlist.available": {
+      const advisor = str(d.psychic_name).trim();
+      return {
+        title: text(T.waitlistAvailableTitle),
+        body: advisor ? text(T.waitlistAvailableBody, { name: advisor }) : text(T.waitlistAvailableNoName),
+      };
+    }
+    case "export.ready":
+      return { title: text(T.exportReadyTitle), body: text(T.exportReadyBody) };
+    case "account.email_change_requested":
+      return { title: text(T.emailChangeRequestedTitle), body: text(T.emailChangeRequestedBody) };
+    case "account.email_changed":
+      return { title: text(T.emailChangedTitle), body: text(T.emailChangedBody) };
+    case "account.reactivated":
+      return { title: text(T.reactivatedTitle), body: text(T.reactivatedBody) };
+    // `email` is masked by the API ("j•••@gmail.com").
+    case "account.google_linked": {
+      const email = str(d.email).trim();
+      return { title: text(T.googleLinkedTitle), body: email ? text(T.googleLinkedBody, { email }) : text(T.googleLinkedNoEmail) };
+    }
+    case "account.google_unlinked": {
+      const email = str(d.email).trim();
+      return { title: text(T.googleUnlinkedTitle), body: email ? text(T.googleUnlinkedBody, { email }) : text(T.googleUnlinkedNoEmail) };
+    }
+    case "subscription.renewed":
+      return { title: text(T.subscriptionRenewedTitle), body: text(T.subscriptionRenewedBody) };
+    case "subscription.payment_failed": {
+      const until = Date.parse(str(d.grace_until));
+      const date = Number.isFinite(until) ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(until) : "";
+      return {
+        title: text(T.subscriptionPaymentFailedTitle),
+        body: date ? text(T.subscriptionPaymentFailedGrace, { date }) : text(T.subscriptionPaymentFailedBody),
+      };
+    }
+    case "subscription.canceled": {
+      const template = subscriptionCanceledCopy[str(d.reason)] ?? subscriptionCanceledCopy.other;
+      return { title: text(T.subscriptionCanceledTitle), body: text(template) };
+    }
     case "broadcast":
       return { title: pickLocalized(d.title, locale) || text(T.fallbackTitle), body: pickLocalized(d.body, locale) };
     default:
       return { title: text(T.fallbackTitle), body: "" };
+  }
+}
+
+/** Where a notification leads when the API sent no (usable) link; locale-less app path or null. */
+export function notificationFallbackLink(n: AppNotification): string | null {
+  switch (n.kind) {
+    case "waitlist.available": {
+      const slug = str(n.data?.psychic_slug).trim();
+      return slug ? `/chatroom?reader=${encodeURIComponent(slug)}` : "/chatroom";
+    }
+    case "export.ready":
+      return "/profile/settings#account-actions";
+    case "account.email_change_requested":
+    case "account.email_changed":
+      return "/profile/settings#account";
+    case "account.google_linked":
+    case "account.google_unlinked":
+      return "/profile/settings#security";
+    case "subscription.renewed":
+    case "subscription.payment_failed":
+    case "subscription.canceled":
+      return "/profile/settings";
+    case "account.reactivated":
+      return "/profile";
+    default:
+      return null;
   }
 }
 
@@ -189,4 +324,9 @@ export function notificationHref(link: string, locale: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** The in-app destination of a notification: the API's link, else the kind's default. */
+export function notificationDestination(n: AppNotification, locale: string): string | null {
+  return notificationHref(n.link, locale) ?? notificationHref(notificationFallbackLink(n) ?? "", locale);
 }

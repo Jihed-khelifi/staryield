@@ -28,7 +28,7 @@ const content: LegalDocumentContent = {
     },
     {
       "type": "p",
-      "text": "We do not sell your personal data and we do not use advertising trackers. We share personal data only with the service providers that help us run Staryield — for example Cloudflare for hosting, storage and email delivery, and our payment processors — and with the advisors you choose to talk to. Read this Policy to learn what data we collect ([Section 2](#categories-of-personal-data-we-collect)), how we use it ([Section 3](#purposes-and-legal-bases-for-processing-your-personal-data)), with whom we share it ([Section 4](#how-we-share-your-personal-data)), and what rights you have ([Section 5](#your-privacy-rights))."
+      "text": "We do not sell your personal data and we do not use advertising trackers. We share personal data only with the service providers that help us run Staryield — for example Cloudflare for hosting, storage and email delivery, and our payment processors — and with the advisors you choose to talk to. Two other third parties have a limited role: Google, only if you choose to sign in with your Google account, and Trustpilot, whose independent review widget is loaded on some pages (see Section 4). Read this Policy to learn what data we collect ([Section 2](#categories-of-personal-data-we-collect)), how we use it ([Section 3](#purposes-and-legal-bases-for-processing-your-personal-data)), with whom we share it ([Section 4](#how-we-share-your-personal-data)), and what rights you have ([Section 5](#your-privacy-rights))."
     },
     {
       "type": "p",
@@ -115,7 +115,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "We do not currently offer sign-in with Google, Apple, Facebook or other third-party accounts, and we do not receive data from app marketplaces. We may receive limited information about you from our payment processors (for example the result of a payment, fraud-screening signals, refunds and chargebacks) and from our email provider (for example whether a message to you could not be delivered)."
+          "text": "Sign-in with Google. You may sign up or sign in with your Google account. When you do, Google gives us your Google account identifier, your email address and whether Google has verified that address. We ask for nothing else: not your name, picture, contacts or any other Google data. We do not receive your Google password and we store no Google access tokens. We use this information only to create and secure your account and to sign you in, in order to perform our contract with you. Google learns that you used your Google account to sign in to Staryield and processes that information under its own privacy policy. If you already have a Staryield account with the same email address, we connect Google to it only after you confirm with your account password. You can disconnect Google in your account settings, once you have created a password; the link is deleted when you disconnect Google or when your account is erased. While a Google sign-in is in progress, we set a short-lived security cookie in your browser (see [Cookies and similar technologies](#cookies))."
+        },
+        {
+          "type": "p",
+          "text": "We do not currently offer sign-in with Apple, Facebook or other third-party accounts, and we do not receive data from app marketplaces. We may receive limited information about you from our payment processors (for example the result of a payment, fraud-screening signals, refunds and chargebacks) and from our email provider (for example whether a message to you could not be delivered)."
         },
         {
           "type": "h3",
@@ -133,7 +137,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Cookies and similar technologies. We use first-party cookies and browser storage to keep you signed in, protect your account, remember your language and display preferences, and — with your consent where the law requires it — measure how the Services are used and which campaigns bring visitors. We do not use advertising pixels or third-party tracking cookies. See [Cookies and similar technologies](#cookies) for the full list."
+          "text": "Cookies and similar technologies. We use first-party cookies and browser storage to keep you signed in, protect your account, remember your language and display preferences, and — with your consent where the law requires it — measure how the Services are used and which campaigns bring visitors. We do not use advertising pixels, and we place no third-party tracking cookies ourselves. The only third-party content we embed is the Trustpilot review widget (see [Section 4](#how-we-share-your-personal-data)). See [Cookies and similar technologies](#cookies) for the full list."
         },
         {
           "type": "h3",
@@ -154,6 +158,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Messages and images. We store the messages, emoji and images you exchange in live readings so that you and your advisor can see your conversation history. Images are re-encoded when you upload them, which removes embedded metadata such as GPS location and camera details. Before sending, an image may also be resized and compressed on your device (its longest side is reduced to at most 2048 pixels), and HEIC, HEIF or AVIF photos are converted where your browser supports it. They are kept in private storage and can only be opened by the two participants of the conversation; our administration tools do not allow staff to open them. Text transcripts can be reviewed by authorised staff only to handle a dispute, a safety report or a legal obligation; every such access requires a stated reason and is recorded in an audit log."
+        },
+        {
+          "type": "p",
+          "text": "Replies and likes. You can reply to a message, which shows a short excerpt of the message you answer above your own, and you can like a message. A reply or a like is stored with the conversation, is visible to both participants, is kept for as long as the messages of that conversation (see [Section 8](#data-retention)) and is included in your data export. Likes are not sent as notifications."
         },
         {
           "type": "p",
@@ -204,6 +212,10 @@ const content: LegalDocumentContent = {
           "text": "Notes are kept until their author deletes them or until your account or the advisor’s account is deleted. Because notes contain the advisors’ own observations, they are not included in the self-service data export. You can request them through our [request form](/contact?topic=privacy); our staff will review your request and, where the law requires, send you the notes concerning you in a structured, machine-readable format. Authorised staff may access notes only to answer such a request or to handle a complaint, a safety report or a legal obligation, and every access is recorded in an audit log."
         },
         {
+          "type": "p",
+          "text": "Private nicknames. Advisors may also give a client a private nickname that only that advisor can see; it is never shown to you, to other clients or to other advisors. Authorised Staryield staff can view a nickname only when they need to, for example to answer an access request or to review a safety report; they must state a reason first, and each view is recorded in our audit log. Nicknames are encrypted at rest and are deleted when either your account or the advisor’s account is erased. Like notes, nicknames are not included in the self-service data export; you can request them through our [request form](/contact?topic=privacy)."
+        },
+        {
           "type": "h3",
           "id": "account-devices-and-preferences",
           "n": "2.8",
@@ -215,7 +227,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Preferences, consents and notifications. We store your notification preferences (email, push and marketing updates), your privacy preferences together with the date and version of the policy you agreed to, and your appearance settings. If you enable push notifications, we store the address your browser gives us for delivering them and its encryption keys, encrypted at rest; we delete it when you turn push notifications off or when your browser reports that it is no longer valid."
+          "text": "Preferences, consents and notifications. We store your notification preferences (email, push and marketing updates), your privacy preferences together with the date and version of the policy you agreed to, and your appearance settings. If you enable push notifications, we store the address your browser gives us for delivering them and its encryption keys, encrypted at rest; we delete it when you turn push notifications off or when your browser reports that it is no longer valid. Signing out removes that browser’s push subscription from our systems. Signing out everywhere, changing or resetting your password, and deactivating or closing your account remove all of your push subscriptions."
         },
         {
           "type": "p",
@@ -269,7 +281,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Push notifications about new chat messages never contain the text of the message: they only tell you that a new message has arrived; the same applies to messages sent outside live readings (see [Section 2.13](#messages-outside-live-readings)). A message you have typed but not yet sent is kept as a draft only on your device, in your browser’s local storage, for up to 7 days; drafts are never sent to us."
+          "text": "Push notifications about new chat messages never contain the text of the message: they only tell you that a new message has arrived; the same applies to messages sent outside live readings (see [Section 2.13](#messages-outside-live-readings)). A message you have typed but not yet sent is kept as a draft only on your device, in your browser’s local storage, for up to 7 days; drafts are never sent to us. Whether you have read a notification is synchronised across your devices, so a notification you read on one device is shown as read on the others. The unread count on the app icon is calculated from notifications we already store; we collect no new data for it."
         },
         {
           "type": "h3",
@@ -370,6 +382,16 @@ const content: LegalDocumentContent = {
               "Your consent where the law requires it; Legitimate interest (check the description)"
             ],
             [
+              "To let you sign up and sign in with your Google account, and to keep that sign-in secure",
+              "Identifiers (Google account identifier, email address and whether Google has verified it); Account, devices and preferences",
+              "Performance of a contract with you; Legitimate interest (check the description)"
+            ],
+            [
+              "To show the Trustpilot review widget, so that you can read and leave independent reviews of Staryield",
+              "Device and location data (your IP address, browser details and the page address, which Trustpilot receives when the widget loads)",
+              "Legitimate interest (check the description)"
+            ],
+            [
               "To respond to your privacy requests, including data exports and account closure",
               "All categories",
               "Legal obligation"
@@ -411,6 +433,14 @@ const content: LegalDocumentContent = {
           "text": "When advisors keep notes about their clients: to allow advisors to provide consistent, personalised readings over time and, where an advisor chooses to share a note, to help other advisors you consult do the same. Notes are limited to information useful for readings and must not contain sensitive data."
         },
         {
+          "type": "p",
+          "text": "When offering and securing Google sign-in: to let you use an account you already have instead of a new password, and to make sure that a sign-in attempt can only be completed by the browser that started it, so that nobody else can complete your sign-in."
+        },
+        {
+          "type": "p",
+          "text": "When showing the Trustpilot review widget: to let people read and leave independent reviews of the Services. The widget is loaded only when it comes into view and never when your browser sends a Global Privacy Control or Do Not Track signal; you can always use the plain link instead."
+        },
+        {
           "type": "h3",
           "id": "automated-decisions",
           "title": "Important information"
@@ -446,7 +476,9 @@ const content: LegalDocumentContent = {
             "Push notifications: If you enable push notifications, they are delivered through your browser’s push service (for example Google, Mozilla, Apple or Microsoft). The content of each notification is encrypted so that the push service cannot read it.",
             "Payment processing: Card payments for credits and memberships are processed by third-party payment processors. Depending on your country, currency, account and the product purchased, a payment may be handled by Stripe or by another card processor; you enter your card details directly with the processor, which shares with us only a payment token and limited card information. Advisor withdrawals are paid by bank transfer or PayPal.",
             "Place data: We use the GeoNames geographical database (CC BY 4.0) to suggest birthplaces. We host a copy of this database ourselves, so your searches are not sent to GeoNames.",
-            "Analytics: Our analytics and error reporting are first-party and run on our own systems. We do not use third-party analytics, session-recording or advertising tools.",
+            "Analytics: Our analytics and error reporting are first-party and run on our own systems. We do not use third-party analytics, session-recording or advertising tools. The Trustpilot review widget described below is the only third-party content we embed in our pages.",
+            "Google (sign-in): If you choose to sign up or sign in with your Google account, Google acts as an identity provider. It gives us your Google account identifier, your email address and whether it has verified that address; we send Google nothing about your readings, purchases or messages. Google learns that you used your Google account to sign in to Staryield and processes that information under its own privacy policy. Google is not involved if you sign in with your email address and password.",
+            "Trustpilot A/S (independent reviews): Trustpilot is an independent review platform. Its review widget is loaded from Trustpilot’s servers when it scrolls into view on the home page, the reviews page, the footer of our pages and the end-of-chat summary. Trustpilot then receives your IP address, browser details and the address of the page, as with any embedded content. The widget is not loaded when your browser sends a Global Privacy Control or Do Not Track signal; a plain link is shown instead. We never send Trustpilot your account details, your email address or anything about your readings. A review you choose to write is published by Trustpilot under its own terms and privacy policy. We never offer anything in exchange for a review.",
             "Technical, administrative, and information service providers: From time to time, we may use third-party tools for project and task management, internal communication and collaboration, or to automate workflows. In some cases, limited personal data may be shared with these service providers.",
             "Advisors, consultants, and independent contractors. From time to time, we may share limited personal information with our independent contractors, consultants, third-party specialists, partners, and advisors. They process this information on our behalf to operate, maintain, secure, and improve the Services, and ensure legal and regulatory compliance. We require them to use the information only for these purposes, protect it appropriately, and keep it confidential.",
             "Advisors (psychics): The advisors you chat with receive your messages (including messages sent outside live readings, see [Section 2.13](#messages-outside-live-readings)) and the client card described in [Section 2.5](#live-readings-ratings-and-notifications); the card always includes your date of birth and shows your birth city only if you choose to share it. A note an advisor writes about you is shared with other advisors only if its author chooses to share it, and only with advisors who have also had a session with you (see [Section 2.7](#advisor-notes))."
@@ -554,7 +586,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "You can download a copy of your personal data at any time in your [account settings](/profile/settings), under Data & privacy. We prepare a ZIP file containing your account and profile, preferences and consents, signed-in devices, purchases, membership and transactions, credit history, conversations and the images you uploaded, saved messages, notifications and ratings. When it is ready, we notify you in the app and by email; the download link can be used once and the file is deleted after 7 days. Notes that advisors wrote about you are not part of this export because they contain the advisors’ own observations; you can request them through this [request form](/contact?topic=privacy), and our staff will provide them after reviewing your request."
+          "text": "You can download a copy of your personal data at any time in your [account settings](/profile/settings), under Data & privacy. We prepare a ZIP file containing your account and profile, preferences and consents, signed-in devices, sign-in methods (such as the email address of a connected Google account), purchases, membership and transactions, credit history, conversations (including replies and likes) and the images you uploaded, saved messages, notifications and ratings. When it is ready, we notify you in the app and by email; the download link can be used once and the file is deleted after 7 days. Notes that advisors wrote about you are not part of this export because they contain the advisors’ own observations; you can request them through this [request form](/contact?topic=privacy), and our staff will provide them after reviewing your request."
         },
         {
           "type": "h4",
@@ -614,7 +646,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "In particular, if we transfer personal data originating from the European Economic Area or the United Kingdom to countries with an adequate level of data protection, we rely on the adequacy decisions of the European Commission; for example, we may transfer personal data to service providers in the United States that participate in the EU-U.S. Data Privacy Framework. If we transfer personal data originating from the European Economic Area or the United Kingdom to countries without an adequate level of data protection, we rely on the Standard Contractual Clauses approved by the European Commission (with the UK addendum where applicable). Our service providers, including Cloudflare and our payment processors, may process personal data in the United States and other countries."
+          "text": "In particular, if we transfer personal data originating from the European Economic Area or the United Kingdom to countries with an adequate level of data protection, we rely on the adequacy decisions of the European Commission; for example, we may transfer personal data to service providers in the United States that participate in the EU-U.S. Data Privacy Framework. If we transfer personal data originating from the European Economic Area or the United Kingdom to countries without an adequate level of data protection, we rely on the Standard Contractual Clauses approved by the European Commission (with the UK addendum where applicable). Our service providers, including Cloudflare and our payment processors, may process personal data in the United States and other countries. Google (in the United States) receives data when you choose to sign in with your Google account, and Trustpilot A/S (in Denmark) receives data when its review widget loads in your browser; each handles that data under its own privacy policy."
         }
       ]
     },
@@ -735,7 +767,7 @@ const content: LegalDocumentContent = {
           "rows": [
             [
               "Identifiers (account name, unique personal identifier, online identifier, IP address, email address)",
-              "Hosting, storage and delivery providers; Payment processors; Email and push delivery providers; Advisors you chat with (name or nickname only)"
+              "Hosting, storage and delivery providers; Payment processors; Email and push delivery providers; Advisors you chat with (name or nickname only); Google (only if you choose Google sign-in; we send it no data about you); Trustpilot (review widget, IP address)"
             ],
             [
               "Categories of Personal Information in Cal. Civ. Code Section 1798.80(e) (name, telephone number, financial information) and Commercial information (products or services purchased)",
@@ -747,7 +779,7 @@ const content: LegalDocumentContent = {
             ],
             [
               "Internet or other electronic network activity information (your interaction with our website)",
-              "Hosting, storage and delivery providers"
+              "Hosting, storage and delivery providers; Trustpilot (review widget, browser details and page address)"
             ],
             [
               "Geolocation data (approximate location only)",
@@ -838,7 +870,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "We use a small number of first-party cookies and browser storage items, listed below. We do not use advertising pixels or third-party tracking cookies. Essential items are needed for the Services to work and cannot be switched off. Analytics and marketing attribution items are used only with your consent where the law requires it, and we do not use them when your browser sends a Do Not Track or Global Privacy Control signal. You can change your choices at any time in Privacy preferences in your [account settings](/profile/settings)."
+          "text": "We use a small number of first-party cookies and browser storage items, listed below. We do not use advertising pixels, and we place no third-party tracking cookies ourselves; the only third-party content we embed is the Trustpilot review widget, described below the table. Essential items are needed for the Services to work and cannot be switched off. Analytics and marketing attribution items are used only with your consent where the law requires it, and we do not use them when your browser sends a Do Not Track or Global Privacy Control signal. You can change your choices at any time in Privacy preferences in your [account settings](/profile/settings)."
         },
         {
           "type": "table",
@@ -869,6 +901,27 @@ const content: LegalDocumentContent = {
               "Cookie",
               "Protects your account against cross-site request forgery",
               "Up to 30 days, renewed while you use the site",
+              "Essential"
+            ],
+            [
+              "sy_oa",
+              "Cookie",
+              "Binds a Google sign-in attempt to this browser so that nobody else can complete it",
+              "Up to 10 minutes",
+              "Essential"
+            ],
+            [
+              "staryield.google.intent",
+              "Session storage",
+              "Remembers whether you were signing in, signing up or connecting Google, so that “Try again” restarts the same step",
+              "Up to 15 minutes, or until the tab is closed",
+              "Essential"
+            ],
+            [
+              "staryield.push.*",
+              "Local storage",
+              "Remembers when this browser’s push subscription was last sent to us, and a one-way hash of its address, so that it is re-sent only when it changes; removed when you sign out",
+              "Until you sign out or turn push notifications off",
               "Essential"
             ],
             [
@@ -945,7 +998,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Staff who use our administration console also receive a separate security cookie (sy_adm) that is valid only on that site."
+          "text": "Staff who use our administration console also receive a separate security cookie (sy_adm) that is valid only on that site. The Trustpilot review widget (see [Section 4](#how-we-share-your-personal-data)) runs in Trustpilot’s own frame; any storage it uses there is governed by Trustpilot, not by this table."
         }
       ]
     },
@@ -956,7 +1009,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "The Services may contain links to other websites or applications and other websites or applications may reference or link to our Services. These third-party services are not controlled by us. We encourage our users to read the privacy policies of each website and application with which they interact. We do not endorse, screen or approve, and are not responsible for, the privacy practices or content of such other websites or applications. Visiting these other websites or applications is at your own risk."
+          "text": "The Services may contain links to other websites or applications and other websites or applications may reference or link to our Services. These third-party services are not controlled by us. We encourage our users to read the privacy policies of each website and application with which they interact. We do not endorse, screen or approve, and are not responsible for, the privacy practices or content of such other websites or applications. Visiting these other websites or applications is at your own risk. This includes Google (United States), if you choose to sign in with your Google account, and Trustpilot (Denmark), if you follow our review link to Trustpilot’s website or write a review there."
         }
       ]
     },

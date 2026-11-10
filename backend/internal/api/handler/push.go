@@ -1,6 +1,11 @@
 package handler
 
 import (
+	"bufio"
+	"errors"
+	"io"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/service"
@@ -38,4 +43,29 @@ func (h *Handler) UnsubscribePush(c echo.Context) error {
 		return err
 	}
 	return noContent(c)
+}
+
+// logoutPushEndpoint reads the optional logout body {push_endpoint?: string}.
+// An empty or absent body is valid (a plain sign-out); a body must be strict
+// JSON like every other request.
+func logoutPushEndpoint(c echo.Context) (string, error) {
+	req := c.Request()
+	if req.Body == nil || req.Body == http.NoBody {
+		return "", nil
+	}
+	br := bufio.NewReader(req.Body)
+	if _, err := br.Peek(1); errors.Is(err, io.EOF) {
+		return "", nil
+	}
+	req.Body = struct {
+		io.Reader
+		io.Closer
+	}{br, req.Body}
+	var in struct {
+		PushEndpoint string `json:"push_endpoint"`
+	}
+	if err := bind(c, &in); err != nil {
+		return "", err
+	}
+	return in.PushEndpoint, nil
 }

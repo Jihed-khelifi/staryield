@@ -125,8 +125,12 @@ func (h *Handler) SendImage(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	replyTo, err := replyToField(values)
+	if err != nil {
+		return err
+	}
 	out, err := h.svc.Chat.SendImageForSession(c.Request().Context(), principal(c), service.UploadImageInput{
-		SessionID: id, Data: data, Caption: values["caption"], ClientMsgID: values["client_msg_id"]})
+		SessionID: id, Data: data, Caption: values["caption"], ClientMsgID: values["client_msg_id"], ReplyToID: replyTo})
 	if err != nil {
 		return err
 	}
@@ -144,8 +148,12 @@ func (h *Handler) SendConversationImage(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	replyTo, err := replyToField(values)
+	if err != nil {
+		return err
+	}
 	out, err := h.svc.Chat.SendImageToConversation(c.Request().Context(), principal(c), service.UploadImageInput{
-		ConversationID: id, Data: data, Caption: values["caption"], ClientMsgID: values["client_msg_id"]})
+		ConversationID: id, Data: data, Caption: values["caption"], ClientMsgID: values["client_msg_id"], ReplyToID: replyTo})
 	if err != nil {
 		return err
 	}

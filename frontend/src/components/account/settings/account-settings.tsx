@@ -39,6 +39,7 @@ import { NotificationsCard } from "./notifications-card";
 import { PrivacyCard } from "./privacy-card";
 import { SecurityCard } from "./security-card";
 import { buildSettingsPatch, settingsFieldMap, toFormValues, type SettingsFormValues } from "./settings-model";
+import { SettingsSyncContext, type SettingsSync } from "./settings-sync";
 
 function Heading({ children }: { children?: React.ReactNode }) {
   const { text } = useI18n();
@@ -222,6 +223,19 @@ function useSettingsController({ initial, reloadSettings, setSettings, guardForm
     }
   }
 
+  // A switch that saved itself (push, §23.6): follow the server's version and
+  // settings without touching the user's other unsaved edits.
+  const sync = React.useMemo<SettingsSync>(
+    () => ({
+      adopt: (saved) => {
+        baseVersion.current = saved.version;
+        setLocalSettings((s) => ({ ...s, version: saved.version, notifications: { ...s.notifications, push: saved.notifications.push } }));
+        setSettings(saved);
+      },
+    }),
+    [setSettings],
+  );
+
   async function refreshAfterEmailRequest() {
     // Show the pending address without touching unsaved edits.
     try {
@@ -253,13 +267,13 @@ function useSettingsController({ initial, reloadSettings, setSettings, guardForm
     />
   );
 
-  return { form, settings, role, state, isDirty, isSubmitting, setPasswordDirty, submit, saveNow, onKeyDown, refreshAfterEmailRequest, conflictDialog };
+  return { form, settings, role, state, isDirty, isSubmitting, setPasswordDirty, submit, saveNow, onKeyDown, refreshAfterEmailRequest, conflictDialog, sync };
 }
 
 function SettingsForm(props: ControllerProps) {
   const { text, locale } = useI18n();
   const mobile = useMediaQuery("(max-width: 767px)");
-  const { form, settings, role, state, isDirty, isSubmitting, setPasswordDirty, submit, onKeyDown, refreshAfterEmailRequest, conflictDialog } =
+  const { form, settings, role, state, isDirty, isSubmitting, setPasswordDirty, submit, onKeyDown, refreshAfterEmailRequest, conflictDialog, sync } =
     useSettingsController(props);
 
   const saveButton = (
@@ -277,7 +291,7 @@ function SettingsForm(props: ControllerProps) {
   );
 
   return (
-    <FormProvider {...form}>
+    <FormProvider {...form}><SettingsSyncContext.Provider value={sync}>
       <div className="account-settings-page" role="form" aria-labelledby="settings-title" onKeyDown={onKeyDown} data-testid="account-settings">
         <Heading>
           <div className="settings-header-actions">
@@ -316,7 +330,7 @@ function SettingsForm(props: ControllerProps) {
         ) : null}
         {conflictDialog}
       </div>
-    </FormProvider>
+    </SettingsSyncContext.Provider></FormProvider>
   );
 }
 
@@ -364,7 +378,7 @@ export function AccountSettings() {
 export type SharedSectionNodes = Required<SharedSettingsSections>;
 
 function SharedSettingsForm({ order, children, ...props }: ControllerProps & { order: number; children: (shared: SharedSectionNodes) => React.ReactNode }) {
-  const { form, settings, isDirty, setPasswordDirty, saveNow, refreshAfterEmailRequest, conflictDialog } = useSettingsController({ ...props, guardForm: false });
+  const { form, settings, isDirty, setPasswordDirty, saveNow, refreshAfterEmailRequest, conflictDialog, sync } = useSettingsController({ ...props, guardForm: false });
   useSettingsSection("account-settings", order, isDirty, saveNow);
   const shared: SharedSectionNodes = {
     account: (
@@ -386,8 +400,10 @@ function SharedSettingsForm({ order, children, ...props }: ControllerProps & { o
   };
   return (
     <FormProvider {...form}>
-      {children(shared)}
-      {conflictDialog}
+      <SettingsSyncContext.Provider value={sync}>
+        {children(shared)}
+        {conflictDialog}
+      </SettingsSyncContext.Provider>
     </FormProvider>
   );
 }

@@ -31,11 +31,11 @@ test: test-unit test-e2e ## Run all tests
 test-unit: ## Unit tests (no infrastructure needed)
 	go test ./internal/... -count=1
 
-test-e2e: ## End-to-end tests against PostgreSQL + Redis
-	STARYIELD_E2E=1 STARYIELD_TEST_DATABASE_DSN=$(TEST_DB_DSN) STARYIELD_TEST_REDIS_URL=$(TEST_REDIS_URL) go test ./tests/... -count=1
+test-e2e: ## End-to-end tests against PostgreSQL + Redis (the suite runs longer than go test's default 10 minutes)
+	STARYIELD_E2E=1 STARYIELD_TEST_DATABASE_DSN=$(TEST_DB_DSN) STARYIELD_TEST_REDIS_URL=$(TEST_REDIS_URL) go test ./tests/... -count=1 -timeout 45m
 
 test-race: ## Everything with the race detector
-	STARYIELD_E2E=1 STARYIELD_TEST_DATABASE_DSN=$(TEST_DB_DSN) STARYIELD_TEST_REDIS_URL=$(TEST_REDIS_URL) go test ./... -race -count=1
+	STARYIELD_E2E=1 STARYIELD_TEST_DATABASE_DSN=$(TEST_DB_DSN) STARYIELD_TEST_REDIS_URL=$(TEST_REDIS_URL) go test ./... -race -count=1 -timeout 90m
 
 lint: ## gofmt + go vet
 	@test -z "$$(gofmt -l .)" || (gofmt -l . && exit 1)

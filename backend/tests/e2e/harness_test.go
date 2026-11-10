@@ -112,6 +112,8 @@ type env struct {
 	tracker  *analytics.Recorder
 	// push records Web Push sends (no real push service is ever reached).
 	push *fakePush
+	// sql records the application's statements while recordSQL runs.
+	sql *sqlRecorder
 }
 
 type option func(*config.Config)
@@ -155,9 +157,12 @@ func newEnv(t *testing.T, opts ...option) *env {
 	if err != nil {
 		t.Fatalf("app: %v", err)
 	}
+	// Before Start: gorm's callback registry is not safe to change while
+	// the application's background workers are already running queries.
+	sqlRec := installSQLRecorder(t, a.DB)
 	a.Start(ctx)
 	srv := httptest.NewServer(a.Router)
-	e := &env{t: t, app: a, srv: srv, clock: fake, mail: rec, store: store, advisors: advisors, chat: chatImages, push: pushes}
+	e := &env{t: t, app: a, srv: srv, clock: fake, mail: rec, store: store, advisors: advisors, chat: chatImages, push: pushes, sql: sqlRec}
 	t.Cleanup(func() {
 		srv.CloseClientConnections()
 		srv.Close()

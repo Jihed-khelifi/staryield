@@ -184,7 +184,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Para acceder a ciertas funciones del Servicio, es posible que deba registrar una cuenta (“Cuenta”) y proporcionar información precisa y completa durante el proceso de registro."
+          "text": "Para acceder a ciertas funciones del Servicio, es posible que deba registrar una cuenta (“Cuenta”) y proporcionar información precisa y completa durante el proceso de registro. Puede registrarse e iniciar sesión con su dirección de correo electrónico y su contraseña o, cuando se ofrezca esta opción, con su cuenta de Google; consulte nuestra [Política de privacidad](/privacy#data-we-receive-from-third-parties) para saber qué nos facilita Google. El requisito de edad de la [Sección 3.3](#age-restriction) y su aceptación de estos Términos se aplican exactamente igual cuando se registra con Google: debe aceptar estos Términos, mediante la casilla de la página de registro o del paso de confirmación, antes de que se cree su Cuenta."
         },
         {
           "type": "p",
@@ -232,7 +232,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Usted es responsable de mantener la confidencialidad de las credenciales de su Cuenta, incluidos los detalles de inicio de sesión y las contraseñas, y de toda la actividad realizada en su Cuenta. No debe compartir su información de inicio de sesión con nadie, ya que asume toda la responsabilidad por cualquier acción realizada a través de su Cuenta. Si sospecha de un acceso no autorizado o de una violación de seguridad, debe notificarnos inmediatamente a nuestro [centro de soporte](/contact). No somos responsables de ninguna pérdida, transacciones no autorizadas o daños resultantes del acceso a su Cuenta debido a su falta de protección de sus credenciales. Es su responsabilidad utilizar contraseñas seguras y tomar las precauciones necesarias para evitar el acceso no autorizado. Puede consultar los dispositivos con sesión iniciada en su Cuenta y cerrar la sesión de cualquiera de ellos en la configuración de su cuenta; cambiar la contraseña cierra la sesión en sus demás dispositivos."
+          "text": "Usted es responsable de mantener la confidencialidad de las credenciales de su Cuenta, incluidos los detalles de inicio de sesión y las contraseñas, y de toda la actividad realizada en su Cuenta. No debe compartir su información de inicio de sesión con nadie, ya que asume toda la responsabilidad por cualquier acción realizada a través de su Cuenta. Si sospecha de un acceso no autorizado o de una violación de seguridad, debe notificarnos inmediatamente a nuestro [centro de soporte](/contact). No somos responsables de ninguna pérdida, transacciones no autorizadas o daños resultantes del acceso a su Cuenta debido a su falta de protección de sus credenciales. Es su responsabilidad utilizar contraseñas seguras y tomar las precauciones necesarias para evitar el acceso no autorizado. Puede consultar los dispositivos con sesión iniciada en su Cuenta y cerrar la sesión de cualquiera de ellos en la configuración de su cuenta; cambiar la contraseña cierra la sesión en sus demás dispositivos. Si se registra o inicia sesión con Google, también es responsable de mantener segura esa cuenta de Google, incluidas su contraseña y sus opciones de recuperación: cualquier persona que pueda usar su cuenta de Google puede acceder a su Cuenta de Staryield. Algunas acciones, como cambiar su dirección de correo electrónico, desactivar o cerrar su Cuenta o descargar sus datos, le piden crear primero una contraseña de Staryield. Puede desvincular Google en la configuración de su cuenta cuando su Cuenta tenga una contraseña."
         },
         {
           "type": "h3",
@@ -320,6 +320,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Si desea solicitar la eliminación de una reseña que ha enviado, puede comunicarse con la Compañía en el [centro de soporte](/contact)."
+        },
+        {
+          "type": "p",
+          "text": "Opiniones en plataformas independientes. Las opiniones sobre el Servicio en plataformas independientes como Trustpilot son voluntarias y deben reflejar su experiencia real. Invitamos a todas las personas a dejar una opinión de la misma manera y nunca ofrecemos créditos, descuentos ni ningún otro beneficio por escribir una opinión ni por modificarla o retirarla. Los asesores, empleados, contratistas y sus familiares cercanos no deben publicar opiniones sobre Staryield en dichas plataformas."
         },
         {
           "type": "h3",
@@ -412,6 +416,10 @@ const content: LegalDocumentContent = {
           "text": "Lo que ve su asesor. Para personalizar su consulta, el asesor con el que chatea ve una ficha de cliente con su nombre o apodo, su foto de perfil, su estado de conexión, su país, su edad, su fecha de nacimiento completa, los datos astrológicos derivados de sus datos de nacimiento (su signo solar y los signos de sus demás posiciones natales, además de los signos lunar y ascendente si nos facilitó una hora y un lugar de nacimiento), su horóscopo diario y cuántas consultas ha tenido con él. Su fecha de nacimiento se muestra siempre al asesor con el que chatea, porque las consultas dependen de ella. Su ciudad de nacimiento solo se muestra si activa «Compartir mi ciudad de nacimiento con los asesores» en sus preferencias de privacidad. Los asesores nunca ven su dirección de correo electrónico, su saldo de créditos, sus compras, su membresía ni su hora exacta o sus coordenadas de nacimiento."
         },
         {
+          "type": "p",
+          "text": "Respuestas y «Me gusta». En una conversación puede responder a un mensaje concreto y marcar un mensaje con «Me gusta». Las respuestas y los «Me gusta» forman parte de la conversación: ambos participantes pueden verlos y son gratuitos. Un «Me gusta», incluido el de un asesor, no es un consejo, una confirmación ni un compromiso de ese asesor. Consulte nuestra [Política de privacidad](/privacy#live-readings-ratings-and-notifications) para saber cómo se conservan."
+        },
+        {
           "type": "h3",
           "id": "ratings-of-advisors",
           "n": "4.12",
@@ -429,7 +437,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Le enviamos notificaciones sobre su cuenta y su actividad —por ejemplo, solicitudes de chat, el final de una consulta y las invitaciones a valorarla, actualizaciones de pedidos, compras completadas, renovaciones de la membresía y problemas de pago, ajustes de créditos, avisos de listas de espera y, para los asesores, nuevas valoraciones y actualizaciones de pagos—, así como comunicados ocasionales de Staryield. Las notificaciones aparecen en el menú de la campana del sitio web en el idioma que haya elegido y pueden marcarse como leídas; las conservamos durante un máximo de 180 días. Según su configuración de notificaciones, también se las enviamos por correo electrónico y como notificaciones push del navegador. Los mensajes que protegen su cuenta, como la confirmación de un cambio de su dirección de correo electrónico, siempre se envían por correo electrónico. Las notificaciones dentro de la aplicación forman parte del Servicio; no son correos de marketing, y solo le enviamos comunicaciones comerciales si usted lo acepta."
+          "text": "Le enviamos notificaciones sobre su cuenta y su actividad —por ejemplo, solicitudes de chat, el final de una consulta y las invitaciones a valorarla, actualizaciones de pedidos, compras completadas, renovaciones de la membresía y problemas de pago, ajustes de créditos, avisos de listas de espera y, para los asesores, nuevas valoraciones y actualizaciones de pagos—, así como comunicados ocasionales de Staryield. Las notificaciones aparecen en el menú de la campana del sitio web en el idioma que haya elegido y pueden marcarse como leídas; las conservamos durante un máximo de 180 días. Según su configuración de notificaciones, también se las enviamos por correo electrónico y como notificaciones push del navegador. Los mensajes que protegen su cuenta, como la confirmación de un cambio de su dirección de correo electrónico, siempre se envían por correo electrónico. Las notificaciones dentro de la aplicación forman parte del Servicio; no son correos de marketing, y solo le enviamos comunicaciones comerciales si usted lo acepta. Cerrar sesión detiene las notificaciones push en ese dispositivo."
         },
         {
           "type": "h3",
@@ -439,7 +447,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Esta sección se aplica a los asesores. Puede conservar notas sobre los clientes con los que ha tenido consultas, únicamente para ofrecerles mejores consultas. Las notas son privadas, salvo que decida compartir una nota con otros asesores, en cuyo caso será visible para los asesores que también hayan tenido una sesión con ese cliente, junto con su nombre visible y la fecha. Sus notas deben ser objetivas, respetuosas y limitarse a lo útil para las consultas; no debe anotar información sobre la salud, la vida u orientación sexual, la religión, las opiniones políticas u otros datos sensibles del cliente, ni datos de contacto o información de pago, y no debe copiar las notas fuera del Servicio ni utilizarlas para ningún otro fin. Las notas pueden comunicarse al cliente afectado cuando la ley lo exija, y podemos eliminar las notas que incumplan estos Términos o nuestras [Normas de integridad de los asesores](/standards)."
+          "text": "Esta sección se aplica a los asesores. Puede conservar notas sobre los clientes con los que ha tenido consultas, únicamente para ofrecerles mejores consultas. Las notas son privadas, salvo que decida compartir una nota con otros asesores, en cuyo caso será visible para los asesores que también hayan tenido una sesión con ese cliente, junto con su nombre visible y la fecha. Sus notas deben ser objetivas, respetuosas y limitarse a lo útil para las consultas; no debe anotar información sobre la salud, la vida u orientación sexual, la religión, las opiniones políticas u otros datos sensibles del cliente, ni datos de contacto o información de pago, y no debe copiar las notas fuera del Servicio ni utilizarlas para ningún otro fin. Las notas pueden comunicarse al cliente afectado cuando la ley lo exija, y podemos eliminar las notas que incumplan estos Términos o nuestras [Normas de integridad de los asesores](/standards). Los asesores también pueden asignar a un cliente un apodo privado, que solo ese asesor puede ver. Los apodos deben ser respetuosos, no deben ser discriminatorios ni insultantes y no deben contener información sensible (por ejemplo, sobre la salud o las opiniones políticas o religiosas), datos de contacto ni información de pago. Podemos eliminar un apodo que incumpla estos Términos o nuestras [Normas de integridad de los asesores](/standards). Consulte nuestra [Política de privacidad](/privacy#advisor-notes) para saber cómo se conservan los apodos."
         },
         {
           "type": "h3",
@@ -478,7 +486,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "El Servicio puede integrar, proporcionar acceso o mostrar contenido de servicios, sitios web, software, anuncios y otros materiales de terceros (“Servicios de terceros” y “Materiales de terceros”). Esto incluye enlaces externos, contenido incrustado y materiales generados por usuarios aportados por terceros. Si bien se puede acceder a estas funciones a través del Servicio, la Compañía no controla ni asume responsabilidad por el contenido, la funcionalidad o las políticas de ningún Servicio de terceros."
+          "text": "El Servicio puede integrar, proporcionar acceso o mostrar contenido de servicios, sitios web, software, anuncios y otros materiales de terceros (“Servicios de terceros” y “Materiales de terceros”). Esto incluye enlaces externos, contenido incrustado y materiales generados por usuarios aportados por terceros. Si bien se puede acceder a estas funciones a través del Servicio, la Compañía no controla ni asume responsabilidad por el contenido, la funcionalidad o las políticas de ningún Servicio de terceros. Dos de estos servicios son Google, si decide iniciar sesión con su cuenta de Google, y Trustpilot, cuyo widget y enlace de opiniones mostramos en algunas páginas. Cada uno lo presta un tercero con sus propias condiciones y su propia política de privacidad, y no somos responsables de su disponibilidad. Consulte nuestra [Política de privacidad](/privacy#how-we-share-your-personal-data) para saber qué recibe cada uno."
         },
         {
           "type": "h3",

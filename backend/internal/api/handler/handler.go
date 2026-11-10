@@ -77,6 +77,9 @@ type Services struct {
 	// revisions 3.0: site settings. Site serves the public configuration
 	// (promo banners, sign-up offer, free mode) and its admin console.
 	Site *service.SiteService
+
+	// revisions 4.0: Sign in with Google.
+	GoogleAuth *service.GoogleAuth
 }
 
 // Limits bounds request bodies per upload type.

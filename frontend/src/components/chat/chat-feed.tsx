@@ -17,6 +17,15 @@ const TOP_SLACK_PX = 120;
 
 export type Announcement = { id: string; text: string };
 
+/** What the chatroom can ask of the feed (the jump from a quote to the original message, §23.2). */
+export type ChatFeedHandle = {
+  /** Scroll the message into view and flash it; false when it is not loaded. */
+  scrollToMessage: (id: string) => boolean;
+};
+
+/** How long the highlight of a jumped-to message lasts. */
+export const FLASH_MS = 1600;
+
 const keyOf = (m: UiMessage) => (m.client_msg_id && m.pending ? m.client_msg_id : m.id);
 
 function prefersReducedMotion() {
@@ -43,7 +52,9 @@ export function ChatFeed({
   scrollToken = 0,
   onAtBottomChange,
   children,
+  ref,
 }: {
+  ref?: React.Ref<ChatFeedHandle>;
   messages: UiMessage[];
   meId: string;
   authorName: string;
@@ -132,6 +143,31 @@ export function ChatFeed({
     atBottomRef.current = true;
     el.scrollTop = el.scrollHeight;
   }, [scrollToken]);
+
+  const flashTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(
+    () => () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+    },
+    [],
+  );
+  React.useImperativeHandle(ref, () => ({
+    scrollToMessage: (id: string) => {
+      const scroller = scrollRef.current;
+      const row = scroller ? [...scroller.querySelectorAll<HTMLElement>("[data-message-id]")].find((el) => el.dataset.messageId === id) : undefined;
+      if (!scroller || !row) return false;
+      // Centre it in the visible area (offsets measured against the scroller, not the page).
+      const top = row.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+      scroller.scrollTo({ top: Math.max(0, top - (scroller.clientHeight - row.offsetHeight) / 2), behavior: prefersReducedMotion() ? "auto" : "smooth" });
+      // Restart the highlight even when the same message is jumped to twice.
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+      scroller.querySelectorAll("[data-flash]").forEach((el) => el.removeAttribute("data-flash"));
+      void row.offsetWidth;
+      row.setAttribute("data-flash", "true");
+      flashTimer.current = setTimeout(() => row.removeAttribute("data-flash"), FLASH_MS);
+      return true;
+    },
+  }));
 
   const onScroll = () => {
     const el = scrollRef.current;

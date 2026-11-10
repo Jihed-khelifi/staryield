@@ -7,7 +7,7 @@
  * message content or form values, and strips query strings server-side.
  */
 import { api, newId } from "@/lib/api/client";
-import { analyticsRefused } from "@/lib/consent";
+import { analyticsRefused, browserPrivacySignal } from "@/lib/consent";
 import { logger } from "@/lib/logger";
 
 export type ClientEventName =
@@ -58,8 +58,7 @@ let installed = false;
  */
 export function analyticsOptedOut(): boolean {
   if (typeof navigator === "undefined") return true;
-  const gpc = (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl;
-  return navigator.doNotTrack === "1" || gpc === true || analyticsRefused();
+  return browserPrivacySignal() || analyticsRefused();
 }
 
 const ANONYMOUS_ID = /^[A-Za-z0-9_-]{8,64}$/;

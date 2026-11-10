@@ -6,11 +6,13 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { errorMessage, type ApiError } from "@/lib/api/errors";
 import type { ChatSession, Participant, Review, SessionSummary, Wallet } from "@/lib/api/types";
 import { formatDuration } from "@/lib/format";
+import { useClientName } from "@/lib/chat/client-alias-provider";
 import { unlockRingtone, useRingtoneState } from "@/lib/chat/ringtone";
 import { Button } from "@/components/ui/button";
 import { endReasonCopy, type RateView } from "@/components/chat/chat-model";
 import { RatePrice } from "@/components/chat/rate-price";
 import { ReviewForm, ReviewThanks } from "@/components/reviews/review-form";
+import { TrustpilotReviewCollector } from "@/components/reviews/trustpilot-review-collector";
 import { WaitlistButton } from "@/components/waitlist/waitlist-button";
 
 type Props = {
@@ -50,7 +52,8 @@ export function SessionPanel(p: Props) {
   const { text, locale } = useI18n();
   const ringtone = useRingtoneState();
   const s = p.session;
-  const name = text(p.counterpart.name);
+  // Advisors see their private nickname for the client (§23.4).
+  const name = text(useClientName(p.role === "psychic" ? p.counterpart.id : null, p.counterpart.name));
 
   const errorBlock = p.error ? (
     <div role="alert" className="mt-3 text-sm text-red-800">
@@ -153,6 +156,8 @@ export function SessionPanel(p: Props) {
         ) : p.role === "client" && sum.can_review ? (
           <ReviewForm sessionId={sum.session.id} advisorName={name} onSubmitted={(r) => p.onReviewed?.(r)} />
         ) : null}
+        {/* Every client sees this, whatever they rated (or did not): Trustpilot forbids selective invitations and incentives. */}
+        {p.role === "client" ? <TrustpilotReviewCollector placement="chat-summary" className="mt-3" /> : null}
         <Button variant="outline" className="mt-3" onClick={p.onDismissSummary}>
           {text("Close summary")}
         </Button>

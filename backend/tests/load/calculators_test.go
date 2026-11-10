@@ -61,6 +61,57 @@ func postEvents(events func(i int64) []map[string]any) Request {
 	}
 }
 
+// purgeLoadVisitors deletes the visitors, visit rows and raw events whose
+// anonymous id matches one of the LIKE patterns. The roll-up is asynchronous,
+// so it repeats until two passes in a row find nothing (at most ~10 s).
+func purgeLoadVisitors(t *testing.T, db *gorm.DB, patterns ...string) {
+	t.Helper()
+	var total int64
+	for pass, quiet := 0, 0; pass < 10 && quiet < 2; pass++ {
+		var deleted int64
+		for _, like := range patterns {
+			for _, table := range []string{"calculator_visits", "analytics_events", "web_visitors"} {
+				res := db.Exec("DELETE FROM "+table+" WHERE anonymous_id LIKE ?", like)
+				if res.Error != nil {
+					t.Errorf("clean up %s: %v", table, res.Error)
+					return
+				}
+				deleted += res.RowsAffected
+			}
+		}
+		total += deleted
+		if deleted == 0 {
+			quiet++
+		} else {
+			quiet = 0
+		}
+		time.Sleep(time.Second)
+	}
+	t.Logf("removed %d rows of synthetic load visitors", total)
+}
+
+// TestLoadPurgeLeftoverVisitors removes what earlier versions of the
+// ingestion scenario left in the dataset (ids "ld<run>-…" and "ldmark<run>-…";
+// the seed's own visitors start with "lv"). Run it once on an old dataset:
+//
+//	LOAD_PURGE_LEFTOVERS=1 go test -tags load ./tests/load/ -run TestLoadPurgeLeftoverVisitors -v
+func TestLoadPurgeLeftoverVisitors(t *testing.T) {
+	if os.Getenv("LOAD_PURGE_LEFTOVERS") != "1" {
+		t.Skip("set LOAD_PURGE_LEFTOVERS=1 to delete the synthetic visitors of earlier ingestion runs")
+	}
+	cfg := LoadConfig()
+	db, err := gorm.Open(postgres.Open(cfg.DSN), &gorm.Config{Logger: logger.Discard})
+	if err != nil {
+		t.Fatalf("database %s: %v", cfg.DSN, err)
+	}
+	purgeLoadVisitors(t, db, "ld______-%", "ldmark______-%")
+	for _, table := range []string{"calculator_visits", "analytics_events", "web_visitors"} {
+		if err := db.Exec("VACUUM (ANALYZE) " + table).Error; err != nil {
+			t.Errorf("vacuum %s: %v", table, err)
+		}
+	}
+}
+
 func TestLoadCalculatorIngestion(t *testing.T) {
 	cfg := LoadConfig()
 	RequireAPI(t, cfg)
@@ -78,6 +129,13 @@ func TestLoadCalculatorIngestion(t *testing.T) {
 	}
 	var before int64
 	live.Raw(`SELECT count(*) FROM web_visitors`).Row().Scan(&before)
+	// This run's visitors are all "seen just now". Left behind, a few runs
+	// make them a large share of web_visitors, and the reports' 30-day window
+	// then covers so much of the table that PostgreSQL rightly switches from
+	// the last-seen index to a sequential scan (TestExplainHotQueries).
+	t.Cleanup(func() {
+		purgeLoadVisitors(t, live, fmt.Sprintf("ld%06d-%%", runID), fmt.Sprintf("ldmark%06d-%%", runID))
+	})
 
 	ingest := SLO{P95: 100 * time.Millisecond, P99: 300 * time.Millisecond, MaxErrRate: 0.001}
 	reports := SLO{P95: 5 * time.Second, P99: 10 * time.Second, MaxErrRate: 0.001}

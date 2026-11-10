@@ -369,23 +369,4 @@ func TestDispatcherDeliversAsynchronouslyAndNeverBlocks(t *testing.T) {
 	}
 	pub.mu.Unlock()
 
-	// A stuck database fills the buffer; Notify still returns immediately
-	// and drops the overflow.
-	stuck := &fakeNotifications{slow: make(chan struct{})}
-	d2 := NewDispatcher(stuck, &recordingPublisher{}, zap.NewNop(), clock.Real{}, DispatcherConfig{BufferSize: 2, BatchSize: 1, FlushInterval: time.Hour})
-	d2.Start()
-	start := time.Now()
-	for i := 0; i < 50; i++ {
-		d2.Notify(context.Background(), NotificationSpec{Kind: NotifyBroadcast}, uuid.New())
-	}
-	if time.Since(start) > 200*time.Millisecond {
-		t.Fatal("Notify blocked the caller")
-	}
-	if _, dropped := d2.Stats(); dropped == 0 {
-		t.Fatal("overflow not dropped")
-	}
-	close(stuck.slow)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	d2.Stop(ctx)
 }

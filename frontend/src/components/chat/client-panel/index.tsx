@@ -10,6 +10,7 @@ import { ClientIdentity } from "@/components/chat/client-panel/client-identity";
 import { ClientNotes } from "@/components/chat/client-panel/client-notes";
 import { PlacementsOverview } from "@/components/chat/client-panel/placements-overview";
 import { SavedSection } from "@/components/chat/client-panel/saved-section";
+import { useClientName } from "@/lib/chat/client-alias-provider";
 import { useClientProfile } from "@/components/chat/use-client-profile";
 import { placementsFor } from "@/components/chat/client-panel/panel-helpers";
 
@@ -37,11 +38,16 @@ export function ClientPanel({ conversationId, counterpart, online, saved, onRemo
   const profile = useClientProfile(conversationId);
   const p = profile.profile;
   const isOnline = online ?? p?.online ?? counterpart.status === "online";
-  const name = p?.name || counterpart.name;
+  const shownName = p?.name || counterpart.name;
+  // The advisor's private nickname for this client, when there is one (§23.4).
+  const name = useClientName(counterpart.id, shownName);
+  // Only a nickname calls for "Name on the account": the name the chat header gives (its tooltip says the same), not the profile's first name.
+  const accountName = name !== shownName ? counterpart.name || shownName : undefined;
 
   const identity = (
     <ClientIdentity
       name={name}
+      accountName={accountName}
       online={isOnline}
       sessions={p?.history.sessions}
       location={p?.birth_details?.place}

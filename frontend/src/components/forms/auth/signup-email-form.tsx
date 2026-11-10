@@ -6,22 +6,24 @@ import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { track } from "@/lib/analytics";
+import { applyApiError } from "@/lib/forms/server-errors";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { signupEmailSchema, type SignupEmailValues } from "@/lib/schemas/auth";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { FieldRow } from "@/components/ui/field";
-import { Form, FormControl, FormField, FormItem, FormMessage, FormRootError } from "@/components/ui/form";
+import { Form, FormRootError } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
 import { AuthCard, AuthShell, readSignupEmail, writeSignupEmail } from "./auth-card";
+import { AuthDivider } from "./auth-divider";
+import { GoogleButton, useGoogleAvailable } from "./google-button";
+import { TermsField } from "./terms-field";
 
 /** Step 1 of sign-up: email + Terms/Privacy consent. */
 export function SignupEmailForm() {
   const { text, locale } = useI18n();
   const router = useRouter();
   const form = useSchemaForm(signupEmailSchema, { defaultValues: { email: "", terms: false } });
-  const termsId = React.useId();
+  const googleAvailable = useGoogleAvailable();
 
   React.useEffect(() => {
     track("signup_step_viewed", { step: "email" });
@@ -53,56 +55,24 @@ export function SignupEmailForm() {
               />
             )}
           </FieldRow>
-          <FormField
-            control={form.control}
-            name="terms"
-            render={({ field }) => (
-              <FormItem className="mt-5 gap-1">
-                <div className="flex items-start gap-2 text-xs font-light">
-                  <FormControl>
-                    <Checkbox
-                      ref={field.ref}
-                      name={field.name}
-                      checked={field.value}
-                      onCheckedChange={(checked) => field.onChange(checked === true)}
-                      onBlur={field.onBlur}
-                      aria-labelledby={termsId}
-                      className="mt-0.5"
-                    />
-                  </FormControl>
-                  <span id={termsId}>
-                    {text("I have read, understand and agree to the")}{" "}
-                    <Link className="underline" href={`/${locale}/terms`}>
-                      {text("Terms of Service ")}
-                    </Link>{" "}
-                    {text("and")}{" "}
-                    <Link className="underline" href={`/${locale}/privacy`}>
-                      {text("Privacy Policy ")}
-                    </Link>{" "}
-                    {text("about the service. ")}
-                  </span>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <TermsField control={form.control} />
         </AuthCard>
       </Form>
       <div className="mt-5 w-full max-w-[354px] text-center">
-        <p className="mb-4 text-sm text-cream-light">{text("or")}</p>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full border-ink bg-cream"
-          onClick={() =>
-            form.setError("root.server", {
-              type: "feature_unavailable",
-              message: text("Google sign-up is not available yet. Please continue with your email."),
-            })
-          }
-        >
-          {text("Sign up with Google ")}
-        </Button>
+        {googleAvailable ? (
+          <>
+            <AuthDivider />
+            <GoogleButton
+              intent="signup"
+              // Same message as the e-mail path when the terms box is still empty.
+              beforeStart={() => form.trigger("terms", { shouldFocus: true })}
+              onError={(error) => {
+                applyApiError(form, error, { text });
+                track("error_displayed", { code: String(error.code), step: "email" });
+              }}
+            />
+          </>
+        ) : null}
         <p className="mt-4 text-sm text-cream-light">
           <Link className="underline" href={`/${locale}/login`}>
             {text("Already have an account? Log in")}

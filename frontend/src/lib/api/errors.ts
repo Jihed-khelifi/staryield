@@ -56,7 +56,18 @@ export type ErrorCode =
   | "off_session_disabled"
   | "off_session_not_eligible"
   | "off_session_limit_reached"
-  | "recipient_unavailable";
+  | "recipient_unavailable"
+  // --- revisions 4.0 (§23) ---
+  | "google_unavailable"
+  | "google_state_invalid"
+  | "google_cancelled"
+  | "google_email_unverified"
+  | "google_account_in_use"
+  | "google_not_allowed"
+  | "password_not_set"
+  | "last_sign_in_method"
+  | "reply_target_invalid"
+  | "message_not_likeable";
 
 export class ApiError extends Error {
   readonly code: ErrorCode | string;
@@ -96,6 +107,7 @@ export class ApiError extends Error {
     // Switched off by server configuration: retrying cannot succeed.
     if (this.code === "feature_unavailable") return false;
     return (
+      this.code === "google_unavailable" ||
       this.code === "network_error" ||
       this.code === "timeout" ||
       this.code === "service_unavailable" ||
@@ -192,6 +204,17 @@ export const errorCopy: Record<string, string> = {
   off_session_not_eligible: "You can write once the live chat starts.",
   off_session_limit_reached: "You've used today's messages outside a live chat. Start a live chat to keep talking.",
   recipient_unavailable: "This person can't receive messages right now.",
+  // --- revisions 4.0 (§23) ---
+  google_unavailable: "Google sign-in isn't available right now. Please try again, or use your email and password.",
+  google_state_invalid: "That sign-in attempt expired. Please start again.",
+  google_cancelled: "Google sign-in was cancelled. Nothing was changed.",
+  google_email_unverified: "Google hasn't verified this email address yet. Verify it with Google, or sign up with your email instead.",
+  google_account_in_use: "That Google account is already connected to another Staryield account.",
+  google_not_allowed: "Google sign-in isn't available for this account. Please use your email and password.",
+  password_not_set: "This needs your account password, and you haven't created one yet.",
+  last_sign_in_method: "Create a password before you disconnect Google, so you can still sign in.",
+  reply_target_invalid: "The message you replied to is no longer available.",
+  message_not_likeable: "This message can't be liked.",
 };
 
 /** `network_error` while the browser believes it is online (API unreachable, blocked, DNS). */

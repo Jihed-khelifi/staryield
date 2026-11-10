@@ -122,6 +122,12 @@ type Broadcast struct {
 	Recipients int        `gorm:"not null"`
 	CreatedAt  time.Time
 	SentAt     *time.Time
+	// CursorUserID is the last recipient the fan-out handled (recipients are
+	// walked in user_id order); HeartbeatAt is the last sign of life of the
+	// runner. The broadcast-recovery job resumes a stale unfinished broadcast
+	// from the cursor (migration 0024).
+	CursorUserID *uuid.UUID `gorm:"type:uuid"`
+	HeartbeatAt  *time.Time
 }
 
 func (Broadcast) TableName() string { return "broadcasts" }

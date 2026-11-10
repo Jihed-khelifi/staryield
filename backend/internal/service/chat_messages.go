@@ -69,6 +69,7 @@ type SendMessageInput struct {
 	SessionID   uuid.UUID
 	Body        string
 	ClientMsgID string
+	ReplyToID   *uuid.UUID
 }
 
 // ReadInput moves the caller's read position to Seq, or to the seq of
@@ -229,11 +230,18 @@ func (c *ChatService) Conversations(ctx context.Context, p reqctx.Principal, cur
 		v := ConversationView{ID: r.ID, LastMessageAt: r.LastMessageAt, LastActivityAt: r.LastActivityAt, LastSeq: r.LastSeq,
 			ReadSeq: r.ReadSeq(p.UserID), PeerReadSeq: r.ReadSeq(r.Counterpart(p.UserID)), Unread: int64(r.UnreadFor(p.UserID)), CreatedAt: r.CreatedAt}
 		if asPsychic {
-			v.Counterpart = ParticipantView{ID: r.ClientID, Role: string(domain.RoleClient), Name: firstNonEmpty(r.CounterpartNickname, r.CounterpartName, "Client"),
+			v.Counterpart.ParticipantView = ParticipantView{ID: r.ClientID, Role: string(domain.RoleClient), Name: firstNonEmpty(r.CounterpartNickname, r.CounterpartName, "Client"),
 				AvatarURL: deref(r.CounterpartAvatarURL), Status: map[bool]string{true: "online", false: "offline"}[online[r.ClientID]]}
+			// The advisor's private nickname, in its own field (never merged
+			// into the name; only this viewer is the advisor of the row).
+			if r.AliasEnc != nil {
+				if alias, ok := c.openAlias(ctx, r.PsychicID, r.ClientID, *r.AliasEnc); ok {
+					v.Counterpart.Alias = alias
+				}
+			}
 		} else {
 			status := EffectiveStatus(domain.Availability(deref(r.CounterpartAvailability)), online[r.PsychicID], busy[r.PsychicID])
-			v.Counterpart = ParticipantView{ID: r.PsychicID, Role: string(domain.RolePsychic), Name: firstNonEmpty(nil, r.CounterpartName, "Advisor"),
+			v.Counterpart.ParticipantView = ParticipantView{ID: r.PsychicID, Role: string(domain.RolePsychic), Name: firstNonEmpty(nil, r.CounterpartName, "Advisor"),
 				AvatarURL: deref(r.CounterpartAvatarURL), Slug: deref(r.CounterpartSlug), Status: string(status)}
 		}
 		if r.LastBody != nil && r.LastMessageID != nil {
@@ -245,7 +253,7 @@ func (c *ChatService) Conversations(ctx context.Context, p reqctx.Principal, cur
 			if r.LastKind != nil {
 				kind = domain.MessageKind(*r.LastKind)
 			}
-			v.LastMessage = &MessageView{ID: *r.LastMessageID, ConversationID: r.ID, SenderID: r.LastSenderID, Kind: string(kind), Body: preview}
+			v.LastMessage = &MessageView{ID: *r.LastMessageID, ConversationID: r.ID, SenderID: r.LastSenderID, Kind: string(kind), Body: preview, replyToID: r.LastReplyToID}
 			if r.LastMsgSeq != nil {
 				v.LastMessage.Seq = *r.LastMsgSeq
 			}
@@ -258,6 +266,9 @@ func (c *ChatService) Conversations(ctx context.Context, p reqctx.Principal, cur
 			v.OpenSession = &sv
 		}
 		page.Items = append(page.Items, v)
+	}
+	if err := c.decorateLastMessages(ctx, page.Items); err != nil {
+		return InboxPage{}, apperror.Internal(err)
 	}
 	if page.HasMore && len(rows) > 0 {
 		last := rows[len(rows)-1]
@@ -302,7 +313,7 @@ func (c *ChatService) ThreadWithPsychic(ctx context.Context, p reqctx.Principal,
 	out := &PsychicThread{Psychic: *pv}
 	ps := c.newParticipants()
 	if conv, err := c.chat.FindConversation(ctx, p.UserID, pv.ID); err == nil {
-		cv := ConversationView{ID: conv.ID, Counterpart: ps.psychic(ctx, conv.PsychicID), LastMessageAt: conv.LastMessageAt,
+		cv := ConversationView{ID: conv.ID, Counterpart: CounterpartView{ParticipantView: ps.psychic(ctx, conv.PsychicID)}, LastMessageAt: conv.LastMessageAt,
 			LastActivityAt: conv.LastActivityAt, LastSeq: conv.LastSeq, ReadSeq: conv.ReadSeq(p.UserID),
 			PeerReadSeq: conv.ReadSeq(conv.PsychicID), Unread: int64(conv.UnreadFor(p.UserID)), CreatedAt: conv.CreatedAt}
 		cv.Counterpart.Status = pv.Status
@@ -415,7 +426,11 @@ func (c *ChatService) messageViews(ctx context.Context, viewerID uuid.UUID, rows
 			out[i] = v
 		}
 	}
-	return c.withAttachments(ctx, out), nil
+	out = c.withAttachments(ctx, out)
+	if err := c.decorate(ctx, out, true); err != nil {
+		return nil, apperror.Internal(err)
+	}
+	return out, nil
 }
 
 // messagesPage serves cursor-based history to administrators (transcripts).
@@ -594,7 +609,11 @@ func (c *ChatService) Bookmarks(ctx context.Context, p reqctx.Principal, convers
 		out[i] = messageView(&rows[i].Message)
 		out[i].Saved = true
 	}
-	page := Page[MessageView]{Items: c.withAttachments(ctx, out)}
+	out = c.withAttachments(ctx, out)
+	if err := c.decorate(ctx, out, true); err != nil {
+		return Page[MessageView]{}, apperror.Internal(err)
+	}
+	page := Page[MessageView]{Items: out}
 	if more {
 		last := rows[len(rows)-1]
 		page.NextCursor = repository.EncodeCursor(last.SavedAt, last.ID.String())

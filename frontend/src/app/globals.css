@@ -2354,6 +2354,11 @@ html {
   color: var(--ink);
   text-align: center;
 }
+.chat-system-message time {
+  /* a11y: an opaque tone instead of 60 % opacity (4.29:1 on the pill); 6:1 here. */
+  color: #4e473f;
+  opacity: 1;
+}
 .place-options {
   position: absolute;
   top: 100%;
@@ -3574,7 +3579,11 @@ html {
     gap: 16px;
   }
   .site-header .header-actions {
-    gap: 8px;
+    gap: 6px;
+  }
+  /* A four-digit balance ("1,470 credits") made the header 10px wider than the screen. */
+  .site-header .balance-pill {
+    padding-inline: 12px;
   }
   .site-header .availability-trigger {
     min-width: 0;

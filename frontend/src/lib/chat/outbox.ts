@@ -11,6 +11,7 @@
  * unknown outcome (timeout, lost connection, reload) never duplicates.
  */
 import type { ApiError } from "@/lib/api/errors";
+import type { ReplyPreview } from "@/lib/api/types";
 import { MESSAGE_MAX_LENGTH } from "@/lib/schemas/message-schema";
 import type { UiMessage } from "@/components/chat/chat-model";
 
@@ -23,6 +24,11 @@ export type OutboxEntry = {
   session_id?: string;
   sender_id: string;
   body: string;
+  /**
+   * The message this one answers (§23.2): `reply_to.id` is sent as `reply_to_id`
+   * (every retry again), the rest is the snapshot the optimistic bubble quotes.
+   */
+  reply_to?: ReplyPreview;
   created_at: string;
   /** Delivery attempts so far. */
   attempts: number;
@@ -56,6 +62,22 @@ function storage(): Storage | null {
   }
 }
 
+/** Shape-check a stored reply snapshot. */
+function validReply(raw: unknown): raw is ReplyPreview {
+  if (!raw || typeof raw !== "object") return false;
+  const r = raw as Record<string, unknown>;
+  return (
+    typeof r.id === "string" &&
+    UUID.test(r.id) &&
+    typeof r.seq === "number" &&
+    Number.isFinite(r.seq) &&
+    (r.sender_id === undefined || (typeof r.sender_id === "string" && r.sender_id.length <= 64)) &&
+    (r.kind === "text" || r.kind === "image") &&
+    typeof r.excerpt === "string" &&
+    r.excerpt.length <= 400
+  );
+}
+
 /** Shape-check one stored entry; storage is not trusted input. */
 function valid(raw: unknown): raw is OutboxEntry {
   if (!raw || typeof raw !== "object") return false;
@@ -72,6 +94,7 @@ function valid(raw: unknown): raw is OutboxEntry {
     typeof e.body === "string" &&
     e.body.trim().length > 0 &&
     e.body.length <= MESSAGE_MAX_LENGTH &&
+    (e.reply_to === undefined || validReply(e.reply_to)) &&
     typeof e.created_at === "string" &&
     !Number.isNaN(Date.parse(e.created_at)) &&
     typeof e.attempts === "number" &&
@@ -126,7 +149,10 @@ export function clearOutbox(userId: string, store: Storage | null = storage()) {
   }
 }
 
-export function newEntry(init: Pick<OutboxEntry, "client_msg_id" | "conversation_id" | "sender_id" | "body"> & { session_id?: string }, now = Date.now()): OutboxEntry {
+export function newEntry(
+  init: Pick<OutboxEntry, "client_msg_id" | "conversation_id" | "sender_id" | "body"> & { session_id?: string; reply_to?: ReplyPreview },
+  now = Date.now(),
+): OutboxEntry {
   return { ...init, created_at: new Date(now).toISOString(), attempts: 0, state: "queued", retry_at: 0 };
 }
 
@@ -223,6 +249,7 @@ export function outboxMessage(entry: OutboxEntry): UiMessage {
     sender_id: entry.sender_id,
     kind: "text",
     body: entry.body,
+    ...(entry.reply_to ? { reply_to: entry.reply_to } : {}),
     created_at: entry.created_at,
     pending: entry.state,
     failure: entry.error,

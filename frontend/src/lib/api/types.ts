@@ -53,6 +53,8 @@ export type SessionResponse = {
   user: User;
   csrf_token: string;
   access_expires_at: string;
+  /** Set when this password sign-in also connected a pending Google identity (§23.1). */
+  linked?: "google";
 };
 
 export type Service = {
@@ -169,6 +171,8 @@ export type Participant = {
   avatar_url?: string;
   slug?: string;
   status?: PresenceStatus;
+  /** The advisor's private nickname for this client (advisor viewer only, §23.4). */
+  alias?: string;
 };
 
 export type SessionStatus =
@@ -259,7 +263,33 @@ export type ChatMessage = {
   saved?: boolean;
   /** FE-CHAT (wave 3): position in the conversation (1, 2, 3, … without gaps). */
   seq?: number;
+  /** The message this one answers (§23.2). */
+  reply_to?: ReplyPreview;
+  /** Ids of the participants who liked the message; absent when nobody did (§23.3). */
+  liked_by?: string[];
 };
+
+/** The quoted message shown above a reply (§23.2). */
+export type ReplyPreview = {
+  id: string;
+  seq: number;
+  sender_id?: string;
+  kind: "text" | "image";
+  /** First 140 characters of the body or caption; "" for an image without a caption. */
+  excerpt: string;
+};
+
+/** Answer of PUT/DELETE /chat/messages/:id/like (§23.3). */
+export type MessageLikes = { message_id: string; conversation_id: string; seq: number; liked_by: string[] };
+
+/** Realtime `message.liked` (§23.3): `liked_by` is authoritative. */
+export type MessageLikedEvent = MessageLikes & { user_id: string; liked: boolean };
+
+/** An advisor's private nickname for a client (§23.4). */
+export type ClientAlias = { client_id: string; alias: string; updated_at: string };
+
+/** Realtime `client_alias.updated` (§23.4), sent to the advisor only; `alias: null` when cleared. */
+export type ClientAliasEvent = { client_id: string; alias: string | null; updated_at: string };
 
 /** What the caller may still send outside a live chat in one conversation (§22.3). */
 export type OffSessionAllowance = {
@@ -489,7 +519,68 @@ export type NotificationKind =
   | "photo.approved"
   | "photo.rejected"
   | "support.replied"
-  | "broadcast";
+  | "broadcast"
+  | "waitlist.available"
+  | "export.ready"
+  | "account.email_change_requested"
+  | "account.email_changed"
+  | "account.reactivated"
+  | "account.google_linked"
+  | "account.google_unlinked"
+  | "subscription.renewed"
+  | "subscription.payment_failed"
+  | "subscription.canceled";
+
+/** Realtime `notification.read` (§23.6): read state changed in another tab or device. */
+export type NotificationReadEvent = { ids?: string[]; all?: true; unread: number };
+
+// --- Google sign-in (§23.1) ---
+export type GoogleIntent = "signin" | "signup" | "link";
+
+export type GoogleStartInput = {
+  intent: GoogleIntent;
+  accept_terms?: boolean;
+  /** Locale-less same-site path to return to. */
+  next?: string;
+  locale?: string;
+  attribution?: AttributionInput;
+};
+
+/** `?result=` values the API sends back to /{locale}/auth/google. */
+export type GoogleResult =
+  | "signed_in"
+  | "signed_up"
+  | "linked"
+  | "signup_consent"
+  | "link_password"
+  | "reactivation"
+  | "account_disabled"
+  | "google_cancelled"
+  | "google_state_invalid"
+  | "google_email_unverified"
+  | "google_account_in_use"
+  | "google_not_allowed"
+  | "google_unavailable";
+
+/** GET /auth/google/pending: what this browser's sign-in attempt is waiting for. */
+export type GooglePending =
+  | { kind: "signup_consent"; email: string }
+  | { kind: "link_password"; email: string }
+  | {
+      kind: "reactivation";
+      code: "account_deactivated" | "account_closure_pending";
+      reactivation_token: string;
+      deletion_scheduled_at?: string;
+    };
+
+/** GET /me/sign-in-methods. */
+export type SignInMethods = {
+  password: boolean;
+  google?: { email: string; linked_at: string };
+  /** Google sign-in is configured on the API. */
+  google_available: boolean;
+};
+// --- end Google sign-in ---
 
 /** An in-app notification (§7.1). Named to avoid the DOM `Notification`. */
 export type AppNotification = {
@@ -562,6 +653,8 @@ export type PsychicBalance = {
 export type ClientProfile = {
   id: string;
   name: string;
+  /** The advisor's private nickname for this client (§23.4). */
+  alias?: string;
   avatar_url?: string;
   online: boolean;
   locale: string;
@@ -765,6 +858,8 @@ export type SiteConfig = {
   banners: { rotation_seconds: number; items: SiteBanner[] };
   signup_offer: { enabled: boolean; free_minutes: number };
   free_mode: { active: boolean; ends_at?: string };
+  /** Which sign-in providers are configured (§23.1); absent from older APIs. */
+  auth?: { google: boolean };
   generated_at: string;
 };
 

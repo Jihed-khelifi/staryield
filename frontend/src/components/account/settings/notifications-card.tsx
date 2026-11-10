@@ -4,8 +4,9 @@ import * as React from "react";
 import { useFormContext } from "react-hook-form";
 
 import { useI18n } from "@/i18n/i18n-provider";
-import { pushApi } from "@/lib/api/account";
-import { disablePush, enablePush, existingSubscription, pushAvailability, pushPermission, refreshPush, type PushOutcome } from "@/lib/push";
+import { pushApi, settingsApi } from "@/lib/api/account";
+import { errorMessage } from "@/lib/api/errors";
+import { disablePush, enablePush, existingSubscription, pushAvailability, pushOutcomeMessage, pushPermission, refreshPush, type PushOutcome } from "@/lib/push";
 import { PushProblem } from "@/components/notifications/push-problem";
 import { useAsync } from "@/lib/use-async";
 import { announce } from "@/components/feedback/live-region";
@@ -13,6 +14,7 @@ import { FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 
 import type { SettingsFormValues } from "./settings-model";
+import { useSettingsSync } from "./settings-sync";
 import { SettingsCard } from "./settings-ui";
 
 type Toggle = Exclude<keyof SettingsFormValues["notifications"], "push">;
@@ -59,14 +61,20 @@ function SwitchRow({ name, label, testId }: { name: Toggle; label: string; testI
 }
 
 /**
- * Push notifications: switching on asks for the browser permission,
- * registers the service worker and subscribes this browser; the account
- * preference itself is saved with the other settings. Unsupported browsers,
- * blocked permissions and push-service failures are explained, never fatal.
+ * Push notifications (docs §21.3, §23.6). The switch applies at once, without
+ * "Save Changes": switching on asks for the browser permission, registers the
+ * service worker, subscribes this browser and persists `notify_push: true`;
+ * switching off persists `false` and removes this browser's subscription (the
+ * account stops receiving push here; turning it on again re-subscribes
+ * without a new prompt). When persisting fails the switch goes back to where
+ * it was (and a browser subscription made for it is removed). Unsupported
+ * browsers, blocked permissions and push-service failures are explained,
+ * never fatal; every outcome message comes from `pushOutcomeMessage`.
  */
 function PushRow() {
   const { text } = useI18n();
   const form = useFormContext<SettingsFormValues>();
+  const sync = useSettingsSync();
   const config = useAsync((signal) => pushApi.config(signal), []);
   const [availability] = React.useState(pushAvailability);
   const supported = availability === "available";
@@ -74,6 +82,8 @@ function PushRow() {
   const [subscribed, setSubscribed] = React.useState<boolean | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [problem, setProblem] = React.useState<Exclude<PushOutcome, "subscribed"> | null>(null);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
+  const lastAction = React.useRef<"on" | "off">("on");
   const labelId = React.useId();
   const hintId = React.useId();
   const preference = form.getValues("notifications.push");
@@ -96,26 +106,59 @@ function PushRow() {
   const enabled = config.data?.enabled === true && Boolean(config.data.public_key);
   const unavailable = !supported || (config.data !== null && !enabled) || config.error !== null;
 
-  async function turnOn(onChange: (value: boolean) => void) {
-    if (!config.data?.public_key) return;
-    setBusy(true);
-    setProblem(null);
-    const outcome = await enablePush(config.data.public_key);
-    setBusy(false);
-    setPermission(pushPermission());
-    if (outcome === "subscribed") {
-      setSubscribed(true);
-      onChange(true);
-      announce(text("Push notifications are on in this browser. Save your changes to keep them."));
-      return;
+  /** Save the account switch on its own; the form keeps the saved value as its baseline. */
+  async function persist(on: boolean): Promise<boolean> {
+    try {
+      const saved = await settingsApi.update({ notifications: { push: on } });
+      form.resetField("notifications.push", { defaultValue: saved.notifications.push });
+      sync?.adopt(saved);
+      return true;
+    } catch (error) {
+      const message = errorMessage(error);
+      setSaveError(message);
+      announce(text(message));
+      return false;
     }
-    setProblem(outcome);
   }
 
-  async function turnOff(onChange: (value: boolean) => void) {
-    onChange(false);
-    setProblem(null);
+  async function turnOn() {
+    lastAction.current = "on";
+    if (!config.data?.public_key) return;
+    const alreadyOn = form.getValues("notifications.push");
     setBusy(true);
+    setProblem(null);
+    setSaveError(null);
+    const outcome = await enablePush(config.data.public_key);
+    setPermission(pushPermission());
+    if (outcome !== "subscribed") {
+      setBusy(false);
+      setProblem(outcome);
+      announce(text(pushOutcomeMessage(outcome)));
+      return;
+    }
+    if (!alreadyOn && !(await persist(true))) {
+      // The account switch stays off, so this browser must not stay subscribed.
+      await disablePush().catch(() => undefined);
+      setSubscribed(false);
+      setBusy(false);
+      return;
+    }
+    setSubscribed(true);
+    setBusy(false);
+    announce(text("Push notifications are on in this browser."));
+  }
+
+  async function turnOff() {
+    lastAction.current = "off";
+    setProblem(null);
+    setSaveError(null);
+    setBusy(true);
+    form.setValue("notifications.push", false, { shouldDirty: false });
+    if (!(await persist(false))) {
+      form.resetField("notifications.push", { defaultValue: true });
+      setBusy(false);
+      return;
+    }
     try {
       await disablePush();
     } catch {
@@ -124,14 +167,17 @@ function PushRow() {
       setBusy(false);
       setSubscribed(false);
     }
+    announce(text("Push notifications are off."));
   }
 
   let hint: React.ReactNode = null;
   if (availability !== "available") hint = <PushProblem outcome={availability} />;
   else if (config.error || (config.data && !enabled)) hint = text("Push notifications aren't available yet.");
+  else if (saveError) hint = text(saveError);
   else if (problem) hint = <PushProblem outcome={problem} />;
   else if (permission === "denied") hint = <PushProblem outcome="denied" />;
-  const retryable = problem === "brave_blocked" || problem === "service_error" || problem === "failed";
+  const retryable = saveError !== null || problem === "brave_blocked" || problem === "service_error" || problem === "failed";
+  const retry = () => void (lastAction.current === "off" ? turnOff() : turnOn());
 
   return (
     <FormField
@@ -149,7 +195,7 @@ function PushRow() {
                 {retryable ? (
                   <>
                     {" "}
-                    <button type="button" className="settings-link-button" onClick={() => void turnOn(field.onChange)} disabled={busy} data-testid="push-retry">
+                    <button type="button" className="settings-link-button" onClick={retry} disabled={busy} data-testid="push-retry">
                       {text("Try again")}
                     </button>
                   </>
@@ -158,7 +204,7 @@ function PushRow() {
             ) : field.value && subscribed === false && permission !== "denied" ? (
               <p id={hintId} className="settings-description" data-testid="push-hint">
                 {text("Not turned on in this browser yet.")}{" "}
-                <button type="button" className="settings-link-button" onClick={() => void turnOn(field.onChange)} disabled={busy}>
+                <button type="button" className="settings-link-button" onClick={() => void turnOn()} disabled={busy}>
                   {text("Turn on here")}
                 </button>
               </p>
@@ -171,7 +217,7 @@ function PushRow() {
               checked={field.value}
               disabled={busy || (!field.value && (unavailable || permission === "denied" || config.loading))}
               aria-busy={busy || undefined}
-              onCheckedChange={(on) => void (on ? turnOn(field.onChange) : turnOff(field.onChange))}
+              onCheckedChange={(on) => void (on ? turnOn() : turnOff())}
               onBlur={field.onBlur}
               aria-labelledby={labelId}
               aria-describedby={hint || (field.value && subscribed === false) ? hintId : undefined}

@@ -55,6 +55,8 @@ type Config struct {
 	Notifications  NotificationsConfig  `env:"notifications"`
 	// revisions 3.0: support desk
 	Support SupportConfig `env:"support"`
+	// revisions 4.0: Sign in with Google
+	Google GoogleConfig `env:"google"`
 }
 
 // AppConfig holds process-wide identity settings.
@@ -215,6 +217,10 @@ type RateLimitConfig struct {
 	// ChatImage bounds chat image uploads per user (revisions 3.3); avatars
 	// and admin images keep Upload.
 	ChatImage Rule `env:"chat_image"`
+	// Like and Alias (revisions 4.0, §23.3–23.4) bound message likes per user
+	// and private client nickname writes per advisor.
+	Like  Rule `env:"like"`
+	Alias Rule `env:"alias"`
 	// Push bounds Web Push subscribe/unsubscribe calls per user.
 	Push Rule `env:"push"`
 	// Refresh (revisions 3.3) bounds POST /auth/refresh per refresh cookie
@@ -535,6 +541,8 @@ func defaults() Config {
 			Ingest:    Rule{Rate: 120, Period: time.Minute, Burst: 60},
 			Upload:    Rule{Rate: 10, Period: time.Hour, Burst: 5},
 			ChatImage: Rule{Rate: 60, Period: time.Hour, Burst: 20},
+			Like:      Rule{Rate: 120, Period: time.Minute, Burst: 30},
+			Alias:     Rule{Rate: 60, Period: time.Hour, Burst: 20},
 			Push:      Rule{Rate: 30, Period: time.Hour, Burst: 10},
 			Refresh:   Rule{Rate: 30, Period: time.Minute, Burst: 20},
 			Scale:     1,
@@ -562,13 +570,14 @@ func defaults() Config {
 		Mail: MailConfig{Driver: "log", From: "Staryield <no-reply@staryield.net>", Timeout: 15 * time.Second, MaxAttempts: 8,
 			DailyCap: 20, Retention: 720 * time.Hour, PollInterval: 2 * time.Second, SupportInbox: "support@staryield.net"},
 		Push: PushConfig{Enabled: true, Subject: "mailto:support@staryield.net", TTL: time.Hour, Timeout: 10 * time.Second,
-			Workers: 4, QueueSize: 10000, MaxPerUser: 10},
+			Workers: 8, QueueSize: 10000, MaxPerUser: 10},
 		Worker:        WorkerConfig{Enabled: true, TickInterval: time.Second, PresenceSweep: 5 * time.Second, MaintenanceTick: 30 * time.Second, BatchSize: 100},
 		Admin:         AdminConfig{SessionTTL: 8 * time.Hour, IdleTimeout: 30 * time.Minute, StepUpWindow: 10 * time.Minute, ChallengeTTL: 5 * time.Minute, TOTPIssuer: "Staryield Admin", ConsoleURL: "http://localhost:3002"},
 		Support:       SupportConfig{Retention: 17520 * time.Hour, LinkTTL: 720 * time.Hour},
 		Links:         LinksConfig{PublicBaseURL: "http://localhost:3000/go", AllowedHosts: []string{}},
 		Reviews:       ReviewsConfig{Window: 168 * time.Hour},
 		Notifications: NotificationsConfig{BufferSize: 10000, BatchSize: 200, FlushInterval: 250 * time.Millisecond},
+		Google:        GoogleConfig{Issuer: GoogleDefaultIssuer, StateTTL: 10 * time.Minute},
 	}
 }
 
@@ -901,6 +910,7 @@ func (c *Config) Validate() error {
 	c.validateMail(add)
 	c.validateSupport(add) // revisions 3.0: support desk
 	c.validatePush(add)
+	c.validateGoogle(add) // revisions 4.0: Sign in with Google
 
 	if c.IsProduction() {
 		if !c.Security.CookieSecure {

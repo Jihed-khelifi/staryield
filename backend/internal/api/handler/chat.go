@@ -254,8 +254,9 @@ func (h *Handler) EndSession(c echo.Context) error {
 }
 
 type sendMessageRequest struct {
-	Body        string `json:"body"`
-	ClientMsgID string `json:"client_msg_id"`
+	Body        string     `json:"body"`
+	ClientMsgID string     `json:"client_msg_id"`
+	ReplyToID   *uuid.UUID `json:"reply_to_id"`
 }
 
 // SendMessage is the REST fallback for sending (SSE clients) and the
@@ -269,7 +270,7 @@ func (h *Handler) SendMessage(c echo.Context) error {
 	if err := bind(c, &req); err != nil {
 		return err
 	}
-	res, err := h.svc.Chat.SendMessageForSession(c.Request().Context(), principal(c), service.SendMessageInput{SessionID: id, Body: req.Body, ClientMsgID: req.ClientMsgID})
+	res, err := h.svc.Chat.SendMessageForSession(c.Request().Context(), principal(c), service.SendMessageInput{SessionID: id, Body: req.Body, ClientMsgID: req.ClientMsgID, ReplyToID: req.ReplyToID})
 	if err != nil {
 		return err
 	}
@@ -288,7 +289,7 @@ func (h *Handler) SendConversationMessage(c echo.Context) error {
 	if err := bind(c, &req); err != nil {
 		return err
 	}
-	res, err := h.svc.Chat.SendToConversation(c.Request().Context(), principal(c), service.ConversationSendInput{ConversationID: id, Body: req.Body, ClientMsgID: req.ClientMsgID})
+	res, err := h.svc.Chat.SendToConversation(c.Request().Context(), principal(c), service.ConversationSendInput{ConversationID: id, Body: req.Body, ClientMsgID: req.ClientMsgID, ReplyToID: req.ReplyToID})
 	if err != nil {
 		return err
 	}

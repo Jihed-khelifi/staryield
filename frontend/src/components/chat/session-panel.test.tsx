@@ -10,6 +10,9 @@ import type { Dictionary } from "@/i18n/types";
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a> }));
 vi.mock("@/components/reviews/review-form", () => ({ ReviewForm: () => null, ReviewThanks: () => null }));
 vi.mock("@/components/waitlist/waitlist-button", () => ({ WaitlistButton: () => null }));
+vi.mock("@/components/reviews/trustpilot-review-collector", () => ({
+  TrustpilotReviewCollector: ({ placement }: { placement: string }) => <div data-testid="trustpilot-widget" data-placement={placement} />,
+}));
 
 import { SessionPanel } from "@/components/chat/session-panel";
 import { ApiError } from "@/lib/api/errors";
@@ -122,5 +125,32 @@ describe("SessionPanel ringtone hint", () => {
   it("clients never see the hint", () => {
     render(wrap({ role: "client", session: request }));
     expect(screen.queryByRole("button", { name: "Tap to turn on the ringtone" })).toBeNull();
+  });
+});
+
+describe("SessionPanel Trustpilot invitation", () => {
+  const ended = (extra: Record<string, unknown>) =>
+    ({
+      session: { id: "s1", status: "ended", billed_minutes: 4, credits_charged: 16, psychic_earnings: 12, sponsored: false },
+      duration_seconds: 240,
+      ...extra,
+    }) as never;
+
+  it.each([
+    ["can still rate", { can_review: true }],
+    ["cannot rate", { can_review: false }],
+    ["already rated", { review: { id: "r1", rating: 1, comment: "", created_at: "2026-11-09T10:00:00Z" } }],
+    ["rated five stars", { can_review: false, review: { id: "r2", rating: 5, comment: "", created_at: "2026-11-09T10:00:00Z" } }],
+  ])("shows the widget to every client who ended a live chat (%s)", (_name, extra) => {
+    render(wrap({ summary: ended(extra) }));
+    const widget = screen.getByTestId("trustpilot-widget");
+    expect(widget.getAttribute("data-placement")).toBe("chat-summary");
+    expect(screen.getByTestId("chat-summary").contains(widget)).toBe(true);
+  });
+
+  it("never shows it to advisors", () => {
+    render(wrap({ role: "psychic", summary: ended({ can_review: false }) }));
+    expect(screen.getByTestId("chat-summary")).toBeTruthy();
+    expect(screen.queryByTestId("trustpilot-widget")).toBeNull();
   });
 });

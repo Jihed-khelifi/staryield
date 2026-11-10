@@ -248,8 +248,8 @@ export async function disablePush(): Promise<void> {
 }
 
 /** Re-send an existing subscription so the server copy stays current (idempotent). */
-export async function refreshPush(): Promise<boolean> {
-  const subscription = await existingSubscription();
+export async function refreshPush(known?: PushSubscription | null): Promise<boolean> {
+  const subscription = known ?? (await existingSubscription());
   if (!subscription) return false;
   try {
     await pushApi.subscribe(subscription.toJSON());
@@ -257,6 +257,59 @@ export async function refreshPush(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// --- sign-out (docs §23.6) ---------------------------------------------------------
+
+/** Push work around sign-out never takes longer than this in total. */
+export const PUSH_SIGN_OUT_CAP_MS = 3000;
+
+/** Resolve with `fallback` when `work` does not settle within `ms` (and when it rejects). */
+function capped<T>(work: Promise<T>, ms: number, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), Math.max(0, ms));
+  });
+  return Promise.race([work.catch(() => fallback), timeout]).finally(() => clearTimeout(timer));
+}
+
+export type PushSignOut = {
+  /** This browser's push endpoint, to send as `push_endpoint` to `POST /auth/logout`. */
+  endpoint: string | null;
+  /** Remove the browser's subscription; never throws, bounded by what is left of the cap. */
+  unsubscribe: () => Promise<void>;
+};
+
+/**
+ * Before the session ends: read this browser's current push subscription so
+ * the API can drop it (`push_endpoint`), then remove it from the browser too.
+ * Best effort and bounded (`PUSH_SIGN_OUT_CAP_MS` from this call): unsupported
+ * or denied push, a missing service worker or any failure just yields no
+ * endpoint, so signing out is never blocked.
+ */
+export async function prepareSignOutPush(capMs = PUSH_SIGN_OUT_CAP_MS): Promise<PushSignOut> {
+  const startedAt = Date.now();
+  const remaining = () => Math.max(0, capMs - (Date.now() - startedAt));
+  const none: PushSignOut = { endpoint: null, unsubscribe: async () => undefined };
+  let subscription: PushSubscription | null = null;
+  try {
+    subscription = await capped(existingSubscription(), remaining(), null);
+  } catch {
+    return none;
+  }
+  if (!subscription) return none;
+  const current = subscription;
+  return {
+    endpoint: typeof current.endpoint === "string" && current.endpoint ? current.endpoint : null,
+    unsubscribe: async () => {
+      try {
+        // A few hundred ms even when the cap is spent: unsubscribe() is local and quick.
+        await capped(Promise.resolve(current.unsubscribe()), Math.max(300, remaining()), false);
+      } catch {
+        /* the server already dropped it */
+      }
+    },
+  };
 }
 
 // --- background upkeep (PushSync, docs §21.3) -------------------------------------
@@ -268,6 +321,50 @@ export const PUSH_SYNC_KEY_PREFIX = "staryield.push.synced.v1:";
 /** A failed silent re-subscribe (e.g. Brave with Google push off) is retried at most this often. */
 export const PUSH_RESUBSCRIBE_RETRY_MS = 60 * 60 * 1000;
 export const PUSH_RESUBSCRIBE_KEY_PREFIX = "staryield.push.resubscribe.v1:";
+
+/** Last endpoint (hashed) this browser sent to the API, per user (§23.6). */
+export const PUSH_ENDPOINT_KEY_PREFIX = "staryield.push.endpoint.v1:";
+
+function readString(key: string): string {
+  try {
+    return window.localStorage.getItem(key) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function writeString(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    /* private mode: sent again next page load */
+  }
+}
+
+/** A short stable digest of an endpoint URL (the URL itself is a capability and is not kept). */
+export async function hashEndpoint(endpoint: string): Promise<string> {
+  try {
+    const subtle = globalThis.crypto?.subtle;
+    if (subtle) {
+      const digest = new Uint8Array(await subtle.digest("SHA-256", new TextEncoder().encode(endpoint)));
+      return Array.from(digest.slice(0, 16), (b) => b.toString(16).padStart(2, "0")).join("");
+    }
+  } catch {
+    /* fall through to the plain hash */
+  }
+  let h = 0x811c9dc5;
+  for (let i = 0; i < endpoint.length; i++) h = Math.imul(h ^ endpoint.charCodeAt(i), 0x01000193) >>> 0;
+  return `f${h.toString(16)}`;
+}
+
+/** Forget what was synced for this user (sign-out): the next user or session starts clean. */
+export function clearPushSyncMarkers(userId: string): void {
+  try {
+    for (const prefix of [PUSH_SYNC_KEY_PREFIX, PUSH_RESUBSCRIBE_KEY_PREFIX, PUSH_ENDPOINT_KEY_PREFIX]) window.localStorage.removeItem(prefix + userId);
+  } catch {
+    /* storage unavailable: nothing was stored */
+  }
+}
 
 function readTime(key: string): number {
   try {
@@ -292,20 +389,30 @@ export type PushSyncResult = "skipped" | "throttled" | "refreshed" | "resubscrib
 
 /**
  * Never prompts and never unsubscribes. With permission granted: an existing
- * subscription is re-sent (throttled); a missing one is recreated silently
- * when the account's push switch is on.
+ * subscription is re-sent (throttled to every 6 h, but at once when its
+ * endpoint differs from the last one sent, or with `force`); a missing one is
+ * recreated silently when the account's push switch is on.
  */
 export async function syncPush(opts: {
   userId: string;
   pushSwitchOn: () => Promise<boolean>;
   publicKey: () => Promise<string | null>;
+  /** The service worker reported a changed subscription: skip every throttle. */
+  force?: boolean;
 }): Promise<PushSyncResult> {
   if (pushAvailability() !== "available" || Notification.permission !== "granted") return "skipped";
   const subscription = await existingSubscription();
   if (subscription) {
-    if (Date.now() - lastSynced(opts.userId) < PUSH_REFRESH_INTERVAL_MS) return "throttled";
-    if (await refreshPush()) {
+    const endpointKey = PUSH_ENDPOINT_KEY_PREFIX + opts.userId;
+    const hash = await hashEndpoint(subscription.endpoint);
+    // Nothing stored yet (first run, or a record from before endpoints were
+    // tracked) is not a change: the 6 h clock decides.
+    const stored = readString(endpointKey);
+    const changed = stored !== "" && stored !== hash;
+    if (!changed && !opts.force && Date.now() - lastSynced(opts.userId) < PUSH_REFRESH_INTERVAL_MS) return "throttled";
+    if (await refreshPush(subscription)) {
       markSynced(opts.userId);
+      writeString(endpointKey, hash);
       return "refreshed";
     }
     return "idle";
@@ -313,7 +420,7 @@ export async function syncPush(opts: {
   // Without this, a browser whose push service refuses (Brave's default) would
   // retry two subscribes on every page load.
   const attemptKey = PUSH_RESUBSCRIBE_KEY_PREFIX + opts.userId;
-  if (Date.now() - readTime(attemptKey) < PUSH_RESUBSCRIBE_RETRY_MS) return "throttled";
+  if (!opts.force && Date.now() - readTime(attemptKey) < PUSH_RESUBSCRIBE_RETRY_MS) return "throttled";
   try {
     if (!(await opts.pushSwitchOn())) return "idle";
     const key = await opts.publicKey();
@@ -321,6 +428,8 @@ export async function syncPush(opts: {
     writeTime(attemptKey);
     if ((await enablePush(key)) === "subscribed") {
       markSynced(opts.userId);
+      const fresh = await existingSubscription();
+      if (fresh) writeString(PUSH_ENDPOINT_KEY_PREFIX + opts.userId, await hashEndpoint(fresh.endpoint));
       return "resubscribed";
     }
   } catch {

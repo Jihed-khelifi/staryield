@@ -17,16 +17,23 @@ type SessionResponse struct {
 	User            *service.UserView `json:"user"`
 	CSRFToken       string            `json:"csrf_token"`
 	AccessExpiresAt time.Time         `json:"access_expires_at"`
+	// Linked is "google" when this sign-in connected a pending Google
+	// identity to the account (revisions 4.0).
+	Linked string `json:"linked,omitempty"`
 }
 
 func (h *Handler) session(c echo.Context, res *service.AuthResult, status int) error {
+	return h.sessionLinked(c, res, status, "")
+}
+
+func (h *Handler) sessionLinked(c echo.Context, res *service.AuthResult, status int, linked string) error {
 	h.setSession(c, res)
 	csrf := h.rotateCSRF(c)
 	me, err := h.svc.Users.Me(c.Request().Context(), res.UserID)
 	if err != nil {
 		return err
 	}
-	return c.JSON(status, SessionResponse{User: me, CSRFToken: csrf, AccessExpiresAt: res.AccessExpires})
+	return c.JSON(status, SessionResponse{User: me, CSRFToken: csrf, AccessExpiresAt: res.AccessExpires, Linked: linked})
 }
 
 // CSRFToken issues a CSRF token (call before the first unsafe request).
@@ -80,11 +87,15 @@ func (h *Handler) Login(c echo.Context) error {
 	if err := bind(c, &req); err != nil {
 		return err
 	}
-	res, err := h.svc.Auth.Login(c.Request().Context(), req.Email, req.Password)
+	// A browser waiting to link Google (sy_oa) links it with this sign-in.
+	res, linked, err := h.svc.Auth.LoginLinking(c.Request().Context(), req.Email, req.Password, h.oauthCookieValue(c))
 	if err != nil {
 		return err
 	}
-	return h.session(c, res, http.StatusOK)
+	if linked != "" {
+		h.clearOAuthCookie(c)
+	}
+	return h.sessionLinked(c, res, http.StatusOK, linked)
 }
 
 // Refresh rotates the refresh token cookie.
@@ -102,7 +113,11 @@ func (h *Handler) Refresh(c echo.Context) error {
 
 // Logout ends this device's session.
 func (h *Handler) Logout(c echo.Context) error {
-	if err := h.svc.Auth.Logout(c.Request().Context(), refreshCookie(c, h.cookies.Names.Refresh)); err != nil {
+	pushEndpoint, err := logoutPushEndpoint(c) // optional body, see push.go
+	if err != nil {
+		return err
+	}
+	if err := h.svc.Auth.LogoutDevice(c.Request().Context(), refreshCookie(c, h.cookies.Names.Refresh), pushEndpoint); err != nil {
 		return err
 	}
 	h.clearSession(c)

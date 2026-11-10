@@ -68,6 +68,8 @@ type ChatService struct {
 	// (SiteService.OffSessionSettings); nil means the feature is disabled
 	// (revisions 3.3, §22.3).
 	offSession func(ctx context.Context) OffSessionSettings
+	// aliases is the optional private client nickname store (revisions 4.0, §23.4).
+	aliases *aliasStore
 }
 
 // SetDiscounts installs the member discount lookup (billing.DiscountFor).

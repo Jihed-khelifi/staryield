@@ -6,7 +6,12 @@ import type {
   AppNotification,
   AttributionInput,
   Availability,
+  ClientAlias,
   ClientProfile,
+  GooglePending,
+  GoogleStartInput,
+  MessageLikes,
+  SignInMethods,
   Chart,
   ChatMessage,
   OffSessionAllowance,
@@ -77,8 +82,13 @@ export const authApi = {
     api<SessionResponse>("/api/v1/auth/register", { method: "POST", body: input, skipRefresh: true }).then(rememberSession),
   login: (email: string, password: string) =>
     api<SessionResponse>("/api/v1/auth/login", { method: "POST", body: { email, password }, skipRefresh: true }).then(rememberSession),
-  logout: () =>
-    api<void>("/api/v1/auth/logout", { method: "POST", skipRefresh: true }).finally(endSession),
+  /** `push_endpoint` also removes this browser's push subscription (§23.6); the API accepts no body too. */
+  logout: (opts?: { push_endpoint?: string }) =>
+    api<void>("/api/v1/auth/logout", {
+      method: "POST",
+      skipRefresh: true,
+      ...(opts?.push_endpoint ? { body: { push_endpoint: opts.push_endpoint } } : {}),
+    }).finally(endSession),
   logoutAll: () => api<void>("/api/v1/auth/logout-all", { method: "POST" }).finally(endSession),
   forgotPassword: (email: string, locale: string) =>
     api<{ status: string }>("/api/v1/auth/password/forgot", { method: "POST", body: { email, locale }, skipRefresh: true }),
@@ -86,6 +96,25 @@ export const authApi = {
     api<void>("/api/v1/auth/password/reset", { method: "POST", body: { token, password }, skipRefresh: true }),
   changePassword: (current_password: string, new_password: string) =>
     api<SessionResponse>("/api/v1/auth/password/change", { method: "POST", body: { current_password, new_password } }).then(rememberSession),
+  // --- Google sign-in (§23.1) ---
+  /** Start a Google sign-in; the caller then navigates to `authorization_url`. */
+  googleStart: (input: GoogleStartInput) =>
+    api<{ authorization_url: string }>("/api/v1/auth/google/start", { method: "POST", body: input, skipRefresh: input.intent !== "link" }),
+  /** What this browser's Google attempt is waiting for (404 `not_found` when nothing is). */
+  googlePending: (signal?: AbortSignal) => api<GooglePending>("/api/v1/auth/google/pending", { signal, skipRefresh: true }),
+  /** Create the account for a pending Google sign-up once the terms are accepted. */
+  googleComplete: (input: { accept_terms: true; locale?: string; attribution?: AttributionInput }) =>
+    api<SessionResponse>("/api/v1/auth/google/complete", { method: "POST", body: input, skipRefresh: true }).then(rememberSession),
+  /** Adopt the session cookies set by the Google callback (CSRF token + auth hint). */
+  adoptSession: () => setAuthHint(true),
+  // --- end Google sign-in ---
+};
+
+/** How the signed-in account can sign in (§23.1). */
+export const signInMethodsApi = {
+  get: (signal?: AbortSignal) => api<SignInMethods>("/api/v1/me/sign-in-methods", { signal }),
+  disconnectGoogle: (password: string) =>
+    api<void>("/api/v1/me/sign-in-methods/google", { method: "DELETE", body: { password } }),
 };
 
 export type ProfileUpdate = Partial<Pick<Profile, "nickname" | "birth_date" | "birth_time" | "birth_place_id" | "location" | "mood" | "theme" | "notify_horoscope" | "notify_events" | "notify_chart">> & {
@@ -145,11 +174,13 @@ export const psychicsApi = {
 export const ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024;
 
 /** Build the multipart body of an image message (exported for tests). */
-export function attachmentForm(file: Blob, caption?: string, clientMsgId?: string, filename = "image"): FormData {
+export function attachmentForm(file: Blob, caption?: string, clientMsgId?: string, filename = "image", replyToId?: string): FormData {
   const form = new FormData();
   form.append("image", file, file instanceof File ? file.name : filename);
   if (caption) form.append("caption", caption);
   if (clientMsgId) form.append("client_msg_id", clientMsgId);
+  // Only when replying: older APIs reject fields they do not know (§23.2).
+  if (replyToId) form.append("reply_to_id", replyToId);
   return form;
 }
 
@@ -209,10 +240,10 @@ export const chatApi = {
   send: (sessionId: string, body: string, client_msg_id: string) =>
     api<{ message: ChatMessage }>(`/api/v1/chat/sessions/${sessionId}/messages`, { method: "POST", body: { body, client_msg_id }, idempotent: true }),
   /** Send text into a conversation: the API routes it to the live chat when there is one, else it is off-session (§22.3). */
-  sendToConversation: (conversationId: string, body: string, client_msg_id: string) =>
+  sendToConversation: (conversationId: string, body: string, client_msg_id: string, replyToId?: string) =>
     api<SentMessage>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/messages`, {
       method: "POST",
-      body: { body, client_msg_id },
+      body: { body, client_msg_id, ...(replyToId ? { reply_to_id: replyToId } : {}) },
       idempotent: true,
     }),
   /** What the caller may still send outside a live chat here. */
@@ -227,10 +258,10 @@ export const chatApi = {
       timeoutMs: 60_000,
     }),
   /** Upload an image message into a conversation (live or off-session, §22.3). Safe to retry: the API deduplicates on `client_msg_id`. */
-  uploadToConversation: (conversationId: string, file: Blob, caption: string | undefined, clientMsgId: string, signal?: AbortSignal) =>
+  uploadToConversation: (conversationId: string, file: Blob, caption: string | undefined, clientMsgId: string, signal?: AbortSignal, replyToId?: string) =>
     api<SentMessage>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/attachments`, {
       method: "POST",
-      body: attachmentForm(file, caption, clientMsgId),
+      body: attachmentForm(file, caption, clientMsgId, undefined, replyToId),
       timeoutMs: 120_000,
       idempotent: true,
       signal,
@@ -272,6 +303,23 @@ export const chatApi = {
   savedPage: (conversationId: string | undefined, cursor?: string, limit = 5, signal?: AbortSignal) =>
     api<Page<ChatMessage>>("/api/v1/chat/saved", { query: { conversation_id: conversationId, cursor, limit }, signal }),
   // --- end FE-CHAT ---
+  // --- likes (§23.3) ---
+  like: (messageId: string) =>
+    api<MessageLikes>(`/api/v1/chat/messages/${encodeURIComponent(messageId)}/like`, { method: "PUT", idempotent: true }),
+  unlike: (messageId: string) =>
+    api<MessageLikes>(`/api/v1/chat/messages/${encodeURIComponent(messageId)}/like`, { method: "DELETE", idempotent: true }),
+  // --- end likes ---
+};
+
+/** Advisors' private nicknames for clients (§23.4). */
+export const aliasApi = {
+  set: (conversationId: string, alias: string) =>
+    api<ClientAlias>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/alias`, { method: "PUT", body: { alias }, idempotent: true }),
+  clear: (conversationId: string) =>
+    api<void>(`/api/v1/chat/conversations/${encodeURIComponent(conversationId)}/alias`, { method: "DELETE", idempotent: true }),
+  /** Nicknames for up to 50 clients (only the ones that exist are returned). */
+  lookup: (clientIds: string[], signal?: AbortSignal) =>
+    api<{ items: ClientAlias[] }>("/api/v1/chat/aliases", { query: { client_ids: clientIds.join(",") }, signal }).then((r) => r.items),
 };
 
 /** Advisors' notes about the client of a conversation (§9.5). */

@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -23,6 +22,10 @@ import (
 
 // EventNotificationCreated is pushed to a user when a notification arrives.
 const EventNotificationCreated = "notification.created"
+
+// EventNotificationRead is the ephemeral event sent to every tab and device of
+// a user after notifications were marked read: {ids?, all?, unread}.
+const EventNotificationRead = "notification.read"
 
 // Notification kinds (rendered by clients from Kind + Data).
 const (
@@ -76,173 +79,6 @@ func notificationView(n *domain.Notification) NotificationView {
 	return NotificationView{ID: n.ID, Kind: n.Kind, Data: data, Link: n.Link, ReadAt: n.ReadAt, CreatedAt: n.CreatedAt}
 }
 
-// DispatcherConfig sizes the async notification pipeline.
-type DispatcherConfig struct {
-	BufferSize    int
-	BatchSize     int
-	FlushInterval time.Duration
-}
-
-// Dispatcher persists and pushes notifications in the background: Notify
-// only enqueues into a bounded channel (dropping, with a log, when full), so
-// endpoints that trigger notifications are never slowed or failed by them.
-type Dispatcher struct {
-	repo    repository.NotificationRepository
-	events  EventPublisher
-	log     *zap.Logger
-	clock   clock.Clock
-	cfg     DispatcherConfig
-	ch      chan domain.Notification
-	stop    chan struct{}
-	once    sync.Once
-	wg      sync.WaitGroup
-	dropped atomic.Int64
-	written atomic.Int64
-	// processed counts notifications fully handled (persisted, published and
-	// fanned out to e-mail and push).
-	processed atomic.Int64
-	channels  *NotificationChannels
-}
-
-// Processed returns how many notifications were fully handled (tests wait on
-// it before inspecting e-mail and push).
-func (d *Dispatcher) Processed() int64 { return d.processed.Load() }
-
-// WithChannels fans persisted notifications out to e-mail and Web Push.
-func (d *Dispatcher) WithChannels(c *NotificationChannels) *Dispatcher {
-	d.channels = c
-	return d
-}
-
-// NewDispatcher returns a dispatcher; call Start to begin delivery.
-func NewDispatcher(repo repository.NotificationRepository, events EventPublisher, log *zap.Logger, clk clock.Clock, cfg DispatcherConfig) *Dispatcher {
-	if cfg.BufferSize <= 0 {
-		cfg.BufferSize = 1000
-	}
-	if cfg.BatchSize <= 0 {
-		cfg.BatchSize = 100
-	}
-	if cfg.FlushInterval <= 0 {
-		cfg.FlushInterval = 250 * time.Millisecond
-	}
-	return &Dispatcher{repo: repo, events: events, log: log, clock: clk, cfg: cfg,
-		ch: make(chan domain.Notification, cfg.BufferSize), stop: make(chan struct{})}
-}
-
-// Notify implements Notifier.
-func (d *Dispatcher) Notify(ctx context.Context, spec NotificationSpec, userIDs ...uuid.UUID) {
-	if len(userIDs) == 0 || spec.Kind == "" {
-		return
-	}
-	now := d.clock.Now()
-	seen := make(map[uuid.UUID]bool, len(userIDs))
-	for _, uid := range userIDs {
-		if uid == uuid.Nil || seen[uid] {
-			continue
-		}
-		seen[uid] = true
-		n := domain.Notification{ID: domain.NewID(), UserID: uid, Kind: spec.Kind, Data: domain.JSONMap(copyMap(spec.Data)),
-			Link: truncateString(spec.Link, 300), BroadcastID: spec.BroadcastID, CreatedAt: now}
-		select {
-		case d.ch <- n:
-		default:
-			if c := d.dropped.Add(1); c == 1 || c%1000 == 0 {
-				d.log.Error("notifications: buffer full, dropping", zap.Int64("dropped_total", c), zap.String("kind", spec.Kind))
-			}
-		}
-	}
-}
-
-func copyMap(m map[string]any) map[string]any {
-	out := make(map[string]any, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
-	return out
-}
-
-// Stats returns written and dropped counters.
-func (d *Dispatcher) Stats() (written, dropped int64) { return d.written.Load(), d.dropped.Load() }
-
-// Start launches the background writer.
-func (d *Dispatcher) Start() {
-	d.wg.Add(1)
-	go d.run()
-}
-
-// Stop drains the queue and waits for the writer (bounded by ctx).
-func (d *Dispatcher) Stop(ctx context.Context) {
-	d.once.Do(func() { close(d.stop) })
-	done := make(chan struct{})
-	go func() { d.wg.Wait(); close(done) }()
-	select {
-	case <-done:
-	case <-ctx.Done():
-		d.log.Warn("notifications: shutdown before drain completed", zap.Int("buffered", len(d.ch)))
-	}
-}
-
-func (d *Dispatcher) run() {
-	defer d.wg.Done()
-	ticker := time.NewTicker(d.cfg.FlushInterval)
-	defer ticker.Stop()
-	batch := make([]domain.Notification, 0, d.cfg.BatchSize)
-	flush := func() {
-		if len(batch) == 0 {
-			return
-		}
-		d.deliver(batch)
-		batch = batch[:0]
-	}
-	for {
-		select {
-		case n := <-d.ch:
-			batch = append(batch, n)
-			if len(batch) >= d.cfg.BatchSize {
-				flush()
-			}
-		case <-ticker.C:
-			flush()
-		case <-d.stop:
-			for {
-				select {
-				case n := <-d.ch:
-					batch = append(batch, n)
-					if len(batch) >= d.cfg.BatchSize {
-						flush()
-					}
-					continue
-				default:
-				}
-				break
-			}
-			flush()
-			return
-		}
-	}
-}
-
-// deliver persists a batch, then pushes each notification to its owner.
-func (d *Dispatcher) deliver(batch []domain.Notification) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	rows := append([]domain.Notification(nil), batch...)
-	if err := d.repo.InsertBatch(ctx, rows); err != nil {
-		d.log.Error("notifications: insert failed", zap.Error(err), zap.Int("count", len(rows)))
-		d.dropped.Add(int64(len(rows)))
-		return
-	}
-	d.written.Add(int64(len(rows)))
-	for i := range rows {
-		v := notificationView(&rows[i])
-		if err := d.events.Publish(ctx, EventNotificationCreated, map[string]any{"notification": v}, rows[i].UserID); err != nil {
-			d.log.Warn("notifications: publish failed", zap.Error(err))
-		}
-	}
-	d.channels.Deliver(ctx, rows)
-	d.processed.Add(int64(len(rows)))
-}
-
 // NotificationService serves a user's notifications and admin broadcasts.
 type NotificationService struct {
 	repo       repository.NotificationRepository
@@ -256,6 +92,13 @@ type NotificationService struct {
 	wg         sync.WaitGroup
 	maxTargets int
 	channels   *NotificationChannels
+
+	// runCtx governs broadcast fan-out; Shutdown cancels it once the shutdown
+	// deadline passes (unfinished broadcasts resume through broadcast-recovery).
+	runCtx    context.Context
+	cancel    context.CancelFunc
+	bstats    broadcastCounters
+	chunkHook func(chunk int) error // tests: simulate a crash between chunks
 }
 
 // WithChannels fans broadcasts out to e-mail and Web Push (marketing
@@ -268,8 +111,9 @@ func (s *NotificationService) WithChannels(c *NotificationChannels) *Notificatio
 // NewNotificationService wires the notification service.
 func NewNotificationService(repo repository.NotificationRepository, growth repository.GrowthRepository, presence realtime.Presence,
 	events EventPublisher, audit repository.AuditRepository, clk clock.Clock, ipSecret string, log *zap.Logger) *NotificationService {
+	runCtx, cancel := context.WithCancel(context.Background())
 	return &NotificationService{repo: repo, growth: growth, presence: presence, events: events, audit: audit, clock: clk,
-		ipSecret: ipSecret, log: log, maxTargets: 1000}
+		ipSecret: ipSecret, log: log, maxTargets: 1000, runCtx: runCtx, cancel: cancel}
 }
 
 // List returns the caller's notifications, newest first.
@@ -321,7 +165,23 @@ func (s *NotificationService) MarkRead(ctx context.Context, userID uuid.UUID, id
 	if err != nil {
 		return 0, apperror.Internal(err)
 	}
-	return s.UnreadCount(ctx, userID)
+	unread, err := s.UnreadCount(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	// Every tab and device of the user learns the new state.
+	ev := map[string]any{"unread": unread}
+	if all {
+		ev["all"] = true
+	} else {
+		strs := make([]string, len(ids))
+		for i, id := range ids {
+			strs[i] = id.String()
+		}
+		ev["ids"] = strs
+	}
+	warnErr(ctx, "notifications: publish read state", s.events.Ephemeral(ctx, EventNotificationRead, ev, userID))
+	return unread, nil
 }
 
 // BroadcastInput is an admin message to users.
@@ -468,7 +328,7 @@ func (s *NotificationService) Broadcast(ctx context.Context, adminID uuid.UUID, 
 	}
 	now := s.clock.Now()
 	b := &domain.Broadcast{ID: domain.NewID(), CreatedBy: &adminID, Audience: in.Audience, OnlineOnly: in.OnlineOnly, TargetIDs: ids,
-		CampaignID: in.CampaignID, Title: title, Body: body, Link: link, Status: "queued", CreatedAt: now}
+		CampaignID: in.CampaignID, Title: title, Body: body, Link: link, Status: "queued", CreatedAt: now, HeartbeatAt: &now}
 	if err := s.repo.CreateBroadcast(ctx, b); err != nil {
 		return nil, apperror.Internal(err)
 	}
@@ -479,7 +339,7 @@ func (s *NotificationService) Broadcast(ctx context.Context, adminID uuid.UUID, 
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		s.deliverBroadcast(bg, b, targets)
+		s.runBroadcast(bg, b.ID)
 	}()
 	v := broadcastView(b)
 	return &v, nil
@@ -490,82 +350,6 @@ func uuidString(id *uuid.UUID) string {
 		return ""
 	}
 	return id.String()
-}
-
-// Wait blocks until in-flight broadcasts are delivered (shutdown, tests).
-func (s *NotificationService) Wait() { s.wg.Wait() }
-
-const broadcastPage = 5000
-
-func (s *NotificationService) deliverBroadcast(ctx context.Context, b *domain.Broadcast, targets []uuid.UUID) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
-	defer cancel()
-	log := s.log.With(zap.String("broadcast_id", b.ID.String()))
-	_ = s.repo.UpdateBroadcast(ctx, b.ID, map[string]any{"status": "sending"})
-
-	var roles []domain.Role
-	switch b.Audience {
-	case "clients":
-		roles = []domain.Role{domain.RoleClient}
-	case "psychics":
-		roles = []domain.Role{domain.RolePsychic}
-	case "all":
-		roles = []domain.Role{domain.RoleClient, domain.RolePsychic}
-	}
-	var ids []uuid.UUID
-	if b.OnlineOnly {
-		online, err := s.presence.OnlineUsers(ctx, 100000)
-		if err != nil {
-			log.Error("broadcast: presence lookup failed", zap.Error(err))
-			_ = s.repo.UpdateBroadcast(ctx, b.ID, map[string]any{"status": "failed"})
-			return
-		}
-		if b.Audience == "users" {
-			online = intersect(online, targets)
-		}
-		if ids, _ = s.repo.AudienceIDs(ctx, roles, online, b.CampaignID, 100000); ids == nil {
-			ids = []uuid.UUID{}
-		}
-	} else {
-		var filter []uuid.UUID
-		if b.Audience == "users" {
-			filter = targets
-		}
-		var err error
-		if ids, err = s.repo.AudienceIDs(ctx, roles, filter, b.CampaignID, 1000000); err != nil {
-			log.Error("broadcast: audience lookup failed", zap.Error(err))
-			_ = s.repo.UpdateBroadcast(ctx, b.ID, map[string]any{"status": "failed"})
-			return
-		}
-	}
-
-	data := map[string]any{"broadcast_id": b.ID, "title": map[string]any(b.Title), "body": map[string]any(b.Body)}
-	sent := 0
-	for start := 0; start < len(ids); start += broadcastPage {
-		end := min(start+broadcastPage, len(ids))
-		rows := make([]domain.Notification, 0, end-start)
-		now := s.clock.Now()
-		for _, uid := range ids[start:end] {
-			rows = append(rows, domain.Notification{ID: domain.NewID(), UserID: uid, Kind: NotifyBroadcast, Data: domain.JSONMap(data),
-				Link: b.Link, BroadcastID: &b.ID, CreatedAt: now})
-		}
-		if err := s.repo.InsertBatch(ctx, rows); err != nil {
-			log.Error("broadcast: insert failed", zap.Error(err))
-			_ = s.repo.UpdateBroadcast(ctx, b.ID, map[string]any{"status": "failed", "recipients": sent})
-			return
-		}
-		for i := range rows {
-			v := notificationView(&rows[i])
-			warnErr(ctx, "broadcast: publish", s.events.Publish(ctx, EventNotificationCreated, map[string]any{"notification": v}, rows[i].UserID))
-		}
-		s.channels.Deliver(ctx, rows)
-		sent += len(rows)
-	}
-	sentAt := s.clock.Now()
-	if err := s.repo.UpdateBroadcast(ctx, b.ID, map[string]any{"status": "sent", "recipients": sent, "sent_at": sentAt}); err != nil {
-		log.Error("broadcast: status update failed", zap.Error(err))
-	}
-	log.Info("broadcast delivered", zap.Int("recipients", sent))
 }
 
 func intersect(a, b []uuid.UUID) []uuid.UUID {

@@ -20,11 +20,16 @@ type InboxRow struct {
 	LastKind                *string
 	LastSenderID            *uuid.UUID
 	LastMsgSeq              *int64
+	LastReplyToID           *uuid.UUID
 	CounterpartName         *string
 	CounterpartNickname     *string
 	CounterpartAvatarURL    *string
 	CounterpartSlug         *string
 	CounterpartAvailability *string
+	// AliasEnc and AliasUpdatedAt are the advisor's sealed private nickname
+	// for the client (revisions 4.0, §23.4); only set in the advisor's inbox.
+	AliasEnc       *string
+	AliasUpdatedAt *time.Time
 }
 
 // InboxFilter selects one page of a user's inbox, newest activity first.
@@ -114,6 +119,15 @@ type ChatRepository interface {
 	// first, after the keyset position cursor (nil for the first page).
 	ListBookmarks(ctx context.Context, userID uuid.UUID, conversationID *uuid.UUID, cursor *Cursor, limit int) ([]BookmarkRow, error)
 	BookmarkedIDs(ctx context.Context, userID uuid.UUID, messageIDs []uuid.UUID) (map[uuid.UUID]bool, error)
+
+	// revisions 4.0 (§23.2–23.3): replies and likes, see likes.go. Batched
+	// lookups take a whole page of ids and run one query.
+	ReplyTargets(ctx context.Context, ids []uuid.UUID) ([]ReplyTargetRow, error)
+	LikesFor(ctx context.Context, messageIDs []uuid.UUID) ([]LikeRow, error)
+	LockMessage(ctx context.Context, id uuid.UUID) (*domain.Message, error)
+	LikeMessage(ctx context.Context, messageID, userID uuid.UUID, at time.Time) (bool, error)
+	UnlikeMessage(ctx context.Context, messageID, userID uuid.UUID) (bool, error)
+	PurgeLikesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 }
 
 // GormChatRepository implements ChatRepository.
@@ -165,14 +179,17 @@ func (r *GormChatRepository) FindConversation(ctx context.Context, clientID, psy
 // identity joined in, ordered by (last_activity_at, id) for keyset paging.
 // Unread counts are maintained on the row, so no per-row subquery runs.
 func inboxQuery(db *gorm.DB, f InboxFilter) *gorm.DB {
-	const preview = "c.*, left(m.body, 141) AS last_body, m.kind AS last_kind, m.sender_id AS last_sender_id, m.seq AS last_msg_seq"
+	const preview = "c.*, left(m.body, 141) AS last_body, m.kind AS last_kind, m.sender_id AS last_sender_id, m.seq AS last_msg_seq, m.reply_to_id AS last_reply_to_id"
 	q := db.Table("conversations AS c").Joins("LEFT JOIN chat_messages m ON m.id = c.last_message_id")
 	if f.AsPsychic {
-		// The counterpart is a client: display name, nickname and avatar.
+		// The counterpart is a client: display name, nickname and avatar, and
+		// the advisor's own private alias for them (revisions 4.0, §23.4; the
+		// primary key (psychic_id, client_id) makes the join one lookup per row).
 		q = q.Select(preview+", u.display_name AS counterpart_name, p.nickname AS counterpart_nickname, "+
-			"p.avatar_url AS counterpart_avatar_url").
+			"p.avatar_url AS counterpart_avatar_url, ca.alias_enc AS alias_enc, ca.updated_at AS alias_updated_at").
 			Joins("JOIN users u ON u.id = c.client_id").
 			Joins("LEFT JOIN user_profiles p ON p.user_id = c.client_id").
+			Joins("LEFT JOIN client_aliases ca ON ca.psychic_id = c.psychic_id AND ca.client_id = c.client_id").
 			Where("c.psychic_id = ?", f.UserID)
 	} else {
 		// The counterpart is an advisor: public name, image, slug and the

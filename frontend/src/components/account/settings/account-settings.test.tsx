@@ -17,13 +17,18 @@ const m = vi.hoisted(() => ({
   emailChangeApi: { request: vi.fn() },
   accountApi: { deactivate: vi.fn(), close: vi.fn() },
   pushApi: { config: vi.fn() },
-  push: { availability: vi.fn(), enable: vi.fn() },
+  push: { availability: vi.fn(), enable: vi.fn(), disable: vi.fn(), refresh: vi.fn() },
+  announce: vi.fn(),
   billingApi: { plans: vi.fn(), subscription: vi.fn(), paymentMethods: vi.fn(), transactions: vi.fn(), clientConfig: vi.fn() },
   signOut: vi.fn(),
 }));
 vi.mock("@/lib/api/account", () => ({ ...m }));
 vi.mock("@/lib/api/billing", () => ({ billingApi: m.billingApi }));
-vi.mock("@/lib/api/endpoints", () => ({ astrologyApi: { places: vi.fn().mockResolvedValue([]) }, authApi: { changePassword: vi.fn() } }));
+vi.mock("@/lib/api/endpoints", () => ({
+  astrologyApi: { places: vi.fn().mockResolvedValue([]) },
+  authApi: { changePassword: vi.fn(), forgotPassword: vi.fn() },
+  signInMethodsApi: { get: vi.fn().mockResolvedValue({ password: true, google_available: false }), disconnectGoogle: vi.fn() },
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }), usePathname: () => "/en/profile/settings" }));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
@@ -40,7 +45,10 @@ vi.mock("@/lib/push", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/push")>()),
   pushAvailability: m.push.availability,
   enablePush: m.push.enable,
+  disablePush: m.push.disable,
+  refreshPush: m.push.refresh,
 }));
+vi.mock("@/components/feedback/live-region", () => ({ announce: m.announce, LiveRegion: () => null }));
 
 import { AccountSettings } from "@/components/account/settings/account-settings";
 
@@ -64,6 +72,9 @@ beforeEach(() => {
   m.pushApi.config.mockResolvedValue({ enabled: false });
   m.push.availability.mockReset().mockReturnValue("unsupported");
   m.push.enable.mockReset();
+  m.push.disable.mockReset().mockResolvedValue(undefined);
+  m.push.refresh.mockReset().mockResolvedValue(true);
+  m.announce.mockReset();
   m.billingApi.plans.mockResolvedValue([]);
   m.billingApi.subscription.mockResolvedValue(null);
   m.billingApi.paymentMethods.mockResolvedValue([]);
@@ -190,6 +201,7 @@ describe("AccountSettings", () => {
     m.push.availability.mockReturnValue("available");
     m.pushApi.config.mockResolvedValue({ enabled: true, public_key: "KEY" });
     m.push.enable.mockResolvedValueOnce("brave_blocked").mockResolvedValueOnce("subscribed");
+    m.settingsApi.update.mockResolvedValue({ ...base, version: 4, notifications: { ...base.notifications, push: true } });
     view();
     const toggle = await screen.findByTestId("notify-push");
     await waitFor(() => expect(toggle.hasAttribute("disabled")).toBe(false));
@@ -203,6 +215,125 @@ describe("AccountSettings", () => {
     await u.click(screen.getByTestId("push-retry"));
     await waitFor(() => expect(screen.getByTestId("notify-push").getAttribute("aria-checked")).toBe("true"));
     expect(m.push.enable).toHaveBeenCalledTimes(2);
+  });
+
+  describe("the push switch applies immediately (§23.6)", () => {
+    const on = { ...base, version: 4, notifications: { ...base.notifications, push: true } };
+    const off = { ...base, version: 5, notifications: { ...base.notifications, push: false } };
+    function available(pushOn = false) {
+      m.push.availability.mockReturnValue("available");
+      m.pushApi.config.mockResolvedValue({ enabled: true, public_key: "KEY" });
+      if (pushOn) m.settingsApi.get.mockResolvedValue({ ...base, notifications: { ...base.notifications, push: true } });
+    }
+    async function toggle() {
+      const el = await screen.findByTestId("notify-push");
+      await waitFor(() => expect(el.hasAttribute("disabled")).toBe(false));
+      return el;
+    }
+
+    it("turning on subscribes, persists notify_push right away without Save, and leaves nothing unsaved", async () => {
+      const u = userEvent.setup();
+      available();
+      m.push.enable.mockResolvedValue("subscribed");
+      m.settingsApi.update.mockResolvedValue(on);
+      view();
+      await u.click(await toggle());
+      await waitFor(() => expect(screen.getByTestId("notify-push").getAttribute("aria-checked")).toBe("true"));
+      expect(m.push.enable).toHaveBeenCalledWith("KEY");
+      expect(m.settingsApi.update).toHaveBeenCalledTimes(1);
+      expect(m.settingsApi.update).toHaveBeenCalledWith({ notifications: { push: true } });
+      expect(screen.queryByText("Unsaved changes", { selector: "[data-slot=save-status]" })).toBeNull();
+      expect(m.announce).toHaveBeenCalledWith("Push notifications are on in this browser.");
+    });
+
+    it("a later Save sends the version the push switch left, not a stale one, and not the push field", async () => {
+      const u = userEvent.setup();
+      available();
+      m.push.enable.mockResolvedValue("subscribed");
+      m.settingsApi.update.mockResolvedValueOnce(on);
+      view();
+      const name = await screen.findByLabelText("Full Name");
+      await u.clear(name);
+      await u.type(name, "Jane D");
+      await u.click(await toggle());
+      await waitFor(() => expect(screen.getByTestId("notify-push").getAttribute("aria-checked")).toBe("true"));
+      m.settingsApi.update.mockResolvedValueOnce({ ...on, version: 5, account: { ...on.account, display_name: "Jane D" } });
+      await u.click(screen.getByTestId("settings-save"));
+      await waitFor(() => expect(m.settingsApi.update).toHaveBeenCalledTimes(2));
+      expect(m.settingsApi.update).toHaveBeenLastCalledWith({ expected_version: 4, account: { display_name: "Jane D" } });
+      expect(screen.queryByTestId("conflict-dialog")).toBeNull();
+    });
+
+    it("rolls back when saving fails: switch stays off, the browser subscription is removed, the reason is shown", async () => {
+      const u = userEvent.setup();
+      available();
+      m.push.enable.mockResolvedValue("subscribed");
+      m.settingsApi.update.mockRejectedValue(new ApiError({ code: "service_unavailable", message: "x", status: 503 }));
+      view();
+      await u.click(await toggle());
+      const hint = await screen.findByTestId("push-hint");
+      expect(hint.textContent).toContain("Try again");
+      expect(screen.getByTestId("notify-push").getAttribute("aria-checked")).toBe("false");
+      expect(m.push.disable).toHaveBeenCalledTimes(1);
+      expect(m.announce).toHaveBeenCalled();
+      expect(screen.queryByText("Unsaved changes", { selector: "[data-slot=save-status]" })).toBeNull();
+      // Retry works once the API is back.
+      m.settingsApi.update.mockResolvedValue(on);
+      await u.click(screen.getByTestId("push-retry"));
+      await waitFor(() => expect(screen.getByTestId("notify-push").getAttribute("aria-checked")).toBe("true"));
+    });
+
+    it("saves nothing when the browser cannot subscribe, and explains why", async () => {
+      const u = userEvent.setup();
+      available();
+      m.push.enable.mockResolvedValue("denied");
+      view();
+      await u.click(await toggle());
+      expect((await screen.findByTestId("push-hint")).textContent).toContain("Notifications are blocked for this site");
+      expect(m.settingsApi.update).not.toHaveBeenCalled();
+      expect(screen.getByTestId("notify-push").getAttribute("aria-checked")).toBe("false");
+    });
+
+    it("turning off persists false right away and removes this browser's subscription", async () => {
+      const u = userEvent.setup();
+      available(true);
+      m.settingsApi.update.mockResolvedValue(off);
+      view();
+      const el = await toggle();
+      expect(el.getAttribute("aria-checked")).toBe("true");
+      await u.click(el);
+      await waitFor(() => expect(screen.getByTestId("notify-push").getAttribute("aria-checked")).toBe("false"));
+      expect(m.settingsApi.update).toHaveBeenCalledWith({ notifications: { push: false } });
+      await waitFor(() => expect(m.push.disable).toHaveBeenCalledTimes(1));
+      expect(m.announce).toHaveBeenCalledWith("Push notifications are off.");
+      expect(screen.queryByText("Unsaved changes", { selector: "[data-slot=save-status]" })).toBeNull();
+    });
+
+    it("turning off rolls back when saving fails and keeps the subscription", async () => {
+      const u = userEvent.setup();
+      available(true);
+      m.settingsApi.update.mockRejectedValue(new ApiError({ code: "network_error", message: "x", status: 0 }));
+      view();
+      await u.click(await toggle());
+      await screen.findByTestId("push-hint");
+      expect(screen.getByTestId("notify-push").getAttribute("aria-checked")).toBe("true");
+      expect(m.push.disable).not.toHaveBeenCalled();
+      expect(screen.queryByText("Unsaved changes", { selector: "[data-slot=save-status]" })).toBeNull();
+    });
+
+    it("the switch is busy while it applies, so it cannot be double-clicked", async () => {
+      const u = userEvent.setup();
+      available();
+      let release!: (v: unknown) => void;
+      m.push.enable.mockReturnValue(new Promise((resolve) => (release = resolve)));
+      view();
+      await u.click(await toggle());
+      expect(screen.getByTestId("notify-push").getAttribute("aria-busy")).toBe("true");
+      expect(screen.getByTestId("notify-push").hasAttribute("disabled")).toBe(true);
+      m.settingsApi.update.mockResolvedValue(on);
+      release("subscribed");
+      await waitFor(() => expect(screen.getByTestId("notify-push").getAttribute("aria-busy")).toBeNull());
+    });
   });
 
   it("shows the service-error copy with a retry", async () => {

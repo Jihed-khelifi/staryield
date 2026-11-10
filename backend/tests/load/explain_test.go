@@ -100,8 +100,9 @@ func TestExplainHotQueries(t *testing.T) {
 	ctx := context.Background()
 
 	ids := pickIDs(t, live)
-	calc := pickCalculatorSample(live) // revisions 3.0: calculator analytics
-	sup := pickSupportIDs(live)        // revisions 3.0: support desk
+	calc := pickCalculatorSample(live)  // revisions 3.0: calculator analytics
+	sup := pickSupportIDs(live)         // revisions 3.0: support desk
+	not := pickNotificationSample(live) // revisions 4.0: notifications and broadcasts
 	checks := []queryCheck{
 		{"notes: own list", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
 			_, _ = repository.NewNoteRepository(d).ListByAuthor(ctx, ids.noteAuthor, ids.noteClient, nil, 6)
@@ -222,6 +223,9 @@ func TestExplainHotQueries(t *testing.T) {
 	}
 	checks = append(checks, calculatorChecks(calc)...)
 	checks = append(checks, supportChecks(sup)...) // revisions 3.0: support desk
+	// revisions 4.0: replies, likes, aliases
+	checks = append(checks, chatRevisions4Checks(live, ids)...)
+	checks = append(checks, notificationChecks(not)...) // revisions 4.0: notifications and broadcasts
 
 	var lines []string
 	for _, qc := range checks {

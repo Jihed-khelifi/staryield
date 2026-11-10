@@ -105,6 +105,8 @@ type UploadImageInput struct {
 	Data           []byte
 	Caption        string
 	ClientMsgID    string
+	// ReplyToID quotes a message of the same conversation (revisions 4.0, §23.2).
+	ReplyToID *uuid.UUID
 }
 
 // SendImage is the session-scoped image send kept for old clients: the
@@ -166,6 +168,10 @@ func (c *ChatService) SendImageToConversation(ctx context.Context, p reqctx.Prin
 	if !conv.IsParticipant(p.UserID) {
 		return nil, apperror.NotFound("Conversation")
 	}
+	// A bad reply target is refused before the image is decoded or stored.
+	if err := c.checkReplyTarget(ctx, conv.ID, in.ReplyToID); err != nil {
+		return nil, mapRepoErr(err, "Message")
+	}
 	live, err := c.liveSession(ctx, conv.ID)
 	if err != nil {
 		return nil, apperror.Internal(err)
@@ -193,7 +199,7 @@ func (c *ChatService) SendImageToConversation(ctx context.Context, p reqctx.Prin
 	if _, err := c.extras.Store.Put(ctx, key, img.ContentType, img.Data, "private, no-store"); err != nil {
 		return nil, apperror.Unavailable(err)
 	}
-	spec := storeSpec{kind: domain.MessageImage, body: caption, cmid: cmid,
+	spec := storeSpec{kind: domain.MessageImage, body: caption, cmid: cmid, replyTo: in.ReplyToID,
 		attach: func(ctx context.Context, m *domain.Message, now time.Time) (*domain.Attachment, error) {
 			a := &domain.Attachment{ID: domain.NewID(), MessageID: m.ID, ConversationID: m.ConversationID, UploaderID: p.UserID,
 				ObjectKey: key, ContentType: img.ContentType, Width: img.Width, Height: img.Height, Bytes: len(img.Data), CreatedAt: now}
@@ -316,13 +322,17 @@ type ClientHistoryView struct {
 // deleted accounts), and never contact details, balances, purchases or the
 // exact birth place and time. The birth city is opt-in.
 type ClientProfileView struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	AvatarURL   string    `json:"avatar_url,omitempty"`
-	Online      bool      `json:"online"`
-	Locale      string    `json:"locale"`
-	CountryCode string    `json:"country_code,omitempty"`
-	Age         *int      `json:"age,omitempty"`
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	AvatarURL string    `json:"avatar_url,omitempty"`
+	Online    bool      `json:"online"`
+	// Alias is the advisor's private nickname for the client (revisions 4.0,
+	// §23.4); it never replaces Name and is only ever set for the advisor who
+	// wrote it.
+	Alias       string `json:"alias,omitempty"`
+	Locale      string `json:"locale"`
+	CountryCode string `json:"country_code,omitempty"`
+	Age         *int   `json:"age,omitempty"`
 	// DateOfBirth (YYYY-MM-DD) is present whenever the client's birth date
 	// is known, whatever the sharing choice.
 	DateOfBirth string       `json:"date_of_birth,omitempty"`
@@ -359,6 +369,7 @@ func (c *ChatService) ClientProfile(ctx context.Context, p reqctx.Principal, con
 		return nil, mapRepoErr(err, "Conversation")
 	}
 	v := &ClientProfileView{ID: u.ID, Name: firstName("", u.DisplayName), Locale: u.Locale, MemberSince: u.CreatedAt}
+	v.Alias = c.aliasFor(ctx, conv.PsychicID, conv.ClientID)
 	if u.Status == domain.UserDeleted {
 		v.Name = "Client"
 		return v, nil
