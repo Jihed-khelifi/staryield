@@ -41,6 +41,14 @@ async function manyConversations(page: Page, count = 24) {
 }
 
 async function expectNoPageScroll(page: Page, label: string) {
+  // After a viewport change the phone frame's height follows the visualViewport resize event
+  // (`--vvh`, useVisualViewport), which can land a frame or two after setViewportSize returns:
+  // wait for the layout to settle before measuring.
+  await expect
+    .poll(() => page.evaluate(() => Math.round(document.querySelector(".dashboard-page")!.getBoundingClientRect().bottom) - window.innerHeight), {
+      message: `${label}: the frame settles to the viewport height`,
+    })
+    .toBe(0);
   const m = await page.evaluate(() => {
     const root = document.scrollingElement as HTMLElement;
     window.scrollTo(0, 5000);
