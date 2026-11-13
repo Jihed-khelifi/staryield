@@ -137,3 +137,28 @@ describe("ContactForm", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("Too many requests. Please wait a moment.");
   });
 });
+
+// revisions 5.1: customer-service details next to the form (docs/platform-extensions.md §25.4).
+describe("ContactForm customer-service details", () => {
+  it("shows the support e-mail, hours and reply time, the legal name and the postal address", () => {
+    renderWithI18n(<ContactForm />);
+    const details = screen.getByTestId("contact-details");
+    expect(within(details).getByTestId("contact-support-email").getAttribute("href")).toBe("mailto:support@staryield.net");
+    expect(within(details).getByTestId("contact-support-email").textContent).toBe("support@staryield.net");
+    expect(within(details).getByTestId("contact-support-hours").textContent).toBe("Support is available 24/7. We reply within 1–2 days.");
+    expect(within(details).getByTestId("contact-company-name").textContent).toBe("Staryield Media LLC");
+    expect(within(details).getByTestId("contact-company-address").textContent).toBe("30 N Gould St, Ste N, Sheridan, WY 82801, United States");
+    expect(screen.getByTestId("contact-form")).toBeTruthy();
+  });
+
+  it("describes the reply time in the intro and makes no accuracy promise", () => {
+    renderWithI18n(<ContactForm />);
+    expect(screen.getByText(/we will reply within 1–2 days/)).toBeTruthy();
+    expect(screen.queryByText(/accura/i)).toBeNull();
+  });
+
+  it("has no accessibility violations", async () => {
+    const { container } = renderWithI18n(<ContactForm />);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});

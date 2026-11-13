@@ -125,4 +125,29 @@ describe("api client", () => {
       details: { required: 40, available: 0 },
     });
   });
+
+  // revisions 5.0: 18+ age gate (docs §24.6).
+  it.each([
+    ["birth_date_required", "birth_date_required"],
+    ["age_restricted", "restricted"],
+  ])("reports a 403 %s so the app can redirect, and still rejects the call", async (code, block) => {
+    handler = () => json(403, { error: { code, message: "no", details: { next: "/signup/birth" }, request_id: "req-18" } });
+    const { api } = await load();
+    const { onAgeBlocked } = await import("@/lib/api/age-events");
+    const seen = vi.fn();
+    onAgeBlocked(seen);
+    await expect(api("/api/v1/chat/sessions", { method: "POST" })).rejects.toMatchObject({ code, status: 403, details: { next: "/signup/birth" } });
+    expect(seen).toHaveBeenCalledTimes(1);
+    expect(seen.mock.calls[0][0]).toBe(block);
+  });
+
+  it("does not report other 403 answers as age blocks", async () => {
+    handler = () => json(403, { error: { code: "forbidden", message: "no" } });
+    const { api } = await load();
+    const { onAgeBlocked } = await import("@/lib/api/age-events");
+    const seen = vi.fn();
+    onAgeBlocked(seen);
+    await expect(api("/api/v1/chat/sessions", { method: "POST" })).rejects.toMatchObject({ code: "forbidden" });
+    expect(seen).not.toHaveBeenCalled();
+  });
 });

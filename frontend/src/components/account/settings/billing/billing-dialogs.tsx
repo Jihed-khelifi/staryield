@@ -1,22 +1,23 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import * as yup from "yup";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { Check } from "lucide-react";
 
+import { COMPANY } from "@/config/company";
 import { useI18n } from "@/i18n/i18n-provider";
 import type { TranslateCopy } from "@/i18n/translate-copy";
 import { newId } from "@/lib/api/client";
 import { billingApi, type PaymentMethod, type Plan, type Subscription, type SubscriptionResult } from "@/lib/api/billing";
 import { toApiError } from "@/lib/api/errors";
+import { useRequireAdult } from "@/lib/auth/age-gate"; // revisions 5.0: 18+ age gate (§24.6)
 import { applyApiError } from "@/lib/forms/server-errors";
 import { keepFocusOnPress } from "@/lib/forms/submit-press";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import type { PaymentFieldsHandle } from "@/lib/payments/payment-fields";
-import { consentRule } from "@/lib/schemas/common";
 import { PaymentFields, type PaymentFieldsStatus } from "@/components/billing/payment-fields";
+import { PolicyConsentField, policyConsentRule } from "@/components/billing/policy-consent";
 import { useToast } from "@/components/feedback/toast-provider";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,9 +26,22 @@ import { Form, FormControl, FormField, FormItem, FormMessage, FormRootError } fr
 
 import { dialogSubmit } from "../dialog-form";
 import { CardPicker, type CardPickerHandle } from "./card-picker";
-import { declineMessage, planBenefits, planPrice } from "./billing-format";
+import { declineMessage, nextRenewal, planBenefits, planCadence, planPrice } from "./billing-format";
 
-const subscribeSchema = (text: TranslateCopy) => yup.object({ consent: consentRule(text) });
+/**
+ * Membership checkout agreements (§25.1): the policies (shared with the top-up
+ * checkout) and the automatic-renewal understanding, both required, both
+ * unchecked.
+ */
+const subscribeSchema = (text: TranslateCopy) =>
+  yup.object({
+    consent: policyConsentRule(text),
+    renewal: yup
+      .boolean()
+      .default(false)
+      .oneOf([true], text("Confirm that you understand your membership renews automatically."))
+      .required(text("Confirm that you understand your membership renews automatically.")),
+  });
 
 /** The outcome of a charge that is not a plain success. */
 function nextActionUrl(result: SubscriptionResult): string | null {
@@ -45,7 +59,11 @@ function failCharge<T extends FieldValues>(form: Pick<UseFormReturn<T>, "setErro
   return applyApiError(form, err, { text });
 }
 
-/** Subscribe to a membership plan: summary, benefits, card, auto-renewal consent. */
+/**
+ * Subscribe to a membership plan (hidden while memberships are switched off,
+ * §25.1): plan, price with currency, billing rhythm, next renewal date, how to
+ * cancel, statement descriptor, card, and the two required agreements.
+ */
 export function SubscribeDialog({
   open,
   onOpenChange,
@@ -63,16 +81,20 @@ export function SubscribeDialog({
 }) {
   const { text, locale } = useI18n();
   const toast = useToast();
-  const form = useSchemaForm(subscribeSchema, { defaultValues: { consent: false } });
+  const form = useSchemaForm(subscribeSchema, { defaultValues: { consent: false, renewal: false } });
+  const requireAdult = useRequireAdult();
   const picker = React.useRef<CardPickerHandle>(null);
   // One key per subscription attempt: retries and double clicks never charge twice.
   const attempt = React.useRef(newId());
   const [verifyUrl, setVerifyUrl] = React.useState<string | null>(null);
-  const consentId = React.useId();
+  const renewalId = React.useId();
   const price = planPrice(plan, locale, text);
+  const cadence = planCadence(plan, text);
+  const renewalDate = new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(nextRenewal(plan));
   const benefits = planBenefits(plan, text);
 
   async function submit() {
+    if (!requireAdult()) return;
     try {
       const method = await picker.current?.resolve();
       if (!method) return;
@@ -108,7 +130,7 @@ export function SubscribeDialog({
       open={open}
       onOpenChange={(next) => {
         if (!next) {
-          form.reset({ consent: false });
+          form.reset({ consent: false, renewal: false });
           setVerifyUrl(null);
         }
         onOpenChange(next);
@@ -135,6 +157,12 @@ export function SubscribeDialog({
                 <span className="settings-row-label">{plan.name}</span>
                 <span className="settings-price">{price}</span>
               </div>
+              <ul className="settings-terms" data-testid="subscribe-terms">
+                <li>{text("Billed {value0} until you cancel.", { value0: cadence })}</li>
+                <li>{text("Next renewal: {value0}.", { value0: renewalDate })}</li>
+                <li>{text("Cancel any time online in Settings → Billing.")}</li>
+                <li>{text("This charge appears on your card statement as {value0}.", { value0: COMPANY.statementDescriptor })}</li>
+              </ul>
               {benefits.length ? (
                 <ul className="settings-benefits" aria-label={text("Member benefits")}>
                   {benefits.map((benefit) => (
@@ -154,31 +182,27 @@ export function SubscribeDialog({
                 ref={picker}
               />
               <FormRootError />
+              <PolicyConsentField testId="subscribe-consent" />
               <FormField
                 control={form.control}
-                name="consent"
+                name="renewal"
                 render={({ field }) => (
-                  <FormItem className="settings-consent-check">
-                    <div className="flex items-start gap-3">
+                  <FormItem className="policy-consent">
+                    <div className="policy-consent-row">
                       <FormControl>
                         <Checkbox
                           ref={field.ref}
                           name={field.name}
-                          checked={field.value}
+                          checked={field.value === true}
                           onCheckedChange={(checked) => field.onChange(checked === true)}
                           onBlur={field.onBlur}
-                          aria-labelledby={consentId}
-                          className="mt-0.5"
-                          data-testid="subscribe-consent"
+                          aria-labelledby={renewalId}
+                          className="policy-consent-box"
+                          data-testid="subscribe-renewal"
                         />
                       </FormControl>
-                      <span id={consentId} className="text-sm">
-                        {text("I agree to be charged {value0} now and at the start of every period until I cancel. I can cancel at any time in Settings.", {
-                          value0: price,
-                        })}{" "}
-                        <Link href={`/${locale}/terms`} className="underline" target="_blank" rel="noopener">
-                          {text("Terms of Use")}
-                        </Link>
+                      <span id={renewalId} className="policy-consent-label">
+                        {text("I understand my membership renews automatically {value0} until I cancel.", { value0: cadence })}
                       </span>
                     </div>
                     <FormMessage />
@@ -314,11 +338,13 @@ export function AddCardDialog({
   const { text } = useI18n();
   const toast = useToast();
   const form = useSchemaForm(addCardSchema, { defaultValues: { make_default: firstCard } });
+  const requireAdult = useRequireAdult();
   const fields = React.useRef<PaymentFieldsHandle>(null);
   const [status, setStatus] = React.useState<PaymentFieldsStatus>("loading");
   const defaultId = React.useId();
 
   async function submit(values: AddCardValues) {
+    if (!requireAdult()) return;
     if (status !== "ready" || !fields.current) return;
     try {
       const card = await fields.current.tokenize();

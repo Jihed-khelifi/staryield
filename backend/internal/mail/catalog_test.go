@@ -13,14 +13,27 @@ var samples = map[string]map[string]any{
 	"review.received":    {"rating": float64(5)},
 	"request.created":    {"service_name": "Candle Ritual", "client_name": "Nova"},
 	"request.updated":    {"service_name": "Candle Ritual", "status": "accepted"},
-	"purchase.succeeded": {"credits": float64(600)},
+	"purchase.succeeded": {"credits": float64(600), "price_cents": float64(1999), "currency": "USD", "pack_name": "Starter",
+		"purchase_id": "0b6d7c1e-0000-4000-8000-000000000001", "completed_at": "2026-11-12T10:15:00Z", "card_brand": "visa", "card_last4": "4242",
+		"statement_descriptor": "STARYIELD MEDIA LLC"},
 	"credits.adjusted":   {"amount": float64(-50)},
 	"withdrawal.updated": {"status": "paid", "amount_credits": float64(2500)},
 	"waitlist.available": {"psychic_name": "Theo"},
 	"export.ready":       {"export_id": "x"},
 	"subscription.renewed": {
-		"plan_name": "Premium",
+		"plan_name":    "Premium",
+		"amount_cents": float64(999), "currency": "USD", "period_months": float64(1), "period_start": "2026-11-12T10:15:00Z",
+		"period_end": "2026-12-12T10:15:00Z", "next_renewal_at": "2026-12-12T10:15:00Z", "statement_descriptor": "STARYIELD MEDIA LLC",
 	},
+	"subscription.started": {
+		"plan_name": "Premium", "plan_names": map[string]any{"en": "Premium", "fr": "Premium FR"},
+		"amount_cents": float64(999), "currency": "USD", "period_months": float64(1), "period_start": "2026-11-12T10:15:00Z",
+		"period_end": "2026-12-12T10:15:00Z", "next_renewal_at": "2026-12-12T10:15:00Z", "statement_descriptor": "STARYIELD MEDIA LLC",
+	},
+	"payment.refunded": {"amount_cents": float64(1999), "currency": "USD", "pack_name": "Starter", "credits": float64(600),
+		"purchased_at": "2026-11-12T10:15:00Z", "statement_descriptor": "STARYIELD MEDIA LLC"},
+	"refund_request.resolved": {"status": "approved", "reference": "RR-ABCD2345", "refunded_cents": float64(1999), "currency": "USD",
+		"pack_name": "Starter", "credits": float64(600), "purchased_at": "2026-11-12T10:15:00Z", "statement_descriptor": "STARYIELD MEDIA LLC"},
 	"subscription.payment_failed": {},
 	"subscription.canceled":       {},
 	"broadcast": {"title": map[string]any{"en": "New moon", "fr": "Nouvelle lune"},
@@ -34,6 +47,12 @@ func contentStrings(c Content) []string {
 	}
 	if c.Note != "" {
 		out = append(out, c.Note)
+	}
+	for _, d := range c.Details { // revisions 5.1: labels are copy, values are data
+		out = append(out, d.Label)
+	}
+	for _, l := range c.Links {
+		out = append(out, l.Label)
 	}
 	return out
 }

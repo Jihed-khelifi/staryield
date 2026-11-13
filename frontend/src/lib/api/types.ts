@@ -36,6 +36,9 @@ export type PsychicSelf = {
   listed: boolean;
 };
 
+/** The 18+ gate status of the signed-in user (revisions 5.0, §24.6). */
+export type AgeStatus = "adult" | "birth_date_required" | "restricted";
+
 export type User = {
   id: string;
   email: string;
@@ -47,6 +50,8 @@ export type User = {
   profile: Profile;
   wallet?: Wallet;
   psychic?: PsychicSelf;
+  /** revisions 5.0: advisors and admins are always "adult". */
+  age_status: AgeStatus;
 };
 
 export type SessionResponse = {
@@ -137,17 +142,6 @@ export type WaitlistEntry = {
   image_url: string;
   status: PresenceStatus;
   joined_at: string;
-};
-
-export type CreditPack = {
-  id: string;
-  name: string;
-  credits: number;
-  price_cents: number;
-  currency: string;
-  featured: boolean;
-  active: boolean;
-  sort_order: number;
 };
 
 export type Purchase = {
@@ -529,7 +523,13 @@ export type NotificationKind =
   | "account.google_unlinked"
   | "subscription.renewed"
   | "subscription.payment_failed"
-  | "subscription.canceled";
+  | "subscription.canceled"
+  // revisions 5.0 (§24.4): refund requests.
+  | "refund_request.received"
+  | "refund_request.resolved"
+  // revisions 5.1 (§25.5): refunds issued by support or the provider, and the membership confirmation.
+  | "payment.refunded"
+  | "subscription.started";
 
 /** Realtime `notification.read` (§23.6): read state changed in another tab or device. */
 export type NotificationReadEvent = { ids?: string[]; all?: true; unread: number };
@@ -860,6 +860,8 @@ export type SiteConfig = {
   free_mode: { active: boolean; ends_at?: string };
   /** Which sign-in providers are configured (§23.1); absent from older APIs. */
   auth?: { google: boolean };
+  /** Switched-off features (§25.1): absent from older APIs, which means false. */
+  features?: { memberships: boolean };
   generated_at: string;
 };
 

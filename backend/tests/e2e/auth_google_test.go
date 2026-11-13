@@ -406,7 +406,7 @@ func TestGoogleSignUpWithTermsCreatesTheAccountThroughTheRegisterPath(t *testing
 	var me service.UserView
 	c.must(http.StatusOK, http.MethodGet, "/api/v1/me", nil, &me)
 	if me.Email != strings.ToLower(email) || me.Role != "client" || me.Locale != "fr" || me.DisplayName != strings.Split(strings.ToLower(email), "@")[0] ||
-		me.Wallet == nil || me.Wallet.FreeMinutes != 5 {
+		me.Wallet == nil || me.Wallet.FreeMinutes != 4 {
 		t.Fatalf("new account: %+v", me)
 	}
 	var u domain.User
@@ -509,7 +509,7 @@ func TestGoogleSignInWithAFlippedIntentOnAnUnknownAccountAsksForConsent(t *testi
 	}
 	r := c.must(http.StatusCreated, http.MethodPost, "/api/v1/auth/google/complete", map[string]any{"accept_terms": true, "locale": "es",
 		"attribution": map[string]any{"utm_source": "consent"}}, &sess)
-	if sess.User == nil || sess.User.Email != email || sess.User.Locale != "es" || sess.User.Wallet == nil || sess.User.Wallet.FreeMinutes != 5 ||
+	if sess.User == nil || sess.User.Email != email || sess.User.Locale != "es" || sess.User.Wallet == nil || sess.User.Wallet.FreeMinutes != 4 ||
 		sess.Linked != "" {
 		t.Fatalf("complete: %s", r.body)
 	}

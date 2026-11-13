@@ -4,6 +4,7 @@ import { useI18n } from "@/i18n/i18n-provider";
 /* eslint-disable @next/next/no-img-element */
 import { useSignupFreeMinutes } from "@/lib/site-config/site-config-provider";
 import { ContentLink } from "@/components/content/content-link";
+import { COMPANY } from "@/config/company"; // revisions 5.1
 import { TrustpilotReviewCollector } from "@/components/reviews/trustpilot-review-collector";
 const assetPathPrefix = "https://assets.staryield.net/assets/figma";
 const imgMediaReviews = `${assetPathPrefix}/fb9ee.jpg`;
@@ -49,378 +50,7 @@ export default function ScreenDesktopReviews() {
           <TrustpilotReviewCollector placement="reviews" />
         </div>
       </div>
-      <section
-        className="bg-gradient-to-b content-stretch flex flex-col from-[36.538%] from-[var(--cream)] items-start overflow-clip pb-[80px] pt-[40px] px-[120px] relative shrink-0 to-[var(--sage)] w-full figma-section"
-        data-node-id="342:1497"
-        data-name="Section / Customer Review Cards"
-      >
-        <div
-          className="content-stretch flex flex-col gap-[24px] items-start relative shrink-0 w-full"
-          data-node-id="342:1498"
-          data-name="Container / Review Grid"
-        >
-          <div
-            className="border-[0.5px] border-black border-solid content-stretch flex flex-col gap-[16px] items-start p-[24px] relative rounded-[8px] shrink-0 w-full"
-            data-node-id="342:1499"
-            data-name="Card / Review"
-          >
-            <div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none rounded-[8px]"
-            >
-              <div className="absolute bg-[var(--warm-gray)] inset-0 rounded-[8px]" />
-              <img
-                alt=""
-                className="absolute max-w-none mix-blend-overlay object-cover rounded-[8px] size-full"
-                src={imgMediaReviews}
-              />
-            </div>
-            <div
-              className="content-stretch flex items-center justify-between relative shrink-0 w-full"
-              data-node-id="342:1500"
-              data-name="Layout / Review"
-            >
-              <div
-                className="[word-break:break-word] content-stretch flex flex-col gap-px items-start leading-[normal] relative shrink-0 text-black whitespace-nowrap"
-                data-node-id="342:1501"
-                data-name="Control / Thayna"
-              >
-                <p
-                  className="font-serif font-semibold relative shrink-0 text-[20px]"
-                  data-node-id="342:1502"
-                >
-                  {text("Thayna ")}
-                </p>
-                <p
-                  className="font-serif font-extralight relative shrink-0 text-[14px]"
-                  data-node-id="342:1503"
-                >
-                  {text("24 Aug, 2026 ")}
-                </p>
-              </div>
-              <div
-                className="content-stretch flex gap-[4px] items-center relative shrink-0"
-                data-node-id="342:1504"
-                data-name="Layout / Review"
-              >
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1505"
-                  data-name="Instance / Star"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1507"
-                  data-name="Instance / Star / 02"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1509"
-                  data-name="Instance / Star / 03"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1511"
-                  data-name="Instance / Star / 04"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1513"
-                  data-name="Instance / Star / 05"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-              </div>
-            </div>
-            <p
-              className="[word-break:break-word] font-serif font-normal leading-[1.5] relative shrink-0 text-[16px] text-black w-full"
-              data-node-id="342:1515"
-            >
-              {text(
-                "She was on point from the beginning! Could translate exactly how I felt! Fast reply and lots of details!! Thank you! ",
-              )}
-            </p>
-          </div>
-          <div
-            className="border-[0.5px] border-black border-solid content-stretch flex flex-col gap-[16px] items-start p-[24px] relative rounded-[8px] shrink-0 w-full"
-            data-node-id="342:1516"
-            data-name="Card / Review / 02"
-          >
-            <div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none rounded-[8px]"
-            >
-              <div className="absolute bg-[var(--warm-gray)] inset-0 rounded-[8px]" />
-              <img
-                alt=""
-                className="absolute max-w-none mix-blend-overlay object-cover rounded-[8px] size-full"
-                src={imgMediaReviews}
-              />
-            </div>
-            <div
-              className="content-stretch flex items-center justify-between relative shrink-0 w-full"
-              data-node-id="342:1517"
-              data-name="Layout / 02"
-            >
-              <div
-                className="[word-break:break-word] content-stretch flex flex-col gap-px items-start leading-[normal] relative shrink-0 text-black whitespace-nowrap"
-                data-node-id="342:1518"
-                data-name="Control / Surinder"
-              >
-                <p
-                  className="font-serif font-semibold relative shrink-0 text-[20px]"
-                  data-node-id="342:1519"
-                >
-                  {text("Surinder ")}
-                </p>
-                <p
-                  className="font-serif font-extralight relative shrink-0 text-[14px]"
-                  data-node-id="342:1520"
-                >
-                  {text("24 Aug, 2026 ")}
-                </p>
-              </div>
-              <div
-                className="content-stretch flex gap-[4px] items-center relative shrink-0"
-                data-node-id="342:1521"
-                data-name="Layout / 02"
-              >
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1522"
-                  data-name="Instance / Star"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1524"
-                  data-name="Instance / Star / 02"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1526"
-                  data-name="Instance / Star / 03"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1528"
-                  data-name="Instance / Star / 04"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1530"
-                  data-name="Instance / Star / 05"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-              </div>
-            </div>
-            <p
-              className="[word-break:break-word] font-serif font-normal leading-[1.5] relative shrink-0 text-[16px] text-black w-full"
-              data-node-id="342:1532"
-            >
-              {text(
-                "Can u pls unhide my answer the reading is great and accurate thank alot for your reading ",
-              )}
-            </p>
-          </div>
-          <div
-            className="border-[0.5px] border-black border-solid content-stretch flex flex-col gap-[16px] items-start p-[24px] relative rounded-[8px] shrink-0 w-full"
-            data-node-id="342:1533"
-            data-name="Card / Review / 03"
-          >
-            <div
-              aria-hidden
-              className="absolute inset-0 pointer-events-none rounded-[8px]"
-            >
-              <div className="absolute bg-[var(--warm-gray)] inset-0 rounded-[8px]" />
-              <img
-                alt=""
-                className="absolute max-w-none mix-blend-overlay object-cover rounded-[8px] size-full"
-                src={imgMediaReviews}
-              />
-            </div>
-            <div
-              className="content-stretch flex items-center justify-between relative shrink-0 w-full"
-              data-node-id="342:1534"
-              data-name="Layout / 03"
-            >
-              <div
-                className="[word-break:break-word] content-stretch flex flex-col gap-px items-start leading-[normal] relative shrink-0 text-black whitespace-nowrap"
-                data-node-id="342:1535"
-                data-name="Control / Mariana"
-              >
-                <p
-                  className="font-serif font-semibold relative shrink-0 text-[20px]"
-                  data-node-id="342:1536"
-                >
-                  {text("Mariana ")}
-                </p>
-                <p
-                  className="font-serif font-extralight relative shrink-0 text-[14px]"
-                  data-node-id="342:1537"
-                >
-                  {text("23 Aug, 2026 ")}
-                </p>
-              </div>
-              <div
-                className="content-stretch flex gap-[4px] items-center relative shrink-0"
-                data-node-id="342:1538"
-                data-name="Layout / 03"
-              >
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1539"
-                  data-name="Instance / Star"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1541"
-                  data-name="Instance / Star / 02"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1543"
-                  data-name="Instance / Star / 03"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1545"
-                  data-name="Instance / Star / 04"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-                <div
-                  className="relative shrink-0 size-[34.07px]"
-                  data-node-id="342:1547"
-                  data-name="Instance / Star / 05"
-                >
-                  <img
-                    alt=""
-                    className="absolute block inset-0 max-w-none size-full"
-                    height="34.07"
-                    src={imgInstanceStar}
-                    width="34.07"
-                  />
-                </div>
-              </div>
-            </div>
-            <p
-              className="[word-break:break-word] font-serif font-normal leading-[1.5] relative shrink-0 text-[16px] text-black w-full"
-              data-node-id="342:1549"
-            >
-              {text(
-                "Incredible session, felt truly seen and understood. The guidance was specific and immediately helpful. ",
-              )}
-            </p>
-          </div>
-        </div>
-      </section>
+      {/* revisions 5.1: the three hard-coded review cards were removed (docs/legal-review-checklist.md row 59); reviews are the Trustpilot widget above. */}
       <div
         className="bg-[var(--sage)] content-stretch flex flex-col gap-[32px] items-start overflow-clip px-[160px] py-[96px] relative shrink-0 w-full"
         data-node-id="342:1550"
@@ -467,7 +97,7 @@ export default function ScreenDesktopReviews() {
             data-node-id="342:1560"
           >
             {text(
-              "What if there was a trusted space where you could explore fresh perspectives on your past, present, and future? ",
+              "What if there was a welcoming space where you could explore fresh perspectives on your past, present, and future? ",
             )}
           </p>
           <p
@@ -483,7 +113,7 @@ export default function ScreenDesktopReviews() {
             data-node-id="342:1562"
           >
             {text(
-              "With over 1000 gifted psychics, our users receive guidance 24/7, helping them better understand themselves and the people around them. ",
+              "With advisors from many backgrounds and specialties, you can chat with a psychic whenever one is online, to reflect on yourself and the people around you. ",
             )}
           </p>
           <p
@@ -491,7 +121,7 @@ export default function ScreenDesktopReviews() {
             data-node-id="342:1563"
           >
             {text(
-              "If you are looking for compassionate, nonjudgmental advice and want to learn more about yourself and others, Staryield is the place to be. Our platform connects you with trusted advisors. Use our search filters or take the matching quiz to find the perfect guide for your journey. ",
+              "If you are looking for a compassionate, nonjudgmental conversation and want to learn more about yourself and others, Staryield may be for you. Our platform connects you with intuitive advisors. Browse the directory to find the one who feels right for your journey. ",
             )}
           </p>
         </div>
@@ -528,7 +158,7 @@ export default function ScreenDesktopReviews() {
               className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[32px] text-black text-center tracking-[1.28px] whitespace-nowrap"
               data-node-id="342:1570"
             >
-              {text("Facts About Staryield ")}
+              {text("A Few Things to Know ")}
             </p>
             <div
               className="relative shrink-0 size-[34.07px]"
@@ -554,7 +184,7 @@ export default function ScreenDesktopReviews() {
               data-node-id="342:1575"
             >
               {text(
-                "If you are wondering whether Staryield is the right choice for you, here are some interesting facts about our website: ",
+                "If you are wondering whether Staryield is right for you, here are a few things worth knowing: ",
               )}
             </p>
             <div
@@ -567,7 +197,7 @@ export default function ScreenDesktopReviews() {
                 data-node-id="342:1576"
               >
                 {text(
-                  `• Many of our reviews don't just focus on the psychics' work; some highlight our customer service. Our platform features a prompt and responsive support team, and clients are consistently satisfied.`,
+                  `• Support is available 24/7. We reply within 1–2 days.`,
                 )}
               </p>
               <p
@@ -575,7 +205,7 @@ export default function ScreenDesktopReviews() {
                 data-node-id="342:1577"
               >
                 {text(
-                  `• If you check the app reviews, you'll see that the mobile version includes a compatibility tool, so you can explore questions about your future and your relationships.`,
+                  `• Readings are offered for entertainment purposes only.`,
                 )}
               </p>
               <p
@@ -583,7 +213,7 @@ export default function ScreenDesktopReviews() {
                 data-node-id="342:1578"
               >
                 {text(
-                  "• Staryield psychics have helped millions of people, building the reputation of both our website and app. Check out Staryield reviews to see for yourself. ",
+                  "• Reviews of Staryield are written by independent users on Trustpilot: read them there, or share your own. ",
                 )}
               </p>
             </div>
@@ -676,18 +306,18 @@ export default function ScreenDesktopReviews() {
                   className="[word-break:break-word] flex-[1_0_0] font-serif font-normal leading-[normal] min-w-px relative text-[18px] text-black"
                   data-node-id="342:1607"
                 >
-                  {text("Convenient 1:1 chat readings available 24/7 ")}
+                  {text("Private 1:1 chat readings ")}
                 </p>
               </div>
               <div
                 className="content-stretch flex gap-[12px] items-center relative shrink-0 w-full"
                 data-node-id="342:1608"
-                data-name="Content Group / Expert guidance for your romantic relat…"
+                data-name="Content Group / Love and relationship readings"
               >
                 <div
                   className="bg-[var(--sage)] border border-black border-solid content-stretch flex items-center justify-center relative rounded-[999px] shrink-0 size-[24px]"
                   data-node-id="342:1609"
-                  data-name="Layout / Expert Guidance For Your Romantic Relat…"
+                  data-name="Layout / Love And Relationship Readings"
                 >
                   <div
                     className="relative shrink-0 size-[12px]"
@@ -705,7 +335,7 @@ export default function ScreenDesktopReviews() {
                   className="[word-break:break-word] flex-[1_0_0] font-serif font-normal leading-[normal] min-w-px relative text-[18px] text-black"
                   data-node-id="342:1611"
                 >
-                  {text("Expert guidance for your romantic relationships ")}
+                  {text("Readings about love and relationships ")}
                 </p>
               </div>
               <div
@@ -734,13 +364,13 @@ export default function ScreenDesktopReviews() {
                   className="[word-break:break-word] flex-[1_0_0] font-serif font-normal leading-[normal] min-w-px relative text-[18px] text-black"
                   data-node-id="342:1615"
                 >
-                  {text("Free horoscopes and personalized astrology advice ")}
+                  {text("Free horoscopes and astrology calculators ")}
                 </p>
               </div>
               <div
                 className="content-stretch flex gap-[12px] items-center relative shrink-0 w-full"
                 data-node-id="342:1616"
-                data-name="Content Group / Free credits for your first reading"
+                data-name="Content Group / Clear prices shown before every reading"
               >
                 <div
                   className="bg-[var(--sage)] border border-black border-solid content-stretch flex items-center justify-center relative rounded-[999px] shrink-0 size-[24px]"
@@ -763,13 +393,13 @@ export default function ScreenDesktopReviews() {
                   className="[word-break:break-word] flex-[1_0_0] font-serif font-normal leading-[normal] min-w-px relative text-[18px] text-black"
                   data-node-id="342:1619"
                 >
-                  {text("Free credits for your first reading ")}
+                  {text("Clear prices shown before every reading ")}
                 </p>
               </div>
               <div
                 className="content-stretch flex gap-[12px] items-center relative shrink-0 w-full"
                 data-node-id="342:1620"
-                data-name="Content Group / An effective psychic-client matching tool"
+                data-name="Content Group / A directory to find an advisor who suits you"
               >
                 <div
                   className="bg-[var(--sage)] border border-black border-solid content-stretch flex items-center justify-center relative rounded-[999px] shrink-0 size-[24px]"
@@ -792,7 +422,7 @@ export default function ScreenDesktopReviews() {
                   className="[word-break:break-word] flex-[1_0_0] font-serif font-normal leading-[normal] min-w-px relative text-[18px] text-black"
                   data-node-id="342:1623"
                 >
-                  {text("An effective psychic-client matching tool ")}
+                  {text("A directory to find an advisor who suits you ")}
                 </p>
               </div>
             </div>
@@ -802,8 +432,8 @@ export default function ScreenDesktopReviews() {
       <ContentLink
         className="border-b border-black border-solid border-t content-stretch flex flex-col gap-[15px] h-[411px] items-center justify-center overflow-clip px-[120px] py-[64px] relative shrink-0 w-full"
         data-node-id="342:1624"
-        data-name="Button / STILL HESITATING WHETHER STARYIELD IS B…"
-        label="STILL HESITATING WHETHER STARYIELD IS BETTER THAN COMPETITORS? Start First Reading Try free minutes of chat and see for yourself"
+        data-name="Button / NOT SURE WHERE IS B…"
+        label="NOT SURE WHERE TO BEGIN? Start First Reading Try free minutes of chat and see for yourself"
       >
         <div aria-hidden className="absolute inset-0 pointer-events-none">
           <div className="absolute bg-[var(--cream)] inset-0" />
@@ -818,16 +448,16 @@ export default function ScreenDesktopReviews() {
           data-node-id="342:1625"
         >
           <p className="leading-[normal] mb-0">
-            {text("STILL HESITATING WHETHER STARYIELD ")}
+            {text("NOT SURE WHERE ")}
           </p>
           <p className="leading-[normal]">
-            {text("IS BETTER THAN COMPETITORS?")}
+            {text("TO BEGIN?")}
           </p>
         </div>
         <div
           className="content-stretch flex flex-col h-[77px] items-center justify-between relative shrink-0 w-[852px]"
           data-node-id="377:1500"
-          data-name="Layout / STILL HESITATING WHETHER STARYIELD IS B…"
+          data-name="Layout / NOT SURE WHERE IS B…"
         >
           <span
             className="border-[0.5px] border-black border-solid content-stretch cursor-pointer flex flex-col h-[55px] items-center justify-center overflow-clip px-[219px] py-[12px] relative rounded-[8px] shrink-0 w-[439px]"
@@ -893,7 +523,7 @@ export default function ScreenDesktopReviews() {
               className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[#2f241c] text-[32px] text-center tracking-[1.28px] whitespace-nowrap"
               data-node-id="342:1633"
             >
-              {text("Free Celestial Services ")}
+              {text("Free Tools ")}
             </p>
             <div
               className="relative shrink-0 size-[34.07px]"
@@ -915,17 +545,17 @@ export default function ScreenDesktopReviews() {
                 className="[word-break:break-word] font-serif font-medium leading-[normal] relative shrink-0 text-[#2f241c] text-[22px] whitespace-nowrap"
                 data-node-id="342:1638"
               >
-                {text("Staryield offers a range of free services: ")}
+                {text("Staryield offers a range of free tools: ")}
               </p>
               <div
                 className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0"
                 data-node-id="342:1639"
-                data-name="Content Group / Personal daily horoscopes"
+                data-name="Content Group / Natal chart calculator"
               >
                 <div
                   className="content-stretch flex gap-[12px] items-center relative shrink-0"
                   data-node-id="342:1640"
-                  data-name="Control / Personal daily horoscopes"
+                  data-name="Control / Natal chart calculator"
                 >
                   <div
                     className="relative shrink-0 size-[34.07px]"
@@ -944,13 +574,13 @@ export default function ScreenDesktopReviews() {
                     className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[18px] whitespace-nowrap"
                     data-node-id="342:1643"
                   >
-                    {text("Personal daily horoscopes ")}
+                    {text("Natal chart calculator ")}
                   </p>
                 </div>
                 <div
                   className="content-stretch flex gap-[12px] items-center relative shrink-0"
                   data-node-id="342:1644"
-                  data-name="Control / The focus of the day"
+                  data-name="Control / Life Path number calculator"
                 >
                   <div
                     className="relative shrink-0 size-[34.07px]"
@@ -969,13 +599,13 @@ export default function ScreenDesktopReviews() {
                     className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[18px] whitespace-nowrap"
                     data-node-id="342:1647"
                   >
-                    {text("The focus of the day ")}
+                    {text("Life Path number calculator ")}
                   </p>
                 </div>
                 <div
                   className="content-stretch flex gap-[12px] items-center relative shrink-0"
                   data-node-id="342:1648"
-                  data-name="Control / Compatibility tool"
+                  data-name="Control / Astrology calculator"
                 >
                   <div
                     className="relative shrink-0 size-[34.07px]"
@@ -994,13 +624,13 @@ export default function ScreenDesktopReviews() {
                     className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[18px] whitespace-nowrap"
                     data-node-id="342:1651"
                   >
-                    {text("Compatibility tool ")}
+                    {text("Astrology calculator ")}
                   </p>
                 </div>
                 <div
                   className="content-stretch flex gap-[12px] items-center relative shrink-0"
                   data-node-id="342:1652"
-                  data-name="Control / Tarot of the day (Staryield App)"
+                  data-name="Control / Personal daily horoscopes"
                 >
                   <div
                     className="relative shrink-0 size-[34.07px]"
@@ -1019,7 +649,7 @@ export default function ScreenDesktopReviews() {
                     className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[#2f241c] text-[18px] whitespace-nowrap"
                     data-node-id="342:1655"
                   >
-                    {text("Tarot of the day (Staryield App) ")}
+                    {text("Personal daily horoscopes ")}
                   </p>
                 </div>
               </div>
@@ -1031,12 +661,12 @@ export default function ScreenDesktopReviews() {
             >
               <p className="relative shrink-0 w-full" data-node-id="342:1657">
                 {text(
-                  "Our platform also provides users with highly informative articles on topics ranging from the history of astrology to instructions for deep spiritual meditations. ",
+                  "Each calculator comes with an article that explains how it works and where it comes from. ",
                 )}
               </p>
               <p className="relative shrink-0 w-full" data-node-id="342:1658">
                 {text(
-                  "Both our app and website are fully optimized for convenience. Discover unmatched psychic talent, absolute transparency, and genuine guidance crafted precisely for your astrological path. ",
+                  "Staryield works in your browser on your phone, tablet or computer. Explore at your own pace. ",
                 )}
               </p>
             </div>
@@ -1061,14 +691,14 @@ export default function ScreenDesktopReviews() {
                 className="font-serif font-normal leading-[normal] relative shrink-0 text-[20px]"
                 data-node-id="342:1662"
               >
-                {text("Gifted Staryield Psychics ")}
+                {text("Intuitive Staryield Advisors ")}
               </p>
               <p
                 className="font-serif font-light leading-[1.5] relative shrink-0 text-[16px]"
                 data-node-id="342:1663"
               >
                 {text(
-                  "Over 1000 vetted advisors. Every single client review tells a true story of growth and heartfelt celestial guidance. ",
+                  "Advisors with many different specialties, from tarot and astrology to numerology and mediumship. ",
                 )}
               </p>
             </div>
@@ -1081,14 +711,14 @@ export default function ScreenDesktopReviews() {
                 className="font-serif font-normal leading-[normal] relative shrink-0 text-[20px]"
                 data-node-id="342:1665"
               >
-                {text("Smooth User Interface ")}
+                {text("A Simple Experience ")}
               </p>
               <p
                 className="font-serif font-light leading-[1.5] relative shrink-0 text-[16px]"
                 data-node-id="342:1666"
               >
                 {text(
-                  "Exceptional operational functions tailored for fluid interactions. Enjoy a completely secure, risk-free experience with zero glitches. ",
+                  "Clear pages, readable prices and a chat that works on any screen. ",
                 )}
               </p>
             </div>
@@ -1101,14 +731,14 @@ export default function ScreenDesktopReviews() {
                 className="font-serif font-normal leading-[normal] relative shrink-0 text-[20px]"
                 data-node-id="342:1668"
               >
-                {text("Wide Range of Reading Themes ")}
+                {text("Many Reading Themes ")}
               </p>
               <p
                 className="font-serif font-light leading-[1.5] relative shrink-0 text-[16px]"
                 data-node-id="342:1669"
               >
                 {text(
-                  "Deep focus on love, career, finances, and life choices. Includes comprehensive tarot, aura scanning, astrology, and numerology. ",
+                  "Readings about love, career and life choices, with tarot, aura readings, astrology, numerology and more, for entertainment purposes only. ",
                 )}
               </p>
             </div>
@@ -1121,14 +751,14 @@ export default function ScreenDesktopReviews() {
                 className="font-serif font-normal leading-[normal] relative shrink-0 text-[20px]"
                 data-node-id="342:1671"
               >
-                {text(`Trial Features & Offers`)}
+                {text(`Welcome Offers`)}
               </p>
               <p
                 className="font-serif font-light leading-[1.5] relative shrink-0 text-[16px]"
                 data-node-id="342:1672"
               >
                 {text(
-                  "Get introduced to Staryield with a generous welcome package. Instantly receive $14 in free credits after taking our sign-up matching quiz. ",
+                  "New accounts may receive free chat minutes when they sign up. Offers can change: the current one is always shown on the pricing page. ",
                 )}
               </p>
             </div>
@@ -1141,14 +771,14 @@ export default function ScreenDesktopReviews() {
                 className="font-serif font-normal leading-[normal] relative shrink-0 text-[20px]"
                 data-node-id="342:1674"
               >
-                {text("Instant Live Chat Feature ")}
+                {text("Live Chat ")}
               </p>
               <p
                 className="font-serif font-light leading-[1.5] relative shrink-0 text-[16px]"
                 data-node-id="342:1675"
               >
                 {text(
-                  "Connect instantly on the go with real-time text readings. For slower pacing, detailed and comprehensive email readings are also available. ",
+                  "Connect on the go with real-time text readings. For a slower pace, you can also order a custom reading from an advisor. ",
                 )}
               </p>
             </div>
@@ -1161,14 +791,14 @@ export default function ScreenDesktopReviews() {
                 className="font-serif font-normal leading-[normal] relative shrink-0 text-[20px]"
                 data-node-id="342:1677"
               >
-                {text("Get Matched Feature ")}
+                {text("Find an Advisor ")}
               </p>
               <p
                 className="font-serif font-light leading-[1.5] relative shrink-0 text-[16px]"
                 data-node-id="342:1678"
               >
                 {text(
-                  "Answer a few light questions about your current life situation and let us match you with the top readers suited to your personality. ",
+                  "Browse the directory, compare specialties and the ratings left by other clients, and choose the advisor who feels right. ",
                 )}
               </p>
             </div>
@@ -1178,7 +808,7 @@ export default function ScreenDesktopReviews() {
       <section
         className="bg-[var(--warm-gray)] border-b border-black border-solid content-stretch flex flex-col gap-[40px] h-[426px] items-center justify-center overflow-clip px-[160px] py-[80px] relative shrink-0 w-full figma-section"
         data-node-id="342:1679"
-        data-name="Section / Legit Or Scam"
+        data-name="Section / About The Company"
       >
         <section
           className="content-stretch flex gap-[16px] items-center justify-center relative shrink-0 figma-section"
@@ -1194,7 +824,7 @@ export default function ScreenDesktopReviews() {
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[#2f241c] text-[48px] text-center tracking-[1.92px] whitespace-nowrap"
             data-node-id="342:1683"
           >
-            {text("Staryield - Legit or Scam? ")}
+            {text("About the Company ")}
           </p>
           <div
             className="relative shrink-0 size-[34.07px]"
@@ -1205,14 +835,15 @@ export default function ScreenDesktopReviews() {
         <div
           className="[word-break:break-word] content-stretch flex flex-col gap-[20px] items-start leading-[1.6] relative shrink-0 text-[#2f241c] w-full"
           data-node-id="342:1686"
-          data-name="Layout / Legit Or Scam"
+          data-name="Layout / About The Company"
         >
           <p
             className="font-serif font-normal relative shrink-0 text-[32px] w-full"
             data-node-id="342:1688"
           >
             {text(
-              "Is Staryield a secure platform? Yes. Our meticulous hiring processes ensure that only authentic, certified psychics are admitted to guide our users. ",
+              "Staryield is operated by {value0}, {value1}. ",
+              { value0: COMPANY.legalName, value1: COMPANY.addressLine },
             )}
           </p>
           <p
@@ -1220,7 +851,8 @@ export default function ScreenDesktopReviews() {
             data-node-id="342:1689"
           >
             {text(
-              "Unlike competitor applications, we prioritize continuous user feedback to maintain absolute spiritual integrity. Favorable reviews across global forums corroborate our legitimacy in daily horoscope and customized psychic readings. ",
+              "Readings are offered for entertainment purposes only, and we do not certify or verify advisors' abilities. You can write to us at {value0}. Reviews of Staryield are published by independent users on Trustpilot. ",
+              { value0: COMPANY.supportEmail },
             )}
           </p>
         </div>
@@ -1252,7 +884,7 @@ export default function ScreenDesktopReviews() {
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[32px] text-center text-white tracking-[1.28px] whitespace-nowrap"
             data-node-id="342:1720"
           >
-            {text("Spiritual Modalities ")}
+            {text("Reading Types ")}
           </p>
           <div
             className="relative shrink-0 size-[34.07px]"
@@ -1283,7 +915,7 @@ export default function ScreenDesktopReviews() {
               data-node-id="342:1725"
             >
               {text(
-                `Explore customized cosmic paths tailored specifically to you. Staryield's top practitioners offer specialized guidance through:`,
+                `Explore paths tailored to you. Our advisors offer readings such as:`,
               )}
             </p>
             <div
@@ -1293,17 +925,17 @@ export default function ScreenDesktopReviews() {
             >
               <p className="relative shrink-0" data-node-id="342:1727">
                 {text(
-                  ` . Gain concrete perspective on immediate romantic and life transitions.`,
+                  ` Tarot: reflect on the road ahead and the choices in front of you.`,
                 )}
               </p>
               <p className="relative shrink-0" data-node-id="342:1728">
                 {text(
-                  ` . Genuine, deep emotional and spiritual connection with certified practitioners.`,
+                  ` Psychic readings: a warm, personal conversation with an intuitive advisor.`,
                 )}
               </p>
               <p className="relative shrink-0" data-node-id="342:1729">
                 {text(
-                  ` . Harmonizing natural remedies with your overall astrological transits.`,
+                  ` Astrology: explore your natal chart and the planetary transits of the moment.`,
                 )}
               </p>
             </div>

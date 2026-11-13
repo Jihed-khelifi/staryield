@@ -33,8 +33,8 @@ func TestPurchaseIdempotencyAndFailure(t *testing.T) {
 	}
 	key := uniq("purchase-key-")
 	var first, replay service.PurchaseView
-	c.must(http.StatusCreated, http.MethodPost, "/api/v1/credits/purchases", map[string]any{"pack_id": pack250.ID, "idempotency_key": key}, &first)
-	c.must(http.StatusCreated, http.MethodPost, "/api/v1/credits/purchases", map[string]any{"pack_id": pack250.ID, "idempotency_key": key}, &replay)
+	c.must(http.StatusCreated, http.MethodPost, "/api/v1/credits/purchases", map[string]any{"pack_id": pack250.ID, "idempotency_key": key, "consent": purchaseConsent()}, &first)
+	c.must(http.StatusCreated, http.MethodPost, "/api/v1/credits/purchases", map[string]any{"pack_id": pack250.ID, "idempotency_key": key, "consent": purchaseConsent()}, &replay)
 	if first.ID != replay.ID || first.Status != "succeeded" || first.Wallet.Balance != 250 {
 		t.Fatalf("purchase: %+v / %+v", first, replay)
 	}
@@ -44,7 +44,7 @@ func TestPurchaseIdempotencyAndFailure(t *testing.T) {
 	w.waitMatch(realtime.EventWalletUpdated, `"balance":250`, 5*time.Second)
 
 	// Declined card: no credits, clear error code.
-	r := c.call(http.MethodPost, "/api/v1/credits/purchases", map[string]any{"pack_id": failing.ID, "idempotency_key": uniq("purchase-key-")})
+	r := c.call(http.MethodPost, "/api/v1/credits/purchases", map[string]any{"pack_id": failing.ID, "idempotency_key": uniq("purchase-key-"), "consent": purchaseConsent()})
 	if r.status != http.StatusPaymentRequired || r.errCode(t) != "payment_failed" {
 		t.Fatalf("declined: %d %s", r.status, r.body)
 	}
@@ -57,7 +57,7 @@ func TestPurchaseIdempotencyAndFailure(t *testing.T) {
 		t.Fatalf("purchase history: %+v", history.Items)
 	}
 	// Invalid input.
-	if r := c.call(http.MethodPost, "/api/v1/credits/purchases", map[string]any{"pack_id": pack250.ID, "idempotency_key": "x"}); r.status != http.StatusUnprocessableEntity {
+	if r := c.call(http.MethodPost, "/api/v1/credits/purchases", map[string]any{"pack_id": pack250.ID, "idempotency_key": "x", "consent": purchaseConsent()}); r.status != http.StatusUnprocessableEntity {
 		t.Fatalf("bad key: %d", r.status)
 	}
 }
@@ -220,8 +220,9 @@ func TestAdminConsoleAndReports(t *testing.T) {
 	}
 
 	// Credit packs (BR-09) with audit trail.
-	var pack service.PackView
-	admin.must(http.StatusCreated, http.MethodPost, "/api/v1/admin/credit-packs", map[string]any{"name": "Promo", "credits": 100, "price_cents": 499}, &pack)
+	var pack service.AdminPack
+	admin.stepUp() // revisions 5.0: pack writes need step-up
+	admin.must(http.StatusCreated, http.MethodPost, "/api/v1/admin/credit-packs", map[string]any{"code": uniq("promo_"), "name": map[string]string{"en": "Promo"}, "credits": 100, "price_cents": 499}, &pack)
 	admin.must(http.StatusOK, http.MethodPatch, "/api/v1/admin/credit-packs/"+pack.ID.String(), map[string]any{"price_cents": 599, "active": false}, &pack)
 	if pack.Active || pack.PriceCents != 599 {
 		t.Fatalf("pack: %+v", pack)

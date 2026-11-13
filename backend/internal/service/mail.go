@@ -65,6 +65,9 @@ type MailSettings struct {
 	SendTimeout time.Duration
 	// HashKey keys the HMAC of addresses (to_hash, suppressions).
 	HashKey string
+	// SupportEmail is printed in the footer of every e-mail (revisions 5.1,
+	// STARYIELD_MAIL_SUPPORT_INBOX; empty: the built-in support address).
+	SupportEmail string
 }
 
 func (s *MailSettings) defaults() {
@@ -204,7 +207,8 @@ func (s *MailService) Enqueue(ctx context.Context, reqs ...EmailRequest) error {
 			capped[*r.UserID] = n + 1
 		}
 		if row.Status == domain.EmailQueued {
-			rendered, err := mail.Render(r.Content, mail.Layout{Locale: row.Locale, FrontendURL: s.cfg.FrontendURL, Category: string(r.Category)})
+			rendered, err := mail.Render(r.Content, mail.Layout{Locale: row.Locale, FrontendURL: s.cfg.FrontendURL, Category: string(r.Category),
+				SupportEmail: s.cfg.SupportEmail})
 			if err != nil {
 				return err
 			}

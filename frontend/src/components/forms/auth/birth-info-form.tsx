@@ -9,7 +9,9 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { track } from "@/lib/analytics";
 import { astrologyApi, meApi } from "@/lib/api/endpoints";
 import type { Place, User } from "@/lib/api/types";
+import { ageStatusOf, restrictedHref } from "@/lib/auth/age-status";
 import { useSession } from "@/lib/auth/session-provider";
+import { safeNext } from "@/lib/navigation";
 import { applyApiError } from "@/lib/forms/server-errors";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { birthInfoPayload, birthInfoSchema, type BirthInfoValues, type PlaceRef } from "@/lib/schemas/birth";
@@ -50,7 +52,7 @@ async function searchPlaces(query: string, signal: AbortSignal): Promise<PlaceRe
 export function BirthInfoForm() {
   const { text, locale } = useI18n();
   const router = useRouter();
-  const { status, user, setUser } = useSession();
+  const { status, user, setUser, reload } = useSession();
   const form = useSchemaForm(birthInfoSchema, { defaultValues: valuesFrom(user) });
   const timeUnknown = useWatch({ control: form.control, name: "timeUnknown" });
   const unknownId = React.useId();
@@ -61,9 +63,14 @@ export function BirthInfoForm() {
   }, []);
 
   // The step needs an account; the session may still be loading on mount.
+  // revisions 5.0: the step also serves the 18+ gate (§24.6): `?next=` is where
+  // the person was heading when a gated page or action sent them here, and an
+  // account that is already restricted has nothing to enter.
+  const restricted = status === "authenticated" && ageStatusOf(user) === "restricted";
   React.useEffect(() => {
-    if (status === "anonymous") router.replace(`/${locale}/login?next=${encodeURIComponent(`/${locale}/signup/birth`)}`);
-  }, [status, locale, router]);
+    if (status === "anonymous") router.replace(`/${locale}/login?next=${encodeURIComponent(`/${locale}/signup/birth${window.location.search}`)}`);
+    else if (restricted) router.replace(restrictedHref(locale));
+  }, [status, restricted, locale, router]);
 
   React.useEffect(() => {
     if (!user || prefilled.current || form.formState.isDirty) return;
@@ -76,13 +83,21 @@ export function BirthInfoForm() {
       const me = await meApi.update(birthInfoPayload(values));
       setUser(me);
       track("signup_step_completed", { step: "birth" });
-      router.push(`/${locale}/signup/offer`);
+      // From a gated page the person goes back where they were heading; sign-up continues with the offer.
+      router.push(safeNext(window.location.search, locale) ?? `/${locale}/signup/offer`);
     } catch (err) {
       const e = applyApiError(form, err, {
         text,
         fieldMap: { birth_date: "birth", birth_time: "birth", birth_place_id: "place" },
       });
       track("error_displayed", { code: String(e.code), step: "birth" });
+      // An under-age date is refused and restricts the account for good (§24.6):
+      // the API decides, so re-read the account and show the restricted screen
+      // instead of leaving the form open for another date.
+      if (e.code === "validation_failed" && "birth_date" in e.fields) {
+        const me = await reload();
+        if (me && ageStatusOf(me) === "restricted") router.replace(restrictedHref(locale));
+      }
     }
   }
 
@@ -91,7 +106,11 @@ export function BirthInfoForm() {
       <Form {...form}>
         <AuthCard
           title="Birth information"
-          subtitle={text("Please enter your date of birth so we can generate your horoscope and detailed astrological compass.")}
+          subtitle={
+            <span data-testid="birth-age-notice">
+              {text("Staryield is for adults 18 and over. Your date of birth confirms your eligibility and powers your chart.")}
+            </span>
+          }
           onSubmit={form.handleSubmit(submit)}
           pending={form.formState.isSubmitting}
           className="auth-card-birth"

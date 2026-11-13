@@ -236,33 +236,31 @@ test.describe("account settings", { tag: "@responsive" }, () => {
     await page.waitForURL(/\/en\/profile$/);
   });
 
-  test("membership: subscribe with a sandbox card, cancel, resume", async ({ page }) => {
+  test("billing: no membership UI (memberships are switched off), saved cards and payments stay (§25.1)", async ({ page }) => {
     await signedIn(page);
     await openSettings(page);
+    const card = page.getByTestId("settings-billing");
+    await expect(card.getByRole("heading", { name: "Billing", exact: true })).toBeVisible();
+    await expect(page.getByTestId("payment-methods")).toBeVisible();
+    await expect(page.getByTestId("transactions")).toBeVisible();
+    for (const id of ["membership", "membership-subscribe", "membership-status", "membership-cancel"]) await expect(page.getByTestId(id)).toHaveCount(0);
+    await expect(card).not.toContainText(/member|subscri|premium|active plan/i);
     await accessible(page, '[data-testid="settings-billing"]');
-    await page.getByTestId("membership-subscribe").click();
-    const dialog = page.getByTestId("subscribe-dialog");
-    await dialog.getByLabel("Cardholder name").fill("Settings Tester");
-    await dialog.getByLabel("Card number").fill("4242424242424242");
-    await dialog.getByLabel("Expiry date").fill("1239");
-    await dialog.getByLabel("CVV").fill("123");
-    // The card number never leaves the browser: only the sandbox token is posted.
+
+    // A card is saved with the sandbox provider: only the token is posted.
+    await page.getByTestId("add-card").click();
+    const saved = page.getByTestId("add-card-dialog");
+    await saved.getByLabel("Cardholder name").fill("Settings Tester");
+    await saved.getByLabel("Card number").fill("4242424242424242");
+    await saved.getByLabel("Expiry date").fill("1239");
+    await saved.getByLabel("CVV").fill("123");
     const posted: string[] = [];
     page.on("request", (r) => r.method() !== "GET" && posted.push(r.postData() ?? ""));
-    await dialog.getByTestId("subscribe-consent").click();
-    await dialog.getByTestId("subscribe-confirm").click();
-    await expect(dialog).toBeHidden();
+    await saved.getByTestId("add-card-save").click();
+    await expect(saved).toBeHidden();
     expect(posted.join("\n")).toContain("sbx_a_visa_4242_12_2039");
     expect(posted.join("\n")).not.toContain("4242424242424242");
-    await expect(page.getByTestId("membership-status")).toContainText("Renews on");
     await expect(page.getByTestId("payment-method")).toContainText("Visa ending in 4242");
-    await expect(page.getByTestId("transaction").first()).toContainText("$9.99");
-
-    await page.getByTestId("membership-cancel").click();
-    await page.getByTestId("membership-cancel-confirm").click();
-    await expect(page.getByTestId("membership-status")).toContainText("Ends on");
-    await page.getByTestId("membership-resume").click();
-    await expect(page.getByTestId("membership-status")).toContainText("Renews on");
 
     // A declined sandbox card (…0002) is explained, never charged.
     await page.getByTestId("add-card").click();
@@ -274,6 +272,15 @@ test.describe("account settings", { tag: "@responsive" }, () => {
     await add.getByTestId("add-card-save").click();
     await expect(add).toBeHidden();
     await expect(page.getByTestId("payment-method")).toHaveCount(2);
+  });
+
+  test("the account menu has Help & support with the support e-mail, hours and a Contact link", async ({ page }) => {
+    await signedIn(page);
+    await page.goto("/en/profile");
+    await page.locator("[data-testid=user-menu-trigger]:visible, [data-testid=mobile-menu-trigger]:visible").first().click();
+    await expect(page.getByTestId("help-support-email").filter({ visible: true }).first()).toHaveAttribute("href", "mailto:support@staryield.net");
+    await expect(page.getByTestId("help-support-hours").filter({ visible: true }).first()).toHaveText("Support is available 24/7. We reply within 1–2 days.");
+    await expect(page.getByTestId("help-support-contact").filter({ visible: true }).first()).toHaveAttribute("href", "/en/contact");
   });
 
   test("push: unsupported and denied browsers get a clear explanation", async ({ page }) => {

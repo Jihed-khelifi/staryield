@@ -121,8 +121,11 @@ type Session struct {
 	Sponsored        bool  `gorm:"not null"`
 	SponsoredMinutes int   `gorm:"not null"`
 	SponsoredCredits int64 `gorm:"not null"`
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	// RevenueMillicents is the revenue basis of the paid credits this chat
+	// consumed (revisions 5.0, credit lots), accumulated minute by minute.
+	RevenueMillicents int64 `gorm:"not null"`
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 func (Session) TableName() string { return "chat_sessions" }
@@ -259,8 +262,12 @@ type CustomRequest struct {
 	DeliveredAt    *time.Time
 	ClosedAt       *time.Time
 	ResolvedBy     *uuid.UUID `gorm:"type:uuid"`
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	// RevenueMillicents is the revenue basis of the paid credits held for
+	// this order (revisions 5.0, credit lots); it returns to 0 when the hold
+	// is refunded.
+	RevenueMillicents int64 `gorm:"not null"`
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 func (CustomRequest) TableName() string { return "custom_requests" }

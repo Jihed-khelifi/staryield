@@ -1,10 +1,12 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import { ChartColumn, LifeBuoy, LogOut, Settings, UserRound } from "lucide-react";
+import { ChartColumn, LifeBuoy, LogOut, Mail, MessageCircle, Settings, UserRound } from "lucide-react";
 
+import { COMPANY, supportMailto } from "@/config/company";
 import { useI18n } from "@/i18n/i18n-provider";
 import { useSession } from "@/lib/auth/session-provider";
+import { SupportHours } from "@/components/account/support-contact";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +28,57 @@ export function useAccountLinks() {
   ];
   if (user?.role === "psychic") links.push({ label: "Analytics", href: "/profile/analytics", icon: ChartColumn });
   return links;
+}
+
+/**
+ * Customer-service details for signed-in pages, which have no footer
+ * (docs/platform-extensions.md §25.4): the support e-mail, a link to the
+ * Contact page and the support hours. Used by the account menu and the mobile
+ * account sheet.
+ */
+export function HelpSupportMenuItems() {
+  const { text, locale } = useI18n();
+  return (
+    <>
+      <DropdownMenuLabel className="px-2 pt-2 pb-1 font-serif text-xs font-semibold tracking-wide text-ink/60 uppercase">{text("Help & support")}</DropdownMenuLabel>
+      <DropdownMenuItem asChild className={ITEM}>
+        <a href={supportMailto()} data-testid="help-support-email">
+          <Mail aria-hidden />
+          <span className="truncate">{COMPANY.supportEmail}</span>
+        </a>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild className={ITEM}>
+        <Link href={`/${locale}/contact`} data-testid="help-support-contact">
+          <MessageCircle aria-hidden />
+          {text("Contact us")}
+        </Link>
+      </DropdownMenuItem>
+      <p className="px-2 pb-1.5 text-xs leading-snug text-ink/60" data-testid="help-support-hours">
+        <SupportHours />
+      </p>
+    </>
+  );
+}
+
+/** The same details in the mobile account sheet (plain links, not menu items). */
+export function HelpSupportBlock({ onNavigate }: { onNavigate?: () => void }) {
+  const { text, locale } = useI18n();
+  return (
+    <section aria-label={text("Help & support")} className="grid gap-1.5" data-testid="help-support">
+      <p className="text-xs font-semibold tracking-wide text-ink/60 uppercase">{text("Help & support")}</p>
+      <a href={supportMailto()} className="flex items-center gap-2" data-testid="help-support-email">
+        <Mail size={16} aria-hidden className="text-amber" />
+        {COMPANY.supportEmail}
+      </a>
+      <Link href={`/${locale}/contact`} onClick={onNavigate} className="flex items-center gap-2" data-testid="help-support-contact">
+        <MessageCircle size={16} aria-hidden className="text-amber" />
+        {text("Contact us")}
+      </Link>
+      <p className="text-xs leading-snug text-ink/60" data-testid="help-support-hours">
+        <SupportHours />
+      </p>
+    </section>
+  );
 }
 
 export function UserAvatar({ size = 40 }: { size?: number }) {
@@ -75,6 +128,8 @@ export function UserMenu({ className }: { className?: string }) {
             </Link>
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator className="bg-gold/30" />
+        <HelpSupportMenuItems />
         <DropdownMenuSeparator className="bg-gold/30" />
         <DropdownMenuItem className={ITEM} onSelect={() => void signOut()}>
           <LogOut aria-hidden />

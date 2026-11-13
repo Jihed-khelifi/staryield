@@ -546,12 +546,13 @@ func (c *ChatService) billMinuteLocked(ctx context.Context, s *domain.Session, d
 	}
 	charged := int64(0)
 	if !free {
-		w, _, err = c.wallet.Apply(ctx, Movement{
-			UserID: s.ClientID, Type: domain.LedgerChatCharge, Amount: -s.RatePerMinute,
+		res, err := c.wallet.Execute(ctx, Movement{
+			UserID: s.ClientID, Type: domain.LedgerChatCharge, Amount: -s.RatePerMinute, Locked: w, // UseFreeMinute locked it
 			ReferenceType: "chat_session", ReferenceID: &s.ID,
 			IdempotencyKey: fmt.Sprintf("chat:%s:%d", s.ID, minute),
 			Description:    fmt.Sprintf("Live chat minute %d", minute),
 		})
+		w = res.Wallet
 		if errors.Is(err, ErrInsufficientFunds) {
 			return c.endLocked(ctx, s, domain.EndCreditsExhausted, now, post)
 		}
@@ -560,6 +561,9 @@ func (c *ChatService) billMinuteLocked(ctx context.Context, s *domain.Session, d
 		}
 		charged = s.RatePerMinute
 		s.CreditsCharged += charged
+		// revisions 5.0: credit lots. The revenue basis of the paid credits this
+		// minute consumed is saved with the session below (no extra round trip).
+		s.RevenueMillicents += res.ValueMillicents
 	} else {
 		s.FreeMinutesUsed++
 	}

@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { FiAlertCircle, FiClock, FiCornerUpLeft, FiHeart, FiImage } from "react-icons/fi";
+import { FiAlertCircle, FiBookmark, FiClock, FiCornerUpLeft, FiHeart, FiImage } from "react-icons/fi";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { formatMessageTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useBubbleGestures } from "@/lib/chat/gestures";
-import { MessageActionButtons, MessageMenu } from "@/components/chat/message-actions";
+import { MessageMenu, MessageMenuTrigger, type MenuAnchor } from "@/components/chat/message-actions";
 import { useMessageActions } from "@/components/chat/message-actions-context";
 import { MessageText } from "@/components/chat/message-text";
 import { ChatImage } from "@/components/chat/chat-image";
@@ -61,7 +61,18 @@ export function MessageBubble({
 }) {
   const { text, locale, t } = useI18n();
   const actions = useMessageActions();
-  const [menu, setMenu] = React.useState<{ x: number; y: number } | null>(null);
+  // The open menu: at the finger (long-press) or under the three-dot button.
+  const [menu, setMenu] = React.useState<MenuAnchor | null>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const closeMenu = React.useCallback(() => setMenu(null), []);
+  const openFromButton = () => {
+    if (triggerRef.current) setMenu({ element: triggerRef.current, align: mine ? "start" : "end" });
+  };
+  // A click on the three-dot button toggles its menu (a second press closes it).
+  const toggleFromButton = () => {
+    const element = triggerRef.current;
+    if (element) setMenu((current) => (current && "element" in current ? null : { element, align: mine ? "start" : "end" }));
+  };
   const [pop, setPop] = React.useState(false);
   const likedBy = message.liked_by ?? [];
   const likedByMe = Boolean(actions.viewerId) && likedBy.includes(actions.viewerId);
@@ -147,6 +158,7 @@ export function MessageBubble({
           <FiCornerUpLeft className="size-3.5" />
         </span>
       ) : null}
+      {actionable ? <MessageMenuTrigger ref={triggerRef} mine={mine} open={Boolean(menu && "element" in menu)} onOpen={openFromButton} onToggle={toggleFromButton} /> : null}
       {quote ? (
         <button
           type="button"
@@ -178,6 +190,12 @@ export function MessageBubble({
           <span className="inline-flex items-center gap-1" data-testid="message-status">
             {delivery === "waiting" ? <FiClock aria-hidden className="size-3" /> : null}
             {status}
+          </span>
+        ) : null}
+        {saved && !delivery ? (
+          <span className="message-saved-mark" data-testid="message-saved">
+            <FiBookmark aria-hidden className="size-3" fill="currentColor" />
+            <span className="sr-only">{text("Bookmarked")}</span>
           </span>
         ) : null}
         {mine && !delivery && seen ? <span data-testid="message-seen">{text("Seen")}</span> : null}
@@ -214,10 +232,6 @@ export function MessageBubble({
     </div>
   );
 
-  const buttons = delivery ? null : (
-    <MessageActionButtons mine={mine} actionable={actionable} liked={likedByMe} saved={saved} onReply={() => actions.reply(message)} onLike={like} onBookmark={onBookmark} />
-  );
-
   return (
     <li
       className={cn("message-row relative flex w-full items-end gap-[5px]", mine && "justify-end")}
@@ -227,29 +241,19 @@ export function MessageBubble({
       data-message-id={message.pending ? undefined : message.id}
     >
       <span className="sr-only">{mine ? t("chatroom.feed.you") : text(authorName)}</span>
-      {mine ? (
-        <>
-          {buttons}
-          {bubble}
-        </>
-      ) : (
-        <>
-          {bubble}
-          {buttons}
-        </>
-      )}
-      {menu ? (
+      {bubble}
+      {menu && actionable ? (
         <MessageMenu
-          at={menu}
+          anchor={menu}
           liked={likedByMe}
           saved={saved}
-          actionable={actionable}
           hasText={Boolean(message.body.trim())}
           copyText={message.body}
           onReply={() => actions.reply(message)}
           onLike={like}
           onBookmark={() => onBookmark?.()}
-          onClose={() => setMenu(null)}
+          onClose={closeMenu}
+          returnFocusTo={"element" in menu ? menu.element : null}
         />
       ) : null}
     </li>

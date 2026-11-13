@@ -53,6 +53,9 @@ type SiteSettings struct {
 	IPHashSecret          string
 	// GoogleEnabled: Sign in with Google is configured (revisions 4.0).
 	GoogleEnabled bool
+	// MembershipsEnabled mirrors STARYIELD_BILLING_MEMBERSHIPS_ENABLED and is
+	// published as features.memberships (revisions 5.1, §25.1).
+	MembershipsEnabled bool
 }
 
 // SiteDeps are the site service's collaborators.
@@ -380,6 +383,12 @@ type SiteConfigView struct {
 	Auth struct {
 		Google bool `json:"google"`
 	} `json:"auth"`
+	// Features tells the web app which optional product surfaces exist
+	// (revisions 5.1, §25.1): memberships are built but switched off, and the
+	// web shows no membership surface unless this is true.
+	Features struct {
+		Memberships bool `json:"memberships"`
+	} `json:"features"`
 	GeneratedAt time.Time `json:"generated_at"`
 }
 
@@ -414,7 +423,7 @@ func (s *SiteService) Config(ctx context.Context, locale string) (*SiteConfigRes
 		return memo.result, nil
 	}
 
-	res, err := renderSiteConfig(snap, locale, now, s.d.Cfg.GoogleEnabled)
+	res, err := renderSiteConfig(snap, locale, now, s.d.Cfg.GoogleEnabled, s.d.Cfg.MembershipsEnabled)
 	if err != nil {
 		return nil, apperror.Internal(err)
 	}
@@ -425,9 +434,10 @@ func (s *SiteService) Config(ctx context.Context, locale string) (*SiteConfigRes
 }
 
 // renderSiteConfig is the pure view builder.
-func renderSiteConfig(snap *siteSnapshot, locale string, now time.Time, googleEnabled bool) (*SiteConfigResult, error) {
+func renderSiteConfig(snap *siteSnapshot, locale string, now time.Time, googleEnabled, membershipsEnabled bool) (*SiteConfigResult, error) {
 	var v SiteConfigView
 	v.Auth.Google = googleEnabled
+	v.Features.Memberships = membershipsEnabled // revisions 5.1
 	minutes := 0
 	if snap.Signup.Enabled {
 		minutes = snap.Signup.FreeMinutes

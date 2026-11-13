@@ -6,6 +6,8 @@ import { usePsychicsPath } from "@/lib/psychics-link";
 import { SunLogo } from "@/components/brand/sun-logo";
 import { visibleSocialLinks } from "@/config/social";
 import { TrustpilotReviewCollector } from "@/components/reviews/trustpilot-review-collector";
+import { AcceptedCards } from "@/components/billing/accepted-cards"; // revisions 5.1
+import { COMPANY, supportMailto } from "@/config/company"; // revisions 5.1
 const groups = [
   {
     name: "Platform",
@@ -24,6 +26,7 @@ const groups = [
       ["Terms of Use", "/terms"],
       ["Privacy Policy", "/privacy"],
       ["Contact Us", "/contact"],
+      ["Refund policy", "/refund-policy"], // revisions 5.0
       ["Full Disclaimer", "/disclaimer"],
     ],
   },
@@ -32,7 +35,8 @@ const groups = [
     links: [
       ["About Us", "/about"],
       ["Staryield Reviews", "/reviews"],
-      ["Advisor Professional Integrity & Interaction Standards", "/standards"],
+      ["Advisor Integrity & Interaction Standards", "/standards"],
+      ["Pricing", "/pricing"], // revisions 5.0
     ],
   },
 ];
@@ -49,9 +53,21 @@ export function SiteFooter() {
           </Link>
           <p className="mt-4 max-w-80 text-sm font-light">
             {text(
-              "Professional spiritual guidance built with analytical clarity and strict privacy standards. ",
+              "Astrology and psychic readings for entertainment purposes only. ",
             )}
           </p>
+          {/* revisions 5.1: company and customer-service details on every page with a footer (docs/platform-extensions.md §25.4). */}
+          <address className="mt-4 max-w-80 text-sm font-light not-italic [overflow-wrap:anywhere]" data-testid="footer-company">
+            <p className="font-medium" data-testid="footer-company-name">{COMPANY.legalName}</p>
+            <p data-testid="footer-company-address">{COMPANY.addressLine}</p>
+            <p>
+              <a className="underline hover:no-underline" href={supportMailto()} data-testid="footer-support-email">
+                {COMPANY.supportEmail}
+              </a>
+            </p>
+            <p data-testid="footer-support-hours">{text("Support is available 24/7. We reply within 1–2 days.")}</p>
+          </address>
+          <AcceptedCards label={text("We accept")} className="mt-4" />
         </div>
         {groups.map((group) => (
           <nav key={group.name} aria-label={text(group.name)}>
@@ -73,11 +89,15 @@ export function SiteFooter() {
       </div>
       <TrustpilotReviewCollector placement="footer" className="mx-auto mt-10 max-w-[360px]" />
       <div className="mt-8 flex flex-wrap items-center justify-between gap-6 border-t border-ink/60 pt-4 text-xs">
-        <p>
-          {text(
-            "© 2026 Staryield Media LLC. All rights reserved. For entertainment and alignment audits only. ",
-          )}
-        </p>
+        <div className="flex flex-col gap-1">
+          <p>
+            {text(
+              "© 2026 Staryield Media LLC. All rights reserved. For entertainment purposes only. ",
+            )}
+          </p>
+          {/* revisions 5.0: adults only, entertainment (docs/platform-extensions.md §24.6). */}
+          <p data-testid="footer-age-line">{text("18+ only · For entertainment purposes only.")}</p>
+        </div>
         <nav aria-label={text("Social platforms")} data-testid="social-links">
           <ul className="flex items-end gap-1.25">
             {visibleSocialLinks().map((link) => (

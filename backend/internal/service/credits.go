@@ -25,6 +25,7 @@ import (
 // PackView is a purchasable credit pack.
 type PackView struct {
 	ID         uuid.UUID `json:"id"`
+	Code       string    `json:"code"` // revisions 5.0
 	Name       string    `json:"name"`
 	Credits    int64     `json:"credits"`
 	PriceCents int64     `json:"price_cents"`
@@ -63,6 +64,10 @@ type PurchaseInput struct {
 	Provider        string
 	SaveMethod      bool
 	TrustedCountry  string
+	// Consent is the version of the Terms, Privacy Policy and Refund &
+	// Cancellation Policy the buyer agreed to (revisions 5.1, §25.2). Required
+	// for a new purchase; a replay of an earlier request does not need it.
+	Consent *PurchaseConsent
 }
 
 // CreditService sells credit packs (FR-05).
@@ -77,6 +82,35 @@ type CreditService struct {
 	clock    clock.Clock
 	notify   Notifier
 	billing  *BillingService
+	offers   *OfferService // revisions 5.0: welcome offer (offers.go)
+	// revisions 5.1: consent evidence, statement descriptor and receipts.
+	settings CreditSettings
+	contacts repository.ContactRepository
+	mailer   EmailQueue
+}
+
+// CreditSettings are the credit service's configuration values (revisions 5.1).
+type CreditSettings struct {
+	// IPHashSecret keys the hash of the buyer's IP stored with the consent
+	// (the analytics secret, as refund requests use).
+	IPHashSecret string
+	// StatementDescriptor is what the buyer's card statement shows (§25.3).
+	StatementDescriptor string
+	// FrontendURL is the site origin (links in the receipt copy for receipt_email).
+	FrontendURL string
+}
+
+// WithSettings sets the consent, descriptor and receipt settings.
+func (s *CreditService) WithSettings(c CreditSettings) *CreditService {
+	s.settings = c
+	return s
+}
+
+// WithReceiptMail enables the receipt e-mail to a purchase's receipt_email
+// address (the account's own receipt goes through the notification channels).
+func (s *CreditService) WithReceiptMail(contacts repository.ContactRepository, q EmailQueue) *CreditService {
+	s.contacts, s.mailer = contacts, q
+	return s
 }
 
 // WithNotifier enables purchase notifications.
@@ -117,6 +151,10 @@ func (s *CreditService) FailPurchase(ctx context.Context, purchaseID uuid.UUID, 
 		if p.Status != domain.PurchasePending {
 			return nil
 		}
+		// revisions 5.0: a failed welcome-pack purchase frees the offer.
+		if err := s.offers.Release(ctx, p.ID); err != nil {
+			return err
+		}
 		return s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": truncateString(code, 64)})
 	}), "Purchase")
 }
@@ -129,7 +167,7 @@ func NewCreditService(tx database.TxManager, credits repository.CreditRepository
 }
 
 func packView(p *domain.CreditPack) PackView {
-	return PackView{ID: p.ID, Name: p.Name, Credits: p.Credits, PriceCents: p.PriceCents, Currency: p.Currency, Featured: p.Featured, Active: p.Active, SortOrder: p.SortOrder}
+	return PackView{ID: p.ID, Code: p.Code, Name: p.Name, Credits: p.Credits, PriceCents: p.PriceCents, Currency: p.Currency, Featured: p.Featured, Active: p.Active, SortOrder: p.SortOrder}
 }
 
 func purchaseView(p *domain.CreditPurchase) PurchaseView {
@@ -178,7 +216,15 @@ func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in Purch
 	} else if !errors.Is(err, repository.ErrNotFound) {
 		return nil, apperror.Internal(err)
 	}
+	// revisions 5.1: a new purchase needs the buyer's consent (§25.2); replays above do not.
+	consent, err := s.validatePurchaseConsent(ctx, in.Consent, s.clock.Now())
+	if err != nil {
+		return nil, err
+	}
 	pack, err := s.credits.GetPack(ctx, in.PackID)
+	if err == nil && !pack.Active && pack.Kind == domain.PackIntro { // revisions 5.0: a stale catalog still showing a withdrawn welcome pack
+		return nil, apperror.OfferUnavailable(apperror.OfferReasonNoOffer)
+	}
 	if err != nil || !pack.Active {
 		return nil, apperror.NotFound("Credit pack")
 	}
@@ -191,13 +237,26 @@ func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in Purch
 		}
 		providerName = src.Provider
 	}
+	// revisions 5.0: welcome offer. Eligibility and the card's fingerprint are
+	// checked before anything is created (offers.go, credits_offers.go).
+	var offer *OfferPlan
+	if pack.Kind == domain.PackIntro {
+		if offer, err = s.planOffer(ctx, userID, pack, src); err != nil {
+			return nil, err
+		}
+	}
+	// end revisions 5.0
 	now := s.clock.Now()
 	p := &domain.CreditPurchase{
 		ID: domain.NewID(), UserID: userID, PackID: pack.ID, Credits: pack.Credits, PriceCents: pack.PriceCents,
 		Currency: pack.Currency, Status: domain.PurchasePending, Provider: providerName,
 		IdempotencyKey: in.IdempotencyKey, ReceiptEmail: email, CreatedAt: now, UpdatedAt: now,
 	}
-	if err := s.credits.CreatePurchase(ctx, p); err != nil {
+	applyConsent(p, consent)                                // revisions 5.1
+	if err := s.createPurchase(ctx, p, offer); err != nil { // revisions 5.0: reserves the welcome offer in the same transaction
+		if _, ok := apperror.As(err); ok {
+			return nil, err // offer_unavailable
+		}
 		if errors.Is(err, repository.ErrDuplicate) {
 			if existing, err2 := s.credits.GetPurchaseByKey(ctx, userID, in.IdempotencyKey); err2 == nil {
 				return s.withWallet(ctx, existing)
@@ -208,6 +267,7 @@ func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in Purch
 	if s.billing != nil {
 		if err := s.billing.RecordPurchaseTransaction(ctx, p, pack.Name, src); err != nil {
 			_ = s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": "ledger_error"})
+			s.releaseOffer(ctx, p.ID) // revisions 5.0
 			return nil, apperror.Internal(err)
 		}
 	}
@@ -219,6 +279,7 @@ func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in Purch
 		charge, err := s.billing.ChargePurchase(ctx, p, src)
 		if err != nil {
 			_ = s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": "provider_error"})
+			s.releaseOffer(ctx, p.ID) // revisions 5.0
 			s.settle(ctx, p.ID, domain.TxFailed, "", "provider_error")
 			return nil, err
 		}
@@ -226,14 +287,12 @@ func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in Purch
 		next = charge.NextAction
 	} else {
 		cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-		res, err = s.provider.Checkout(cctx, payment.CheckoutRequest{
-			PurchaseID: p.ID, UserID: userID, AmountCents: p.PriceCents, Currency: p.Currency,
-			Description: pack.Name, Email: email,
-		})
+		res, err = s.provider.Checkout(cctx, s.checkoutRequest(p, pack.Name, email))
 		cancel()
 		if err != nil {
 			logger.FromContext(ctx).Error("payment: checkout failed", zap.Error(err), zap.String("purchase_id", p.ID.String()))
 			_ = s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": "provider_error"})
+			s.releaseOffer(ctx, p.ID) // revisions 5.0
 			s.settle(ctx, p.ID, domain.TxFailed, "", "provider_error")
 			s.tracker.Track(ctx, "credits.purchase_failed", map[string]any{"reason": "provider_error"})
 			return nil, apperror.Unavailable(err)
@@ -250,6 +309,7 @@ func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in Purch
 			upd["provider_ref"] = res.ProviderRef
 		}
 		_ = s.credits.UpdatePurchase(ctx, p.ID, upd)
+		s.releaseOffer(ctx, p.ID) // revisions 5.0
 		s.settle(ctx, p.ID, domain.TxFailed, res.ProviderRef, res.FailureCode)
 		s.tracker.Track(ctx, "credits.purchase_failed", map[string]any{"reason": res.FailureCode})
 		return nil, (&apperror.Error{Code: apperror.CodePaymentFailed, Status: http.StatusPaymentRequired,
@@ -292,6 +352,10 @@ func (s *CreditService) complete(ctx context.Context, purchaseID uuid.UUID, prov
 			purchase = p
 			return nil
 		}
+		// revisions 5.0: the charge succeeded, so the welcome offer is redeemed.
+		if err := s.offers.Redeem(ctx, p.ID); err != nil {
+			return err
+		}
 		now := s.clock.Now()
 		if err := s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseSucceeded, "provider_ref": providerRef, "completed_at": now}); err != nil {
 			return err
@@ -299,10 +363,13 @@ func (s *CreditService) complete(ctx context.Context, purchaseID uuid.UUID, prov
 		w, _, err := s.wallet.Apply(ctx, Movement{
 			UserID: p.UserID, Type: domain.LedgerPurchase, Amount: p.Credits, ReferenceType: "credit_purchase",
 			ReferenceID: &p.ID, IdempotencyKey: "purchase:" + p.ID.String(), Description: "Credit pack purchase",
+			// revisions 5.0: credit lots. The lot is priced at what was paid.
+			Lot: &LotSpec{Source: domain.LotPurchase, PaidCents: p.PriceCents, Currency: p.Currency},
 		})
 		if err != nil {
 			return err
 		}
+		p.Status, p.CompletedAt = domain.PurchaseSucceeded, &now // revisions 5.1: the receipt shows the completion time
 		credited, purchase = w, p
 		return nil
 	})
@@ -318,8 +385,10 @@ func (s *CreditService) complete(ctx context.Context, purchaseID uuid.UUID, prov
 		s.tracker.Track(ctx, "credits.purchase_succeeded", map[string]any{
 			"pack_id": purchase.PackID, "credits": purchase.Credits, "amount_cents": purchase.PriceCents, "currency": purchase.Currency,
 		})
-		s.notify.Notify(ctx, NotificationSpec{Kind: NotifyPurchase, Data: map[string]any{"purchase_id": purchase.ID, "credits": purchase.Credits},
-			Link: "/profile"}, purchase.UserID)
+		// revisions 5.1: the receipt (§25.5): pack, amount, time, card and descriptor.
+		data := s.receiptData(ctx, purchase)
+		s.notify.Notify(ctx, NotificationSpec{Kind: NotifyPurchase, Data: data, Link: "/profile"}, purchase.UserID)
+		s.mailReceiptCopy(ctx, purchase, data)
 		return true, nil
 	}
 	return false, nil
@@ -357,6 +426,7 @@ func (s *CreditService) HandleWebhook(ctx context.Context, signature string, bod
 			if err := s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": evt.FailureCode}); err != nil {
 				return mapRepoErr(err, "Purchase")
 			}
+			s.releaseOffer(ctx, p.ID) // revisions 5.0
 			s.settle(ctx, p.ID, domain.TxFailed, evt.ProviderRef, evt.FailureCode)
 		}
 		return nil
@@ -371,6 +441,7 @@ func (s *CreditService) HandleWebhook(ctx context.Context, signature string, bod
 // available (spent credits cannot be clawed back below zero).
 func (s *CreditService) refund(ctx context.Context, purchaseID uuid.UUID) error {
 	refunded := false
+	var bought *domain.CreditPurchase // revisions 5.1
 	err := mapRepoErr(s.tx.WithinTx(ctx, func(ctx context.Context) error {
 		p, err := s.credits.GetPurchaseForUpdate(ctx, purchaseID)
 		if err != nil {
@@ -379,27 +450,40 @@ func (s *CreditService) refund(ctx context.Context, purchaseID uuid.UUID) error 
 		if p.Status != domain.PurchaseSucceeded {
 			return nil
 		}
+		// Lock the wallet first: the lot read below must not change before Apply.
 		w, err := s.wallets.GetForUpdate(ctx, p.UserID)
 		if err != nil {
 			return err
 		}
-		amount := min(p.Credits, w.Balance)
+		// revisions 5.0: credit lots. A refund takes back what is left of this
+		// purchase's own lot (the wallet is locked, so the lot cannot change
+		// before Apply), never credits of other purchases or bonus credits.
+		var lotID *uuid.UUID
+		amount := int64(0)
+		if lot, err := s.wallet.PurchaseLot(ctx, p.ID); err == nil {
+			// The balance is authoritative: a lot claiming more than the wallet holds
+			// (invariant broken, reported by the reconciliation job) is capped by it.
+			amount, lotID = min(lot.CreditsRemaining, w.Balance), &lot.ID
+		} else if !errors.Is(err, repository.ErrNotFound) {
+			return err
+		}
 		if amount < p.Credits {
-			logger.FromContext(ctx).Warn("payment: refund exceeds available balance; partial clawback",
+			logger.FromContext(ctx).Warn("payment: refund exceeds the purchase's remaining credits; partial clawback",
 				zap.String("purchase_id", p.ID.String()), zap.Int64("credits", p.Credits), zap.Int64("clawed_back", amount))
 		}
 		if amount > 0 {
 			if _, _, err := s.wallet.Apply(ctx, Movement{UserID: p.UserID, Type: domain.LedgerRefund, Amount: -amount,
 				ReferenceType: "credit_purchase", ReferenceID: &p.ID, IdempotencyKey: "purchase_refund:" + p.ID.String(),
-				Description: "Payment refunded"}); err != nil {
+				Description: "Payment refunded", ConsumeLot: lotID}); err != nil {
 				return err
 			}
 		}
-		refunded = true
+		refunded, bought = true, p
 		return s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseRefunded})
 	}), "Purchase")
 	if err == nil && refunded {
 		s.settle(ctx, purchaseID, domain.TxRefunded, "", "")
+		s.notifyRefunded(ctx, bought) // revisions 5.1 (§25.5)
 	}
 	return err
 }
@@ -423,4 +507,11 @@ func (s *CreditService) Purchases(ctx context.Context, userID uuid.UUID, cursor 
 		page.NextCursor = repository.EncodeCursor(last.CreatedAt, last.ID.String())
 	}
 	return page, nil
+}
+
+// checkoutRequest is the hosted-checkout charge of a purchase; it carries the
+// statement descriptor like every other charge (revisions 5.1, §25.3).
+func (s *CreditService) checkoutRequest(p *domain.CreditPurchase, description, email string) payment.CheckoutRequest {
+	return payment.CheckoutRequest{PurchaseID: p.ID, UserID: p.UserID, AmountCents: p.PriceCents, Currency: p.Currency,
+		Description: description, Email: email, StatementDescriptor: s.settings.StatementDescriptor}
 }

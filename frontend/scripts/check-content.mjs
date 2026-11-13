@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * npm run test:content — validates the structured content modules:
- *   src/content/legal/{privacy,terms}/{en,es,fr}.ts
+ *   src/content/legal/{privacy,terms,refund}/{en,es,fr}.ts
  *   src/content/calculators/{natal,life-path,astrology}/{en,es,fr}.ts
  *
  * Every locale must mirror English (sections, ids, block types, list
@@ -60,10 +60,12 @@ const loadAll = async (folder) =>
 const legal = {
   privacy: await loadAll("content/legal/privacy"),
   terms: await loadAll("content/legal/terms"),
+  refund: await loadAll("content/legal/refund"), // revisions 5.0
 };
 const anchorsByPath = {
   "/privacy": legalAnchorSet(legal.privacy.en),
   "/terms": legalAnchorSet(legal.terms.en),
+  "/refund-policy": legalAnchorSet(legal.refund.en), // revisions 5.0
 };
 const registry = new Set(
   JSON.parse(readFileSync(join(src, "data/r2-images.json"), "utf8")).map((e) => e.url),
@@ -87,5 +89,5 @@ if (issues.length) {
   process.exit(1);
 }
 console.log(
-  `Content checks passed: 2 legal documents (${sections} sections) and ${Object.keys(articles).length} calculator articles in ${locales.length} locales.`,
+  `Content checks passed: ${Object.keys(legal).length} legal documents (${sections} sections) and ${Object.keys(articles).length} calculator articles in ${locales.length} locales.`,
 );

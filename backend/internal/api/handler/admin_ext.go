@@ -138,7 +138,8 @@ func (h *Handler) AdminDeletePack(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.svc.Admin.DeletePack(c.Request().Context(), id); err != nil {
+	// revisions 5.0: pricing service
+	if err := h.svc.Pricing.DeletePack(c.Request().Context(), id); err != nil {
 		return err
 	}
 	return noContent(c)
@@ -590,6 +591,23 @@ func (h *Handler) AdminUserInsights(c echo.Context) error {
 		return err
 	}
 	out, err := h.svc.Insights.User(c.Request().Context(), id)
+	if err != nil {
+		return err
+	}
+	return ok(c, out)
+}
+
+// AdminAgeReview clears or applies an age restriction (revisions 5.0, §24.6).
+func (h *Handler) AdminAgeReview(c echo.Context) error {
+	id, err := uuidParam(c, "id")
+	if err != nil {
+		return err
+	}
+	var req service.AgeReviewInput
+	if err := bind(c, &req); err != nil {
+		return err
+	}
+	out, err := h.svc.Admin.AgeReview(c.Request().Context(), id, req)
 	if err != nil {
 		return err
 	}

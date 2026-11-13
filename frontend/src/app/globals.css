@@ -2,8 +2,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "./advisor.css";
-/* account settings, billing UI, top-up checkout and app-wide themes (FE-SETTINGS) */
+/* account settings, billing UI and app-wide themes (FE-SETTINGS) */
 @import "./settings.css";
+/* revisions 5.0: credit top-up dialog (Figma 1352:2362). */
+@import "./top-up.css";
 /* FE-CALC: calculators, chart wheels, account overview and chart tab. */
 @import "./astro.css";
 @import "./advisor-settings.css"; /* advisor settings */
@@ -1472,11 +1474,6 @@ html {
 .attachment-dropzone:focus-within {
   outline: 2px solid var(--amber);
 }
-.checkout-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-}
 /* Modal backdrops ("Overlay / Top Up / With Backdrop"): the page behind a
    dialog is blurred, not just dimmed. Browsers without backdrop-filter get a
    darker scrim so the dialog still stands out. */
@@ -1492,65 +1489,6 @@ html {
   [data-slot="dialog-overlay"][data-overlay="blur"] {
     background: rgb(21 16 11 / 0.7);
   }
-}
-.checkout-card {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 61;
-  width: 420px;
-  max-width: calc(100vw - 32px);
-  max-height: calc(100dvh - 40px);
-  overflow-y: auto;
-  border-radius: 12px;
-  background: #f6efda;
-  box-shadow: 0 24px 40px #0004;
-}
-.checkout-body {
-  padding: 24px;
-}
-.checkout-card input:not([type="checkbox"]):not([type="radio"]) {
-  border: 0;
-  border-radius: 8px;
-  height: 40px;
-  background: white;
-  font-family: var(--font-serif);
-}
-.bundle-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid rgb(170 142 98 / 0.2);
-}
-.bundle-grid label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: center;
-  justify-content: center;
-  padding: 12px;
-  border: 1px solid var(--gold);
-  border-radius: 6px;
-  cursor: pointer;
-  background: #fff8;
-}
-.bundle-grid label.selected {
-  background: #e6ca20;
-  border: 1px solid var(--ink);
-}
-.bundle-grid label:focus-within {
-  outline: 2px solid var(--amber);
-  outline-offset: 3px;
-}
-.checkout-pay {
-  width: 100%;
-  height: 40px;
-  border-radius: 0;
-  border-block: 1px solid var(--ink);
-  font-size: 18px;
 }
 @media (max-width: 1200px) and (min-width: 768px) {
   .overview-top {
@@ -1755,12 +1693,6 @@ html {
   .contact-card {
     padding: 28px 20px;
     margin-top: 28px;
-  }
-  .checkout-card {
-    width: 354px;
-  }
-  .checkout-body {
-    padding: 24px 20px;
   }
 }
 :root {
@@ -2204,7 +2136,7 @@ html {
     .event-card,
     .number-tile,
     .message-bubble,
-    .checkout-card
+    .top-up-dialog
   ) {
     animation: staryield-enter var(--motion-enter) var(--motion-ease);
   }

@@ -116,27 +116,86 @@ describe("heart badge (§23.3)", () => {
   });
 });
 
-describe("message actions", () => {
-  it("reply and like buttons sit beside the bookmark; like is a toggle", () => {
-    const { a } = bubble(msg({ liked_by: [ME] }));
-    fireEvent.click(screen.getByRole("button", { name: "Reply" }));
-    expect(a.reply).toHaveBeenCalledTimes(1);
-    const like = screen.getByRole("button", { name: "Unlike" });
-    expect(like.getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(like);
-    expect(a.toggleLike).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Bookmark this message" })).toBeTruthy();
+describe("message actions (§24.9)", () => {
+  const openMenu = () => {
+    fireEvent.click(screen.getByRole("button", { name: "Message actions" }));
+    return screen.getByRole("menu", { name: "Message actions" });
+  };
+
+  it("has one quiet three-dot button instead of the side buttons", () => {
+    bubble(msg());
+    const trigger = screen.getByRole("button", { name: "Message actions" });
+    expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    // The old side buttons are gone.
+    expect(screen.queryByRole("button", { name: "Reply" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Like" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Bookmark this message" })).toBeNull();
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    // Inside the bubble, so it sits at the bubble's corner; touches on it are not bubble gestures.
+    expect(trigger.closest(".message-bubble")).toBeTruthy();
+    expect(trigger.hasAttribute("data-no-gesture")).toBe(true);
   });
 
-  it("an unliked message offers 'Like' (aria-pressed false)", () => {
+  it("sits at the top-left of the viewer's messages and the top-right of received ones", () => {
+    const { unmount } = bubble(msg({ sender_id: ME }));
+    expect(screen.getByTestId("message-menu-trigger").getAttribute("data-mine")).toBe("true");
+    unmount();
+    bubble(msg({ sender_id: THEO }));
+    expect(screen.getByTestId("message-menu-trigger").hasAttribute("data-mine")).toBe(false);
+  });
+
+  it("opens a menu with Reply, Bookmark, Like and Copy text, in that order", () => {
     bubble(msg());
-    expect(screen.getByRole("button", { name: "Like" }).getAttribute("aria-pressed")).toBe("false");
+    const menu = openMenu();
+    expect(screen.getByRole("button", { name: "Message actions" }).getAttribute("aria-expanded")).toBe("true");
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Reply", "Bookmark", "Like", "Copy text"]);
+  });
+
+  it("a second click on the three-dot button closes its menu", () => {
+    bubble(msg());
+    openMenu();
+    const trigger = screen.getByRole("button", { name: "Message actions" });
+    fireEvent.pointerDown(trigger);
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("Reply and Like call the chatroom; Bookmark toggles through the feed", () => {
+    const onBookmark = vi.fn();
+    const { a } = bubble(msg(), { onBookmark });
+    fireEvent.click(within(openMenu()).getByRole("menuitem", { name: "Reply" }));
+    expect(a.reply).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).toBeNull();
+    fireEvent.click(within(openMenu()).getByRole("menuitem", { name: "Like" }));
+    expect(a.toggleLike).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(openMenu()).getByRole("menuitem", { name: "Bookmark" }));
+    expect(onBookmark).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers Unlike and Remove bookmark for a liked, saved message", () => {
+    bubble(msg({ liked_by: [ME] }), { saved: true });
+    const menu = openMenu();
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Reply", "Remove bookmark", "Unlike", "Copy text"]);
+  });
+
+  it("a saved message shows a small bookmark in its meta line (not a button), an unsaved one does not", () => {
+    const { unmount } = bubble(msg(), { saved: true });
+    const mark = screen.getByTestId("message-saved");
+    expect(mark.closest(".message-meta")).toBeTruthy();
+    expect(mark.textContent).toBe("Bookmarked");
+    expect(within(mark).queryByRole("button")).toBeNull();
+    unmount();
+    bubble(msg());
+    expect(screen.queryByTestId("message-saved")).toBeNull();
   });
 
   it("images can be answered and liked too", () => {
     bubble(msg({ kind: "image", body: "", attachments: [{ id: "a1", content_type: "image/png", width: 10, height: 10, bytes: 5 }] }));
-    expect(screen.getByRole("button", { name: "Reply" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Like" })).toBeTruthy();
+    const items = within(openMenu()).getAllByRole("menuitem").map((i) => i.textContent);
+    // No caption, so nothing to copy.
+    expect(items).toEqual(["Reply", "Bookmark", "Like"]);
   });
 
   it("double-click toggles the like", () => {
@@ -157,14 +216,12 @@ describe("message actions", () => {
 
   it("pending and failed messages have no actions and no gestures", () => {
     const { a, unmount } = bubble(msg({ id: "cm", seq: undefined, sender_id: ME, pending: "sending" }), { delivery: "sending" });
-    expect(screen.queryByRole("button", { name: "Reply" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Like" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Bookmark this message" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Message actions" })).toBeNull();
     fireEvent.doubleClick(screen.getByText("Mercury is retrograde"));
     expect(a.toggleLike).not.toHaveBeenCalled();
     unmount();
     bubble(msg({ id: "cm2", seq: undefined, sender_id: ME, pending: "failed", failure: "timeout" }), { delivery: "failed", onRetry: vi.fn() });
-    expect(screen.queryByRole("button", { name: "Reply" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Message actions" })).toBeNull();
     expect(screen.getByTestId("chat-message").querySelector("[data-actionable]")).toBeNull();
   });
 
@@ -173,14 +230,13 @@ describe("message actions", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("outside a chatroom (no actions provider) the bubble shows no reply or like", () => {
+  it("outside a chatroom (no actions provider) the bubble shows no message actions", () => {
     renderWithI18n(
       <ol>
         <MessageBubble message={msg()} mine={false} authorName="Theo" onBookmark={vi.fn()} />
       </ol>,
     );
-    expect(screen.queryByRole("button", { name: "Reply" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Like" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Message actions" })).toBeNull();
   });
 
   it("marks the row with the message id so a quote can scroll to it", () => {
@@ -195,28 +251,29 @@ describe("long-press menu (touch)", () => {
     await act(async () => void (await new Promise((r) => setTimeout(r, 500))));
   };
 
-  it("opens with Reply, Like, Save and Copy text; each does its thing and closes", async () => {
+  it("opens with Reply, Bookmark, Like and Copy text (the same menu as the three-dot button); each does its thing and closes", async () => {
     const onBookmark = vi.fn();
     const { a } = bubble(msg(), { onBookmark });
     await press(screen.getByText("Mercury is retrograde"));
     const menu = screen.getByRole("menu", { name: "Message actions" });
-    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Reply", "Like", "Save", "Copy text"]);
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Reply", "Bookmark", "Like", "Copy text"]);
+    expect(menu.getAttribute("data-anchor")).toBe("point");
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Reply" }));
     expect(a.reply).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("menu")).toBeNull();
 
     await press(screen.getByText("Mercury is retrograde"));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Save" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Bookmark" }));
     expect(onBookmark).toHaveBeenCalledTimes(1);
   });
 
-  it("offers Unlike and Unsave for a liked, saved message and copies the text", async () => {
+  it("offers Unlike and Remove bookmark for a liked, saved message and copies the text", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     bubble(msg({ liked_by: [ME] }), { saved: true });
     await press(screen.getByText("Mercury is retrograde"));
     expect(screen.getByRole("menuitem", { name: "Unlike" })).toBeTruthy();
-    expect(screen.getByRole("menuitem", { name: "Unsave" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Remove bookmark" })).toBeTruthy();
     fireEvent.click(screen.getByRole("menuitem", { name: "Copy text" }));
     expect(writeText).toHaveBeenCalledWith("Mercury is retrograde");
   });

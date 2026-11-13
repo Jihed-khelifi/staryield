@@ -6,7 +6,9 @@
  * come from the server-side plan version.
  */
 import { api, newId } from "@/lib/api/client";
+import type { TransactionRefundInfo } from "@/lib/api/pricing";
 import type { Page, Purchase } from "@/lib/api/types";
+import type { LegalConsent } from "@/lib/legal/versions";
 
 export type Plan = {
   id: string;
@@ -86,6 +88,8 @@ export type Transaction = {
   credits?: number;
   payment_method?: { brand: string; last4: string };
   failure_code?: string;
+  /** revisions 5.0 (§24.4): credit purchases only. */
+  refund?: TransactionRefundInfo;
   created_at: string;
 };
 
@@ -143,6 +147,8 @@ export const billingApi = {
 export function purchaseCredits(input: {
   pack_id: string;
   idempotency_key: string;
+  /** The Terms, Privacy and Refund Policy versions the buyer agreed to (§25.2); 422 `fields.consent` when missing. */
+  consent: LegalConsent;
   receipt_email?: string;
   payment_method_id?: string;
   payment_token?: string;

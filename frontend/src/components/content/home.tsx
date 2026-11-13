@@ -16,7 +16,6 @@ const imgCardTheStar = `${assetPathPrefix}/5696a.png`;
 const imgDividerHorizontal1 = `${assetPathPrefix}/31cc8.svg`;
 const imgContainerCheck = `${assetPathPrefix}/9faa9.svg`;
 const imgContainerCheck1 = `${assetPathPrefix}/4cf6a.svg`;
-const imgDividerHorizontal2 = `${assetPathPrefix}/90584.svg`;
 export default function ScreenDesktopHome() {
   const { text } = useI18n();
   useScrollToPsychics();
@@ -39,7 +38,7 @@ export default function ScreenDesktopHome() {
           <div
             className="content-stretch flex gap-[8px] items-center relative shrink-0"
             data-node-id="461:1641"
-            data-name="Control / Live Advisors Available 24/7"
+            data-name="Control / Private Live Readings"
           >
             <div
               className="bg-[var(--amber)] relative rounded-[4px] shrink-0 size-[8px]"
@@ -50,7 +49,7 @@ export default function ScreenDesktopHome() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[14px] text-[color:var(--amber)] uppercase whitespace-nowrap"
               data-node-id="461:1643"
             >
-              {text("Live Advisors Available 24/7 ")}
+              {text("Private Live Readings ")}
             </p>
           </div>
           <h1
@@ -73,7 +72,7 @@ export default function ScreenDesktopHome() {
             </span>
             <span className="leading-[normal]">
               {text(
-                ` is a spiritual guidance space where you'll find personalized tools designed to support your self-discovery and nurture your spiritual well-being. When life feels uncertain or overwhelming, our psychics are always here to offer clarity, heartfelt insight, and a genuine sense of connection.`,
+                ` is a space for spiritual self-discovery, with personalized tools and live readings from intuitive advisors. Whether you are curious, reflecting or simply looking for a fresh perspective, you can chat privately with an advisor. Readings are offered for entertainment purposes only.`,
               )}
             </span>
           </p>
@@ -200,7 +199,7 @@ export default function ScreenDesktopHome() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#e0d5c3] text-[12px] uppercase whitespace-nowrap"
               data-node-id="461:1672"
             >
-              {text("Vetted Specialists ")}
+              {text("Our Advisors ")}
             </p>
           </div>
           <h2
@@ -216,7 +215,7 @@ export default function ScreenDesktopHome() {
             data-node-id="461:1674"
           >
             {text(
-              `We've replaced mystical abstractions with transparent, methodical advice. Select from our top-rated specialists for real-time 1-on-1 consultations.`,
+              `Meet our advisors and choose one for a private, real-time 1-on-1 chat reading. Readings are offered for entertainment purposes only.`,
             )}
           </p>
         </div>
@@ -244,7 +243,7 @@ export default function ScreenDesktopHome() {
             className="[word-break:break-word] font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black whitespace-nowrap"
             data-node-id="461:1741"
           >
-            {text("Operational Journey Path ")}
+            {text("Your Reading Path ")}
           </p>
           <div
             className="content-stretch flex flex-col gap-[12px] items-start relative shrink-0 w-full"
@@ -272,7 +271,7 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[14px] text-black whitespace-nowrap"
                 data-node-id="461:1746"
               >
-                {text("Identify Existential Bottlenecks ")}
+                {text("Share what is on your mind ")}
               </p>
             </div>
             <div
@@ -309,7 +308,7 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[14px] text-black whitespace-nowrap"
                 data-node-id="461:1751"
               >
-                {text("Execute Alignment Consultation ")}
+                {text("Chat with an advisor ")}
               </p>
             </div>
             <div
@@ -346,7 +345,7 @@ export default function ScreenDesktopHome() {
                 className="[word-break:break-word] font-serif font-normal leading-[normal] relative shrink-0 text-[14px] text-black whitespace-nowrap"
                 data-node-id="461:1756"
               >
-                {text("Iterate with Bi-weekly Syntheses ")}
+                {text("Come back whenever you like ")}
               </p>
             </div>
           </div>
@@ -365,21 +364,21 @@ export default function ScreenDesktopHome() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[12px] text-[color:var(--amber)] uppercase whitespace-nowrap"
               data-node-id="461:1759"
             >
-              {text("Alignment Framework ")}
+              {text("Your Journey ")}
             </p>
           </div>
           <p
             className="[word-break:break-word] font-display leading-[normal] min-w-full not-italic relative shrink-0 text-[36px] text-black w-[min-content]"
             data-node-id="461:1760"
           >
-            {text("Methodical insights built around your personal trajectory ")}
+            {text("Readings built around your personal journey ")}
           </p>
           <p
             className="[word-break:break-word] font-serif font-extralight leading-[1.6] min-w-full relative shrink-0 text-[16px] text-black w-[min-content]"
             data-node-id="461:1761"
           >
             {text(
-              `Everyone's path to self-discovery is unique. Our platform removes the speculative guesswork and introduces a card-based alignment structure designed for modern execution.`,
+              `Everyone's path to self-discovery is unique. Staryield brings tarot, astrology and numerology together in one calm place, so you can explore at your own pace.`,
             )}
           </p>
           <div
@@ -390,7 +389,7 @@ export default function ScreenDesktopHome() {
             <div
               className="content-stretch flex gap-[16px] items-center relative shrink-0"
               data-node-id="461:1763"
-              data-name="Control / Convert life challenges into clear, act…"
+              data-name="Control / Talk it through"
             >
               <div
                 className="relative shrink-0 size-[20px]"
@@ -408,14 +407,14 @@ export default function ScreenDesktopHome() {
                 data-node-id="461:1765"
               >
                 {text(
-                  "Convert life challenges into clear, actionable strategies. ",
+                  "Talk through what is on your mind with an advisor. ",
                 )}
               </p>
             </div>
             <div
               className="content-stretch flex gap-[16px] items-center relative shrink-0"
               data-node-id="461:1766"
-              data-name="Control / Understand structural relational patter…"
+              data-name="Control / Explore relationships"
             >
               <div
                 className="relative shrink-0 size-[20px]"
@@ -433,14 +432,14 @@ export default function ScreenDesktopHome() {
                 data-node-id="461:1768"
               >
                 {text(
-                  "Understand structural relational patterns with complete confidence. ",
+                  "Explore the people and relationships in your life. ",
                 )}
               </p>
             </div>
             <div
               className="content-stretch flex gap-[16px] items-center relative shrink-0"
               data-node-id="461:1769"
-              data-name="Control / Locate emotional balance using objectiv…"
+              data-name="Control / Reflect at your own pace"
             >
               <div
                 className="relative shrink-0 size-[20px]"
@@ -458,7 +457,7 @@ export default function ScreenDesktopHome() {
                 data-node-id="461:1771"
               >
                 {text(
-                  "Locate emotional balance using objective chronologies. ",
+                  "Reflect on the cards, the stars and the numbers at your own pace. ",
                 )}
               </p>
             </div>
@@ -466,168 +465,11 @@ export default function ScreenDesktopHome() {
         </div>
       </section>
       <div
-        className="bg-[var(--warm-gray)] border border-[#978f6e] border-solid content-stretch flex flex-col gap-[64px] items-center px-6 md:px-10 lg:px-20 py-14 lg:py-[100px] relative shrink-0 w-full"
+        className="bg-[var(--warm-gray)] border border-[#978f6e] border-solid content-stretch flex flex-col gap-[64px] items-center px-6 md:px-10 lg:px-20 py-14 lg:py-[72px] relative shrink-0 w-full"
         data-node-id="461:1772"
-        data-name="Container / Testimonials & Stats"
+        data-name="Container / Reviews"
       >
-        <div
-          className="content-stretch flex flex-col gap-[10px] items-center justify-center relative shrink-0 w-[878px]"
-          data-node-id="461:1773"
-          data-name="Container / Testimonial Quote"
-        >
-          <div
-            className="[word-break:break-word] content-stretch flex items-center relative shrink-0 text-black w-full"
-            data-node-id="450:1576"
-            data-name="Layout / Testimonial Quote"
-          >
-            <p
-              className="font-display h-[40px] leading-[normal] not-italic relative shrink-0 text-[36px] w-[36px]"
-              data-node-id="461:1774"
-            >
-              {text(`"`)}
-            </p>
-            <p
-              className="flex-[1_0_0] font-serif font-light leading-[1.5] min-w-px relative text-[18px] sm:text-[24px] text-center"
-              data-node-id="461:1775"
-            >
-              {text(
-                "Absolutely precise. I was looking for structural clarity without the typical metaphysical clutter. My advisor mapped out my transition timelines perfectly. This is the exact tool I needed. ",
-              )}
-            </p>
-            <p
-              className="font-display h-[40px] leading-[normal] not-italic relative shrink-0 text-[36px] w-[36px]"
-              data-node-id="450:1575"
-            >
-              {text(`"`)}
-            </p>
-          </div>
-          <div
-            className="content-stretch flex gap-[12px] items-center relative shrink-0"
-            data-node-id="461:1776"
-            data-name="Control / H. Reynolds"
-          >
-            <div
-              className="bg-[#c29a3d] relative rounded-[16px] shrink-0 size-[32px]"
-              data-node-id="461:1777"
-              data-name="Layout / H. Reynolds"
-            />
-            <p
-              className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[15px] text-black whitespace-nowrap"
-              data-node-id="461:1778"
-            >
-              {text("H. Reynolds ")}
-            </p>
-          </div>
-        </div>
-        <div
-          className="content-stretch flex flex-col sm:flex-row gap-[24px] sm:gap-[40px] items-center sm:items-start justify-center p-[32px] relative rounded-[16px] shrink-0 w-full"
-          data-node-id="461:1780"
-          data-name="Media / Testimonials & Stats"
-        >
-          <div
-            aria-hidden
-            className="absolute inset-0 pointer-events-none rounded-[16px]"
-          >
-            <div className="absolute bg-[#e0d5c3] inset-0 rounded-[16px]" />
-            <img
-              alt=""
-              className="absolute max-w-none mix-blend-overlay object-cover rounded-[16px] size-full"
-              src={imgMediaHome}
-            />
-          </div>
-          <div
-            className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[4px] items-center leading-[normal] min-w-px relative text-black text-center"
-            data-node-id="461:1781"
-            data-name="Control / 4.8"
-          >
-            <p
-              className="font-display not-italic relative shrink-0 text-[48px]"
-              data-node-id="461:1782"
-            >
-              4.8
-            </p>
-            <p
-              className="font-serif font-normal relative shrink-0 text-[14px] uppercase"
-              data-node-id="461:1783"
-            >
-              {text("Average Platform Rating ")}
-            </p>
-          </div>
-          <div
-            className="hidden sm:flex h-[60px] items-center justify-center relative shrink-0 w-0"
-            data-node-id="461:1784"
-          >
-            <div className="flex-none rotate-90">
-              <div
-                className="h-0 relative w-[60px]"
-                data-name="Divider / Horizontal"
-              >
-                <div className="absolute inset-[-1px_0_0_0]">
-                  <img
-                    alt=""
-                    className="block max-w-none size-full"
-                    src={imgDividerHorizontal2}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div
-            className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[4px] items-center leading-[normal] min-w-px relative text-black text-center"
-            data-node-id="461:1785"
-            data-name="Control / 50+"
-          >
-            <p
-              className="font-display not-italic relative shrink-0 text-[48px]"
-              data-node-id="461:1786"
-            >
-              50+
-            </p>
-            <p
-              className="font-serif font-normal relative shrink-0 text-[14px] uppercase"
-              data-node-id="461:1787"
-            >
-              {text("Countries Serviced ")}
-            </p>
-          </div>
-          <div
-            className="hidden sm:flex h-[60px] items-center justify-center relative shrink-0 w-0"
-            data-node-id="461:1788"
-          >
-            <div className="flex-none rotate-90">
-              <div
-                className="h-0 relative w-[60px]"
-                data-name="Divider / Horizontal / 02"
-              >
-                <div className="absolute inset-[-1px_0_0_0]">
-                  <img
-                    alt=""
-                    className="block max-w-none size-full"
-                    src={imgDividerHorizontal2}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div
-            className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[4px] items-center leading-[normal] min-w-px relative text-black text-center"
-            data-node-id="461:1789"
-            data-name="Control / 10K+"
-          >
-            <p
-              className="font-display not-italic relative shrink-0 text-[48px]"
-              data-node-id="461:1790"
-            >
-              {text("10K+ ")}
-            </p>
-            <p
-              className="font-serif font-normal relative shrink-0 text-[14px] uppercase"
-              data-node-id="461:1791"
-            >
-              {text("Completed Consultations ")}
-            </p>
-          </div>
-        </div>
+        {/* revisions 5.1: no hard-coded testimonial or statistics (docs/legal-review-checklist.md row 59): real reviews come from Trustpilot. */}
         <div className="w-full max-w-[560px]" data-name="Row / Trustpilot">
           {/* Same widget for everyone, never conditional on a rating or tied to an incentive. */}
           <TrustpilotReviewCollector placement="home" />
@@ -652,14 +494,14 @@ export default function ScreenDesktopHome() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[12px] text-white uppercase whitespace-nowrap"
               data-node-id="461:1795"
             >
-              {text("Execution Path ")}
+              {text("Getting Started ")}
             </p>
           </div>
           <p
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[36px] text-white whitespace-nowrap text-center"
             data-node-id="461:1796"
           >
-            {text("Onboarding Protocol ")}
+            {text("Four simple steps ")}
           </p>
         </div>
         <div
@@ -682,14 +524,14 @@ export default function ScreenDesktopHome() {
               className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black"
               data-node-id="461:1800"
             >
-              {text("Diagnostic Intake ")}
+              {text("Share Your Details ")}
             </p>
             <p
               className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black"
               data-node-id="461:1801"
             >
               {text(
-                "Complete a brief diagnostic matrix to help us match structural advisors to your career or personal journey. ",
+                "Create your account and add your date of birth and, if you like, your birth time and place for your natal chart. ",
               )}
             </p>
           </div>
@@ -708,14 +550,14 @@ export default function ScreenDesktopHome() {
               className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black"
               data-node-id="461:1804"
             >
-              {text("Select Advisor ")}
+              {text("Choose an Advisor ")}
             </p>
             <p
               className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black"
               data-node-id="461:1805"
             >
               {text(
-                "Browse certified specialists, review credentials and analytical ratings, and choose the ideal consultant. ",
+                "Browse our advisors, read their profiles and the ratings left by other clients, and pick the one who feels right. ",
               )}
             </p>
           </div>
@@ -734,14 +576,14 @@ export default function ScreenDesktopHome() {
               className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black"
               data-node-id="461:1808"
             >
-              {text("Initiate Session ")}
+              {text("Start a Chat ")}
             </p>
             <p
               className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black"
               data-node-id="461:1809"
             >
               {text(
-                "Connect through a secure 1-on-1 virtual workstation for a direct, real-time consultation experience. ",
+                "Connect through a private 1-on-1 chat for a reading in real time. ",
               )}
             </p>
           </div>
@@ -760,14 +602,14 @@ export default function ScreenDesktopHome() {
               className="font-serif font-medium leading-[normal] relative shrink-0 text-[18px] text-black"
               data-node-id="461:1812"
             >
-              {text("Continuous Audit ")}
+              {text("Keep Exploring ")}
             </p>
             <p
               className="font-serif font-light leading-[1.5] min-w-full relative shrink-0 text-[14px] text-black"
               data-node-id="461:1813"
             >
               {text(
-                "Log alignment tracking data to audit your trajectory over consecutive monthly cycles. ",
+                "Use our free calculators to revisit your natal chart and your numbers whenever you like. ",
               )}
             </p>
           </div>

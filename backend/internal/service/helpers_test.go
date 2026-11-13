@@ -124,7 +124,7 @@ func TestIdempotencyKeys(t *testing.T) {
 }
 
 func TestStatusEntryEncoding(t *testing.T) {
-	e := statusEntry{Status: domain.UserActive, Role: domain.RolePsychic, TokenVersion: 7}
+	e := statusEntry{Status: domain.UserActive, Role: domain.RolePsychic, TokenVersion: 7, Age: domain.AgeAdult}
 	got, ok := decodeStatus(e.encode())
 	if !ok || got != e {
 		t.Fatalf("roundtrip: %+v", got)

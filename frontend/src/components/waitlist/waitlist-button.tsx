@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/i18n-provider";
 import { waitlistApi } from "@/lib/api/endpoints";
 import { toApiError } from "@/lib/api/errors";
+import { useRequireAdult } from "@/lib/auth/age-gate";
 import { useSession } from "@/lib/auth/session-provider";
 import { loginUrl } from "@/lib/navigation";
 import { useAsync } from "@/lib/use-async";
@@ -39,6 +40,7 @@ export function useWaitlistMembership(slug: string, name: string, { onAvailable 
   const router = useRouter();
   const toast = useToast();
   const { status, user } = useSession();
+  const requireAdult = useRequireAdult(); // revisions 5.0: 18+ age gate (§24.6)
   const isClient = status === "authenticated" && user?.role === "client";
   const mine = useAsync((signal) => waitlistApi.mine({ limit: MINE_LIMIT }, signal), [user?.id ?? "", slug], isClient);
   const [override, setOverride] = React.useState<{ slug: string; joined: boolean } | null>(null);
@@ -53,6 +55,7 @@ export function useWaitlistMembership(slug: string, name: string, { onAvailable 
       return;
     }
     if (user?.role !== "client") return;
+    if (!requireAdult()) return;
     setPending(true);
     try {
       await waitlistApi.join(slug);
@@ -71,7 +74,7 @@ export function useWaitlistMembership(slug: string, name: string, { onAvailable 
     } finally {
       setPending(false);
     }
-  }, [status, user?.role, router, locale, slug, text, name, toast, onAvailable]);
+  }, [status, user?.role, router, locale, slug, text, name, toast, onAvailable, requireAdult]);
 
   const leave = React.useCallback(async () => {
     setPending(true);

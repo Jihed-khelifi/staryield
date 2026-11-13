@@ -31,7 +31,10 @@ export function AppFrame({
         "dashboard-page mx-auto flex w-full flex-col gap-4 pb-6",
         wide ? "max-w-[2560px]" : "max-w-[1440px]",
         mobileNav && "max-md:pb-[88px]",
-        fill ? "h-dvh" : "min-h-dvh",
+        // revisions 5.0: a fill frame is the containing block of its absolutely positioned descendants and
+        // clips them. Without it an off-screen (sr-only) element deep inside a scrolling column kept the
+        // inbox's overflow and made the whole page scrollable past the chatroom (§24.9).
+        fill ? "relative h-dvh overflow-clip" : "min-h-dvh",
         // Chatroom on phones follows the visible area (keyboard) and has no reserved nav space.
         fill && !mobileNav && "chat-frame",
         className,

@@ -115,3 +115,17 @@ export function useSignupFreeMinutes(): number {
   const { config } = useSiteConfig();
   return config?.signup_offer.enabled ? config.signup_offer.free_minutes : 0;
 }
+
+/**
+ * Memberships are built but switched off (docs/platform-extensions.md §25.1):
+ * every membership surface (plans, member discounts, "Premium", member-only
+ * perks) renders only when the API says so. Unknown or absent means false.
+ */
+export function membershipsEnabled(config: SiteConfig | null): boolean {
+  return config?.features?.memberships === true;
+}
+
+export function useMembershipsEnabled(): boolean {
+  const { config } = useSiteConfig();
+  return membershipsEnabled(config);
+}

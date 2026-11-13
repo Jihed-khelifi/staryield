@@ -57,6 +57,10 @@ type Config struct {
 	Support SupportConfig `env:"support"`
 	// revisions 4.0: Sign in with Google
 	Google GoogleConfig `env:"google"`
+	// revisions 5.0: pricing catalog and welcome offer
+	Pricing PricingConfig `env:"pricing"`
+	// revisions 5.0: refund requests (§24.4)
+	Refunds RefundsConfig `env:"refunds"`
 }
 
 // AppConfig holds process-wide identity settings.
@@ -176,6 +180,12 @@ type BillingConfig struct {
 	// advisor withdraws (in payments.currency).
 	PayoutCentsPerCredit int64 `env:"payout_cents_per_credit"`
 	MinWithdrawalCredits int64 `env:"min_withdrawal_credits"`
+	// revisions 5.1: STARYIELD_BILLING_MEMBERSHIPS_ENABLED (default false)
+	// switches memberships off (§25.1): no plans are offered and nobody can
+	// subscribe, change the membership card or resume; an existing membership
+	// can still be seen and cancelled.
+	MembershipsEnabled bool `env:"memberships_enabled"`
+	// end revisions 5.1
 }
 
 // CustomRequestsConfig controls the custom request (order) lifecycle.
@@ -221,6 +231,8 @@ type RateLimitConfig struct {
 	// and private client nickname writes per advisor.
 	Like  Rule `env:"like"`
 	Alias Rule `env:"alias"`
+	// RefundRequest (revisions 5.0, §24.4) bounds refund requests per user.
+	RefundRequest Rule `env:"refund_request"`
 	// Push bounds Web Push subscribe/unsubscribe calls per user.
 	Push Rule `env:"push"`
 	// Refresh (revisions 3.3) bounds POST /auth/refresh per refresh cookie
@@ -297,6 +309,10 @@ type PaymentsConfig struct {
 	// RateLimit bounds card attachments and subscription changes per user
 	// (card-testing protection); it always fails closed.
 	RateLimit Rule `env:"rate_limit"`
+	// revisions 5.1: STARYIELD_PAYMENTS_STATEMENT_DESCRIPTOR is what the
+	// customer's card statement shows (§25.3, see statement_descriptor.go).
+	StatementDescriptor string `env:"statement_descriptor"`
+	// end revisions 5.1
 }
 
 // AnalyticsConfig controls business event tracking.
@@ -504,7 +520,7 @@ func defaults() Config {
 		},
 		Billing: BillingConfig{
 			PsychicSharePercent:  60,
-			SignupFreeMinutes:    5, // revisions 3.0: fallback of the site setting (was 3)
+			SignupFreeMinutes:    4, // revisions 5.0: fallback of the site setting = the pricing spec's 4-minute trial (was 5)
 			MaxAdminAdjustment:   100000,
 			PayoutCentsPerCredit: 2,
 			MinWithdrawalCredits: 2500,
@@ -546,6 +562,9 @@ func defaults() Config {
 			Push:      Rule{Rate: 30, Period: time.Hour, Burst: 10},
 			Refresh:   Rule{Rate: 30, Period: time.Minute, Burst: 20},
 			Scale:     1,
+
+			// revisions 5.0: refund requests (§24.4), 5 per hour per user
+			RefundRequest: Rule{Rate: 5, Period: time.Hour, Burst: 5},
 		},
 		Storage: StorageConfig{
 			Driver:               "memory",
@@ -564,7 +583,8 @@ func defaults() Config {
 		Payments: PaymentsConfig{Provider: "sandbox", WebhookTolerance: 5 * time.Minute, Currency: "USD",
 			Providers: []string{"sandbox_a", "sandbox_b"}, DefaultProvider: "sandbox_a", RenewalLease: 5 * time.Minute,
 			GracePeriod: 168 * time.Hour, IncompleteTTL: 24 * time.Hour, MaxPaymentMethods: 5,
-			RateLimit: Rule{Rate: 10, Period: time.Hour, Burst: 10}},
+			RateLimit:           Rule{Rate: 10, Period: time.Hour, Burst: 10},
+			StatementDescriptor: DefaultStatementDescriptor}, // revisions 5.1
 		Analytics: AnalyticsConfig{Enabled: true, BufferSize: 10000, BatchSize: 200, FlushInterval: 2 * time.Second, MaxBatch: 50},
 		Log:       LogConfig{Level: "info", Format: "json"},
 		Mail: MailConfig{Driver: "log", From: "Staryield <no-reply@staryield.net>", Timeout: 15 * time.Second, MaxAttempts: 8,
@@ -578,6 +598,9 @@ func defaults() Config {
 		Reviews:       ReviewsConfig{Window: 168 * time.Hour},
 		Notifications: NotificationsConfig{BufferSize: 10000, BatchSize: 200, FlushInterval: 250 * time.Millisecond},
 		Google:        GoogleConfig{Issuer: GoogleDefaultIssuer, StateTTL: 10 * time.Minute},
+		Pricing:       PricingConfig{OfferRequireCardCheck: true}, // revisions 5.0
+		// revisions 5.0: refund requests (§24.4)
+		Refunds: RefundsConfig{WindowDays: RefundWindowDefaultDays, RequestsEnabled: true},
 	}
 }
 
@@ -605,6 +628,7 @@ func (c *Config) normalize() {
 		c.Payments.Currency = "USD"
 	}
 	c.Payments.Currency = strings.ToUpper(c.Payments.Currency)
+	c.Payments.StatementDescriptor = strings.TrimSpace(c.Payments.StatementDescriptor) // revisions 5.1
 	// Development conveniences: derive secrets so the app boots locally, but
 	// never in production (Validate rejects missing secrets there).
 	if c.App.Env != EnvProduction {
@@ -911,8 +935,15 @@ func (c *Config) Validate() error {
 	c.validateSupport(add) // revisions 3.0: support desk
 	c.validatePush(add)
 	c.validateGoogle(add) // revisions 4.0: Sign in with Google
+	// revisions 5.0: refund requests
+	c.validateRefunds(add)
+	c.validateStatementDescriptor(add) // revisions 5.1
 
 	if c.IsProduction() {
+		// revisions 5.0: 18+ age gate (§24.6): the legal floor is not configurable.
+		if c.Auth.MinimumAge < 18 {
+			add("%s must be at least 18 in production (got %d)", e("auth.minimum_age"), c.Auth.MinimumAge)
+		}
 		if !c.Security.CookieSecure {
 			add("%s must be true in production", e("security.cookie_secure"))
 		}

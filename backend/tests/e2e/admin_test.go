@@ -404,8 +404,9 @@ func TestAdminPsychicManagement(t *testing.T) {
 	}
 
 	// Credit packs: unused packs can be deleted.
-	var pack service.PackView
-	admin.must(http.StatusCreated, http.MethodPost, "/api/v1/admin/credit-packs", map[string]any{"name": "Temp", "credits": 77, "price_cents": 777}, &pack)
+	var pack service.AdminPack
+	admin.stepUp() // revisions 5.0: pack writes need step-up
+	admin.must(http.StatusCreated, http.MethodPost, "/api/v1/admin/credit-packs", map[string]any{"code": uniq("temp_"), "name": map[string]string{"en": "Temp"}, "credits": 77, "price_cents": 777}, &pack)
 	admin.must(http.StatusNoContent, http.MethodDelete, "/api/v1/admin/credit-packs/"+pack.ID.String(), nil, nil)
 
 	// Soft delete an advisor.
@@ -426,11 +427,12 @@ func TestAdminPackInUseCannotBeDeleted(t *testing.T) {
 	c := e.registerClient()
 	c.buyCredits(250)
 	var packs struct {
-		Items []service.PackView `json:"items"`
+		Items []service.AdminPack `json:"items"`
 	}
 	admin.must(http.StatusOK, http.MethodGet, "/api/v1/admin/credit-packs", nil, &packs)
+	admin.stepUp() // revisions 5.0
 	for _, p := range packs.Items {
-		if p.Credits == 250 {
+		if p.Credits == 250 && p.Active {
 			if r := admin.call(http.MethodDelete, "/api/v1/admin/credit-packs/"+p.ID.String(), nil); r.status != http.StatusConflict {
 				t.Fatalf("pack in use deleted: %d %s", r.status, r.body)
 			}

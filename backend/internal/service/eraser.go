@@ -62,7 +62,10 @@ type EraserDeps struct {
 	Calculators UserDataPurger
 	// Identities: linked sign-in providers (revisions 4.0: Google). The user
 	// row is anonymised, not deleted, so the rows do not cascade.
-	Identities  UserDataPurger
+	Identities UserDataPurger
+	// Refunds: the free text of refund requests (revisions 5.0, §24.4); the
+	// requests themselves stay as financial records.
+	Refunds     UserDataPurger
 	AvatarStore storage.ObjectStore
 	ExportStore storage.ObjectStore
 	Auth        *AuthService
@@ -230,7 +233,7 @@ func (e *AccountEraser) eraseExtras(ctx context.Context, id uuid.UUID, now time.
 			return err
 		}
 	}
-	for _, p := range []UserDataPurger{e.d.Waitlist, e.d.Support, e.d.Advisor, e.d.Calculators, e.d.ChatData, e.d.Identities} {
+	for _, p := range []UserDataPurger{e.d.Waitlist, e.d.Support, e.d.Advisor, e.d.Calculators, e.d.ChatData, e.d.Identities, e.d.Refunds} {
 		if p == nil {
 			continue
 		}

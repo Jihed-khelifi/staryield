@@ -6,6 +6,7 @@ import en from "@/i18n/dictionaries/en.json";
 import copy from "@/i18n/dictionaries/copy-en.json";
 import { I18nProvider } from "@/i18n/i18n-provider";
 import type { Dictionary } from "@/i18n/types";
+import { WithSiteConfig } from "@/test/site-config";
 
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a> }));
 vi.mock("@/components/reviews/review-form", () => ({ ReviewForm: () => null, ReviewThanks: () => null }));
@@ -83,6 +84,31 @@ describe("SessionPanel free mode", () => {
     expect(screen.queryByTestId("summary-sponsored")).toBeNull();
     expect(screen.getByText("Your earnings")).toBeTruthy();
     expect(screen.getByText("12")).toBeTruthy();
+  });
+});
+
+describe("SessionPanel member discount (§25.1)", () => {
+  const requested = { id: "s1", status: "requested" } as never;
+  const rateView = { rate: 32, listRate: 40, discountPct: 20, discounted: true };
+  const panel = (memberships?: boolean) => (
+    <I18nProvider locale="en" dictionary={dictionary}>
+      <WithSiteConfig memberships={memberships}>
+        <SessionPanel {...base} session={requested} secondsLeft={30} rateView={rateView} />
+      </WithSiteConfig>
+    </I18nProvider>
+  );
+
+  it("shows the member price under a waiting request only when memberships are on", () => {
+    render(panel(true));
+    expect(screen.getByTestId("request-rate").textContent).toContain("32 credits/min");
+    expect(screen.getByTestId("list-rate").textContent).toBe("40");
+  });
+
+  it.each([undefined, false])("shows no member price while memberships are off (features %s)", (flag) => {
+    render(panel(flag));
+    expect(screen.queryByTestId("request-rate")).toBeNull();
+    expect(screen.queryByTestId("list-rate")).toBeNull();
+    expect(screen.queryByText(/member/i)).toBeNull();
   });
 });
 

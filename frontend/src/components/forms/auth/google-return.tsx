@@ -17,6 +17,7 @@ import {
   startGoogle,
   withAttributionFallback,
 } from "@/lib/auth/google";
+import { ageLanding } from "@/lib/auth/age-status"; // revisions 5.0: 18+ age gate (§24.6)
 import { useSession } from "@/lib/auth/session-provider";
 import { applyApiError } from "@/lib/forms/server-errors";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
@@ -92,7 +93,7 @@ export function GoogleReturn() {
           toast.show({ tone: "success", message: text("Google is now connected.") });
           return goTo(next ?? `/${locale}/profile/settings#security`);
         }
-        return goTo(next ?? defaultLanding(me));
+        return goTo(ageLanding(me, locale, next ?? defaultLanding(me)));
       } catch (err) {
         const e = toApiError(err);
         // No session came with the redirect (cookies blocked, or the attempt is stale): starting again is the fix.
@@ -184,7 +185,7 @@ export function GoogleReturn() {
           onSignedIn={(user) => {
             setUser(user);
             forgetGoogleIntent();
-            goTo(landing.current?.next ?? defaultLanding(user));
+            goTo(ageLanding(user, locale, landing.current?.next ?? defaultLanding(user)));
           }}
         />
         <Link className="text-sm underline" href={`/${locale}/login`} data-testid="google-back">

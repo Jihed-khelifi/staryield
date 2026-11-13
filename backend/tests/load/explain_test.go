@@ -226,6 +226,12 @@ func TestExplainHotQueries(t *testing.T) {
 	// revisions 4.0: replies, likes, aliases
 	checks = append(checks, chatRevisions4Checks(live, ids)...)
 	checks = append(checks, notificationChecks(not)...) // revisions 4.0: notifications and broadcasts
+	// revisions 5.0: pricing catalog and welcome offer
+	checks = append(checks, pricingChecks(pickPricingSample(live))...)
+	// revisions 5.0: credit lots
+	checks = append(checks, creditLotChecks(live, ids)...)
+	// revisions 5.0: refund requests and the revenue report
+	checks = append(checks, refundChecks(live, ids)...)
 
 	var lines []string
 	for _, qc := range checks {

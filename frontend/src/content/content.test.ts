@@ -16,6 +16,7 @@ import type { ArticleContent } from "@/content/calculators/types";
 const anchors = {
   "/privacy": legalAnchorSet(legalDocuments.privacy.en),
   "/terms": legalAnchorSet(legalDocuments.terms.en),
+  "/refund-policy": legalAnchorSet(legalDocuments.refund.en), // revisions 5.0
 };
 const registeredUrls = new Set(registry.map((entry) => entry.url));
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;

@@ -84,6 +84,9 @@ type UserView struct {
 	Profile     ProfileView      `json:"profile"`
 	Wallet      *WalletView      `json:"wallet,omitempty"`
 	Psychic     *PsychicSelfView `json:"psychic,omitempty"`
+	// AgeStatus is the 18+ gate status (revisions 5.0, §24.6):
+	// "adult", "birth_date_required" or "restricted".
+	AgeStatus domain.AgeStatus `json:"age_status"`
 }
 
 // ProfileUpdate is a partial profile update (nil fields are unchanged).
@@ -126,13 +129,16 @@ type UserService struct {
 	clock      clock.Clock
 	minimumAge int
 	avatar     AvatarSettings
+	// age applies the 18+ gate to birth-date writes (revisions 5.0, §24.6).
+	age ageGuard
 }
 
 // NewUserService wires the user service.
 func NewUserService(users repository.UserRepository, wallets repository.WalletRepository, psychics repository.PsychicRepository,
 	store storage.ObjectStore, places PlaceLookup, tracker analytics.Tracker, clk clock.Clock, minimumAge int, avatar AvatarSettings) *UserService {
 	return &UserService{users: users, wallets: wallets, psychics: psychics, store: store, places: places,
-		tracker: tracker, clock: clk, minimumAge: minimumAge, avatar: avatar}
+		tracker: tracker, clock: clk, minimumAge: minimumAge, avatar: avatar,
+		age: ageGuard{users: users, clock: clk, minimumAge: minimumAge}}
 }
 
 func profileView(p *domain.Profile) ProfileView {
@@ -162,7 +168,8 @@ func (s *UserService) Me(ctx context.Context, userID uuid.UUID) (*UserView, erro
 		p = &domain.Profile{UserID: userID, Mood: "Empowered", Theme: "Warm Beige"}
 	}
 	view := &UserView{ID: u.ID, Email: u.Email, Role: string(u.Role), Status: string(u.Status),
-		DisplayName: u.DisplayName, Locale: u.Locale, CreatedAt: u.CreatedAt, Profile: profileView(p)}
+		DisplayName: u.DisplayName, Locale: u.Locale, CreatedAt: u.CreatedAt, Profile: profileView(p),
+		AgeStatus: u.AgeStatus()}
 	if w, err := s.wallets.Get(ctx, userID); err == nil {
 		wv := walletView(w)
 		view.Wallet = &wv
@@ -204,12 +211,20 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, in Pr
 		}
 	}
 	if in.BirthDate != nil {
-		if strings.TrimSpace(*in.BirthDate) == "" {
+		// revisions 5.0: 18+ age gate (§24.6).
+		skip, err := s.age.beforeBirthDateWrite(ctx, userID, in.BirthDate)
+		if err != nil {
+			return nil, err
+		}
+		if skip {
+			// unchanged date of a restricted account: nothing to save
+		} else if strings.TrimSpace(*in.BirthDate) == "" {
 			profile["birth_date"] = nil
 		} else if d, msg := ParseBirthDate(*in.BirthDate, s.clock.Now(), s.minimumAge); msg != "" {
 			fields["birth_date"] = msg
 		} else {
 			profile["birth_date"] = *d
+			user["adult_confirmed_at"] = s.clock.Now()
 		}
 	}
 	if in.BirthTime != nil {

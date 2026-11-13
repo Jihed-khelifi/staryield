@@ -125,4 +125,14 @@ describe("parseSiteConfig", () => {
     expect(parseSiteConfig({ ...good, auth: {} })?.auth).toEqual({ google: false });
     expect(parseSiteConfig({ ...good, auth: { google: "yes" } })?.auth).toEqual({ google: false });
   });
+
+  it("reads the memberships switch; absent or malformed (older APIs) means off (§25.1)", () => {
+    expect(parseSiteConfig({ ...good, features: { memberships: true } })?.features).toEqual({ memberships: true });
+    expect(parseSiteConfig({ ...good, features: { memberships: false } })?.features).toEqual({ memberships: false });
+    expect(parseSiteConfig(good)?.features).toEqual({ memberships: false });
+    expect(parseSiteConfig({ ...good, features: null })?.features).toEqual({ memberships: false });
+    expect(parseSiteConfig({ ...good, features: {} })?.features).toEqual({ memberships: false });
+    expect(parseSiteConfig({ ...good, features: { memberships: "true" } })?.features).toEqual({ memberships: false });
+  });
 });
+

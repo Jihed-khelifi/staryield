@@ -55,10 +55,32 @@ async function clearAlias(page: Page, conversationId: string) {
   expect(res.status(), `clear alias: ${await res.text()}`).toBe(204);
 }
 
-/** Reply from the hover actions of a message. */
-async function startReply(page: Page, row: Locator) {
-  await row.hover();
-  await row.getByTestId("message-reply").click();
+/** The three-dot menu of a message (§24.9): Reply, Bookmark, Like, Copy text. */
+async function openMenu(row: Locator) {
+  await row.locator(".message-bubble").hover();
+  await row.getByTestId("message-menu-trigger").click();
+  const menu = row.page().getByRole("menu", { name: "Message actions" });
+  await expect(menu).toBeVisible();
+  return menu;
+}
+
+/** Choose an item of a message's three-dot menu. */
+async function chooseFromMenu(row: Locator, item: string) {
+  await (await openMenu(row)).getByRole("menuitem", { name: item, exact: true }).click();
+}
+
+/** Whether the menu offers "Unlike" (the viewer likes the message); closes the menu again. */
+async function likedByViewer(row: Locator) {
+  const menu = await openMenu(row);
+  const liked = await menu.getByRole("menuitem", { name: "Unlike", exact: true }).isVisible();
+  await row.page().keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  return liked;
+}
+
+/** Reply from the three-dot menu of a message. */
+async function startReply(_page: Page, row: Locator) {
+  await chooseFromMenu(row, "Reply");
 }
 
 /** Messages through the API (as the signed-in user of the page): faster than typing them. */
@@ -174,7 +196,7 @@ test.describe.serial("replies, likes, nicknames and placements (revisions 4.0)",
     const original = rowWith(client, question);
     await expect(original).toBeVisible();
 
-    // Desktop: reply and like appear beside the bookmark on hover.
+    // Desktop: the three-dot menu of the message offers Reply.
     await startReply(client, original);
     const bar = client.getByTestId("composer-reply");
     await expect(bar).toContainText(/Replying to /);
@@ -245,26 +267,22 @@ test.describe.serial("replies, likes, nicknames and placements (revisions 4.0)",
     await send(client, text);
     const mine = rowWith(psychic, text);
     await expect(mine).toBeVisible();
-    await mine.hover();
-    const like = mine.getByTestId("message-like");
-    await expect(like).toHaveAttribute("aria-pressed", "false");
-    await like.click();
-    await expect(like).toHaveAttribute("aria-pressed", "true");
+    expect(await likedByViewer(mine)).toBe(false);
+    await chooseFromMenu(mine, "Like");
+    await expect.poll(() => likedByViewer(mine)).toBe(true);
     // The advisor's own copy says "You", the client's says who.
     await expect(badge(mine)).toHaveAccessibleName("You liked this");
     await expect(badge(rowWith(client, text))).toHaveAccessibleName(/ liked this$/);
     await expect(badge(rowWith(client, text))).not.toHaveAccessibleName(/^You/);
 
     // Both like it: "You and …".
-    await rowWith(client, text).hover();
-    await rowWith(client, text).getByTestId("message-like").click();
+    await chooseFromMenu(rowWith(client, text), "Like");
     await expect(badge(rowWith(client, text))).toHaveAccessibleName(/^You and .* liked this$/);
     await expect(badge(mine)).toHaveAccessibleName(/^You and .* liked this$/);
 
     // Unlike (advisor): the client's heart is the only one left.
-    await mine.hover();
-    await like.click();
-    await expect(like).toHaveAttribute("aria-pressed", "false");
+    await chooseFromMenu(mine, "Unlike");
+    await expect.poll(() => likedByViewer(mine)).toBe(false);
     await expect(badge(rowWith(client, text))).toHaveAccessibleName("You liked this");
 
     // Survives a reload on both sides.
@@ -272,7 +290,7 @@ test.describe.serial("replies, likes, nicknames and placements (revisions 4.0)",
     await client.reload();
     await expect(badge(rowWith(psychic, text))).toHaveAccessibleName(/ liked this$/);
     await expect(badge(rowWith(client, text))).toHaveAccessibleName("You liked this");
-    await expect(rowWith(client, text).getByTestId("message-like")).toHaveAttribute("aria-pressed", "true");
+    expect(await likedByViewer(rowWith(client, text))).toBe(true);
     // System notices have no actions.
     await expect(psychic.getByTestId("chat-system-message").first().getByRole("button")).toHaveCount(0);
   });
@@ -297,8 +315,7 @@ test.describe.serial("replies, likes, nicknames and placements (revisions 4.0)",
     clientProxy.block = true;
     await clientProxy.cut();
     await expect(client.getByTestId("connection-banner")).toBeVisible();
-    await rowWith(psychic, text).hover();
-    await rowWith(psychic, text).getByTestId("message-like").click();
+    await chooseFromMenu(rowWith(psychic, text), "Like");
     await expect(badge(rowWith(psychic, text))).toBeVisible();
     await expect(badge(rowWith(client, text))).toHaveCount(0);
     clientProxy.block = false;
@@ -439,8 +456,9 @@ test.describe.serial("replies, likes, nicknames and placements (revisions 4.0)",
       const row = rowWith(phone, text);
       await expect(row).toBeVisible();
       const bubble = row.locator(".message-bubble");
-      // Reply and like buttons are not shown on touch devices.
-      await expect(row.getByTestId("message-like")).toBeHidden();
+      // Touch has no hover: the three-dot button is there, subtle, and the old side buttons are gone (§24.9).
+      await expect(row.getByTestId("message-menu-trigger")).toBeVisible();
+      await expect(row.getByTestId("message-like")).toHaveCount(0);
 
       // Double-tap likes (the heart pops), the advisor sees it live.
       const at = await center(row.locator(".message-text"));
@@ -483,7 +501,7 @@ test.describe.serial("replies, likes, nicknames and placements (revisions 4.0)",
       await finger.up();
       const menu = phone.getByRole("menu", { name: "Message actions" });
       await expect(menu).toBeVisible();
-      await expect(menu.getByRole("menuitem")).toHaveText(["Reply", "Like", "Save", "Copy text"]);
+      await expect(menu.getByRole("menuitem")).toHaveText(["Reply", "Bookmark", "Like", "Copy text"]);
       await menu.getByRole("menuitem", { name: "Reply" }).click();
       await expect(phone.getByTestId("composer-reply")).toContainText(text);
       await expectNoHorizontalScroll(phone);

@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { ApiError } from "@/lib/api/errors";
 import type { AppNotification } from "@/lib/api/types";
 import { axeViolations, renderWithI18n, stubResizeObserver } from "@/test/render";
+import { WithSiteConfig } from "@/test/site-config";
 
 type Value = ReturnType<typeof import("@/lib/notifications/notifications-provider").useNotifications>;
 
@@ -119,6 +120,22 @@ describe("NotificationBell", () => {
     expect(list.querySelectorAll("[data-unread]").length).toBe(1);
     await u.click(within(list).getByText("Your data export is ready"));
     expect(fns.open).toHaveBeenCalledWith(items[0]);
+  });
+
+  it("keeps showing a membership notification that arrives, without inviting a new membership while memberships are off", async () => {
+    const items = [note("b", { kind: "subscription.canceled", data: { reason: "canceled_by_user" } })];
+    set({ items, loaded: true });
+    const u = userEvent.setup();
+    renderWithI18n(
+      <WithSiteConfig>
+        <NotificationBell />
+      </WithSiteConfig>,
+    );
+    await u.click(bell());
+    const list = await screen.findByRole("list", { name: "Notifications" });
+    expect(within(list).getByText("Membership ended")).toBeTruthy();
+    expect(within(list).getByText("You canceled your membership and it has now ended.")).toBeTruthy();
+    expect(list.textContent).not.toMatch(/subscribe again/);
   });
 
   it("marks all as read when there are unread notifications", async () => {

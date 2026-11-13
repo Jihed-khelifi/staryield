@@ -15,7 +15,7 @@ import (
 func TestRegisterLoginMeLogout(t *testing.T) {
 	e := newEnv(t)
 	c := e.registerClient()
-	if c.user.Role != "client" || c.user.Wallet == nil || c.user.Wallet.FreeMinutes != 5 {
+	if c.user.Role != "client" || c.user.Wallet == nil || c.user.Wallet.FreeMinutes != 4 {
 		t.Fatalf("unexpected user: %+v", c.user)
 	}
 	if c.user.Profile.BirthDate != "1990-05-17" {

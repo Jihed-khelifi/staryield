@@ -1,7 +1,9 @@
 /**
  * Onboarding "Date and time of Birth" + "Location" step.
  *
- * - The date is required and the person must be 18 or older.
+ * - The date is required. Whether the person is 18 or older is decided by the
+ *   API, not here (revisions 5.0, §24.6): an under-age date must reach it, so
+ *   that the account is restricted and the date cannot simply be retyped.
  * - The time is required unless "I don't know my time" is ticked (the chart
  *   then uses local noon and skips the rising sign and houses).
  * - A birthplace is required whenever a time is given: a clock time only
@@ -18,7 +20,7 @@ export type PlaceRef = { id: string; label: string }
 export const birthInfoSchema = (text: TranslateCopy) =>
   yup.object({
     timeUnknown: yup.boolean().default(false),
-    birth: birthPartsRule(text, { adult: true }).when("timeUnknown", ([timeUnknown], schema) =>
+    birth: birthPartsRule(text).when("timeUnknown", ([timeUnknown], schema) =>
       timeUnknown
         ? schema
         : schema.test("time-required", text("Enter your birth time, or tick “I don't know my time”."), (value) =>

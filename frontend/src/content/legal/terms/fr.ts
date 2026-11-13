@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-09",
-    "effective": "2026-11-09",
-    "lastUpdated": "2026-11-09",
+    "version": "2026-11-13",
+    "effective": "2026-11-13",
+    "lastUpdated": "2026-11-13",
     "badge": "ACCORD DU SYSTÈME STARYIELD",
     "title": "Conditions d'utilisation"
   },
@@ -17,25 +17,6 @@ const content: LegalDocumentContent = {
     "backToTop": "Retour en haut"
   },
   "intro": [
-    {
-      "type": "h3",
-      "id": "important-notice-regarding-automatic-renewals",
-      "title": "AVIS IMPORTANT CONCERNANT LES RENOUVELLEMENT AUTOMATIQUES"
-    },
-    {
-      "type": "p",
-      "text": "Staryield propose un abonnement Premium facultatif qui se renouvelle automatiquement. Veuillez lire attentivement les présentes conditions générales d’utilisation (les « Conditions ») (en particulier la section 6) avant d’acheter un abonnement ou des crédits. En achetant un abonnement, vous reconnaissez et acceptez son caractère récurrent, tel qu’il est expliqué au moment de l’achat. Votre abonnement est renouvelé à la fin de chaque période de facturation et le prix applicable est prélevé sur votre moyen de paiement enregistré, sauf si vous l’annulez avant la date de renouvellement."
-    },
-    {
-      "type": "ul",
-      "items": [
-        "Vous pouvez résilier votre abonnement à tout moment dans les paramètres de votre compte, rubrique Facturation et abonnements ; il reste actif jusqu’à la fin de la période de facturation en cours. Pour les remboursements, consultez [Remboursements](#refunds) ou contactez notre [centre d’assistance](/contact)."
-      ]
-    },
-    {
-      "type": "p",
-      "text": "La suppression de l’application, la fermeture de votre navigateur ou la désactivation de votre compte n’annulent pas votre abonnement. Vous souhaiterez peut-être également prendre une capture d’écran de cet avis pour référence future. Plus de détails figurent dans nos [conditions d’abonnement](#subscription-terms), énoncées à la section 6.2."
-    },
     {
       "type": "p",
       "text": "Nos pratiques de confidentialité sont décrites en détail dans notre [Politique de confidentialité](/privacy). Veuillez le consulter pour comprendre comment nous collectons, utilisons et partageons vos informations personnelles."
@@ -74,7 +55,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "En accédant ou en utilisant n'importe quelle partie du Service, ou en cliquant sur « J'accepte », en cochant une case ou en utilisant tout autre mécanisme d'acceptation présenté via le Service, ou en manifestant autrement votre consentement, vous reconnaissez que vous avez lu, compris et acceptez d'être lié par ces Conditions, formant un accord juridiquement contraignant entre vous et la Société. Si vous n'acceptez pas ces Conditions, vous devez immédiatement cesser d'utiliser le Service, supprimer votre compte et annuler tout abonnement actif."
+          "text": "En accédant ou en utilisant n'importe quelle partie du Service, ou en cliquant sur « J'accepte », en cochant une case ou en utilisant tout autre mécanisme d'acceptation présenté via le Service, ou en manifestant autrement votre consentement, vous reconnaissez que vous avez lu, compris et acceptez d'être lié par ces Conditions, formant un accord juridiquement contraignant entre vous et la Société. Si vous n'acceptez pas ces Conditions, vous devez immédiatement cesser d'utiliser le Service, supprimer votre compte."
         },
         {
           "type": "p",
@@ -102,7 +83,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Sauf indication contraire, nous indiquerons les mises à jour en révisant la date de « Dernière mise à jour » des présentes Conditions. Vous reconnaissez et acceptez qu'il est de votre responsabilité de consulter régulièrement les Conditions pour toute mise à jour. Sauf indication contraire, les Conditions mises à jour entrent en vigueur une fois publiées sur le Service. En continuant à utiliser le Service après l'entrée en vigueur des mises à jour, vous acceptez les Conditions révisées. Si vous n'êtes pas d'accord, vous devez cesser immédiatement d'utiliser le Service, supprimer votre compte et annuler votre abonnement."
+          "text": "Sauf indication contraire, nous indiquerons les mises à jour en révisant la date de « Dernière mise à jour » des présentes Conditions. Vous reconnaissez et acceptez qu'il est de votre responsabilité de consulter régulièrement les Conditions pour toute mise à jour. Sauf indication contraire, les Conditions mises à jour entrent en vigueur une fois publiées sur le Service. En continuant à utiliser le Service après l'entrée en vigueur des mises à jour, vous acceptez les Conditions révisées. Si vous n'êtes pas d'accord, vous devez cesser immédiatement d'utiliser le Service et supprimer votre compte."
         },
         {
           "type": "h3",
@@ -211,6 +192,10 @@ const content: LegalDocumentContent = {
           "text": "Le Service est destiné aux utilisateurs âgés de 18 ans et plus. En créant un compte, vous confirmez que vous avez au moins 18 ans et que vous disposez de l'autorité légale pour conclure et respecter les présentes Conditions. Si vous avez moins de 18 ans, il vous est interdit d'utiliser le Service."
         },
         {
+          "type": "p",
+          "text": "Nous déterminons votre éligibilité à partir de la date de naissance que vous indiquez lors de votre inscription. Si cette date de naissance indique que vous avez moins de 18 ans, ou si nous apprenons par ailleurs que c’est le cas, nous restreignons votre compte jusqu’à son examen par notre équipe, et vous ne pouvez pas utiliser les fonctionnalités payantes du Service dans l’intervalle. Si vous pensez qu’il s’agit d’une erreur, contactez notre [centre d’assistance](/contact)."
+        },
+        {
           "type": "h3",
           "id": "account-suspension-or-termination",
           "n": "3.4",
@@ -242,11 +227,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Vous pouvez fermer votre compte à tout moment depuis les paramètres de votre compte. La fermeture désactive immédiatement votre compte et ouvre un délai de grâce de 30 jours pendant lequel vous pouvez annuler la fermeture en vous reconnectant. À l’issue de ce délai, ou lorsque nous supprimons un compte en application de la section 3.4, nous effaçons les données personnelles qui vous identifient (votre adresse e-mail, votre nom, votre pseudonyme, vos données de naissance, votre localisation et votre photo de profil), mettons fin à vos sessions actives et résilions tout abonnement Premium. Les enregistrements que nous devons conserver à des fins comptables, de prévention de la fraude et de conformité légale — tels que les achats, les mouvements de crédits, les gains des conseillers et notre journal d’audit de sécurité — sont conservés sous une forme pseudonymisée qui ne révèle plus votre identité. Les évaluations que vous avez publiées restent visibles comme rédigées par « Client », sauf si elles sont supprimées en application de la section 4.4."
+          "text": "Vous pouvez fermer votre compte à tout moment depuis les paramètres de votre compte. La fermeture désactive immédiatement votre compte et ouvre un délai de grâce de 30 jours pendant lequel vous pouvez annuler la fermeture en vous reconnectant. À l’issue de ce délai, ou lorsque nous supprimons un compte en application de la section 3.4, nous effaçons les données personnelles qui vous identifient (votre adresse e-mail, votre nom, votre pseudonyme, vos données de naissance, votre localisation et votre photo de profil) et mettons fin à vos sessions actives. Les enregistrements que nous devons conserver à des fins comptables, de prévention de la fraude et de conformité légale — tels que les achats, les mouvements de crédits, les gains des conseillers et notre journal d’audit de sécurité — sont conservés sous une forme pseudonymisée qui ne révèle plus votre identité. Les évaluations que vous avez publiées restent visibles comme rédigées par « Client », sauf si elles sont supprimées en application de la section 4.4."
         },
         {
           "type": "p",
-          "text": "Les Crédits non utilisés et la période d’abonnement restante sont perdus lorsque la fermeture devient définitive, sauf disposition contraire de la loi applicable. Les conseillers ne peuvent pas fermer leur compte tant qu’ils disposent d’un solde de gains disponible, d’un retrait en attente, d’une demande personnalisée en cours ou d’une lecture en direct en cours."
+          "text": "Les Crédits non utilisés sont perdus lorsque la fermeture devient définitive, sauf disposition contraire de la loi applicable. Les conseillers ne peuvent pas fermer leur compte tant qu’ils disposent d’un solde de gains disponible, d’un retrait en attente, d’une demande personnalisée en cours ou d’une lecture en direct en cours."
         },
         {
           "type": "h3",
@@ -256,7 +241,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Vous pouvez également désactiver temporairement votre compte depuis les paramètres de votre compte. Pendant sa désactivation, vous êtes déconnecté de tous vos appareils, votre profil est masqué et, si vous êtes conseiller, vous êtes retiré de l’annuaire ; vos données, vos Crédits et vos paramètres sont conservés. Pour réactiver votre compte, reconnectez-vous et confirmez. La désactivation de votre compte n’annule pas l’abonnement Premium ; résiliez-le d’abord dans Facturation et abonnements si vous ne souhaitez pas qu’il soit renouvelé. Un compte désactivé par nos soins en application de la section 3.4 ne peut être réactivé que par nous."
+          "text": "Vous pouvez également désactiver temporairement votre compte depuis les paramètres de votre compte. Pendant sa désactivation, vous êtes déconnecté de tous vos appareils, votre profil est masqué et, si vous êtes conseiller, vous êtes retiré de l’annuaire ; vos données, vos Crédits et vos paramètres sont conservés. Pour réactiver votre compte, reconnectez-vous et confirmez. Un compte désactivé par nos soins en application de la section 3.4 ne peut être réactivé que par nous."
         }
       ]
     },
@@ -367,7 +352,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "La Société se réserve le droit de modifier, mettre à jour, interrompre, suspendre ou interrompre tout aspect du Service à tout moment sans préavis ni pour notre responsabilité. Vous reconnaissez qu'une variété d'actions de la Société peuvent entraver ou vous empêcher d'accéder au Service à certains moments et/ou de la même manière, pour des périodes limitées ou de façon permanente, et acceptez que la Société n'a aucune responsabilité à la suite de telles actions ou résultats, y compris, sans s'y limiter, pour la suppression ou l'incapacité de mettre à votre disposition tout contenu ou partie des Services. Certaines fonctionnalités peuvent ne pas être disponibles dans toutes les régions ou sur tous les appareils. Si une modification impacte votre utilisation du Service, vous pouvez annuler votre abonnement ou supprimer votre compte."
+          "text": "La Société se réserve le droit de modifier, mettre à jour, interrompre, suspendre ou interrompre tout aspect du Service à tout moment sans préavis ni pour notre responsabilité. Vous reconnaissez qu'une variété d'actions de la Société peuvent entraver ou vous empêcher d'accéder au Service à certains moments et/ou de la même manière, pour des périodes limitées ou de façon permanente, et acceptez que la Société n'a aucune responsabilité à la suite de telles actions ou résultats, y compris, sans s'y limiter, pour la suppression ou l'incapacité de mettre à votre disposition tout contenu ou partie des Services. Certaines fonctionnalités peuvent ne pas être disponibles dans toutes les régions ou sur tous les appareils. Si une modification impacte votre utilisation du Service, vous pouvez supprimer votre compte."
         },
         {
           "type": "p",
@@ -413,7 +398,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Ce que voit votre conseiller. Pour personnaliser votre lecture, le conseiller avec lequel vous échangez voit une fiche client indiquant votre prénom ou pseudonyme, votre photo de profil, votre statut de connexion, votre pays, votre âge, votre date de naissance complète, les éléments astrologiques tirés de vos données de naissance (votre signe solaire et les signes de vos autres positions natales, ainsi que vos signes lunaire et ascendant si vous avez indiqué une heure et un lieu de naissance), votre horoscope du jour et le nombre de lectures que vous avez eues avec lui. Votre date de naissance est toujours affichée au conseiller avec lequel vous échangez, car les lectures en dépendent. Votre ville de naissance n’est affichée que si vous activez « Partager ma ville de naissance avec les conseillers » dans vos préférences de confidentialité. Les conseillers ne voient jamais votre adresse e-mail, votre solde de crédits, vos achats, votre abonnement, ni votre heure exacte ou vos coordonnées de naissance."
+          "text": "Ce que voit votre conseiller. Pour personnaliser votre lecture, le conseiller avec lequel vous échangez voit une fiche client indiquant votre prénom ou pseudonyme, votre photo de profil, votre statut de connexion, votre pays, votre âge, votre date de naissance complète, les éléments astrologiques tirés de vos données de naissance (votre signe solaire et les signes de vos autres positions natales, ainsi que vos signes lunaire et ascendant si vous avez indiqué une heure et un lieu de naissance), votre horoscope du jour et le nombre de lectures que vous avez eues avec lui. Votre date de naissance est toujours affichée au conseiller avec lequel vous échangez, car les lectures en dépendent. Votre ville de naissance n’est affichée que si vous activez « Partager ma ville de naissance avec les conseillers » dans vos préférences de confidentialité. Les conseillers ne voient jamais votre adresse e-mail, votre solde de crédits, vos achats, ni votre heure exacte ou vos coordonnées de naissance."
         },
         {
           "type": "p",
@@ -437,7 +422,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Nous vous envoyons des notifications concernant votre compte et votre activité — par exemple les demandes de chat, la fin d’une lecture et l’invitation à l’évaluer, le suivi des commandes, les achats effectués, les renouvellements d’abonnement et les incidents de paiement, les ajustements de crédits, les alertes de liste d’attente et, pour les conseillers, les nouvelles évaluations et le suivi des paiements — ainsi que des annonces occasionnelles de Staryield. Les notifications apparaissent dans le menu en forme de cloche du site, dans la langue choisie, et peuvent être marquées comme lues ; nous les conservons jusqu’à 180 jours. Selon vos paramètres de notification, nous vous les envoyons également par e-mail et sous forme de notifications push du navigateur. Les messages qui protègent votre compte, comme la confirmation d’un changement d’adresse e-mail, sont toujours envoyés par e-mail. Les notifications dans l’application font partie du Service ; il ne s’agit pas d’e-mails marketing, et nous ne vous envoyons des communications commerciales que si vous y avez consenti. La déconnexion arrête les notifications push sur cet appareil."
+          "text": "Nous vous envoyons des notifications concernant votre compte et votre activité — par exemple les demandes de chat, la fin d’une lecture et l’invitation à l’évaluer, le suivi des commandes, les achats effectués et les incidents de paiement, les ajustements de crédits, les alertes de liste d’attente et, pour les conseillers, les nouvelles évaluations et le suivi des paiements — ainsi que des annonces occasionnelles de Staryield. Les notifications apparaissent dans le menu en forme de cloche du site, dans la langue choisie, et peuvent être marquées comme lues ; nous les conservons jusqu’à 180 jours. Selon vos paramètres de notification, nous vous les envoyons également par e-mail et sous forme de notifications push du navigateur. Les messages qui protègent votre compte, comme la confirmation d’un changement d’adresse e-mail, sont toujours envoyés par e-mail. Les notifications dans l’application font partie du Service ; il ne s’agit pas d’e-mails marketing, et nous ne vous envoyons des communications commerciales que si vous y avez consenti. La déconnexion arrête les notifications push sur cet appareil."
         },
         {
           "type": "h3",
@@ -457,7 +442,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Lorsqu’un conseiller est occupé ou hors ligne, vous pouvez rejoindre sa liste d’attente. Nous vous préviendrons une seule fois, dans l’application et via les canaux que vous avez activés, lorsque le conseiller se connectera ; les membres Premium peuvent être prévenus avant les autres utilisateurs. Rejoindre une liste d’attente ne réserve pas le conseiller et ne garantit pas une lecture ; les demandes expirent au bout de 7 jours et vous pouvez quitter une liste d’attente à tout moment."
+          "text": "Lorsqu’un conseiller est occupé ou hors ligne, vous pouvez rejoindre sa liste d’attente. Nous vous préviendrons une seule fois, dans l’application et via les canaux que vous avez activés, lorsque le conseiller se connectera . Rejoindre une liste d’attente ne réserve pas le conseiller et ne garantit pas une lecture ; les demandes expirent au bout de 7 jours et vous pouvez quitter une liste d’attente à tout moment."
         },
         {
           "type": "h3",
@@ -467,7 +452,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Lorsqu’aucune consultation en direct n’est en cours (après la fin d’une consultation, pendant qu’une demande est en attente ou pendant qu’une consultation est en pause), vous et le conseiller pouvez continuer à échanger des messages texte et des images dans une conversation existante ayant donné lieu à au moins une consultation en direct. Ces messages sont gratuits : ils ne sont pas facturés à la minute. Ils sont limités à un certain nombre de messages par conversation sur toute période glissante de 24 heures, que Staryield fixe et peut modifier ou désactiver à tout moment ; la limite en vigueur est indiquée dans l’application. La limite ne s’applique pas pendant les périodes de mode gratuit (voir la [section 6.2.5](#free-trials-and-promotional-offers)). Les messages écrits pendant qu’une consultation en direct est en pause appartiennent à cette consultation et ne sont pas facturés pendant la pause."
+          "text": "Lorsqu’aucune consultation en direct n’est en cours (après la fin d’une consultation, pendant qu’une demande est en attente ou pendant qu’une consultation est en pause), vous et le conseiller pouvez continuer à échanger des messages texte et des images dans une conversation existante ayant donné lieu à au moins une consultation en direct. Ces messages sont gratuits : ils ne sont pas facturés à la minute. Ils sont limités à un certain nombre de messages par conversation sur toute période glissante de 24 heures, que Staryield fixe et peut modifier ou désactiver à tout moment ; la limite en vigueur est indiquée dans l’application. La limite ne s’applique pas pendant les périodes de mode gratuit (voir la [section 6.1.4](#free-trials-and-promotional-offers)). Les messages écrits pendant qu’une consultation en direct est en pause appartiennent à cette consultation et ne sont pas facturés pendant la pause."
         },
         {
           "type": "p",
@@ -535,13 +520,13 @@ const content: LegalDocumentContent = {
       ]
     },
     {
-      "id": "subscription-fees-payments-and-refunds",
+      "id": "credits-payments-and-refunds",
       "n": "6",
-      "title": "CRÉDITS, ABONNEMENT, PAIEMENTS ET REMBOURSEMENTS",
+      "title": "CRÉDITS, PAIEMENTS ET REMBOURSEMENTS",
       "blocks": [
         {
           "type": "p",
-          "text": "La présente section régit tous les achats effectués via le Service, y compris les packs de crédits, l’abonnement Premium et les lectures personnalisées."
+          "text": "La présente section régit tous les achats effectués via le Service, y compris les packs de crédits et les lectures personnalisées."
         },
         {
           "type": "h3",
@@ -557,7 +542,19 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Pour accéder aux fonctionnalités payantes du Service, vous rechargez le solde de votre compte (le « Solde ») en crédits (les « Crédits ») en achetant un pack de crédits. Les Crédits sont déduits de votre Solde à la minute pendant les lectures en direct, le montant applicable étant déduit au début de chaque minute d’utilisation. Le tarif à la minute dépend du conseiller et de toute remise liée à votre abonnement, et il est affiché avant le début d’une lecture. Les minutes gratuites, par exemple celles d’une offre de bienvenue ou de votre abonnement Premium, sont utilisées avant les Crédits payants. Les Crédits peuvent également servir à commander des lectures personnalisées auprès des conseillers."
+          "text": "Pour accéder aux fonctionnalités payantes du Service, vous rechargez le solde de votre compte (le « Solde ») en crédits (les « Crédits ») en achetant un pack de crédits. Les Crédits sont déduits de votre Solde à la minute pendant les lectures en direct, le montant applicable étant déduit au début de chaque minute d’utilisation. Le tarif à la minute dépend du conseiller, et il est affiché avant le début d’une lecture. Les minutes gratuites, par exemple celles d’une offre de bienvenue, sont utilisées avant les Crédits payants. Les Crédits peuvent également servir à commander des lectures personnalisées auprès des conseillers."
+        },
+        {
+          "type": "p",
+          "text": "Types de Crédits et ordre d’utilisation. Les Crédits que vous achetez dans un pack de crédits sont des « Crédits achetés » ; les Crédits que nous vous offrons gratuitement, tels qu’un bonus d’inscription, des Crédits de courtoisie ou des Crédits ajoutés par notre équipe, sont des « Crédits bonus ». Les minutes offertes sont utilisées en premier, comme indiqué ci-dessus. Vos Crédits sont ensuite utilisés dans l’ordre suivant : d’abord les Crédits achetés, puis les Crédits bonus. Au sein d’un même type, les Crédits les plus anciens sont utilisés avant les plus récents."
+        },
+        {
+          "type": "p",
+          "text": "Packs de crédits. Nous ne proposons actuellement ni abonnement, ni adhésion, ni rechargement automatique : chaque achat est un pack de crédits à paiement unique. Un pack de crédits ne se renouvelle pas et nous ne rechargeons jamais votre Solde automatiquement. Les Crédits sont ajoutés à votre Solde uniquement une fois votre paiement réussi. Le prix et le nombre de Crédits de chaque pack sont indiqués avant le paiement. Toute économie affichée (par exemple « Économisez 11 % ») compare le prix par Crédit du pack au tarif de pack standard indiqué sur notre page [Tarifs](/pricing), et nous arrondissons toujours une économie à l’inférieur."
+        },
+        {
+          "type": "p",
+          "text": "Pack de bienvenue. Nous pouvons proposer un pack de bienvenue à prix réduit. Il est disponible une fois par client et une fois par moyen de paiement, uniquement pour les nouveaux clients qui n’ont pas encore acheté de Crédits, et il ne peut pas être combiné avec d’autres promotions ou bonus. Il n’est pas rétabli si vous en êtes remboursé. Nous pouvons modifier ou arrêter l’offre à tout moment ; une modification n’affecte pas un pack que vous avez déjà acheté."
         },
         {
           "type": "h4",
@@ -567,7 +564,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Pour recharger votre Solde, nous débitons le moyen de paiement que vous choisissez lors du paiement. Vous pouvez enregistrer une carte dans votre compte pour vos prochains achats : les données de la carte sont saisies dans des champs hébergés par notre prestataire de paiement et nous ne conservons qu’un jeton, la marque de la carte, les quatre derniers chiffres et la date d’expiration. Vous nous autorisez à débiter le prix applicable sur le moyen de paiement que vous sélectionnez. Vous pouvez supprimer une carte enregistrée à tout moment dans les paramètres de votre compte, sauf s’il s’agit du seul moyen de paiement d’un abonnement dont le renouvellement est prévu. Nous vous prévenons à chaque rechargement de votre Solde."
+          "text": "Pour recharger votre Solde, nous débitons le moyen de paiement que vous choisissez lors du paiement. Vous pouvez enregistrer une carte dans votre compte pour vos prochains achats : les données de la carte sont saisies dans des champs hébergés par notre prestataire de paiement et nous ne conservons qu’un jeton, la marque de la carte, les quatre derniers chiffres et la date d’expiration. Vous nous autorisez à débiter le prix applicable sur le moyen de paiement que vous sélectionnez. Vous pouvez supprimer une carte enregistrée à tout moment dans les paramètres de votre compte. Nous vous prévenons à chaque rechargement de votre Solde."
         },
         {
           "type": "h4",
@@ -594,131 +591,31 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Remboursements. Sauf indication contraire dans la rubrique [Remboursements](#refunds) ci-dessous ou disposition légale contraire, les Crédits ne sont pas remboursables."
-        },
-        {
-          "type": "h3",
-          "id": "subscription-terms",
-          "n": "6.2",
-          "title": "Conditions d'abonnement"
-        },
-        {
-          "type": "h4",
-          "id": "subscription-options-purchases-and-refunds",
-          "n": "6.2.1",
-          "title": "Formules et avantages de l’abonnement"
-        },
-        {
-          "type": "p",
-          "text": "Staryield propose un abonnement Premium facultatif qui se renouvelle automatiquement. Le prix, la devise, la période de facturation et les avantages de chaque formule sont affichés avant la souscription. Les avantages peuvent comprendre une allocation mensuelle de Crédits, une remise sur le tarif à la minute des lectures en direct, des minutes gratuites à chaque période de facturation et des alertes prioritaires des listes d’attente des conseillers. Les Crédits attribués avec votre abonnement sont ajoutés à votre Solde et soumis à la section 6.1 ; les minutes gratuites ne sont disponibles que pendant la période de facturation pour laquelle elles sont attribuées et ne sont pas reportées. Les prix peuvent varier selon la région et la devise. Les avantages ne s’appliquent que tant que votre abonnement est actif."
-        },
-        {
-          "type": "p",
-          "text": "Pour plus d’informations sur les remboursements, consultez la rubrique [Remboursements](#refunds) ci-dessous."
-        },
-        {
-          "type": "h4",
-          "id": "purchases-and-payment-processing",
-          "n": "6.2.2",
-          "title": "Traitement des achats et des paiements"
-        },
-        {
-          "type": "p",
-          "text": "Lors de la souscription, vous choisissez une formule et un moyen de paiement, et vous nous autorisez à débiter le prix de la formule sur ce moyen de paiement au début de chaque période de facturation. Les paiements sont traités par des prestataires de paiement tiers, qui peuvent varier selon votre pays, votre devise, votre compte et le produit acheté ; par exemple, certains paiements sont traités par Stripe et d’autres par des prestataires de cartes spécialisés dans notre secteur d’activité. Les données de votre carte sont saisies directement auprès du prestataire. Certains paiements peuvent nécessiter une authentification auprès de votre banque (par exemple 3-D Secure). Votre abonnement commence dès la confirmation du premier paiement."
-        },
-        {
-          "type": "h4",
-          "id": "auto-renewal-subscription-continuity-and-cancellation",
-          "n": "6.2.3",
-          "title": "Renouvellement automatique, continuité d'abonnement et annulation"
-        },
-        {
-          "type": "p",
-          "text": "Tous les abonnements sont automatiquement renouvelés sauf annulation. La période de renouvellement correspond à la durée initiale de l'abonnement, sauf indication contraire au moment de l'achat. Pour éviter le renouvellement, vous devez annuler votre abonnement avant la date de renouvellement."
-        },
-        {
-          "type": "p",
-          "text": "En procédant à un abonnement, vous reconnaissez que des frais seront appliqués périodiquement en fonction du cycle de facturation sélectionné. Le tarif de renouvellement ne sera pas supérieur au tarif de la période d'abonnement immédiatement précédente, à l'exclusion de tout prix promotionnel (de lancement) et de réduction, à moins que nous vous informions d'un changement de tarif avant votre renouvellement automatique."
-        },
-        {
-          "type": "p",
-          "text": "Vous nous autorisez, ainsi que nos prestataires de traitement des paiements, à stocker les informations de votre compte de paiement, y compris toutes les mises à jour, et à les utiliser dans le cadre de votre utilisation des Services comme décrit dans les conditions de l'offre applicables. Nous pouvons vérifier votre mode de paiement avec de petits frais temporaires, qui vous seront remboursés dans les dix (10) jours ouvrables."
-        },
-        {
-          "type": "p",
-          "text": "Vous pouvez résilier votre abonnement à tout moment dans les paramètres de votre compte, rubrique Facturation et abonnements. La suppression de l’Application, la fermeture de votre navigateur ou la désactivation de votre compte n’annulent pas votre abonnement."
-        },
-        {
-          "type": "p",
-          "text": "Si vous résiliez, votre abonnement reste actif jusqu’à la fin de la période de facturation en cours et n’est pas renouvelé ; vous pouvez le réactiver avant cette date. Après son expiration, vous conservez l’accès à toutes les fonctionnalités gratuites du Service et aux Crédits restant sur votre Solde."
-        },
-        {
-          "type": "h4",
-          "id": "add-on-items-and-additional-services",
-          "n": "6.2.4",
-          "title": "Crédits et lectures personnalisées"
-        },
-        {
-          "type": "p",
-          "text": "Les Crédits et les lectures personnalisées s’achètent séparément de votre abonnement. La résiliation ou la fin de votre abonnement n’annule pas les lectures personnalisées déjà commandées et ne retire pas de Crédits de votre Solde."
+          "text": "Remboursements. Les Crédits ne sont pas remboursables, sauf dans les cas prévus par notre [Politique de remboursement](/refund-policy), dans la rubrique [Remboursements](#refunds) ci-dessous ou par la loi applicable. Les Crédits bonus et promotionnels n’ont aucune valeur en espèces et ne sont pas remboursables de manière indépendante."
         },
         {
           "type": "h4",
           "id": "free-trials-and-promotional-offers",
-          "n": "6.2.5",
-          "title": "Essais gratuits et offres promotionnelles"
+          "n": "6.1.4",
+          "title": "Minutes offertes et accès gratuit promotionnel"
         },
         {
           "type": "p",
-          "text": "Nous pouvons proposer un essai gratuit ou un abonnement à une offre de lancement pour le Service selon les conditions spécifiées lors de votre inscription à l'offre. Un essai gratuit vous donne accès au Service pendant une période donnée ; une offre de lancement vous donne accès au Service à un tarif réduit pendant une durée limitée. Sauf si vous annulez avant la fin de l’essai gratuit ou de l’offre de lancement, ou sauf indication contraire, votre accès au Service continuera automatiquement et les frais applicables vous seront facturés. Il est de votre responsabilité de savoir quand l’essai gratuit ou l’offre de lancement prendra fin. Nous nous réservons le droit, à notre entière discrétion, de modifier ou de mettre fin à tout essai gratuit ou offre de lancement, à votre accès au Service pendant la période d'essai gratuit ou de lancement, ou à l'une de ces conditions sans préavis et sans aucune responsabilité. Nous nous réservons le droit de limiter votre capacité à profiter de plusieurs essais gratuits et/ou offres de lancement."
-        },
-        {
-          "type": "p",
-          "text": "Minutes offertes de bienvenue. Les nouveaux comptes clients peuvent recevoir un certain nombre de minutes de chat offertes à l’inscription. Staryield fixe ce nombre, peut le modifier ou désactiver l’offre à tout moment, et une modification ne s’applique qu’aux comptes créés ensuite. Les minutes offertes sont réservées aux nouveaux comptes, n’ont aucune valeur monétaire, ne peuvent être ni transférées, ni échangées, ni remboursées, et sont utilisées avant les Crédits de votre Solde."
+          "text": "Minutes offertes de bienvenue. Les nouveaux comptes clients peuvent recevoir un certain nombre de minutes de chat offertes à l’inscription. Staryield fixe ce nombre, peut le modifier ou désactiver l’offre à tout moment, et une modification ne s’applique qu’aux comptes créés ensuite. Les minutes offertes sont réservées aux nouveaux comptes, n’ont aucune valeur monétaire, ne peuvent être ni transférées, ni échangées, ni remboursées, et sont utilisées avant les Crédits de votre Solde. Les minutes offertes ne nécessitent aucun moyen de paiement, ne déclenchent aucun abonnement et ne se transforment jamais en prélèvement."
         },
         {
           "type": "p",
           "text": "Accès gratuit promotionnel (« mode gratuit »). Il peut nous arriver de rendre les chats en direct gratuits pour tous pendant une période limitée. Le mode gratuit peut commencer ou s’arrêter à tout moment, avec ou sans date de fin annoncée. Un chat que vous demandez pendant le mode gratuit reste gratuit jusqu’à sa fin, même si le mode gratuit s’arrête entre-temps. Les conseillers restent rémunérés par Staryield pour les chats tenus pendant le mode gratuit. Le mode gratuit ne s’applique ni aux demandes personnalisées ni à l’achat de Crédits, qui sont tarifés et facturés comme d’habitude, et aucune minute offerte ni aucun Crédit n’est consommé tant que votre chat est gratuit."
         },
         {
-          "type": "h4",
-          "id": "promotional-codes",
-          "n": "6.2.6",
-          "title": "Codes promotionnels"
-        },
-        {
-          "type": "p",
-          "text": "Nous pouvons vous fournir des cartes-cadeaux ou des codes promotionnels qui peuvent être échangés contre des fonctionnalités, des améliorations, des fonctionnalités, du contenu ou des services supplémentaires au sein d'un service spécifié et pour une période de temps limitée, sous réserve des conditions d'éligibilité (les « codes promotionnels »). Les codes promotionnels n'ont aucune valeur monétaire, sont personnels, non transférables, ne peuvent faire l'objet d'une sous-licence, et nous ne sommes aucunement tenus de fournir une quelconque compensation en relation avec un code promotionnel."
-        },
-        {
-          "type": "h4",
-          "id": "changes-to-subscription-fees",
-          "n": "6.2.7",
-          "title": "Modifications des frais d'abonnement"
-        },
-        {
-          "type": "p",
-          "text": "Dans la mesure permise par la loi applicable, nous pouvons modifier les frais d'abonnement à tout moment. Si une notification est requise en vertu de la loi applicable, nous vous informerons des modifications de prix de la manière et dans les délais prescrits par la réglementation. Lorsqu'aucun délai spécifique n'est prescrit, nous vous en informerons en publiant les prix mis à jour dans l'application ou sur notre site Web, en envoyant une notification par e-mail ou en utilisant d'autres méthodes de communication importantes. Le prix révisé entrera en vigueur comme spécifié dans l’avis. Si vous n'acceptez pas les frais mis à jour, vous pouvez annuler votre abonnement avant que la nouvelle tarification n'entre en vigueur ou ne pas payer d'avance pour un accès continu au Service."
-        },
-        {
-          "type": "h4",
-          "id": "failure-to-pay-and-service-termination",
-          "n": "6.2.8",
-          "title": "Défaut de paiement et résiliation du service"
-        },
-        {
-          "type": "p",
-          "text": "Si un paiement de renouvellement échoue, nous le réessaierons plusieurs fois au cours des jours suivants et vous préviendrons afin que vous puissiez mettre à jour votre moyen de paiement. Tant qu’un paiement est en retard, les avantages de votre abonnement peuvent être suspendus. Si le paiement n’a toujours pas abouti dans les 7 jours suivant la date de renouvellement, votre abonnement prend fin. Nous ne supprimons ni votre compte ni vos Crédits en raison de l’échec d’un paiement d’abonnement."
-        },
-        {
-          "type": "h4",
+          "type": "h3",
           "id": "right-of-withdrawal",
-          "n": "6.2.9",
+          "n": "6.2",
           "title": "Droit de rétractation"
         },
         {
           "type": "p",
-          "text": "Si vous résidez dans l’Espace économique européen, au Royaume-Uni ou en Suisse, vous pouvez disposer d’un droit légal de rétractation de 14 jours, sans avoir à motiver votre décision, pour l’achat de contenus ou de services numériques. Lorsque vous achetez des Crédits ou un abonnement, nous vous demandons d’accepter que nous commencions à les fournir immédiatement. Si vous l’acceptez et commencez à les utiliser pendant le délai de rétractation, vous perdez votre droit de rétractation pour les packs de crédits dès que les Crédits ont été ajoutés à votre Solde et, pour un abonnement, vous paierez un montant proportionnel à la période déjà fournie si vous vous rétractez. Pour exercer votre droit de rétractation, contactez notre [centre d’assistance](/contact) avant la fin du délai."
+          "text": "Si vous résidez dans l’Espace économique européen, au Royaume-Uni ou en Suisse, vous pouvez disposer d’un droit légal de rétractation de 14 jours, sans avoir à motiver votre décision, pour l’achat de contenus ou de services numériques. Lorsque vous achetez des Crédits, nous vous demandons d’accepter que nous commencions à les fournir immédiatement. Si vous l’acceptez et commencez à les utiliser pendant le délai de rétractation, vous perdez votre droit de rétractation pour les packs de crédits dès que les Crédits ont été ajoutés à votre Solde. Pour exercer votre droit de rétractation, contactez notre [centre d’assistance](/contact) avant la fin du délai. Les packs de crédits inutilisés peuvent aussi être remboursés selon notre [Politique de remboursement](/refund-policy)."
         },
         {
           "type": "h3",
@@ -734,7 +631,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Sauf obligation légale ou mention contraire au moment de l’achat, les achats ne sont pas remboursables. Si un conseiller ne livre pas une lecture personnalisée que vous avez commandée, les Crédits réservés pour celle-ci sont restitués sur votre Solde. Si vous estimez qu’une lecture ou un paiement n’a pas été fourni conformément à sa description, contactez notre [centre d’assistance](/contact) et nous examinerons votre demande."
+          "text": "Les remboursements des packs de crédits sont régis par notre [Politique de remboursement](/refund-policy), qui fait partie des présentes Conditions. Si un conseiller ne livre pas une lecture personnalisée que vous avez commandée, les Crédits réservés pour celle-ci sont restitués sur votre Solde. Si vous estimez qu’une lecture ou un paiement n’a pas été fourni conformément à sa description, contactez notre [centre d’assistance](/contact) et nous examinerons votre demande."
         },
         {
           "type": "h4",
@@ -748,7 +645,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Les remboursements, le cas échéant, ne sont pas traités en temps réel. Si nous confirmons qu'un remboursement a été émis, veuillez prévoir au moins 15 jours ouvrables pour que le remboursement soit reflété sur votre compte. Vous reconnaissez que vous n'avez pas le droit de recevoir plusieurs remboursements pour la même transaction et acceptez que si vous demandez un remboursement directement auprès de nous, vous ne lancerez pas de demande de remboursement distincte ni de rétrofacturation via votre fournisseur de paiement, à moins que votre demande n'ait été refusée par nous. Si vous recevez des remboursements en double en raison de demandes de remboursement distinctes, nous nous réservons le droit de travailler avec votre fournisseur de paiement pour annuler l'un de ces remboursements."
+          "text": "Les remboursements, le cas échéant, ne sont pas traités en temps réel. Si nous approuvons un remboursement, nous le transmettons sous 5 jours ouvrés, et votre banque ou votre prestataire de paiement peut avoir besoin de 5 à 10 jours ouvrés supplémentaires pour l'afficher sur votre compte (voir notre [Politique de remboursement](/refund-policy)). Vous reconnaissez que vous n'avez pas le droit de recevoir plusieurs remboursements pour la même transaction et acceptez que si vous demandez un remboursement directement auprès de nous, vous ne lancerez pas de demande de remboursement distincte ni de rétrofacturation via votre fournisseur de paiement, à moins que votre demande n'ait été refusée par nous. Si vous recevez des remboursements en double en raison de demandes de remboursement distinctes, nous nous réservons le droit de travailler avec votre fournisseur de paiement pour annuler l'un de ces remboursements."
         },
         {
           "type": "p",
@@ -1416,7 +1313,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Pour des demandes générales ou une assistance, vous pouvez nous contacter à notre [centre d'assistance](/contact)."
+          "text": "Pour des demandes générales ou une assistance, vous pouvez nous contacter à notre [centre d'assistance](/contact) ou à [support@staryield.net](mailto:support@staryield.net). L’assistance est disponible 24/7. Nous répondons sous 1 à 2 jours."
         }
       ]
     }

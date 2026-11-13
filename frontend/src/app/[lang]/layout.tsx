@@ -25,9 +25,13 @@ import { PushSync } from "@/components/notifications/push-sync";
 // revisions 3.0: admin-controlled banners, sign-up offer and free mode (§15.1).
 import { SiteConfigProvider } from "@/lib/site-config/site-config-provider";
 import { fetchSiteConfig } from "@/lib/site-config/server";
+// revisions 5.0: the top-up dialog is available everywhere signed in (§24.7).
+import { TopUpProvider } from "@/components/billing/top-up/top-up-provider";
 import { AttributionCapture } from "@/components/feedback/attribution-capture";
 // account settings: app-wide theme, rendered from the sy_theme cookie (no flash).
 import { ThemeSync } from "@/components/layout/theme-sync";
+// revisions 5.0: 18+ age gate (§24.6): a gated API answer becomes the birth step or the restricted screen.
+import { AgeGateEffects } from "@/lib/auth/age-gate";
 import { THEME_COOKIE, parseThemeCookie } from "@/lib/theme";
 
 /** Stand-in for Castellar, which is not available as a webfont. */
@@ -114,13 +118,16 @@ export default async function LangLayout({
             <SiteConfigProvider initial={siteConfig}>
               <SessionProvider>
                 <ThemeSync />
+                <AgeGateEffects />
                 <NotificationsProvider>
                   <ChatUnreadProvider>
                     <ClientAliasProvider>
                     <ChatAlerts />
                     <IncomingRequestRinger />
                     <PushSync />
-                    <TooltipProvider>{children}</TooltipProvider>
+                    <TopUpProvider>
+                      <TooltipProvider>{children}</TooltipProvider>
+                    </TopUpProvider>
                     </ClientAliasProvider>
                   </ChatUnreadProvider>
                 </NotificationsProvider>

@@ -99,6 +99,10 @@ function Probe(props: { enabled?: boolean; onReply: () => void; onLike: () => vo
       <button type="button" data-no-tap data-testid="image">
         img
       </button>
+      {/* The three-dot button of the bubble (§24.9) opts out of every bubble gesture. */}
+      <button type="button" data-no-gesture data-testid="dots">
+        ...
+      </button>
     </div>
   );
 }
@@ -223,6 +227,21 @@ describe("useBubbleGestures", () => {
     fireEvent.touchEnd(bubble, end(40, 80));
     expect(s.onLike).not.toHaveBeenCalled();
     expect(s.onReply).not.toHaveBeenCalled();
+  });
+
+  it("the three-dot button is not part of the gestures: no long-press, swipe or double-tap starts on it", () => {
+    const s = spies();
+    render(<Probe {...s} />);
+    const dots = screen.getByTestId("dots");
+    fireEvent.touchStart(dots, touch(40, 80));
+    act(() => void vi.advanceTimersByTime(LONG_PRESS_MS + 50));
+    expect(s.onMenu).not.toHaveBeenCalled();
+    fireEvent.touchEnd(dots, end(40, 80));
+    fireEvent.touchStart(dots, touch(40, 80));
+    fireEvent.touchEnd(dots, end(40, 80));
+    expect(s.onLike).not.toHaveBeenCalled();
+    fireEvent.doubleClick(dots);
+    expect(s.onLike).not.toHaveBeenCalled();
   });
 
   it("moving cancels the long-press; lifting early does too", () => {

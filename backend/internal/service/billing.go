@@ -39,6 +39,10 @@ type BillingSettings struct {
 	IncompleteTTL     time.Duration // unresolved first charge expires after this
 	MaxPaymentMethods int
 	IPHashSecret      string
+	// revisions 5.1: the memberships switch (§25.1) and the statement
+	// descriptor sent with every charge (§25.3).
+	MembershipsEnabled  bool
+	StatementDescriptor string
 }
 
 // PurchaseSettler finishes credit purchases whose charge resolved
@@ -69,6 +73,9 @@ type BillingService struct {
 	clock    clock.Clock
 	cfg      BillingSettings
 	settler  PurchaseSettler
+	// revisions 5.0: refund requests. Loads the refund info of a page of
+	// payments (RefundService.TransactionInfo); nil leaves the rows without it.
+	refundInfo RefundInfoLoader
 }
 
 // BillingDeps are the billing service's collaborators.
@@ -121,9 +128,24 @@ func NewBillingService(d BillingDeps, cfg BillingSettings) *BillingService {
 		clock: d.Clock, cfg: cfg}
 }
 
+// MembershipsEnabled reports whether memberships are on sale (revisions 5.1,
+// STARYIELD_BILLING_MEMBERSHIPS_ENABLED). While off nobody can subscribe, change
+// the membership card or resume; viewing and cancelling always work.
+func (s *BillingService) MembershipsEnabled() bool { return s.cfg.MembershipsEnabled }
+
+// errMembershipsOff is the 503 of the membership actions while the switch is off.
+func errMembershipsOff() error { return apperror.FeatureUnavailable("Memberships are not available.") }
+
 // WithSettler lets the reconciliation worker finish credit purchases.
 func (s *BillingService) WithSettler(p PurchaseSettler) *BillingService {
 	s.settler = p
+	return s
+}
+
+// WithRefundInfo lets the transactions list carry the refund info of credit
+// purchases (revisions 5.0, §24.4).
+func (s *BillingService) WithRefundInfo(l RefundInfoLoader) *BillingService {
+	s.refundInfo = l
 	return s
 }
 
@@ -216,6 +238,9 @@ type TransactionView struct {
 	PaymentMethod       *CardSummary `json:"payment_method,omitempty"`
 	FailureCode         string       `json:"failure_code,omitempty"`
 	CreatedAt           time.Time    `json:"created_at"`
+	// Refund (revisions 5.0, §24.4) is set on the caller's own credit-purchase
+	// rows by GET /billing/transactions only.
+	Refund *TransactionRefundInfo `json:"refund,omitempty"`
 }
 
 func transactionView(t *domain.PaymentTransaction, methods map[uuid.UUID]domain.PaymentMethod) TransactionView {

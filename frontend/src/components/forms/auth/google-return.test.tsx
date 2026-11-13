@@ -112,6 +112,25 @@ describe("GoogleReturn: signed in / up / linked", () => {
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/en/profile"));
   });
 
+  // revisions 5.0: 18+ age gate (docs §24.6).
+  it("signed_in without a birth date goes to the birth step and then where it was going", async () => {
+    api.me.mockResolvedValue({ ...client, age_status: "birth_date_required" });
+    visit("?result=signed_in&next=%2Fen%2Fchatroom");
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith(`/en/signup/birth?next=${encodeURIComponent("/en/chatroom")}`));
+  });
+
+  it("signed_in of a restricted account goes to the restricted screen", async () => {
+    api.me.mockResolvedValue({ ...client, age_status: "restricted" });
+    visit("?result=signed_in");
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/en/age-restricted"));
+  });
+
+  it("signed_in of an adult is unchanged", async () => {
+    api.me.mockResolvedValue({ ...client, age_status: "adult" });
+    visit("?result=signed_in");
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/en/profile"));
+  });
+
   it("sends advisors to the chat room", async () => {
     api.me.mockResolvedValue(advisor);
     visit("?result=signed_in");

@@ -42,7 +42,7 @@ export function SavedPages({
     );
   }
   if (saved.items.length === 0) {
-    return <p className={emptyClassName ?? "text-xs font-light"}>{text("No saved messages yet. Use the bookmark beside a message to save it. ")}</p>;
+    return <p className={emptyClassName ?? "text-xs font-light"}>{text("No saved messages yet. Open a message's menu and choose Bookmark to save it.")}</p>;
   }
   return (
     <>

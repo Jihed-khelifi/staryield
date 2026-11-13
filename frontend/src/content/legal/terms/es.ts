@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-09",
-    "effective": "2026-11-09",
-    "lastUpdated": "2026-11-09",
+    "version": "2026-11-13",
+    "effective": "2026-11-13",
+    "lastUpdated": "2026-11-13",
     "badge": "ACUERDO DEL SISTEMA STARYIELD",
     "title": "Términos de uso"
   },
@@ -17,25 +17,6 @@ const content: LegalDocumentContent = {
     "backToTop": "Volver arriba"
   },
   "intro": [
-    {
-      "type": "h3",
-      "id": "important-notice-regarding-automatic-renewals",
-      "title": "AVISO IMPORTANTE SOBRE RENOVACIONES AUTOMÁTICAS"
-    },
-    {
-      "type": "p",
-      "text": "Staryield ofrece una Membresía Premium opcional que se renueva automáticamente. Lea detenidamente estos términos y condiciones de uso (los «Términos») (en particular, la Sección 6) antes de comprar una membresía o créditos. Al comprar una membresía, usted reconoce y acepta su carácter recurrente, tal como se explica cerca del punto de compra. Su membresía se renueva al final de cada periodo de facturación y el precio aplicable se cobra en su método de pago guardado, salvo que la cancele antes de la fecha de renovación."
-    },
-    {
-      "type": "ul",
-      "items": [
-        "Puede cancelar su membresía en cualquier momento en la configuración de su cuenta, en Facturación y suscripciones; seguirá activa hasta el final del periodo de facturación en curso. Para los reembolsos, consulte [Reembolsos](#refunds) o póngase en contacto con nuestro [centro de soporte](/contact)."
-      ]
-    },
-    {
-      "type": "p",
-      "text": "Eliminar la aplicación, cerrar el navegador o desactivar su cuenta no cancela su membresía. Es posible que también desee tomar una captura de pantalla de este aviso para referencia futura. Puede encontrar más detalles en nuestros [Términos de suscripción](#subscription-terms), recogidos en la Sección 6.2."
-    },
     {
       "type": "p",
       "text": "Nuestras prácticas de privacidad se describen en detalle en nuestra [Política de Privacidad](/privacy). Revíselo para comprender cómo recopilamos, usamos y compartimos su información personal."
@@ -74,7 +55,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Al acceder o utilizar cualquier parte del Servicio, o hacer clic en \"Acepto\", marcar una casilla o utilizar cualquier otro mecanismo de aceptación presentado a través del Servicio, o manifestar su consentimiento de otro modo, usted reconoce que ha leído, comprendido y aceptado estar sujeto a estos Términos, formando un acuerdo legalmente vinculante entre usted y la Compañía. Si no está de acuerdo con estos Términos, debe dejar de usar el Servicio inmediatamente, eliminar su cuenta y cancelar cualquier suscripción activa."
+          "text": "Al acceder o utilizar cualquier parte del Servicio, o hacer clic en \"Acepto\", marcar una casilla o utilizar cualquier otro mecanismo de aceptación presentado a través del Servicio, o manifestar su consentimiento de otro modo, usted reconoce que ha leído, comprendido y aceptado estar sujeto a estos Términos, formando un acuerdo legalmente vinculante entre usted y la Compañía. Si no está de acuerdo con estos Términos, debe dejar de usar el Servicio inmediatamente, eliminar su cuenta."
         },
         {
           "type": "p",
@@ -102,7 +83,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "A menos que se indique lo contrario, indicaremos las actualizaciones revisando la fecha de “Última actualización” de estos Términos. Usted reconoce y acepta que es su responsabilidad revisar los Términos periódicamente para detectar cualquier actualización. A menos que se especifique lo contrario, los Términos actualizados entran en vigor una vez publicados en el Servicio. Al continuar utilizando el Servicio después de que las actualizaciones entren en vigor, acepta los Términos revisados. Si no está de acuerdo, debe dejar de utilizar el Servicio inmediatamente, eliminar su cuenta y cancelar su suscripción."
+          "text": "A menos que se indique lo contrario, indicaremos las actualizaciones revisando la fecha de “Última actualización” de estos Términos. Usted reconoce y acepta que es su responsabilidad revisar los Términos periódicamente para detectar cualquier actualización. A menos que se especifique lo contrario, los Términos actualizados entran en vigor una vez publicados en el Servicio. Al continuar utilizando el Servicio después de que las actualizaciones entren en vigor, acepta los Términos revisados. Si no está de acuerdo, debe dejar de utilizar el Servicio inmediatamente y eliminar su cuenta."
         },
         {
           "type": "h3",
@@ -211,6 +192,10 @@ const content: LegalDocumentContent = {
           "text": "El Servicio está destinado a usuarios mayores de 18 años. Al crear una Cuenta, usted confirma que tiene al menos 18 años y que tiene la autoridad legal para celebrar y cumplir estos Términos. Si es menor de 18 años, tiene prohibido utilizar el Servicio."
         },
         {
+          "type": "p",
+          "text": "Determinamos su elegibilidad a partir de la fecha de nacimiento que facilita al registrarse. Si esa fecha de nacimiento indica que es menor de 18 años, o si por otra vía tenemos conocimiento de ello, restringiremos su Cuenta hasta que nuestro equipo la haya revisado, y mientras tanto no podrá utilizar las funciones de pago del Servicio. Si cree que se trata de un error, póngase en contacto con nuestro [centro de soporte](/contact)."
+        },
+        {
           "type": "h3",
           "id": "account-suspension-or-termination",
           "n": "3.4",
@@ -242,11 +227,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Puede cerrar su Cuenta en cualquier momento desde la configuración de su cuenta. El cierre desactiva su Cuenta de inmediato y abre un periodo de gracia de 30 días durante el cual puede anular el cierre volviendo a iniciar sesión. Cuando finaliza el periodo de gracia, o cuando eliminamos una Cuenta conforme a la Sección 3.4, borramos los datos personales que le identifican (su dirección de correo electrónico, nombre, apodo, datos de nacimiento, ubicación y foto de perfil), cerramos sus sesiones activas y cancelamos cualquier Membresía Premium. Los registros que debemos conservar por motivos contables, de prevención del fraude y de cumplimiento legal —como las compras, los movimientos de créditos, las ganancias de los asesores y nuestro registro de auditoría de seguridad— se conservan de forma seudonimizada, sin mostrar su identidad. Las valoraciones que haya realizado siguen visibles como escritas por «Cliente», salvo que se eliminen conforme a la Sección 4.4."
+          "text": "Puede cerrar su Cuenta en cualquier momento desde la configuración de su cuenta. El cierre desactiva su Cuenta de inmediato y abre un periodo de gracia de 30 días durante el cual puede anular el cierre volviendo a iniciar sesión. Cuando finaliza el periodo de gracia, o cuando eliminamos una Cuenta conforme a la Sección 3.4, borramos los datos personales que le identifican (su dirección de correo electrónico, nombre, apodo, datos de nacimiento, ubicación y foto de perfil) y cerramos sus sesiones activas. Los registros que debemos conservar por motivos contables, de prevención del fraude y de cumplimiento legal —como las compras, los movimientos de créditos, las ganancias de los asesores y nuestro registro de auditoría de seguridad— se conservan de forma seudonimizada, sin mostrar su identidad. Las valoraciones que haya realizado siguen visibles como escritas por «Cliente», salvo que se eliminen conforme a la Sección 4.4."
         },
         {
           "type": "p",
-          "text": "Los Créditos no utilizados y el periodo restante de la membresía se pierden cuando el cierre se hace definitivo, salvo que la legislación aplicable disponga otra cosa. Los asesores no pueden cerrar su Cuenta mientras tengan un saldo de ganancias disponible, un retiro pendiente, una solicitud personalizada abierta o una consulta en vivo en curso."
+          "text": "Los Créditos no utilizados se pierden cuando el cierre se hace definitivo, salvo que la legislación aplicable disponga otra cosa. Los asesores no pueden cerrar su Cuenta mientras tengan un saldo de ganancias disponible, un retiro pendiente, una solicitud personalizada abierta o una consulta en vivo en curso."
         },
         {
           "type": "h3",
@@ -256,7 +241,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "También puede desactivar temporalmente su Cuenta desde la configuración de su cuenta. Mientras esté desactivada, se cerrará su sesión en todos los dispositivos, su perfil quedará oculto y, si es asesor, se le retirará del directorio; sus datos, Créditos y ajustes se conservan. Para reactivar su Cuenta, vuelva a iniciar sesión y confírmelo. Desactivar su Cuenta no cancela la Membresía Premium; cancélela primero en Facturación y suscripciones si no desea que se renueve. Una Cuenta desactivada por nosotros conforme a la Sección 3.4 solo puede ser reactivada por nosotros."
+          "text": "También puede desactivar temporalmente su Cuenta desde la configuración de su cuenta. Mientras esté desactivada, se cerrará su sesión en todos los dispositivos, su perfil quedará oculto y, si es asesor, se le retirará del directorio; sus datos, Créditos y ajustes se conservan. Para reactivar su Cuenta, vuelva a iniciar sesión y confírmelo. Una Cuenta desactivada por nosotros conforme a la Sección 3.4 solo puede ser reactivada por nosotros."
         }
       ]
     },
@@ -367,7 +352,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "La Compañía se reserva el derecho de modificar, actualizar, interrumpir, suspender o discontinuar cualquier aspecto del Servicio en cualquier momento sin previo aviso a usted ni a nuestra responsabilidad. Usted reconoce que una variedad de acciones de la Compañía pueden perjudicar o impedirle acceder al Servicio en ciertos momentos y/o de la misma manera, por períodos limitados o de forma permanente, y acepta que la Compañía no tiene ninguna responsabilidad como resultado de dichas acciones o resultados, incluyendo, entre otros, la eliminación o la falta de puesta a su disposición de cualquier contenido o partes de los Servicios. Es posible que algunas funciones no estén disponibles en todas las regiones o en todos los dispositivos. Si una modificación afecta su uso del Servicio, puede cancelar su suscripción o eliminar su cuenta."
+          "text": "La Compañía se reserva el derecho de modificar, actualizar, interrumpir, suspender o discontinuar cualquier aspecto del Servicio en cualquier momento sin previo aviso a usted ni a nuestra responsabilidad. Usted reconoce que una variedad de acciones de la Compañía pueden perjudicar o impedirle acceder al Servicio en ciertos momentos y/o de la misma manera, por períodos limitados o de forma permanente, y acepta que la Compañía no tiene ninguna responsabilidad como resultado de dichas acciones o resultados, incluyendo, entre otros, la eliminación o la falta de puesta a su disposición de cualquier contenido o partes de los Servicios. Es posible que algunas funciones no estén disponibles en todas las regiones o en todos los dispositivos. Si una modificación afecta su uso del Servicio, puede eliminar su cuenta."
         },
         {
           "type": "p",
@@ -413,7 +398,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Lo que ve su asesor. Para personalizar su consulta, el asesor con el que chatea ve una ficha de cliente con su nombre o apodo, su foto de perfil, su estado de conexión, su país, su edad, su fecha de nacimiento completa, los datos astrológicos derivados de sus datos de nacimiento (su signo solar y los signos de sus demás posiciones natales, además de los signos lunar y ascendente si nos facilitó una hora y un lugar de nacimiento), su horóscopo diario y cuántas consultas ha tenido con él. Su fecha de nacimiento se muestra siempre al asesor con el que chatea, porque las consultas dependen de ella. Su ciudad de nacimiento solo se muestra si activa «Compartir mi ciudad de nacimiento con los asesores» en sus preferencias de privacidad. Los asesores nunca ven su dirección de correo electrónico, su saldo de créditos, sus compras, su membresía ni su hora exacta o sus coordenadas de nacimiento."
+          "text": "Lo que ve su asesor. Para personalizar su consulta, el asesor con el que chatea ve una ficha de cliente con su nombre o apodo, su foto de perfil, su estado de conexión, su país, su edad, su fecha de nacimiento completa, los datos astrológicos derivados de sus datos de nacimiento (su signo solar y los signos de sus demás posiciones natales, además de los signos lunar y ascendente si nos facilitó una hora y un lugar de nacimiento), su horóscopo diario y cuántas consultas ha tenido con él. Su fecha de nacimiento se muestra siempre al asesor con el que chatea, porque las consultas dependen de ella. Su ciudad de nacimiento solo se muestra si activa «Compartir mi ciudad de nacimiento con los asesores» en sus preferencias de privacidad. Los asesores nunca ven su dirección de correo electrónico, su saldo de créditos, sus compras ni su hora exacta o sus coordenadas de nacimiento."
         },
         {
           "type": "p",
@@ -437,7 +422,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Le enviamos notificaciones sobre su cuenta y su actividad —por ejemplo, solicitudes de chat, el final de una consulta y las invitaciones a valorarla, actualizaciones de pedidos, compras completadas, renovaciones de la membresía y problemas de pago, ajustes de créditos, avisos de listas de espera y, para los asesores, nuevas valoraciones y actualizaciones de pagos—, así como comunicados ocasionales de Staryield. Las notificaciones aparecen en el menú de la campana del sitio web en el idioma que haya elegido y pueden marcarse como leídas; las conservamos durante un máximo de 180 días. Según su configuración de notificaciones, también se las enviamos por correo electrónico y como notificaciones push del navegador. Los mensajes que protegen su cuenta, como la confirmación de un cambio de su dirección de correo electrónico, siempre se envían por correo electrónico. Las notificaciones dentro de la aplicación forman parte del Servicio; no son correos de marketing, y solo le enviamos comunicaciones comerciales si usted lo acepta. Cerrar sesión detiene las notificaciones push en ese dispositivo."
+          "text": "Le enviamos notificaciones sobre su cuenta y su actividad —por ejemplo, solicitudes de chat, el final de una consulta y las invitaciones a valorarla, actualizaciones de pedidos, compras completadas y problemas de pago, ajustes de créditos, avisos de listas de espera y, para los asesores, nuevas valoraciones y actualizaciones de pagos—, así como comunicados ocasionales de Staryield. Las notificaciones aparecen en el menú de la campana del sitio web en el idioma que haya elegido y pueden marcarse como leídas; las conservamos durante un máximo de 180 días. Según su configuración de notificaciones, también se las enviamos por correo electrónico y como notificaciones push del navegador. Los mensajes que protegen su cuenta, como la confirmación de un cambio de su dirección de correo electrónico, siempre se envían por correo electrónico. Las notificaciones dentro de la aplicación forman parte del Servicio; no son correos de marketing, y solo le enviamos comunicaciones comerciales si usted lo acepta. Cerrar sesión detiene las notificaciones push en ese dispositivo."
         },
         {
           "type": "h3",
@@ -457,7 +442,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Cuando un asesor está ocupado o desconectado, puede unirse a su lista de espera. Le avisaremos una sola vez, en la aplicación y por los canales que tenga activados, cuando el asesor se conecte; los miembros Premium pueden recibir el aviso antes que otros usuarios. Unirse a una lista de espera no reserva al asesor ni garantiza una consulta; las solicitudes caducan a los 7 días y puede salir de una lista de espera en cualquier momento."
+          "text": "Cuando un asesor está ocupado o desconectado, puede unirse a su lista de espera. Le avisaremos una sola vez, en la aplicación y por los canales que tenga activados, cuando el asesor se conecte. Unirse a una lista de espera no reserva al asesor ni garantiza una consulta; las solicitudes caducan a los 7 días y puede salir de una lista de espera en cualquier momento."
         },
         {
           "type": "h3",
@@ -467,7 +452,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Cuando no hay ninguna consulta en vivo en curso (después de que termine una consulta, mientras una solicitud está pendiente o mientras una consulta está en pausa), usted y el asesor pueden seguir intercambiando mensajes de texto e imágenes en una conversación existente que haya tenido al menos una consulta en vivo. Estos mensajes son gratuitos: no se facturan por minuto. Están limitados a un número de mensajes por conversación en cualquier periodo móvil de 24 horas, que Staryield fija y puede modificar o desactivar en cualquier momento; el límite vigente se muestra en la aplicación. El límite no se aplica durante los periodos de modo gratuito (véase la [Sección 6.2.5](#free-trials-and-promotional-offers)). Los mensajes escritos mientras una consulta en vivo está en pausa pertenecen a esa consulta y no se facturan mientras dure la pausa."
+          "text": "Cuando no hay ninguna consulta en vivo en curso (después de que termine una consulta, mientras una solicitud está pendiente o mientras una consulta está en pausa), usted y el asesor pueden seguir intercambiando mensajes de texto e imágenes en una conversación existente que haya tenido al menos una consulta en vivo. Estos mensajes son gratuitos: no se facturan por minuto. Están limitados a un número de mensajes por conversación en cualquier periodo móvil de 24 horas, que Staryield fija y puede modificar o desactivar en cualquier momento; el límite vigente se muestra en la aplicación. El límite no se aplica durante los periodos de modo gratuito (véase la [Sección 6.1.4](#free-trials-and-promotional-offers)). Los mensajes escritos mientras una consulta en vivo está en pausa pertenecen a esa consulta y no se facturan mientras dure la pausa."
         },
         {
           "type": "p",
@@ -535,13 +520,13 @@ const content: LegalDocumentContent = {
       ]
     },
     {
-      "id": "subscription-fees-payments-and-refunds",
+      "id": "credits-payments-and-refunds",
       "n": "6",
-      "title": "CRÉDITOS, MEMBRESÍA, PAGOS Y REEMBOLSOS",
+      "title": "CRÉDITOS, PAGOS Y REEMBOLSOS",
       "blocks": [
         {
           "type": "p",
-          "text": "Esta Sección regula todas las compras realizadas a través del Servicio, incluidos los paquetes de créditos, la Membresía Premium y las lecturas personalizadas."
+          "text": "Esta Sección regula todas las compras realizadas a través del Servicio, incluidos los paquetes de créditos y las lecturas personalizadas."
         },
         {
           "type": "h3",
@@ -557,7 +542,19 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Para acceder a las funciones de pago del Servicio, usted recarga el saldo de su cuenta (el «Saldo») con créditos (los «Créditos») comprando un paquete de créditos. Los Créditos se descuentan de su Saldo por minuto durante las consultas en vivo, y el importe correspondiente se descuenta al comienzo de cada minuto de uso. La tarifa por minuto depende del asesor y de cualquier descuento de membresía que le sea aplicable, y se muestra antes de comenzar una consulta. Los minutos gratuitos, por ejemplo los de una oferta de bienvenida o de su Membresía Premium, se utilizan antes que los Créditos de pago. Los Créditos también pueden utilizarse para encargar lecturas personalizadas a los asesores."
+          "text": "Para acceder a las funciones de pago del Servicio, usted recarga el saldo de su cuenta (el «Saldo») con créditos (los «Créditos») comprando un paquete de créditos. Los Créditos se descuentan de su Saldo por minuto durante las consultas en vivo, y el importe correspondiente se descuenta al comienzo de cada minuto de uso. La tarifa por minuto depende del asesor, y se muestra antes de comenzar una consulta. Los minutos gratuitos, por ejemplo los de una oferta de bienvenida, se utilizan antes que los Créditos de pago. Los Créditos también pueden utilizarse para encargar lecturas personalizadas a los asesores."
+        },
+        {
+          "type": "p",
+          "text": "Tipos de Créditos y orden de uso. Los Créditos que compra en un paquete de créditos son «Créditos comprados»; los Créditos que le damos gratuitamente, como una bonificación de registro, Créditos de cortesía o Créditos añadidos por nuestro equipo, son «Créditos de bonificación». Los minutos gratuitos se utilizan primero, como se describe más arriba. Después, sus Créditos se utilizan en este orden: primero los Créditos comprados y luego los Créditos de bonificación. Dentro de un mismo tipo, los Créditos más antiguos se utilizan antes que los más recientes."
+        },
+        {
+          "type": "p",
+          "text": "Paquetes de créditos. Actualmente no ofrecemos suscripciones, membresías ni recargas automáticas: cada compra es un paquete de créditos de pago único. Un paquete de créditos no se renueva y nunca recargamos su Saldo automáticamente. Los Créditos se añaden a su Saldo solo una vez que el pago se ha realizado correctamente. El precio y el número de Créditos de cada paquete se muestran antes de pagar. Cualquier ahorro que mostremos (por ejemplo, «Ahorre un 11 %») compara el precio por Crédito del paquete con la tarifa de paquete estándar de nuestra página de [Precios](/pricing), y siempre redondeamos el ahorro a la baja."
+        },
+        {
+          "type": "p",
+          "text": "Paquete de bienvenida. Podemos ofrecer un paquete de bienvenida a un precio reducido. Está disponible una vez por cliente y una vez por método de pago, solo para clientes nuevos que aún no hayan comprado Créditos, y no puede combinarse con otras promociones o bonificaciones. No se restablece si se le reembolsa. Podemos modificar o suspender la oferta en cualquier momento; un cambio no afecta a un paquete que ya haya comprado."
         },
         {
           "type": "h4",
@@ -567,7 +564,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Para recargar su Saldo, cobramos en el método de pago que elija al finalizar la compra. Puede guardar una tarjeta en su Cuenta para futuras compras: los datos de la tarjeta se introducen en campos alojados por nuestro procesador de pagos y solo conservamos un token, la marca de la tarjeta, los cuatro últimos dígitos y la fecha de caducidad. Usted nos autoriza a cobrar el precio aplicable en el método de pago que seleccione. Puede eliminar una tarjeta guardada en cualquier momento desde la configuración de su cuenta, salvo que sea el único método de pago de una membresía que vaya a renovarse. Le avisamos cada vez que se recarga su Saldo."
+          "text": "Para recargar su Saldo, cobramos en el método de pago que elija al finalizar la compra. Puede guardar una tarjeta en su Cuenta para futuras compras: los datos de la tarjeta se introducen en campos alojados por nuestro procesador de pagos y solo conservamos un token, la marca de la tarjeta, los cuatro últimos dígitos y la fecha de caducidad. Usted nos autoriza a cobrar el precio aplicable en el método de pago que seleccione. Puede eliminar una tarjeta guardada en cualquier momento desde la configuración de su cuenta. Le avisamos cada vez que se recarga su Saldo."
         },
         {
           "type": "h4",
@@ -594,131 +591,31 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Reembolsos. Salvo que se indique otra cosa en el apartado [Reembolsos](#refunds) más adelante o lo exija la legislación aplicable, los Créditos no son reembolsables."
-        },
-        {
-          "type": "h3",
-          "id": "subscription-terms",
-          "n": "6.2",
-          "title": "Términos de suscripción"
-        },
-        {
-          "type": "h4",
-          "id": "subscription-options-purchases-and-refunds",
-          "n": "6.2.1",
-          "title": "Planes y ventajas de la membresía"
-        },
-        {
-          "type": "p",
-          "text": "Staryield ofrece una Membresía Premium opcional que se renueva automáticamente. El precio, la moneda, el periodo de facturación y las ventajas de cada plan se muestran antes de suscribirse. Las ventajas pueden incluir una asignación mensual de Créditos, un descuento en la tarifa por minuto de las consultas en vivo, minutos gratuitos en cada periodo de facturación y avisos prioritarios de las listas de espera de los asesores. Los Créditos concedidos con su membresía se añaden a su Saldo y están sujetos a la Sección 6.1; los minutos gratuitos solo están disponibles durante el periodo de facturación para el que se conceden y no se acumulan. Los precios pueden variar según la región y la moneda. Las ventajas solo se aplican mientras su membresía esté activa."
-        },
-        {
-          "type": "p",
-          "text": "Para obtener información sobre los reembolsos, consulte [Reembolsos](#refunds) más adelante."
-        },
-        {
-          "type": "h4",
-          "id": "purchases-and-payment-processing",
-          "n": "6.2.2",
-          "title": "Compras y Procesamiento de Pagos"
-        },
-        {
-          "type": "p",
-          "text": "Al suscribirse, elige un plan y un método de pago, y nos autoriza a cobrar el precio del plan en ese método de pago al inicio de cada periodo de facturación. Los pagos los gestionan procesadores de pagos externos, que pueden variar según su país, su moneda, su cuenta y el producto adquirido; por ejemplo, algunos pagos los procesa Stripe y otros, procesadores de tarjetas especializados en nuestro sector de actividad. Los datos de su tarjeta se introducen directamente en el procesador. Algunos pagos pueden requerir que se autentique ante su banco (por ejemplo, con 3-D Secure). Su membresía comienza una vez confirmado el primer pago."
-        },
-        {
-          "type": "h4",
-          "id": "auto-renewal-subscription-continuity-and-cancellation",
-          "n": "6.2.3",
-          "title": "Renovación automática, continuidad y cancelación de la suscripción"
-        },
-        {
-          "type": "p",
-          "text": "Todas las suscripciones se renuevan automáticamente a menos que se cancelen. El período de renovación coincide con el plazo de suscripción inicial, a menos que se indique lo contrario en el momento de la compra. Para evitar la renovación, debe cancelar su suscripción antes de la fecha de renovación."
-        },
-        {
-          "type": "p",
-          "text": "Al continuar con una suscripción, usted reconoce que los cargos se aplicarán periódicamente según el ciclo de facturación seleccionado. La tarifa de renovación no será mayor que la tarifa del período de suscripción inmediatamente anterior, excluyendo cualquier precio promocional (introductorio) y de descuento, a menos que le notifiquemos un cambio de tarifa antes de su renovación automática."
-        },
-        {
-          "type": "p",
-          "text": "Usted nos autoriza a nosotros y a nuestros proveedores de procesamiento de pagos a almacenar la información de su cuenta de pagos, incluidas las actualizaciones, y a utilizarla en relación con su uso de los Servicios como se describe en los términos de la oferta aplicables. Es posible que verifiquemos su método de pago con un pequeño cargo temporal, que le será reembolsado dentro de los diez (10) días hábiles."
-        },
-        {
-          "type": "p",
-          "text": "Puede cancelar su membresía en cualquier momento en la configuración de su cuenta, en Facturación y suscripciones. Eliminar la Aplicación, cerrar el navegador o desactivar su Cuenta no cancela su membresía."
-        },
-        {
-          "type": "p",
-          "text": "Si cancela, su membresía sigue activa hasta el final del periodo de facturación en curso y no se renueva; puede reanudarla antes de esa fecha. Una vez finalizada, conserva el acceso a todas las funciones gratuitas del Servicio y a los Créditos que queden en su Saldo."
-        },
-        {
-          "type": "h4",
-          "id": "add-on-items-and-additional-services",
-          "n": "6.2.4",
-          "title": "Créditos y lecturas personalizadas"
-        },
-        {
-          "type": "p",
-          "text": "Los Créditos y las lecturas personalizadas se compran por separado de su membresía. Cancelar o finalizar su membresía no cancela las lecturas personalizadas que ya haya encargado ni retira Créditos de su Saldo."
+          "text": "Reembolsos. Los Créditos no son reembolsables, salvo en los supuestos previstos en nuestra [Política de reembolso](/refund-policy), en el apartado [Reembolsos](#refunds) más adelante o cuando lo exija la legislación aplicable. Los Créditos de bonificación y promocionales no tienen valor en efectivo y no son reembolsables de forma independiente."
         },
         {
           "type": "h4",
           "id": "free-trials-and-promotional-offers",
-          "n": "6.2.5",
-          "title": "Pruebas gratuitas y ofertas promocionales"
+          "n": "6.1.4",
+          "title": "Minutos gratuitos y acceso gratuito promocional"
         },
         {
           "type": "p",
-          "text": "Podemos ofrecer una prueba gratuita o una suscripción de oferta introductoria para el Servicio de acuerdo con los términos especificados cuando se registra para la oferta. Una prueba gratuita le brinda acceso al Servicio por un período de tiempo; una oferta introductoria le brinda acceso al Servicio a una tarifa reducida durante un período de tiempo limitado. A menos que cancele antes del final de la prueba gratuita o de la oferta introductoria, o a menos que se indique lo contrario, su acceso al Servicio continuará automáticamente y se le facturarán las tarifas aplicables. Es su responsabilidad saber cuándo finalizará la prueba gratuita o la oferta de lanzamiento. Nos reservamos el derecho, a nuestra absoluta discreción, de modificar o cancelar cualquier prueba gratuita u oferta introductoria, su acceso al Servicio durante la prueba gratuita o el período introductorio, o cualquiera de estos términos sin previo aviso y sin responsabilidad. Nos reservamos el derecho de limitar su capacidad para aprovechar múltiples pruebas gratuitas y/u ofertas introductorias."
-        },
-        {
-          "type": "p",
-          "text": "Minutos gratuitos de bienvenida. Las cuentas de clientes nuevas pueden recibir una cantidad de minutos de chat gratuitos al registrarse. Staryield fija la cantidad, puede cambiarla o desactivar la oferta en cualquier momento, y un cambio se aplica solo a las cuentas creadas después. Los minutos gratuitos son solo para cuentas nuevas, no tienen valor en efectivo, no pueden transferirse, canjearse ni reembolsarse, y se usan antes que cualquier Crédito de tu Saldo."
+          "text": "Minutos gratuitos de bienvenida. Las cuentas de clientes nuevas pueden recibir una cantidad de minutos de chat gratuitos al registrarse. Staryield fija la cantidad, puede cambiarla o desactivar la oferta en cualquier momento, y un cambio se aplica solo a las cuentas creadas después. Los minutos gratuitos son solo para cuentas nuevas, no tienen valor en efectivo, no pueden transferirse, canjearse ni reembolsarse, y se usan antes que cualquier Crédito de tu Saldo. Los minutos gratuitos no requieren ningún método de pago, no inician ninguna suscripción y nunca se convierten en un cargo."
         },
         {
           "type": "p",
           "text": "Acceso gratuito promocional («modo gratuito»). De vez en cuando podemos hacer gratis los chats en vivo para todos durante un periodo limitado. El modo gratuito puede empezar o terminar en cualquier momento, con o sin fecha de fin anunciada. Un chat que solicites mientras el modo gratuito está activo sigue siendo gratis hasta que ese chat termine, aunque el modo gratuito acabe entretanto. Los asesores siguen cobrando de Staryield por los chats realizados durante el modo gratuito. El modo gratuito no se aplica a las solicitudes personalizadas ni a la compra de Créditos, que se tarifican y cobran como siempre, y no se consume ningún minuto gratuito ni Crédito mientras tu chat es gratis."
         },
         {
-          "type": "h4",
-          "id": "promotional-codes",
-          "n": "6.2.6",
-          "title": "Códigos Promocionales"
-        },
-        {
-          "type": "p",
-          "text": "Podemos proporcionarle tarjetas de regalo o códigos promocionales que se pueden canjear por características, mejoras, funcionalidades, contenido y servicios adicionales dentro de un Servicio específico y por un período de tiempo limitado, sujeto a requisitos de elegibilidad (los “Códigos Promocionales”). Los códigos promocionales no tienen valor en efectivo, son personales, intransferibles, no sublicenciables y no tenemos ninguna obligación de proporcionar ninguna compensación en relación con un código promocional."
-        },
-        {
-          "type": "h4",
-          "id": "changes-to-subscription-fees",
-          "n": "6.2.7",
-          "title": "Cambios en las tarifas de suscripción"
-        },
-        {
-          "type": "p",
-          "text": "En la medida máxima permitida por la ley aplicable, podemos modificar las tarifas de suscripción en cualquier momento. Si se requiere notificación según la ley aplicable, le informaremos sobre los cambios de precios en la forma y el plazo establecidos por las regulaciones. Cuando no se establezca un plazo específico, avisaremos publicando los precios actualizados en la Aplicación o en nuestro sitio web, enviando una notificación por correo electrónico o utilizando otros métodos de comunicación destacados. El precio revisado entrará en vigor según lo especificado en el aviso. Si no está de acuerdo con las tarifas actualizadas, puede cancelar su suscripción antes de que el nuevo precio entre en vigor o abstenerse de pagar por adelantado para tener acceso continuo al Servicio."
-        },
-        {
-          "type": "h4",
-          "id": "failure-to-pay-and-service-termination",
-          "n": "6.2.8",
-          "title": "Falta de Pago y Terminación del Servicio"
-        },
-        {
-          "type": "p",
-          "text": "Si falla un pago de renovación, lo reintentaremos varias veces durante los días siguientes y le avisaremos para que pueda actualizar su método de pago. Mientras un pago esté pendiente, las ventajas de su membresía pueden suspenderse. Si el pago sigue sin realizarse en los 7 días siguientes a la fecha de renovación, su membresía finaliza. No eliminamos su Cuenta ni sus Créditos porque falle un pago de la membresía."
-        },
-        {
-          "type": "h4",
+          "type": "h3",
           "id": "right-of-withdrawal",
-          "n": "6.2.9",
+          "n": "6.2",
           "title": "Derecho de desistimiento"
         },
         {
           "type": "p",
-          "text": "Si reside en el Espacio Económico Europeo, el Reino Unido o Suiza, puede tener el derecho legal de desistir de una compra de contenido digital o de servicios digitales en un plazo de 14 días sin necesidad de justificación. Al comprar Créditos o una membresía, le pedimos que acepte que empecemos a prestarlos de inmediato. Si lo acepta y comienza a utilizarlos durante el plazo de desistimiento, pierde su derecho de desistimiento respecto de los paquetes de créditos una vez que los Créditos se han añadido a su Saldo y, en el caso de una membresía, si desiste, abonará un importe proporcional al periodo ya prestado. Para ejercer su derecho de desistimiento, póngase en contacto con nuestro [centro de soporte](/contact) antes de que finalice el plazo."
+          "text": "Si reside en el Espacio Económico Europeo, el Reino Unido o Suiza, puede tener el derecho legal de desistir de una compra de contenido digital o de servicios digitales en un plazo de 14 días sin necesidad de justificación. Al comprar Créditos, le pedimos que acepte que empecemos a prestarlos de inmediato. Si lo acepta y comienza a utilizarlos durante el plazo de desistimiento, pierde su derecho de desistimiento respecto de los paquetes de créditos una vez que los Créditos se han añadido a su Saldo. Para ejercer su derecho de desistimiento, póngase en contacto con nuestro [centro de soporte](/contact) antes de que finalice el plazo. Los paquetes de créditos sin usar también pueden reembolsarse conforme a nuestra [Política de reembolso](/refund-policy)."
         },
         {
           "type": "h3",
@@ -734,7 +631,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Salvo que lo exija la legislación aplicable o se indique otra cosa en el momento de la compra, las compras no son reembolsables. Si un asesor no entrega una lectura personalizada que usted ha encargado, los Créditos reservados para ella se devuelven a su Saldo. Si considera que una consulta o un pago no se ha prestado tal como se describía, póngase en contacto con nuestro [centro de soporte](/contact) y revisaremos su solicitud."
+          "text": "Los reembolsos de los paquetes de créditos se rigen por nuestra [Política de reembolso](/refund-policy), que forma parte de estos Términos. Si un asesor no entrega una lectura personalizada que usted ha encargado, los Créditos reservados para ella se devuelven a su Saldo. Si considera que una consulta o un pago no se ha prestado tal como se describía, póngase en contacto con nuestro [centro de soporte](/contact) y revisaremos su solicitud."
         },
         {
           "type": "h4",
@@ -748,7 +645,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Los reembolsos, cuando corresponda, no se procesan en tiempo real. Si confirmamos que se ha emitido un reembolso, espere al menos 15 días hábiles para que el reembolso se refleje en su cuenta. Usted reconoce que no tiene derecho a recibir múltiples reembolsos por la misma transacción y acepta que si nos solicita un reembolso directamente, no iniciará una solicitud de reembolso o devolución de cargo por separado a través de su proveedor de pagos a menos que hayamos rechazado su solicitud. Si recibe reembolsos duplicados debido a solicitudes de reembolso separadas, nos reservamos el derecho de trabajar con su proveedor de pagos para revertir uno de esos reembolsos."
+          "text": "Los reembolsos, cuando corresponda, no se procesan en tiempo real. Si aprobamos un reembolso, lo enviamos en un plazo de 5 días hábiles y su banco o proveedor de pagos puede tardar entre 5 y 10 días hábiles más en mostrarlo en su cuenta (consulte nuestra [Política de reembolso](/refund-policy)). Usted reconoce que no tiene derecho a recibir múltiples reembolsos por la misma transacción y acepta que si nos solicita un reembolso directamente, no iniciará una solicitud de reembolso o devolución de cargo por separado a través de su proveedor de pagos a menos que hayamos rechazado su solicitud. Si recibe reembolsos duplicados debido a solicitudes de reembolso separadas, nos reservamos el derecho de trabajar con su proveedor de pagos para revertir uno de esos reembolsos."
         },
         {
           "type": "p",
@@ -1416,7 +1313,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Para consultas generales o soporte, puede contactarnos en nuestro [centro de soporte](/contact)."
+          "text": "Para consultas generales o soporte, puede contactarnos en nuestro [centro de soporte](/contact) o en [support@staryield.net](mailto:support@staryield.net). El soporte está disponible 24/7. Respondemos en un plazo de 1 a 2 días."
         }
       ]
     }

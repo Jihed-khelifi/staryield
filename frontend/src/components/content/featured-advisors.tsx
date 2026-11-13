@@ -9,6 +9,7 @@ import type { Locale } from "@/i18n/config";
 import { psychicsApi, waitlistApi } from "@/lib/api/endpoints";
 import { toApiError } from "@/lib/api/errors";
 import type { FeaturedAdvisor, FeaturedList, PresenceStatus } from "@/lib/api/types";
+import { useRequireAdult } from "@/lib/auth/age-gate"; // revisions 5.0: 18+ age gate (§24.6)
 import { useRealtimeEvent, useSession } from "@/lib/auth/session-provider";
 import { useAsync } from "@/lib/use-async";
 import { formatRating } from "@/lib/format";
@@ -183,6 +184,7 @@ export function FeaturedAdvisors() {
   const router = useRouter();
   const toast = useToast();
   const { status: sessionStatus, user } = useSession();
+  const requireAdult = useRequireAdult();
   const isClient = sessionStatus === "authenticated" && user?.role === "client";
   const featured = useAsync((signal) => psychicsApi.featured(FEATURED_COUNT, signal), []);
   const mine = useAsync((signal) => waitlistApi.mine({ limit: 50 }, signal), [user?.id ?? ""], isClient);
@@ -226,6 +228,7 @@ export function FeaturedAdvisors() {
         router.push(`/${locale}/psychics/${advisor.slug}`);
         return;
       }
+      if (!requireAdult()) return;
       setPending(advisor.slug);
       try {
         await waitlistApi.join(advisor.slug);
@@ -246,7 +249,7 @@ export function FeaturedAdvisors() {
         setPending(null);
       }
     },
-    [locale, reload, router, sessionStatus, setData, text, toast, user?.role],
+    [locale, reload, requireAdult, router, sessionStatus, setData, text, toast, user?.role],
   );
 
   const leave = useCallback(

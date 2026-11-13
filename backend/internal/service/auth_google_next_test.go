@@ -146,7 +146,7 @@ func TestSiteConfigAdvertisesGoogleOnlyWhenConfigured(t *testing.T) {
 	snap := &siteSnapshot{}
 	snap.Signup.Enabled, snap.Signup.FreeMinutes = true, 5
 	for _, on := range []bool{false, true} {
-		res, err := renderSiteConfig(snap, "en", time.Date(2026, 11, 7, 9, 0, 0, 0, time.UTC), on)
+		res, err := renderSiteConfig(snap, "en", time.Date(2026, 11, 7, 9, 0, 0, 0, time.UTC), on, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -158,8 +158,8 @@ func TestSiteConfigAdvertisesGoogleOnlyWhenConfigured(t *testing.T) {
 			t.Errorf("googleEnabled=%v: %s", on, res.Body)
 		}
 	}
-	a, _ := renderSiteConfig(snap, "en", time.Date(2026, 11, 7, 9, 0, 0, 0, time.UTC), false)
-	b, _ := renderSiteConfig(snap, "en", time.Date(2026, 11, 7, 9, 0, 0, 0, time.UTC), true)
+	a, _ := renderSiteConfig(snap, "en", time.Date(2026, 11, 7, 9, 0, 0, 0, time.UTC), false, false)
+	b, _ := renderSiteConfig(snap, "en", time.Date(2026, 11, 7, 9, 0, 0, 0, time.UTC), true, false)
 	if a.ETag == b.ETag {
 		t.Error("the validator must change when auth.google does")
 	}

@@ -85,7 +85,7 @@ const content: ArticleContent = {
           items: [
             {
               q: "¿Y si no conozco mi hora exacta de nacimiento?",
-              a: "Si no conoce su hora de nacimiento, seleccione la opción «Hora desconocida» en nuestra calculadora. El motor fijará su carta a las 12:00 (mediodía), hora local. Aunque así se obtienen posiciones exactas de los planetas por signo (como sus signos de Sol y Venus), no se calcularán su signo ascendente ni las cúspides concretas de las casas.",
+              a: "Si no conoce su hora de nacimiento, seleccione la opción «Hora desconocida» en nuestra calculadora. El motor fijará su carta a las 12:00 (mediodía), hora local. Aunque así se obtienen posiciones de los planetas por signo (como sus signos de Sol y Venus), no se calcularán su signo ascendente ni las cúspides concretas de las casas.",
             },
             {
               q: "¿Qué es un aspecto en una carta natal?",

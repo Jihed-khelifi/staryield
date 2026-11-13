@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-09",
-    "effective": "2026-11-09",
-    "lastUpdated": "2026-11-09",
+    "version": "2026-11-13",
+    "effective": "2026-11-13",
+    "lastUpdated": "2026-11-13",
     "badge": "STARYIELD SYSTEM AGREEMENT",
     "title": "Terms of Use"
   },
@@ -17,25 +17,6 @@ const content: LegalDocumentContent = {
     "backToTop": "Back to top"
   },
   "intro": [
-    {
-      "type": "h3",
-      "id": "important-notice-regarding-automatic-renewals",
-      "title": "IMPORTANT NOTICE REGARDING AUTOMATIC RENEWALS"
-    },
-    {
-      "type": "p",
-      "text": "Staryield offers an optional Premium Membership that renews automatically. Please read these terms and conditions of use (the “Terms”) carefully (in particular, Section 6) before purchasing a membership or credits. By purchasing a membership, you acknowledge and agree to its recurring nature, as explained near the point of purchase. Your membership renews at the end of each billing period and the applicable price is charged to your saved payment method unless you cancel before the renewal date."
-    },
-    {
-      "type": "ul",
-      "items": [
-        "You can cancel your membership at any time in your account settings, under Billing & subscriptions; it stays active until the end of the current billing period. For refunds, see [Refunds](#refunds) or contact our [Support center](/contact)."
-      ]
-    },
-    {
-      "type": "p",
-      "text": "Deleting the app, closing your browser or disabling your account does not cancel your membership. You may also wish to take a screenshot of this notice for future reference. More details can be found in our [Subscription Terms](#subscription-terms), set out in Section 6.2."
-    },
     {
       "type": "p",
       "text": "Our privacy practices are described in detail in our [Privacy Policy](/privacy). Please review it to understand how we collect, use, and share your personal information."
@@ -74,7 +55,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "By accessing or using any part of the Service, or clicking “I agree”, checking a box, or using any other acceptance mechanism presented through the Service, or otherwise manifesting assent you acknowledge that you have read, understood, and agree to be bound by these Terms, forming a legally binding agreement between you and the Company. If you do not agree to these Terms, you must immediately stop using the Service, delete your account, and cancel any active subscriptions."
+          "text": "By accessing or using any part of the Service, or clicking “I agree”, checking a box, or using any other acceptance mechanism presented through the Service, or otherwise manifesting assent you acknowledge that you have read, understood, and agree to be bound by these Terms, forming a legally binding agreement between you and the Company. If you do not agree to these Terms, you must immediately stop using the Service, and delete your account."
         },
         {
           "type": "p",
@@ -102,7 +83,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Unless stated otherwise, we will indicate updates by revising the “Last Updated” date of these Terms. You acknowledge and agree that it is your responsibility to review the Terms regularly for any updates. Unless specified otherwise, the updated Terms take effect once posted on the Service. By continuing to use the Service after the updates become effective, you agree to the revised Terms. If you do not agree, you must stop using the Service immediately, delete your account and cancel your subscription."
+          "text": "Unless stated otherwise, we will indicate updates by revising the “Last Updated” date of these Terms. You acknowledge and agree that it is your responsibility to review the Terms regularly for any updates. Unless specified otherwise, the updated Terms take effect once posted on the Service. By continuing to use the Service after the updates become effective, you agree to the revised Terms. If you do not agree, you must stop using the Service immediately and delete your account."
         },
         {
           "type": "h3",
@@ -211,6 +192,10 @@ const content: LegalDocumentContent = {
           "text": "The Service is intended for users aged 18 and older. By creating an Account, you confirm that you are at least 18 years old and have the legal authority to enter into and comply with these Terms. If you are under 18, you are prohibited from using the Service."
         },
         {
+          "type": "p",
+          "text": "We derive your eligibility from the date of birth you give when you sign up. If that date of birth indicates that you are under 18, or we otherwise learn that you are, we restrict your Account until our team has reviewed it, and you cannot use the paid features of the Service in the meantime. If you believe this is a mistake, contact our [Support center](/contact)."
+        },
+        {
           "type": "h3",
           "id": "account-suspension-or-termination",
           "n": "3.4",
@@ -242,11 +227,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "You can close your Account at any time in your account settings. Closing your Account deactivates it immediately and starts a 30-day grace period during which you can cancel the closure by signing in again. When the grace period ends, or when we delete an Account under Section 3.4, we erase the personal details that identify you (your email address, name, nickname, birth data, location and profile picture), end your active sessions and cancel any Premium Membership. Records we must keep for accounting, fraud prevention and legal compliance — such as purchases, credit movements, advisor earnings and our security audit log — are kept in a pseudonymous form that no longer shows your identity. Ratings you gave stay visible as written by “Client” unless they are removed under Section 4.4."
+          "text": "You can close your Account at any time in your account settings. Closing your Account deactivates it immediately and starts a 30-day grace period during which you can cancel the closure by signing in again. When the grace period ends, or when we delete an Account under Section 3.4, we erase the personal details that identify you (your email address, name, nickname, birth data, location and profile picture) and end your active sessions. Records we must keep for accounting, fraud prevention and legal compliance — such as purchases, credit movements, advisor earnings and our security audit log — are kept in a pseudonymous form that no longer shows your identity. Ratings you gave stay visible as written by “Client” unless they are removed under Section 4.4."
         },
         {
           "type": "p",
-          "text": "Unused Credits and any remaining membership period are forfeited when the closure becomes final, unless applicable law requires otherwise. Advisors cannot close their Account while they have an available earnings balance, a pending withdrawal, an open custom request or a live reading in progress."
+          "text": "Unused Credits are forfeited when the closure becomes final, unless applicable law requires otherwise. Advisors cannot close their Account while they have an available earnings balance, a pending withdrawal, an open custom request or a live reading in progress."
         },
         {
           "type": "h3",
@@ -256,7 +241,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "You can also disable your Account temporarily in your account settings. While it is disabled, you are signed out on all devices, your profile is hidden and, if you are an advisor, you are removed from the directory; your data, Credits and settings are kept. To reactivate your Account, sign in again and confirm. Disabling your Account does not cancel a Premium Membership; cancel it first in Billing & subscriptions if you do not want it to renew. An Account disabled by us under Section 3.4 can only be reactivated by us."
+          "text": "You can also disable your Account temporarily in your account settings. While it is disabled, you are signed out on all devices, your profile is hidden and, if you are an advisor, you are removed from the directory; your data, Credits and settings are kept. To reactivate your Account, sign in again and confirm. An Account disabled by us under Section 3.4 can only be reactivated by us."
         }
       ]
     },
@@ -367,7 +352,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "The Company reserves the right to modify, update, interrupt, suspend, or discontinue any aspect of the Service at any time without notice to you or our liability. You acknowledge that a variety of Company’s actions may impair or prevent you from accessing the Service at certain times and/or in the same way, for limited periods or permanently, and agree that the Company has no responsibility or liability as a result of any such actions or results, including, without limitation, for the deletion of, or failure to make available to you, any content or parts of the Services. Certain features may not be available in all regions or on all devices. If a modification impacts your use of the Service, you may cancel your subscription or delete your account."
+          "text": "The Company reserves the right to modify, update, interrupt, suspend, or discontinue any aspect of the Service at any time without notice to you or our liability. You acknowledge that a variety of Company’s actions may impair or prevent you from accessing the Service at certain times and/or in the same way, for limited periods or permanently, and agree that the Company has no responsibility or liability as a result of any such actions or results, including, without limitation, for the deletion of, or failure to make available to you, any content or parts of the Services. Certain features may not be available in all regions or on all devices. If a modification impacts your use of the Service, you may delete your account."
         },
         {
           "type": "p",
@@ -413,7 +398,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "What your advisor sees. To personalise your reading, the advisor you chat with sees a client card with your first name or nickname, profile picture, online status, country, age, your full date of birth, the astrological details derived from your birth data (your sun sign and the signs of your other natal placements, plus moon and rising signs when you provided a birth time and place), your daily horoscope and how many readings you have had with them. Your date of birth is always shown to the advisor you chat with, because readings rely on it. Your birth city is shown only if you turn on “Share my birth city with advisors” in your privacy preferences. Advisors never see your email address, credit balance, purchases, membership, or your exact birth time or coordinates."
+          "text": "What your advisor sees. To personalise your reading, the advisor you chat with sees a client card with your first name or nickname, profile picture, online status, country, age, your full date of birth, the astrological details derived from your birth data (your sun sign and the signs of your other natal placements, plus moon and rising signs when you provided a birth time and place), your daily horoscope and how many readings you have had with them. Your date of birth is always shown to the advisor you chat with, because readings rely on it. Your birth city is shown only if you turn on “Share my birth city with advisors” in your privacy preferences. Advisors never see your email address, credit balance, purchases, or your exact birth time or coordinates."
         },
         {
           "type": "p",
@@ -437,7 +422,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "We send notifications about your account and activity — for example chat requests, the end of a reading and invitations to rate it, order updates, completed purchases, membership renewals and payment problems, credit adjustments, waiting-list alerts and, for advisors, new ratings and payout updates — as well as occasional announcements from Staryield. Notifications appear in the bell menu of the website in your chosen language and can be marked as read; we keep them for up to 180 days. Depending on your notification settings, we also send them by email and as browser push notifications. Messages that protect your account, such as a confirmation of a change to your email address, are always sent by email. In-app notifications are part of the Service; they are not marketing emails, and we only send marketing communications if you opt in. Signing out stops push notifications on that device."
+          "text": "We send notifications about your account and activity — for example chat requests, the end of a reading and invitations to rate it, order updates, completed purchases and payment problems, credit adjustments, waiting-list alerts and, for advisors, new ratings and payout updates — as well as occasional announcements from Staryield. Notifications appear in the bell menu of the website in your chosen language and can be marked as read; we keep them for up to 180 days. Depending on your notification settings, we also send them by email and as browser push notifications. Messages that protect your account, such as a confirmation of a change to your email address, are always sent by email. In-app notifications are part of the Service; they are not marketing emails, and we only send marketing communications if you opt in. Signing out stops push notifications on that device."
         },
         {
           "type": "h3",
@@ -457,7 +442,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "When an advisor is busy or offline, you can join their waiting list. We will notify you once, in the app and through the channels you have enabled, when the advisor comes online; Premium members may be notified before other users. Joining a waiting list does not reserve the advisor or guarantee a reading, entries expire after 7 days, and you can leave a waiting list at any time."
+          "text": "When an advisor is busy or offline, you can join their waiting list. We will notify you once, in the app and through the channels you have enabled, when the advisor comes online. Joining a waiting list does not reserve the advisor or guarantee a reading, entries expire after 7 days, and you can leave a waiting list at any time."
         },
         {
           "type": "h3",
@@ -467,7 +452,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "When no live reading is running (after a reading has ended, while a request is pending or while a reading is paused), you and the advisor can keep exchanging text messages and images in an existing conversation that has had at least one live reading. These messages are free: they are not billed per minute. They are limited to a number of messages per conversation in any rolling period of 24 hours, which Staryield sets and may change or switch off at any time; the limit in force is shown in the app. The limit does not apply during free-mode periods (see [Section 6.2.5](#free-trials-and-promotional-offers)). Messages written while a live reading is paused belong to that reading and are not billed while it is paused."
+          "text": "When no live reading is running (after a reading has ended, while a request is pending or while a reading is paused), you and the advisor can keep exchanging text messages and images in an existing conversation that has had at least one live reading. These messages are free: they are not billed per minute. They are limited to a number of messages per conversation in any rolling period of 24 hours, which Staryield sets and may change or switch off at any time; the limit in force is shown in the app. The limit does not apply during free-mode periods (see [Section 6.1.4](#free-trials-and-promotional-offers)). Messages written while a live reading is paused belong to that reading and are not billed while it is paused."
         },
         {
           "type": "p",
@@ -535,13 +520,13 @@ const content: LegalDocumentContent = {
       ]
     },
     {
-      "id": "subscription-fees-payments-and-refunds",
+      "id": "credits-payments-and-refunds",
       "n": "6",
-      "title": "CREDITS, MEMBERSHIP, PAYMENTS, AND REFUNDS",
+      "title": "CREDITS, PAYMENTS, AND REFUNDS",
       "blocks": [
         {
           "type": "p",
-          "text": "This Section governs all purchases made through the Service, including credit packs, the Premium Membership and custom readings."
+          "text": "This Section governs all purchases made through the Service, including credit packs and custom readings."
         },
         {
           "type": "h3",
@@ -557,7 +542,19 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "To access paid features of the Service, you top up your account balance (the “Balance”) with credits (“Credits”) by purchasing a credit pack. Credits are deducted from your Balance on a per-minute basis during live readings, with the applicable amount deducted at the beginning of each minute of use. The per-minute rate depends on the advisor and on any membership discount that applies to you, and is shown before you start a reading. Free minutes, for example from an introductory offer or your Premium Membership, are used before paid Credits. Credits can also be used to order custom readings from advisors."
+          "text": "To access paid features of the Service, you top up your account balance (the “Balance”) with credits (“Credits”) by purchasing a credit pack. Credits are deducted from your Balance on a per-minute basis during live readings, with the applicable amount deducted at the beginning of each minute of use. The per-minute rate depends on the advisor, and is shown before you start a reading. Free minutes, for example from an introductory offer, are used before paid Credits. Credits can also be used to order custom readings from advisors."
+        },
+        {
+          "type": "p",
+          "text": "Types of Credits and the order in which they are used. Credits you buy in a credit pack are “purchased Credits”; Credits we give you for free, such as a sign-up bonus, courtesy Credits or Credits added by our team, are “bonus Credits”. Free minutes are used first, as described above. Your Credits are then used in this order: purchased Credits first, then bonus Credits. Within the same type, older Credits are used before newer ones."
+        },
+        {
+          "type": "p",
+          "text": "Credit packs. We do not currently offer subscriptions, memberships or automatic top-ups: every purchase is a one-time credit pack. A credit pack does not renew, and we never top up your Balance automatically. Credits are added to your Balance only after your payment has succeeded. The price and the number of Credits in each pack are shown before you pay. Any saving we show (for example “Save 11%”) compares the price per Credit of the pack with the standard pack rate on our [Pricing](/pricing) page, and we always round a saving down."
+        },
+        {
+          "type": "p",
+          "text": "Welcome Pack. We may offer a Welcome Pack at a reduced price. It is available once per customer and once per payment method, only to new customers who have not yet bought Credits, and it cannot be combined with other promotions or bonuses. It is not restored if you are refunded for it. We may change or stop the offer at any time; a change does not affect a pack you have already bought."
         },
         {
           "type": "h4",
@@ -567,7 +564,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "To top up your Balance, we charge the payment method you choose at checkout. You may save a card to your Account for future purchases: card details are entered in fields hosted by our payment processor and we keep only a token, the card brand, the last four digits and the expiry date. You authorise us to charge the applicable price to the payment method you select. You can remove a saved card at any time in your account settings, unless it is the only payment method for a membership that is set to renew. We notify you whenever your Balance is topped up."
+          "text": "To top up your Balance, we charge the payment method you choose at checkout. You may save a card to your Account for future purchases: card details are entered in fields hosted by our payment processor and we keep only a token, the card brand, the last four digits and the expiry date. You authorise us to charge the applicable price to the payment method you select. You can remove a saved card at any time in your account settings. We notify you whenever your Balance is topped up."
         },
         {
           "type": "h4",
@@ -594,131 +591,31 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Refunds. Unless otherwise specified in [Refunds](#refunds) below or required by applicable law, Credits are non-refundable."
-        },
-        {
-          "type": "h3",
-          "id": "subscription-terms",
-          "n": "6.2",
-          "title": "Subscription Terms"
-        },
-        {
-          "type": "h4",
-          "id": "subscription-options-purchases-and-refunds",
-          "n": "6.2.1",
-          "title": "Membership Plans and Benefits"
-        },
-        {
-          "type": "p",
-          "text": "Staryield offers an optional Premium Membership that renews automatically. The price, currency, billing period and benefits of each plan are shown before you subscribe. Benefits may include a monthly allowance of Credits, a discount on the per-minute rate of live readings, free minutes each billing period and priority notifications from advisor waiting lists. Credits granted with your membership are added to your Balance and are subject to Section 6.1; free minutes are available only during the billing period for which they are granted and do not roll over. Prices may vary by region and currency. Benefits apply only while your membership is active."
-        },
-        {
-          "type": "p",
-          "text": "For information on refunds, see [Refunds](#refunds) below."
-        },
-        {
-          "type": "h4",
-          "id": "purchases-and-payment-processing",
-          "n": "6.2.2",
-          "title": "Purchases and Payment Processing"
-        },
-        {
-          "type": "p",
-          "text": "When you subscribe, you choose a plan and a payment method, and you authorise us to charge the plan price to that payment method at the start of each billing period. Payments are handled by third-party payment processors, which may differ depending on your country, currency, account and the product purchased; for example, some payments are processed by Stripe and others by card processors that specialise in our business category. Your card details are entered directly with the processor. Some payments may require you to authenticate with your bank (for example with 3-D Secure). Your membership starts once the first payment is confirmed."
-        },
-        {
-          "type": "h4",
-          "id": "auto-renewal-subscription-continuity-and-cancellation",
-          "n": "6.2.3",
-          "title": "Auto-Renewal, Subscription Continuity and Cancellation"
-        },
-        {
-          "type": "p",
-          "text": "All subscriptions automatically renew unless canceled. The renewal period matches the initial subscription term unless otherwise disclosed at the time of purchase. To avoid renewal, you must cancel your subscription before the renewal date."
-        },
-        {
-          "type": "p",
-          "text": "By proceeding with a subscription, you acknowledge that charges will be applied periodically based on the selected billing cycle. The renewal rate will be no more than the rate for the immediately prior subscription period, excluding any promotional (introductory) and discount pricing, unless we notify you of a rate change prior to your auto-renewal."
-        },
-        {
-          "type": "p",
-          "text": "You authorize us and our payment processing providers to store your payment account information, including any updates, and use it in connection with your use of the Services as described in the applicable offer terms. We may verify your payment method with a small temporary charge, which will be refunded to you within ten (10) business days."
-        },
-        {
-          "type": "p",
-          "text": "You can cancel your membership at any time in your account settings, under Billing & subscriptions. Deleting the App, closing your browser or disabling your Account does not cancel your membership."
-        },
-        {
-          "type": "p",
-          "text": "If you cancel, your membership remains active until the end of the current billing period and is not renewed; you can resume it before that date. After it ends, you keep access to all free features of the Service and to any Credits remaining on your Balance."
-        },
-        {
-          "type": "h4",
-          "id": "add-on-items-and-additional-services",
-          "n": "6.2.4",
-          "title": "Credits and Custom Readings"
-        },
-        {
-          "type": "p",
-          "text": "Credits and custom readings are purchased separately from your membership. Cancelling or ending your membership does not cancel custom readings you have already ordered and does not remove Credits from your Balance."
+          "text": "Refunds. Credits are non-refundable except as set out in our [Refund Policy](/refund-policy), in [Refunds](#refunds) below or as required by applicable law. Bonus and promotional Credits have no cash value and are not independently refundable."
         },
         {
           "type": "h4",
           "id": "free-trials-and-promotional-offers",
-          "n": "6.2.5",
-          "title": "Free Trials and Promotional Offers"
+          "n": "6.1.4",
+          "title": "Free Minutes and Promotional Free Access"
         },
         {
           "type": "p",
-          "text": "We may offer a free trial or introductory offer subscription for the Service according to the terms specified when you sign up for the offer. A free trial provides you access to the Service for a period of time; an introductory offer provides you access to the Service at a reduced rate for a limited period of time. Unless you cancel before the end of the free trial or introductory offer, or unless otherwise stated, your access to the Service will automatically continue and you will be billed the applicable fees. It is your responsibility to know when the free trial or introductory offer will end. We reserve the right, in our absolute discretion, to modify or terminate any free trial or introductory offer, your access to the Service during the free trial or introductory period, or any of these terms without notice and with no liability. We reserve the right to limit your ability to take advantage of multiple free trials and/or introductory offers."
-        },
-        {
-          "type": "p",
-          "text": "Introductory free minutes. New customer accounts may receive a number of free chat minutes when they sign up. Staryield sets the amount, may change it or switch the offer off at any time, and a change applies only to accounts created afterwards. Free minutes are for new accounts only, have no cash value, cannot be transferred, exchanged or refunded, and are used before any Credits in your Balance."
+          "text": "Introductory free minutes. New customer accounts may receive a number of free chat minutes when they sign up. Staryield sets the amount, may change it or switch the offer off at any time, and a change applies only to accounts created afterwards. Free minutes are for new accounts only, have no cash value, cannot be transferred, exchanged or refunded, and are used before any Credits in your Balance. Free minutes require no payment method, do not start a subscription and never convert into a charge."
         },
         {
           "type": "p",
           "text": "Promotional free access (“free mode”). From time to time we may make live chats free for everyone for a limited period. Free mode may start or stop at any time, with or without an announced end date. A chat you request while free mode is on stays free until that chat ends, even if free mode stops in the meantime. Advisors are still paid by Staryield for chats held during free mode. Free mode does not apply to custom requests or to the purchase of Credits, which are priced and charged as usual, and no free minutes or Credits are used up while your chat is free."
         },
         {
-          "type": "h4",
-          "id": "promotional-codes",
-          "n": "6.2.6",
-          "title": "Promotional Codes"
-        },
-        {
-          "type": "p",
-          "text": "We may provide you with gift cards or promotional codes that can be redeemed for additional features, enhancements, functionalities, content, services within a specified Service and for a limited period of time, subject eligibility requirements (the “Promotional Codes”). Promotional Codes have no cash value, are personal, non-transferable, non-sublicensable, and we are under no obligation to provide any compensation in connection with a Promotional Code."
-        },
-        {
-          "type": "h4",
-          "id": "changes-to-subscription-fees",
-          "n": "6.2.7",
-          "title": "Changes to Subscription Fees"
-        },
-        {
-          "type": "p",
-          "text": "To the maximum extent permitted by applicable law, we may modify subscription fees at any time. If notification is required under applicable law, we will inform you of pricing changes in the manner and timeframe mandated by regulations. Where no specific timeframe is prescribed, we will provide notice by posting the updated prices in the App or on our website, sending an email notification, or using other prominent communication methods. The revised pricing will take effect as specified in the notice. If you do not agree to the updated fees, you may cancel your subscription before the new pricing takes effect or refrain from prepaying for continued access to the Service."
-        },
-        {
-          "type": "h4",
-          "id": "failure-to-pay-and-service-termination",
-          "n": "6.2.8",
-          "title": "Failure to Pay and Service Termination"
-        },
-        {
-          "type": "p",
-          "text": "If a renewal payment fails, we will retry it several times over the following days and notify you so that you can update your payment method. While a payment is overdue, your membership benefits may be suspended. If the payment still has not succeeded within 7 days of the renewal date, your membership ends. We do not delete your Account or your Credits because a membership payment failed."
-        },
-        {
-          "type": "h4",
+          "type": "h3",
           "id": "right-of-withdrawal",
-          "n": "6.2.9",
+          "n": "6.2",
           "title": "Right of Withdrawal"
         },
         {
           "type": "p",
-          "text": "If you live in the European Economic Area, the United Kingdom or Switzerland, you may have a statutory right to withdraw from a purchase of digital content or digital services within 14 days without giving any reason. When you buy Credits or a membership, we ask you to agree that we start providing them immediately. If you agree and start using them during the withdrawal period, you lose your right of withdrawal for credit packs once the Credits have been delivered to your Balance and, for a membership, you will pay a proportionate amount for the period already provided if you withdraw. To exercise your right of withdrawal, contact our [Support center](/contact) before the period ends."
+          "text": "If you live in the European Economic Area, the United Kingdom or Switzerland, you may have a statutory right to withdraw from a purchase of digital content or digital services within 14 days without giving any reason. When you buy Credits, we ask you to agree that we start providing them immediately. If you agree and start using them during the withdrawal period, you lose your right of withdrawal for credit packs once the Credits have been delivered to your Balance. To exercise your right of withdrawal, contact our [Support center](/contact) before the period ends. Unused credit packs can also be refunded under our [Refund Policy](/refund-policy)."
         },
         {
           "type": "h3",
@@ -734,7 +631,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Unless required by applicable law or stated otherwise at the point of purchase, purchases are non-refundable. If an advisor does not deliver a custom reading you ordered, the Credits held for it are returned to your Balance. If you believe a reading or a payment was not provided as described, contact our [Support center](/contact) and we will review your request."
+          "text": "Refunds of credit packs are governed by our [Refund Policy](/refund-policy), which forms part of these Terms. If an advisor does not deliver a custom reading you ordered, the Credits held for it are returned to your Balance. If you believe a reading or a payment was not provided as described, contact our [Support center](/contact) and we will review your request."
         },
         {
           "type": "h4",
@@ -748,7 +645,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Refunds, when applicable, are not processed in real-time. If we confirm that a refund has been issued, please allow at least 15 business days for the refund to reflect in your account. You acknowledge that you are not entitled to receive multiple refunds for the same transaction and agree that if you request a refund directly from us, you will not initiate a separate refund request or chargeback through your payment provider unless your request has been denied by us. If you receive duplicate refunds due to separate refund requests, we reserve the right to work with your payment provider to reverse one of those refunds."
+          "text": "Refunds, when applicable, are not processed in real-time. If we approve a refund, we submit it within 5 business days, and your bank or payment provider may take another 5–10 business days to show it in your account (see our [Refund Policy](/refund-policy)). You acknowledge that you are not entitled to receive multiple refunds for the same transaction and agree that if you request a refund directly from us, you will not initiate a separate refund request or chargeback through your payment provider unless your request has been denied by us. If you receive duplicate refunds due to separate refund requests, we reserve the right to work with your payment provider to reverse one of those refunds."
         },
         {
           "type": "p",
@@ -1416,7 +1313,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "For general inquiries or support, you may contact us at our [Support center](/contact)."
+          "text": "For general inquiries or support, you may contact us at our [Support center](/contact) or at [support@staryield.net](mailto:support@staryield.net). Support is available 24/7. We reply within 1–2 days."
         }
       ]
     }

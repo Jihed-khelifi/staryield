@@ -4,8 +4,10 @@ import * as React from "react";
 import { CreditCard, Plus } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
-import { billingApi, type PaymentMethod, type Plan, type Subscription } from "@/lib/api/billing";
-import { useSession } from "@/lib/auth/session-provider";
+import { billingApi, type PaymentMethod, type Plan, type Subscription, type Transaction } from "@/lib/api/billing";
+import { useRealtimeEvent, useSession } from "@/lib/auth/session-provider";
+import { useMembershipsEnabled } from "@/lib/site-config/site-config-provider";
+import type { AppNotification } from "@/lib/api/types";
 import { useAsync } from "@/lib/use-async";
 import { usePagedList } from "@/lib/use-paged-list";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -27,13 +29,16 @@ import { Skeleton, SkeletonList } from "@/components/ui/skeleton";
 import { formatDay } from "../format";
 import { SettingsCard } from "../settings-ui";
 import { AddCardDialog, ChangeCardDialog, SubscribeDialog } from "./billing-dialogs";
+import { RefundRequestDialog, WithdrawRefundDialog } from "./refund-dialogs";
+import { RefundStatusLine } from "./refund-status";
 import { TRANSACTION_KIND, TRANSACTION_STATUS, cardLabel, expiryLabel, planPrice, transactionAmount, usable } from "./billing-format";
 
 type BillingData = { plans: Plan[]; subscription: Subscription | null; methods: PaymentMethod[] };
 
-async function loadBilling(signal: AbortSignal): Promise<BillingData> {
+/** Plans are only fetched while memberships are on (§25.1); an existing membership is always loaded. */
+async function loadBilling(signal: AbortSignal, withPlans: boolean): Promise<BillingData> {
   const [plans, subscription, methods] = await Promise.all([
-    billingApi.plans(signal),
+    withPlans ? billingApi.plans(signal) : Promise.resolve([] as Plan[]),
     billingApi.subscription(signal),
     billingApi.paymentMethods(signal),
   ]);
@@ -94,14 +99,30 @@ function MembershipStatus({ subscription, timeZone }: { subscription: Subscripti
   );
 }
 
-function Membership({ data, timeZone, update }: { data: BillingData; timeZone?: string; update: (patch: Partial<BillingData>) => void }) {
+/**
+ * The membership group. With memberships switched off (§25.1) it exists only
+ * for an account that still has one: it shows its status and lets the member
+ * cancel it (the API keeps `cancel` working). Subscribing, resuming and
+ * changing the card are not offered then (the API refuses them).
+ */
+function Membership({
+  data,
+  timeZone,
+  update,
+  enabled,
+}: {
+  data: BillingData;
+  timeZone?: string;
+  update: (patch: Partial<BillingData>) => void;
+  enabled: boolean;
+}) {
   const { text, locale } = useI18n();
   const toast = useToast();
   const [dialog, setDialog] = React.useState<"subscribe" | "change" | "cancel" | null>(null);
   const [busy, setBusy] = React.useState(false);
   const sub = data.subscription;
   const open = sub !== null && OPEN.includes(sub.status);
-  const plan = (open ? sub?.plan : null) ?? data.plans[0] ?? sub?.plan ?? null;
+  const plan = (open ? sub?.plan : null) ?? (enabled ? data.plans[0] : null) ?? sub?.plan ?? null;
   const addMethod = React.useCallback(
     (method: PaymentMethod) =>
       update({ methods: [method, ...data.methods.filter((m) => m.id !== method.id)].map((m) => (method.is_default && m.id !== method.id ? { ...m, is_default: false } : m)) }),
@@ -145,18 +166,24 @@ function Membership({ data, timeZone, update }: { data: BillingData; timeZone?: 
       {sub ? <MembershipStatus subscription={sub} timeZone={timeZone} /> : <p className="settings-membership-status">{text("You're not a member yet.")}</p>}
       <div className="settings-inline-actions settings-inline-actions-start">
         {!open ? (
-          <Button type="button" variant="cta" size="lg" className="px-4" onClick={() => setDialog("subscribe")} data-testid="membership-subscribe">
-            {text("Subscribe")}
-          </Button>
+          enabled ? (
+            <Button type="button" variant="cta" size="lg" className="px-4" onClick={() => setDialog("subscribe")} data-testid="membership-subscribe">
+              {text("Subscribe")}
+            </Button>
+          ) : null
         ) : sub?.status === "active" && sub.cancel_at_period_end ? (
-          <Button type="button" variant="cta" size="lg" className="px-4" onClick={() => void resumeMembership()} disabled={busy} aria-busy={busy} data-testid="membership-resume">
-            {text(busy ? "Resuming…" : "Resume membership")}
-          </Button>
+          enabled ? (
+            <Button type="button" variant="cta" size="lg" className="px-4" onClick={() => void resumeMembership()} disabled={busy} aria-busy={busy} data-testid="membership-resume">
+              {text(busy ? "Resuming…" : "Resume membership")}
+            </Button>
+          ) : null
         ) : (
           <>
-            <Button type="button" className="settings-button" onClick={() => setDialog("change")} data-testid="membership-change-card">
-              {text(sub?.status === "past_due" ? "Update card" : "Change card")}
-            </Button>
+            {enabled ? (
+              <Button type="button" className="settings-button" onClick={() => setDialog("change")} data-testid="membership-change-card">
+                {text(sub?.status === "past_due" ? "Update card" : "Change card")}
+              </Button>
+            ) : null}
             {sub?.status === "active" ? (
               <Button type="button" variant="ghost" size="lg" className="settings-text-action" onClick={() => setDialog("cancel")} data-testid="membership-cancel">
                 {text("Cancel membership")}
@@ -166,15 +193,17 @@ function Membership({ data, timeZone, update }: { data: BillingData; timeZone?: 
         )}
       </div>
 
-      <SubscribeDialog
-        open={dialog === "subscribe"}
-        onOpenChange={(next) => setDialog(next ? "subscribe" : null)}
-        plan={plan}
-        methods={data.methods}
-        onMethodAdded={addMethod}
-        onSubscribed={(subscription) => update({ subscription })}
-      />
-      {sub && open ? (
+      {enabled ? (
+        <SubscribeDialog
+          open={dialog === "subscribe"}
+          onOpenChange={(next) => setDialog(next ? "subscribe" : null)}
+          plan={plan}
+          methods={data.methods}
+          onMethodAdded={addMethod}
+          onSubscribed={(subscription) => update({ subscription })}
+        />
+      ) : null}
+      {enabled && sub && open ? (
         <ChangeCardDialog
           open={dialog === "change"}
           onOpenChange={(next) => setDialog(next ? "change" : null)}
@@ -331,6 +360,13 @@ function Transactions({ refreshKey, timeZone }: { refreshKey: number; timeZone?:
   const { text, locale } = useI18n();
   const { user } = useSession();
   const list = usePagedList((cursor, signal) => billingApi.transactions(cursor, 5, signal), [user?.id, refreshKey]);
+  // revisions 5.0 (§24.4): the refund dialogs; the row shows what they changed.
+  const [refunding, setRefunding] = React.useState<Transaction | null>(null);
+  const [withdrawing, setWithdrawing] = React.useState<{ id: string; reference: string } | null>(null);
+  // A decision arrives over the realtime notification: refresh the history, no polling.
+  useRealtimeEvent<{ notification?: AppNotification }>("notification.created", (data) => {
+    if (data?.notification?.kind === "refund_request.resolved") list.reload();
+  });
   return (
     <div className="settings-billing-group" data-testid="transactions">
       <p className="settings-label">{text("Transaction History")}</p>
@@ -361,6 +397,7 @@ function Transactions({ refreshKey, timeZone }: { refreshKey: number; timeZone?:
                   </span>
                 ) : null}
               </span>
+              <RefundStatusLine transaction={t} timeZone={timeZone} onRequest={setRefunding} onWithdraw={setWithdrawing} />
             </li>
           ))}
         </ul>
@@ -374,19 +411,46 @@ function Transactions({ refreshKey, timeZone }: { refreshKey: number; timeZone?:
         loading={list.loading}
         label={text("Payment history pages")}
       />
+      {refunding ? (
+        <RefundRequestDialog
+          transaction={refunding}
+          timeZone={timeZone}
+          onClose={() => setRefunding(null)}
+          onStale={list.reload}
+          onRequested={(request) =>
+            // A new request is open: the row stops offering another one.
+            list.replaceItem(
+              (item) => item.id === refunding.id,
+              {
+                ...refunding,
+                refund: {
+                  refundable_cents: refunding.refund?.refundable_cents ?? 0,
+                  credits_remaining: refunding.refund?.credits_remaining ?? 0,
+                  window_ends_at: refunding.refund?.window_ends_at ?? request.quote.window_ends_at,
+                  can_request: false,
+                  request: { id: request.id, reference: request.reference, status: request.status },
+                },
+              },
+            )
+          }
+        />
+      ) : null}
+      {withdrawing ? <WithdrawRefundDialog request={withdrawing} onClose={() => setWithdrawing(null)} onChanged={list.reload} /> : null}
     </div>
   );
 }
 
 /**
- * Billing & Subscriptions (Figma "Card / Billing"): the Premium Membership
- * (subscribe, cancel at period end, resume, change card), saved cards and
- * the payment history. Card entry goes through the provider's fields.
+ * Billing (Figma "Card / Billing"): saved cards and the payment history and,
+ * only while memberships are switched on (§25.1) or the account still has
+ * one, the Premium Membership (subscribe, cancel at period end, resume,
+ * change card). Card entry goes through the provider's fields.
  */
 export function BillingCard({ timeZone }: { timeZone?: string }) {
   const { text } = useI18n();
   const { user } = useSession();
-  const billing = useAsync(loadBilling, [user?.id]);
+  const memberships = useMembershipsEnabled();
+  const billing = useAsync((signal) => loadBilling(signal, memberships), [user?.id, memberships]);
   const [refreshKey, setRefreshKey] = React.useState(0);
   const setData = billing.setData;
   const update = React.useCallback(
@@ -397,10 +461,14 @@ export function BillingCard({ timeZone }: { timeZone?: string }) {
     [setData]
   );
 
+  const sub = billing.data?.subscription;
+  // Memberships are hidden unless switched on, except for an account that still has one (it can always be seen and cancelled).
+  const showMembership = memberships || (sub != null && OPEN.includes(sub.status));
+
   return (
-    <SettingsCard id="billing" icon="card" title={text("Billing & Subscriptions")} testId="settings-billing">
+    <SettingsCard id="billing" icon="card" title={text(memberships ? "Billing & Subscriptions" : "Billing")} testId="settings-billing">
       {billing.error && billing.error.code === "feature_unavailable" ? (
-        <p className="settings-muted-text">{text("Memberships are not available yet.")}</p>
+        <p className="settings-muted-text">{text(memberships ? "Memberships are not available yet." : "Billing is not available yet.")}</p>
       ) : billing.error ? (
         <ErrorState error={billing.error} onRetry={billing.reload} compact />
       ) : !billing.data ? (
@@ -415,7 +483,7 @@ export function BillingCard({ timeZone }: { timeZone?: string }) {
         </div>
       ) : (
         <div className="settings-stack">
-          <Membership data={billing.data} timeZone={timeZone} update={update} />
+          {showMembership ? <Membership data={billing.data} timeZone={timeZone} update={update} enabled={memberships} /> : null}
           <PaymentMethods data={billing.data} update={update} />
           <Transactions refreshKey={refreshKey} timeZone={timeZone} />
         </div>

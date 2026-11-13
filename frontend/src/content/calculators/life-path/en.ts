@@ -93,7 +93,7 @@ const content: ArticleContent = {
           items: [
             "**Life Path 11/2 (The Intuitive Illuminator):** Combines the peacemaking qualities of Root 2 with high-voltage intuition and visionary insight. Those on Path 11 act as spiritual antennas, though they often navigate high internal nervous energy.",
             "**Life Path 22/4 (The Master Builder):** Takes the structural grounding of Root 4 and scales it to grand proportions. Path 22 individuals possess the rare ability to manifest abstract visionary dreams into tangible, lasting real-world infrastructure.",
-            "**Life Path 33/6 (The Master Teacher):** Enhances the nurturing qualities of Root 6 into universal altruism and spiritual service. Path 33 represents selfless guidance and healing, requiring high emotional maturity to prevent burnout.",
+            "**Life Path 33/6 (The Master Teacher):** Enhances the nurturing qualities of Root 6 into universal altruism and spiritual service. Path 33 represents selfless guidance and compassion, requiring high emotional maturity to prevent burnout.",
           ],
         },
       ],

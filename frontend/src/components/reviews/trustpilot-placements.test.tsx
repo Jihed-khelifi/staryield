@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithI18n } from "@/test/render";
 
@@ -38,17 +38,15 @@ describe("Trustpilot placements", () => {
     expect(screen.getAllByTestId("trustpilot-widget")).toHaveLength(1);
   });
 
-  it("the home page shows a compact widget after the testimonials and statistics", () => {
+  // revisions 5.1: the hard-coded testimonial and statistics are gone (docs/legal-review-checklist.md row 59).
+  it("the home page shows a compact widget and no hard-coded testimonial or statistics", () => {
     const { container } = renderWithI18n(<ScreenDesktopHome />);
     const widget = screen.getByTestId("trustpilot-widget");
     expect(widget.getAttribute("data-placement")).toBe("home");
-    const section = container.querySelector('[data-name="Container / Testimonials & Stats"]')!;
+    const section = container.querySelector('[data-name="Container / Reviews"]')!;
     expect(section.contains(widget)).toBe(true);
-    // The existing testimonial and statistics content is untouched.
-    expect(within(section as HTMLElement).getByText("H. Reynolds")).toBeTruthy();
-    expect(within(section as HTMLElement).getByText("Average Platform Rating")).toBeTruthy();
-    const stats = section.querySelector('[data-name="Media / Testimonials & Stats"]')!;
-    expect(widget.compareDocumentPosition(stats) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(container.textContent).not.toMatch(/H\. Reynolds|Average Platform Rating|Countries Serviced|10K\+|Completed Consultations|4\.8/);
+    expect(screen.getAllByTestId("trustpilot-widget")).toHaveLength(1);
   });
 
   it("the footer shows the widget above the copyright line", () => {

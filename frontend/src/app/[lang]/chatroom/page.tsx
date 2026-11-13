@@ -5,6 +5,8 @@ import { isLocale, localePath, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { AppFrame } from "@/components/layout/app-frame";
 import { ChatroomShell } from "@/components/chat/chatroom-shell";
+import { ScrollbarKind } from "@/components/layout/scrollbar-kind";
+import { AgeGuard } from "@/lib/auth/age-gate"; // revisions 5.0: 18+ age gate (§24.6)
 
 type PageParams = { params: Promise<{ lang: string }> };
 
@@ -47,12 +49,15 @@ export default async function ChatroomPage({
 
   return (
     <AppFrame fill wide mobileNav={false} phoneHeader={false}>
-      <ChatroomShell
-        key={reader ?? "inbox"}
-        initialReader={reader && /^[a-z0-9-]{1,64}$/.test(reader) ? reader : undefined}
-        // `review` opens the rating dialog (link of the chat.review_prompt notification).
-        initialReview={review && /^[A-Za-z0-9-]{8,64}$/.test(review) ? review : undefined}
-      />
+      <ScrollbarKind />
+      <AgeGuard>
+        <ChatroomShell
+          key={reader ?? "inbox"}
+          initialReader={reader && /^[a-z0-9-]{1,64}$/.test(reader) ? reader : undefined}
+          // `review` opens the rating dialog (link of the chat.review_prompt notification).
+          initialReview={review && /^[A-Za-z0-9-]{8,64}$/.test(review) ? review : undefined}
+        />
+      </AgeGuard>
     </AppFrame>
   );
 }

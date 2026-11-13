@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/database"
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
@@ -17,6 +18,11 @@ type WalletRepository interface {
 	GetForUpdate(ctx context.Context, userID uuid.UUID) (*domain.Wallet, error)
 	Save(ctx context.Context, w *domain.Wallet) error
 	AppendLedger(ctx context.Context, e *domain.LedgerEntry) error
+	// InsertLedgerIfAbsent appends the entry unless its idempotency key is
+	// already taken (revisions 5.0: one statement, no unique violation, so the
+	// transaction stays usable); false means the key existed and nothing was
+	// written.
+	InsertLedgerIfAbsent(ctx context.Context, e *domain.LedgerEntry) (bool, error)
 	LedgerByKey(ctx context.Context, key string) (*domain.LedgerEntry, error)
 	ListLedger(ctx context.Context, userID uuid.UUID, cursor *Cursor, limit int) ([]domain.LedgerEntry, error)
 }
@@ -61,6 +67,16 @@ func (r *GormWalletRepository) AppendLedger(ctx context.Context, e *domain.Ledge
 		return err
 	}
 	return nil
+}
+
+func (r *GormWalletRepository) InsertLedgerIfAbsent(ctx context.Context, e *domain.LedgerEntry) (bool, error) {
+	res := database.Conn(ctx, r.db).Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "idempotency_key"}}, DoNothing: true,
+	}).Create(e)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected == 1, nil
 }
 
 func (r *GormWalletRepository) LedgerByKey(ctx context.Context, key string) (*domain.LedgerEntry, error) {

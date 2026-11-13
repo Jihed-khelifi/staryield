@@ -168,11 +168,19 @@ func (s *ExportService) collect(ctx context.Context, userID uuid.UUID) (*ExportB
 	}
 	pur := make([]map[string]any, 0, len(purchases))
 	for _, x := range purchases {
-		pur = append(pur, map[string]any{"id": x.ID, "credits": x.Credits, "price_cents": x.PriceCents, "currency": x.Currency,
-			"status": x.Status, "provider": x.Provider, "receipt_email": x.ReceiptEmail, "created_at": x.CreatedAt, "completed_at": x.CompletedAt})
+		doc := map[string]any{"id": x.ID, "credits": x.Credits, "price_cents": x.PriceCents, "currency": x.Currency,
+			"status": x.Status, "provider": x.Provider, "receipt_email": x.ReceiptEmail, "created_at": x.CreatedAt, "completed_at": x.CompletedAt}
+		// revisions 5.1: the versions accepted and when (never the IP hash or the user agent, §25.2).
+		if c := purchaseConsentOf(&x); c != nil {
+			doc["consent"] = map[string]any{"terms": c.Terms, "privacy": c.Privacy, "refund": c.Refund, "at": c.At}
+		}
+		pur = append(pur, doc)
 	}
 	b.Documents = append(b.Documents, ExportDocument{Path: "credits/ledger.json", Data: led},
 		ExportDocument{Path: "credits/purchases.json", Data: pur})
+	if err := s.collectPricingRecords(b, rows); err != nil { // revisions 5.0: lots, welcome offer, refund requests
+		return nil, err
+	}
 
 	if err := s.collectChat(ctx, b, u, rows, capped); err != nil {
 		return nil, err
@@ -459,5 +467,52 @@ func (s *ExportService) collectAdvisor(ctx context.Context, b *ExportBundle, u *
 	b.Documents = append(b.Documents, ExportDocument{Path: "advisor/notes_written.json", Data: notes},
 		ExportDocument{Path: "advisor/client_aliases.json", Data: aliases},
 		ExportDocument{Path: "advisor/earnings.json", Data: earn}, ExportDocument{Path: "advisor/withdrawals.json", Data: wd})
+	return nil
+}
+
+// collectPricingRecords exports the revisions 5.0 billing records of the
+// account (docs/platform-extensions.md §24.2–24.4): the credit lots
+// (purchased, membership and bonus credits), the welcome-offer redemption
+// (never the card key, a one-way hash kept only to enforce the offer) and
+// the refund requests with what the client wrote and how they were resolved.
+func (s *ExportService) collectPricingRecords(b *ExportBundle, rows exportRows) error {
+	var lots []domain.CreditLot
+	if err := rows(&lots, "user_id"); err != nil {
+		return err
+	}
+	lotDocs := make([]map[string]any, 0, len(lots))
+	for _, l := range lots {
+		lotDocs = append(lotDocs, map[string]any{"id": l.ID, "source": l.Source, "credits_total": l.CreditsTotal,
+			"credits_remaining": l.CreditsRemaining, "paid_cents": l.PaidCents, "currency": l.Currency,
+			"reference_type": l.ReferenceType, "reference_id": l.ReferenceID, "created_at": l.CreatedAt})
+	}
+	var offers []domain.OfferRedemption
+	if err := rows(&offers, "user_id"); err != nil {
+		return err
+	}
+	offerDocs := make([]map[string]any, 0, len(offers))
+	for _, o := range offers {
+		offerDocs = append(offerDocs, map[string]any{"purchase_id": o.PurchaseID, "status": o.Status, "provider": o.Provider,
+			"created_at": o.CreatedAt, "redeemed_at": o.RedeemedAt, "released_at": o.ReleasedAt})
+	}
+	var refunds []domain.RefundRequest
+	if err := rows(&refunds, "user_id"); err != nil {
+		return err
+	}
+	refundDocs := make([]map[string]any, 0, len(refunds))
+	for _, r := range refunds {
+		refundDocs = append(refundDocs, map[string]any{"reference": r.Reference, "transaction_id": r.TransactionID,
+			"status": r.Status, "reason": r.Reason, "details": r.Details, "channel": r.Channel,
+			"quote": map[string]any{"pack_name": r.Quote.PackName, "currency": r.Quote.Currency, "amount_paid_cents": r.Quote.AmountPaidCents,
+				"already_refunded_cents": r.Quote.AlreadyRefundedCent, "credits_purchased": r.Quote.CreditsPurchased,
+				"credits_used": r.Quote.CreditsUsed, "credits_remaining": r.Quote.CreditsRemaining, "refundable_cents": r.Quote.RefundableCents,
+				"purchased_at": r.Quote.PurchasedAt, "window_ends_at": r.Quote.WindowEndsAt},
+			"resolution_note": r.ResolutionNote, "refunded_cents": r.RefundedCents, "credits_granted": r.CreditsGranted,
+			"resolved_at": r.ResolvedAt, "created_at": r.CreatedAt})
+	}
+	b.Documents = append(b.Documents,
+		ExportDocument{Path: "credits/lots.json", Data: lotDocs},
+		ExportDocument{Path: "billing/welcome-offer.json", Data: offerDocs},
+		ExportDocument{Path: "billing/refund-requests.json", Data: refundDocs})
 	return nil
 }

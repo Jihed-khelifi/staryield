@@ -1,18 +1,22 @@
 "use client";
 
 import { useI18n } from "@/i18n/i18n-provider";
+import { useMembershipsEnabled } from "@/lib/site-config/site-config-provider";
 import { cn } from "@/lib/utils";
 import type { RateView } from "@/components/chat/chat-model";
 
 /**
  * A per-minute rate. With a member discount the list rate is struck
  * through visually; screen readers hear one plain sentence instead, since
- * strikethrough is not announced reliably.
+ * strikethrough is not announced reliably. While memberships are switched
+ * off (§25.1) no discount is advertised: the rate the viewer pays is shown
+ * as a plain rate.
  */
 export function RatePrice({ rate, className }: { rate: RateView; className?: string }) {
   const { text, locale } = useI18n();
+  const memberships = useMembershipsEnabled();
   const fmt = (n: number) => n.toLocaleString(locale);
-  if (!rate.discounted) return <span className={className}>{text("{value0} credits/min", { value0: fmt(rate.rate) })}</span>;
+  if (!rate.discounted || !memberships) return <span className={className}>{text("{value0} credits/min", { value0: fmt(rate.rate) })}</span>;
   return (
     <span className={cn("rate-price", className)} data-testid="member-rate">
       <span aria-hidden="true">

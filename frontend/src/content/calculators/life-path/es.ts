@@ -92,7 +92,7 @@ const content: ArticleContent = {
           items: [
             "**Camino de Vida 11/2 (El Iluminador Intuitivo):** Combina las cualidades pacificadoras de la raíz 2 con una intuición de alto voltaje y una visión profética. Quienes recorren el Camino 11 actúan como antenas espirituales, aunque a menudo deben gestionar una intensa energía nerviosa interior.",
             "**Camino de Vida 22/4 (El Maestro Constructor):** Toma la solidez estructural de la raíz 4 y la lleva a una escala grandiosa. Las personas del Camino 22 poseen la rara capacidad de materializar sueños visionarios abstractos en realidades tangibles y duraderas.",
-            "**Camino de Vida 33/6 (El Gran Maestro):** Eleva las cualidades protectoras de la raíz 6 hacia el altruismo universal y el servicio espiritual. El Camino 33 representa la guía y la sanación desinteresadas, y exige una gran madurez emocional para evitar el agotamiento.",
+            "**Camino de Vida 33/6 (El Gran Maestro):** Eleva las cualidades protectoras de la raíz 6 hacia el altruismo universal y el servicio espiritual. El Camino 33 representa la guía y la compasión desinteresadas, y exige una gran madurez emocional para evitar el agotamiento.",
           ],
         },
       ],

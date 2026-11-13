@@ -27,7 +27,7 @@ export default function ScreenDesktopAbout() {
         <div
           className="content-stretch flex gap-[8px] items-center relative shrink-0"
           data-node-id="478:1670"
-          data-name="Control / ESTABLISHED IN WISDOM"
+          data-name="Control / A SPACE FOR SELF-DISCOVERY"
         >
           <div
             className="relative shrink-0 size-[18px]"
@@ -48,7 +48,7 @@ export default function ScreenDesktopAbout() {
             className="[word-break:break-word] font-display leading-[normal] not-italic relative shrink-0 text-[14px] text-black tracking-[0.42px] whitespace-nowrap"
             data-node-id="478:1673"
           >
-            {text("ESTABLISHED IN WISDOM ")}
+            {text("A SPACE FOR SELF-DISCOVERY ")}
           </p>
           <div
             className="relative shrink-0 size-[18px]"
@@ -192,7 +192,7 @@ export default function ScreenDesktopAbout() {
               data-node-id="478:1693"
             >
               {text(
-                "Every card pulled, natal chart rendered, and chat session started is backed by advisors who prioritize compassionate listening and absolute spiritual integrity. We do not provide cookie-cutter outputs; we honor your personal truth. ",
+                "Every card pulled, natal chart rendered and chat started is meant to feel personal. Our advisors are independent practitioners who aim to listen with compassion, and we honor your personal truth. ",
               )}
             </p>
           </div>
@@ -225,7 +225,7 @@ export default function ScreenDesktopAbout() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#c29a3d] text-[12px] uppercase whitespace-nowrap"
               data-node-id="478:1697"
             >
-              {text("OUR ADVISORY BOARD ")}
+              {text("OUR ADVISORS ")}
             </p>
           </div>
           <p
@@ -239,7 +239,7 @@ export default function ScreenDesktopAbout() {
             data-node-id="478:1699"
           >
             {text(
-              "Our advisors represent the highest standard of esoteric rigor. Every specialist undergoes strict vetting to ensure your personal readings are treated with absolute discretion, empathy, and professional integrity. ",
+              "Our advisors are independent practitioners who agree to our Advisor Integrity & Interaction Standards, which ask for discretion, empathy and respect in every reading. ",
             )}
           </p>
         </div>
@@ -251,7 +251,7 @@ export default function ScreenDesktopAbout() {
           <div
             className="bg-[rgba(170,144,99,0.17)] border border-[rgba(194,154,61,0.15)] border-solid content-stretch flex flex-[1_0_0] flex-col gap-[16px] h-[219px] items-start min-w-px p-[32px] relative rounded-[16px]"
             data-node-id="478:1701"
-            data-name="Content Group / Empathetic Guidance"
+            data-name="Content Group / Empathetic Conversations"
           >
             <div
               className="relative shrink-0 size-[24px]"
@@ -272,21 +272,21 @@ export default function ScreenDesktopAbout() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#c29a3d] text-[20px] whitespace-nowrap"
               data-node-id="478:1704"
             >
-              {text("Empathetic Guidance ")}
+              {text("Empathetic Conversations ")}
             </p>
             <p
               className="[word-break:break-word] font-serif font-normal leading-[1.6] min-w-full relative shrink-0 text-[15px] text-black w-[min-content]"
               data-node-id="478:1705"
             >
               {text(
-                `No judgment or cookie-cutter scripts. Direct answers to life's most complex equations.`,
+                `No judgment and no scripts, just a warm, personal conversation.`,
               )}
             </p>
           </div>
           <div
             className="bg-[rgba(170,144,99,0.17)] border border-[rgba(194,154,61,0.15)] border-solid content-stretch flex flex-[1_0_0] flex-col gap-[16px] items-start min-w-px p-[32px] relative rounded-[16px]"
             data-node-id="478:1706"
-            data-name="Content Group / Rigorous Standards"
+            data-name="Content Group / Clear Standards"
           >
             <div
               className="relative shrink-0 size-[24px]"
@@ -307,21 +307,21 @@ export default function ScreenDesktopAbout() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#c29a3d] text-[20px] whitespace-nowrap"
               data-node-id="478:1709"
             >
-              {text("Rigorous Standards ")}
+              {text("Clear Standards ")}
             </p>
             <p
               className="[word-break:break-word] font-serif font-normal leading-[1.6] min-w-full relative shrink-0 text-[15px] text-black w-[min-content]"
               data-node-id="478:1710"
             >
               {text(
-                "Every advisor undergoes continuous audit and feedback to guarantee absolute professional focus. ",
+                "Advisors agree to our conduct standards, and clients can rate every completed reading. ",
               )}
             </p>
           </div>
           <div
             className="bg-[rgba(170,144,99,0.17)] border border-[rgba(194,154,61,0.15)] border-solid content-stretch flex flex-[1_0_0] flex-col gap-[16px] h-[219px] items-start min-w-px p-[32px] relative rounded-[16px]"
             data-node-id="478:1711"
-            data-name="Content Group / Total Confidentiality"
+            data-name="Content Group / Your Privacy"
           >
             <div
               className="relative shrink-0 size-[24px]"
@@ -342,14 +342,14 @@ export default function ScreenDesktopAbout() {
               className="[word-break:break-word] font-serif font-semibold leading-[normal] relative shrink-0 text-[#c29a3d] text-[20px] whitespace-nowrap"
               data-node-id="478:1714"
             >
-              {text("Total Confidentiality ")}
+              {text("Your Privacy ")}
             </p>
             <p
               className="[word-break:break-word] font-serif font-normal leading-[1.6] min-w-full relative shrink-0 text-[15px] text-black w-[min-content]"
               data-node-id="478:1715"
             >
               {text(
-                "Your dates, cards, and transits are shielded with end-to-end security protocols. ",
+                "We handle your birth details and your chats with care, as described in our Privacy Policy. ",
               )}
             </p>
           </div>
@@ -359,7 +359,7 @@ export default function ScreenDesktopAbout() {
         className="bg-[var(--cream)] border border-[rgba(194,154,61,0.15)] border-solid content-stretch flex flex-col h-[484px] items-center justify-between overflow-clip px-[100px] py-[80px] relative shrink-0 w-full"
         data-node-id="478:1716"
         data-name="Button / SEEK YOUR ALIGNMENT"
-        label="SEEK YOUR ALIGNMENT Curious to know more? Find us on social media. Or explore our FAQ for answers to your questions. Feel free to get in touch with us if you need any help. Our support team and master astrologers are always within reach. Follow our channels for daily transits, zodiac insight, and custom spiritual rituals. Interactive Guidance Get live chats with psychics, order rituals, and schedule personalized sessions. START TODAY"
+        label="SEEK YOUR ALIGNMENT Curious to know more? Find us on social media. Or explore our FAQ for answers to your questions. Feel free to get in touch with us if you need any help. Our support team is available 24/7. Follow our channels for daily transits, zodiac insight, and spiritual inspiration. Interactive Guidance Get live chats with psychics, order rituals, and schedule personalized sessions. START TODAY"
       >
         <span
           className="content-stretch flex gap-[16px] items-center relative shrink-0"
@@ -426,7 +426,7 @@ export default function ScreenDesktopAbout() {
               data-node-id="478:1726"
             >
               {text(
-                "Our support team and master astrologers are always within reach. Follow our channels for daily transits, zodiac insight, and custom spiritual rituals. ",
+                "Our support team is available 24/7. Follow our channels for daily transits, zodiac insight and spiritual inspiration. ",
               )}
             </p>
           </div>

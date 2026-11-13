@@ -25,12 +25,35 @@ export function usable(method: PaymentMethod): boolean {
   return method.status === "active" && !method.expired;
 }
 
-/** "$9.99 / mo", "$99.00 / yr", "$25.00 every 3 months". */
+/** "$9.99 USD / mo", "$99.00 USD / yr", "$25.00 USD every 3 months": the currency is always named (§25.1). */
 export function planPrice(plan: Pick<Plan, "price_cents" | "currency" | "interval" | "interval_count">, locale: string, text: TranslateCopy): string {
-  const price = formatMoney(plan.price_cents, plan.currency, locale);
+  const price = `${formatMoney(plan.price_cents, plan.currency, locale)} ${(plan.currency || "USD").toUpperCase()}`;
   const count = Math.max(1, plan.interval_count || 1);
   if (plan.interval === "year") return count === 1 ? text("{value0} / yr", { value0: price }) : text("{value0} every {value1} years", { value0: price, value1: count });
   return count === 1 ? text("{value0} / mo", { value0: price }) : text("{value0} every {value1} months", { value0: price, value1: count });
+}
+
+type Cadence = Pick<Plan, "interval" | "interval_count">;
+
+/** "every month", "every 3 months", "every year", "every 2 years": the plan's billing rhythm as a phrase. */
+export function planCadence(plan: Cadence, text: TranslateCopy): string {
+  const count = Math.max(1, plan.interval_count || 1);
+  if (plan.interval === "year") return count === 1 ? text("every year") : text("every {value0} years", { value0: count });
+  return count === 1 ? text("every month") : text("every {value0} months", { value0: count });
+}
+
+/**
+ * The first renewal of a plan bought now: one interval from `from` (one month
+ * for the standard plan). The day is clamped, so 31 January renews on the last
+ * day of February rather than in March.
+ */
+export function nextRenewal(plan: Cadence, from: Date = new Date()): Date {
+  const count = Math.max(1, plan.interval_count || 1);
+  const months = plan.interval === "year" ? 12 * count : count;
+  const target = new Date(from.getFullYear(), from.getMonth() + months, 1, from.getHours(), from.getMinutes(), from.getSeconds());
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(from.getDate(), lastDay));
+  return target;
 }
 
 /** The plan's benefits as short sentences (admin-set amounts first). */

@@ -237,6 +237,9 @@ func (s *AuthService) createAccount(ctx context.Context, in newAccount) (*create
 	if in.EmailVerified {
 		user.EmailVerifiedAt = &now
 	}
+	if in.Birth != nil {
+		user.AdultConfirmedAt = &now // revisions 5.0: the birth date met the minimum age (§24.6)
+	}
 	var result *AuthResult
 	signupMinutes := s.cfg.SignupFreeMinutes // revisions 3.0: site settings
 	if s.signupMinutes != nil {
@@ -259,7 +262,7 @@ func (s *AuthService) createAccount(ctx context.Context, in newAccount) (*create
 			if _, _, err := s.wallet.Apply(ctx, Movement{
 				UserID: user.ID, Type: domain.LedgerSignupBonus, Amount: s.cfg.SignupBonusCredits,
 				ReferenceType: "user", ReferenceID: &user.ID, IdempotencyKey: "signup_bonus:" + user.ID.String(),
-				Description: "Welcome bonus",
+				Description: "Welcome bonus", Lot: &LotSpec{Source: domain.LotBonus}, // revisions 5.0: credit lots
 			}); err != nil {
 				return err
 			}
@@ -842,24 +845,30 @@ type statusEntry struct {
 	Status       domain.UserStatus
 	Role         domain.Role
 	TokenVersion int
+	// Age is the 18+ gate status (revisions 5.0, §24.6). It rides in the
+	// cached status so the gate costs no extra query per request; every
+	// write that changes it calls InvalidateStatus.
+	Age domain.AgeStatus
 }
 
 func statusKey(id uuid.UUID) string { return "auth:status:" + id.String() }
 
 func (e statusEntry) encode() string {
-	return string(e.Status) + "|" + string(e.Role) + "|" + strconv.Itoa(e.TokenVersion)
+	return string(e.Status) + "|" + string(e.Role) + "|" + strconv.Itoa(e.TokenVersion) + "|" + string(e.Age)
 }
 
 func decodeStatus(v string) (statusEntry, bool) {
 	parts := strings.Split(v, "|")
-	if len(parts) != 3 {
+	// revisions 5.0: entries written before the age gate have three parts;
+	// they are treated as a miss so the status is reloaded with its age.
+	if len(parts) != 4 || !domain.AgeStatus(parts[3]).Valid() {
 		return statusEntry{}, false
 	}
 	ver, err := strconv.Atoi(parts[2])
 	if err != nil {
 		return statusEntry{}, false
 	}
-	return statusEntry{Status: domain.UserStatus(parts[0]), Role: domain.Role(parts[1]), TokenVersion: ver}, true
+	return statusEntry{Status: domain.UserStatus(parts[0]), Role: domain.Role(parts[1]), TokenVersion: ver, Age: domain.AgeStatus(parts[3])}, true
 }
 
 // InvalidateStatus drops the cached authorization state of a user.
@@ -882,7 +891,7 @@ func (s *AuthService) status(ctx context.Context, userID uuid.UUID) (statusEntry
 		}
 		return statusEntry{}, apperror.Internal(err)
 	}
-	e := statusEntry{Status: user.Status, Role: user.Role, TokenVersion: user.TokenVersion}
+	e := statusEntry{Status: user.Status, Role: user.Role, TokenVersion: user.TokenVersion, Age: user.AgeStatus()}
 	warnErr(ctx, "auth: status cache set", s.kv.Set(ctx, statusKey(userID), e.encode(), s.cfg.StatusCacheTTL))
 	return e, nil
 }
@@ -916,7 +925,18 @@ func (s *AuthService) Authenticate(ctx context.Context, token string) (reqctx.Pr
 	if !st.seen {
 		s.markSeen(ctx, family)
 	}
-	return reqctx.Principal{UserID: userID, Role: st.Role, FamilyID: family}, nil
+	return reqctx.Principal{UserID: userID, Role: st.Role, FamilyID: family, Age: st.Age}, nil
+}
+
+// AgeStatus returns the account's 18+ gate status from the cached
+// authorization state (one cache read; the database only on a miss). The
+// realtime gateway uses it to gate client frames.
+func (s *AuthService) AgeStatus(ctx context.Context, userID uuid.UUID) (domain.AgeStatus, error) {
+	st, err := s.status(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	return st.Age, nil
 }
 
 // AuthorizeRealtime checks that a user may (still) hold realtime

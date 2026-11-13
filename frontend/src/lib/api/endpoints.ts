@@ -26,7 +26,6 @@ import type {
   ReadResult,
   SincePage,
   CosmicEvents,
-  CreditPack,
   CustomRequest,
   CustomRequestStatus,
   DirectoryPage,
@@ -138,7 +137,6 @@ export const meApi = {
 export const walletApi = {
   get: () => api<Wallet>("/api/v1/wallet"),
   ledger: (cursor?: string) => api<Page<LedgerEntry>>("/api/v1/wallet/ledger", { query: { cursor } }),
-  packs: (signal?: AbortSignal) => api<{ items: CreditPack[] }>("/api/v1/credit-packs", { signal }).then((r) => r.items),
   purchase: (pack_id: string, idempotency_key: string, receipt_email?: string) =>
     api<Purchase>("/api/v1/credits/purchases", { method: "POST", body: { pack_id, idempotency_key, receipt_email }, idempotent: true, timeoutMs: 30_000 }),
   purchases: () => api<Page<Purchase>>("/api/v1/credits/purchases"),

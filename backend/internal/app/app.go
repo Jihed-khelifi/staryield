@@ -238,7 +238,8 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	endpointHashKey := security.Keyed(string(key), "staryield:push-endpoint:v1", 0)
 	mailSvc := service.NewMailService(txm, repository.NewEmailRepository(db), mailer, sealer, clk, log.With(zap.String("component", "mail")),
 		service.MailSettings{FrontendURL: cfg.App.FrontendURL, MaxAttempts: cfg.Mail.MaxAttempts, DailyCap: cfg.Mail.DailyCap,
-			AllowMarketing: cfg.Mail.AllowMarketing, SendTimeout: cfg.Mail.Timeout + 5*time.Second, HashKey: addressHashKey})
+			AllowMarketing: cfg.Mail.AllowMarketing, SendTimeout: cfg.Mail.Timeout + 5*time.Second, HashKey: addressHashKey,
+			SupportEmail: cfg.Mail.SupportInbox}) // revisions 5.1: footer of every e-mail (§25.4)
 	var pushSender push.Sender
 	pushPublicKey := ""
 	if cfg.Push.Active() {
@@ -284,7 +285,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 
 	// Business layer.
 	share := cfg.Billing.PsychicSharePercent
-	walletSvc := service.NewWalletService(txm, wallets, clk)
+	walletSvc := service.NewWalletService(txm, wallets, repository.NewLotRepository(db), clk) // revisions 5.0: credit lots
 	authSvc := service.NewAuthService(txm, users, tokens, walletSvc, wallets, hasher, issuer, kv, tickets, mailSvc, publisher, track, clk,
 		service.AuthSettings{
 			RefreshTTL: cfg.Auth.RefreshTokenTTL, ResetTTL: cfg.Auth.PasswordResetTTL, MaxFailures: cfg.Auth.LoginMaxFailures,
@@ -297,6 +298,10 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		service.AvatarSettings{MaxBytes: cfg.Storage.MaxAvatarBytes, MaxPixels: cfg.Storage.MaxAvatarPixels, Size: cfg.Storage.AvatarSize})
 	psychicSvc := service.NewPsychicService(psychics, chatRepo, earnings, presence, publisher, track, clk)
 	creditSvc := service.NewCreditService(txm, credits, walletSvc, wallets, provider, publisher, track, clk).WithNotifier(dispatcher)
+	// revisions 5.1: consent evidence (IP hash with the analytics secret, as refund requests), statement
+	// descriptor on every charge and the receipt copy to receipt_email (§25.2, §25.3, §25.5).
+	creditSvc.WithSettings(service.CreditSettings{IPHashSecret: cfg.Analytics.IPHashSecret, StatementDescriptor: cfg.Payments.StatementDescriptor,
+		FrontendURL: cfg.App.FrontendURL}).WithReceiptMail(repository.NewContactRepository(db), mailSvc)
 	chatSvc := service.NewChatService(txm, chatRepo, users, psychics, psychicSvc, walletSvc, wallets, earnings, presence, publisher, track, limiter, clk,
 		service.ChatSettings{
 			RequestTimeout: cfg.Chat.RequestTimeout, AcceptedTimeout: cfg.Chat.AcceptedTimeout, GracePeriod: cfg.Chat.GracePeriod,
@@ -376,6 +381,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 			Inbox: cfg.Mail.SupportInbox, LinkTTL: cfg.Support.LinkTTL, Retention: cfg.Support.Retention}})
 	// end revisions 3.0: support desk
 	gateway := service.NewRealtimeGateway(chatSvc, psychicSvc, presence)
+	gateway.SetAgeStatus(authSvc.AgeStatus) // revisions 5.0: 18+ age gate (§24.6)
 
 	// billing: saved-card providers (routing rules choose among them) and
 	// the membership service. Payments disabled ⇒ no provider is registered.
@@ -400,7 +406,16 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Wallets: wallets, Wallet: walletSvc, Credits: credits, Registry: registry, Legacy: provider, Sealer: sealer, Audit: audit,
 		Events: publisher, Notify: dispatcher, Tracker: track, Clock: clk},
 		service.BillingSettings{Currency: cfg.Payments.Currency, RenewalLease: cfg.Payments.RenewalLease, GracePeriod: cfg.Payments.GracePeriod,
-			IncompleteTTL: cfg.Payments.IncompleteTTL, MaxPaymentMethods: cfg.Payments.MaxPaymentMethods, IPHashSecret: cfg.Analytics.IPHashSecret})
+			IncompleteTTL: cfg.Payments.IncompleteTTL, MaxPaymentMethods: cfg.Payments.MaxPaymentMethods, IPHashSecret: cfg.Analytics.IPHashSecret,
+			MembershipsEnabled: cfg.Billing.MembershipsEnabled, StatementDescriptor: cfg.Payments.StatementDescriptor}) // revisions 5.1
+	// revisions 5.0: refund requests (§24.4) and the revenue report (§24.5).
+	refundRepo := repository.NewRefundRepository(db)
+	refundSvc := service.NewRefundService(service.RefundDeps{Tx: txm, Repo: refundRepo, Billing: billingSvc,
+		Users: users, Audit: audit, Events: publisher, Notify: dispatcher, Clock: clk},
+		service.RefundSettings{WindowDays: cfg.Refunds.WindowDays, RequestsEnabled: cfg.Refunds.RequestsEnabled,
+			MaxCredit: cfg.Billing.MaxAdminAdjustment, IPHashSecret: cfg.Analytics.IPHashSecret,
+			StatementDescriptor: cfg.Payments.StatementDescriptor}) // revisions 5.1
+	// end revisions 5.0: refund requests
 	creditSvc.WithBilling(billingSvc)
 	billingSvc.WithSettler(creditSvc)
 	waitlistSvc.SetPriority(billingSvc.HasWaitlistPriority) // members are told first
@@ -420,8 +435,22 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	siteSvc := service.NewSiteService(service.SiteDeps{Tx: txm, Repo: repository.NewSiteRepository(db), Cache: kv,
 		Bus: cache.NewRedisBus(rdb, prefix), Audit: audit, Clock: clk, Log: log.With(zap.String("component", "site")),
 		Cfg: service.SiteSettings{AllowedHosts: cfg.Links.AllowedHosts, SignupFallbackMinutes: cfg.Billing.SignupFreeMinutes,
-			IPHashSecret: cfg.Analytics.IPHashSecret, GoogleEnabled: cfg.Google.Enabled()}})
+			IPHashSecret: cfg.Analytics.IPHashSecret, GoogleEnabled: cfg.Google.Enabled(),
+			MembershipsEnabled: cfg.Billing.MembershipsEnabled}}) // revisions 5.1
 	authSvc.SetSignupOffer(siteSvc.SignupFreeMinutes)
+	// revisions 5.0: pricing catalog (§24.1) and the welcome offer (§24.2). The
+	// catalog snapshot is cached like the site configuration and invalidated on
+	// every pack or pricing-settings write; the welcome offer's card keys use a
+	// key derived (own label) from the data encryption key.
+	pricingRepo := repository.NewPricingRepository(db)
+	pricingSvc := service.NewPricingService(service.PricingDeps{Tx: txm, Repo: pricingRepo, Site: repository.NewSiteRepository(db),
+		Signup: siteSvc.SignupOfferState, Cache: kv, Bus: cache.NewRedisBus(rdb, prefix), Audit: audit, Clock: clk,
+		Log: log.With(zap.String("component", "pricing")),
+		Cfg: service.PricingSettingsConfig{Currency: cfg.Payments.Currency, IPHashSecret: cfg.Analytics.IPHashSecret,
+			StatementDescriptor: cfg.Payments.StatementDescriptor}}) // revisions 5.1
+	adminSvc.SetRateRange(pricingSvc.RateRange)
+	creditSvc.WithOffers(service.NewOfferService(pricingRepo, clk, key, cfg.Pricing.OfferRequireCardCheck))
+	// end revisions 5.0: pricing
 	chatSvc.SetFreeMode(siteSvc.FreeModeActive)
 	chatSvc.SetOffSessionSettings(siteSvc.OffSessionSettings) // revisions 3.3: messages outside a live chat
 	// --- end site settings ---
@@ -468,7 +497,9 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Clock: clk, Notes: notesRepo, Push: repository.NewPushRepository(db), Actions: actionsRepo, Exports: exportsRepo,
 		Sessions: sessionsRepo, Consents: consentsRepo, Waitlist: waitlistRepo, Support: supportRepo, Advisor: advisorSvc, ChatData: chatSvc, AvatarStore: store, ExportStore: exportStore,
 		Auth: authSvc, AdminAuth: adminAuthSvc, Chat: chatSvc, PsychicSvc: psychicSvc, Events: publisher, Mail: mailSvc,
-		Identities: identities}) // revisions 4.0
+		Identities: identities, // revisions 4.0
+		Refunds:    refundRepo, // revisions 5.0: refund request free text (§24.4)
+	})
 	eraser.SetBilling(billingSvc)        // memberships end and saved cards are forgotten
 	eraser.SetCalculators(calculatorSvc) // revisions 3.0: calculator analytics
 	adminSvc.SetEraser(eraser)
@@ -496,6 +527,11 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Advisor: advisorSvc, // advisor settings
 		Site:    siteSvc}    // revisions 3.0: site settings
 	services.GoogleAuth = googleSvc // revisions 4.0: Sign in with Google
+	services.Pricing = pricingSvc   // revisions 5.0: pricing catalog
+	// revisions 5.0: refund requests and the revenue report
+	services.Refunds = refundSvc
+	services.Revenue = service.NewRevenueService(repository.NewRevenueRepository(db), pricingSvc, clk,
+		service.RevenueSettings{Currency: cfg.Payments.Currency, PayoutCentsPerCredit: cfg.Billing.PayoutCentsPerCredit})
 	cookieNames := api.CookieNamesFor(cfg.Security)
 	health := func(r *http.Request) map[string]error {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -564,6 +600,13 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	observer := service.NewNotificationObserver(dispatcher, pushSvc, notificationSvc, log.With(zap.String("component", "notification-stats")))
 	scheduler.WithJobs(worker.Job{Name: service.BroadcastRecoveryJob, Every: time.Minute, Run: notificationSvc.RecoverBroadcasts},
 		worker.Job{Name: "notification-stats", Every: time.Minute, Run: observer.Tick})
+	// revisions 5.0: credit lots. Daily check that every wallet balance equals the
+	// credits left in its lots; mismatches are logged at error level and never repaired.
+	scheduler.WithJobs(worker.Job{Name: service.LotReconcileJob, Every: 24 * time.Hour, Run: func(ctx context.Context) error {
+		_, err := walletSvc.ReconcileLots(ctx)
+		return err
+	}})
+	// end revisions 5.0: credit lots
 	// revisions 3.0: support desk
 	scheduler.WithJobs(worker.Job{Name: service.SupportJob, Every: time.Hour, Run: supportSvc.RunMaintenance})
 	// end revisions 3.0: support desk
@@ -599,6 +642,12 @@ func (a *App) Start(ctx context.Context) {
 		a.Services.Site.Run(ctx)
 	}()
 	// --- end site settings ---
+	// revisions 5.0: drop the pricing snapshot when another instance changes the catalog.
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		a.Services.Pricing.Run(ctx)
+	}()
 	if a.Config.Worker.Enabled {
 		a.Scheduler.Start(ctx)
 	}

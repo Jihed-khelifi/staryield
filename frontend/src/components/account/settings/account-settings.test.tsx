@@ -8,6 +8,7 @@ import type { Settings } from "@/lib/api/account";
 import { ApiError } from "@/lib/api/errors";
 import { ToastProvider } from "@/components/feedback/toast-provider";
 import { axeViolations, renderWithI18n, stubResizeObserver } from "@/test/render";
+import { WithSiteConfig } from "@/test/site-config";
 
 const m = vi.hoisted(() => ({
   settingsApi: { get: vi.fn(), update: vi.fn() },
@@ -38,6 +39,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 vi.mock("@/lib/auth/session-provider", () => ({
+  useRealtimeEvent: () => undefined, // revisions 5.0: the billing history listens for resolved refund requests
   useSession: () => ({ user: { id: "u1", role: "client" }, status: "authenticated", reload: vi.fn(), signOut: m.signOut }),
 }));
 
@@ -97,12 +99,33 @@ describe("AccountSettings", () => {
   it("renders every section, is accessible, and has nothing to save at first", async () => {
     view();
     expect(await screen.findByRole("heading", { level: 1, name: /Profile Settings/ })).toBeTruthy();
-    for (const name of ["Account Information", "Password & Security", "Data & Privacy", "Notifications", "Billing & Subscriptions", "Appearance", "Logout", "Account Actions"])
+    for (const name of ["Account Information", "Password & Security", "Data & Privacy", "Notifications", "Billing", "Appearance", "Logout", "Account Actions"])
       expect(screen.getByRole("heading", { level: 2, name })).toBeTruthy();
     expect(await screen.findByText("Chrome on macOS (Current)")).toBeTruthy();
     expect(await axeViolations()).toEqual([]);
     await userEvent.setup().click(screen.getByTestId("settings-save"));
     expect(m.settingsApi.update).not.toHaveBeenCalled();
+  });
+
+  it("has no membership UI with memberships switched off (the default) and shows it when the API turns them on", async () => {
+    m.billingApi.plans.mockResolvedValue([
+      { id: "p1", code: "premium", name: "Premium Membership", description: "", version_id: "v1", version: 1, price_cents: 999, currency: "USD", interval: "month", interval_count: 1, monthly_credit_grant: 0, chat_discount_bps: 0, chat_discount_pct: 0, monthly_free_minutes: 0, waitlist_priority: false, benefits: [] },
+    ]);
+    view();
+    expect(await screen.findByText("No saved cards yet.")).toBeTruthy();
+    const card = screen.getByTestId("settings-billing");
+    expect(card.textContent).not.toMatch(/member|subscri|premium|active plan/i);
+    expect(screen.queryByTestId("membership")).toBeNull();
+    cleanup();
+    renderWithI18n(
+      <WithSiteConfig memberships>
+        <ToastProvider>
+          <AccountSettings />
+        </ToastProvider>
+      </WithSiteConfig>,
+    );
+    expect(await screen.findByTestId("membership")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "Billing & Subscriptions" })).toBeTruthy();
   });
 
   it("the advisor switch is about the birth city only; the date of birth is always shared (§22.6)", async () => {

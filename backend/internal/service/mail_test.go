@@ -403,8 +403,10 @@ func TestChannelPolicies(t *testing.T) {
 		{NotifyChatMissed, true, false, true},
 		{NotifyWithdrawal, true, true, true}, // billing: always e-mailed
 		{NotifyExportReady, true, true, true},
-		{NotifyBroadcast, true, false, true}, // marketing: opt-in only
-		{NotifyPurchase, false, false, true},
+		{NotifyBroadcast, true, false, true},             // marketing: opt-in only
+		{NotifyPurchase, true, true, true},               // revisions 5.1: the receipt is billing mail, always e-mailed (§25.5)
+		{NotifySubscriptionStarted, true, true, true},    // revisions 5.1
+		{NotifyPaymentRefunded, true, true, true},        // revisions 5.1
 		{NotifyAccountEmailChanged, false, false, false}, // sent directly, in-app only here
 	}
 	for _, c := range cases {

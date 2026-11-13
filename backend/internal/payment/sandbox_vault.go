@@ -40,6 +40,9 @@ type SandboxProcessor struct {
 	refunds   map[string]RefundResult
 	attaches  map[string]sbxAttach
 	calls     map[string]int // charge requests per idempotency key
+	// descriptors records the statement descriptor of each charge request by
+	// idempotency key (revisions 5.1): the sandboxes do not use it, tests read it.
+	descriptors map[string]string
 }
 
 type sbxMethod struct {
@@ -64,7 +67,8 @@ type sbxAttach struct {
 // NewSandboxProcessor returns an empty simulated processor.
 func NewSandboxProcessor() *SandboxProcessor {
 	return &SandboxProcessor{customers: map[string]bool{}, methods: map[string]*sbxMethod{}, charges: map[string]*sbxCharge{},
-		byRef: map[string]*sbxCharge{}, refunds: map[string]RefundResult{}, attaches: map[string]sbxAttach{}, calls: map[string]int{}}
+		byRef: map[string]*sbxCharge{}, refunds: map[string]RefundResult{}, attaches: map[string]sbxAttach{}, calls: map[string]int{},
+		descriptors: map[string]string{}}
 }
 
 // ChargeRequests returns how many times a charge with this idempotency key
@@ -73,6 +77,14 @@ func (p *SandboxProcessor) ChargeRequests(key string) int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.calls[key]
+}
+
+// StatementDescriptor returns the statement descriptor the last charge request
+// with this idempotency key carried (revisions 5.1, §25.3).
+func (p *SandboxProcessor) StatementDescriptor(key string) string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.descriptors[key]
 }
 
 // Charged reports whether a charge exists for the key, and its amount.
@@ -218,6 +230,15 @@ func (s *sandboxCore) attach(ctx context.Context, req AttachRequest) (string, Ca
 	return ref, meta, nil
 }
 
+// inspectToken reads a token's card: the same parsing and fingerprint
+// derivation as attach, with no vault or processor state touched.
+func (s *sandboxCore) inspectToken(ctx context.Context, token string) (CardMeta, error) {
+	if err := ctx.Err(); err != nil {
+		return CardMeta{}, err
+	}
+	return parseSandboxToken(s.letter, token, time.Now())
+}
+
 func (s *sandboxCore) detach(_ context.Context, customerRef, methodRef string) error {
 	p := s.proc
 	p.mu.Lock()
@@ -241,6 +262,7 @@ func (s *sandboxCore) chargeStored(ctx context.Context, req StoredCharge) (Charg
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.calls[req.IdempotencyKey]++
+	p.descriptors[req.IdempotencyKey] = req.StatementDescriptor
 	if c, ok := p.charges[req.IdempotencyKey]; ok { // idempotent replay
 		if c.decline != nil {
 			return ChargeResult{}, c.decline
@@ -340,6 +362,7 @@ func (s *sandboxCore) checkout(ctx context.Context, req CheckoutRequest) (Checko
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.calls[key]++
+	p.descriptors[key] = req.StatementDescriptor
 	if c, ok := p.charges[key]; ok {
 		if c.decline != nil {
 			return CheckoutResult{Status: CheckoutFailed, ProviderRef: c.ref, FailureCode: c.decline.Code}, nil
@@ -422,6 +445,11 @@ func (s *SandboxA) ClientConfig(ctx context.Context, req ClientConfigRequest) (C
 	return s.core.clientConfig(ctx, req)
 }
 
+// InspectToken implements TokenInspector.
+func (s *SandboxA) InspectToken(ctx context.Context, token string) (CardMeta, error) {
+	return s.core.inspectToken(ctx, token)
+}
+
 // SandboxB is a vault-only sandbox (saved cards, stored charges, refunds and
 // client config; no hosted checkout, lookup or webhooks) — like a gateway
 // reached only through its customer vault.
@@ -468,6 +496,11 @@ func (s *SandboxB) Refund(ctx context.Context, req RefundRequest) (RefundResult,
 // ClientConfig implements ClientTokenizer.
 func (s *SandboxB) ClientConfig(ctx context.Context, req ClientConfigRequest) (ClientConfig, error) {
 	return s.core.clientConfig(ctx, req)
+}
+
+// InspectToken implements TokenInspector.
+func (s *SandboxB) InspectToken(ctx context.Context, token string) (CardMeta, error) {
+	return s.core.inspectToken(ctx, token)
 }
 
 // KnownProviders are the provider names configuration accepts.

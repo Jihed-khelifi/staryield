@@ -4,6 +4,7 @@ import { cleanup, screen, within } from "@testing-library/react";
 
 import type { ChatSession, Participant } from "@/lib/api/types";
 import { axeViolations, renderWithI18n } from "@/test/render";
+import { WithSiteConfig } from "@/test/site-config";
 import { ChatHeader, ChatroomTopBar } from "@/components/chat/chat-header";
 import { RatePrice } from "@/components/chat/rate-price";
 import { sessionEarnings, sessionRate } from "@/components/chat/chat-model";
@@ -70,9 +71,11 @@ describe("advisor chat header (Figma 1172:1191)", () => {
 });
 
 describe("member price (client view of a discount)", () => {
+  const discounted = () => sessionRate(session({ rate_per_minute: 32, list_rate_per_minute: 40, discount_pct: 20 }));
+  const withMemberships = (ui: React.ReactElement, memberships?: boolean) => renderWithI18n(<WithSiteConfig memberships={memberships}>{ui}</WithSiteConfig>);
+
   it("strikes the list price through and says it plainly to screen readers", async () => {
-    const rate = sessionRate(session({ rate_per_minute: 32, list_rate_per_minute: 40, discount_pct: 20 }));
-    renderWithI18n(<RatePrice rate={rate} />);
+    withMemberships(<RatePrice rate={discounted()} />, true);
     const price = screen.getByTestId("member-rate");
     const list = within(price).getByTestId("list-rate");
     expect(list.tagName).toBe("S");
@@ -83,16 +86,28 @@ describe("member price (client view of a discount)", () => {
     expect(await axeViolations()).toEqual([]);
   });
 
+  it.each([undefined, false])("advertises no member price while memberships are off (features %s): a plain rate", (flag) => {
+    withMemberships(<RatePrice rate={discounted()} />, flag);
+    expect(screen.queryByTestId("member-rate")).toBeNull();
+    expect(screen.queryByTestId("list-rate")).toBeNull();
+    expect(screen.queryByText(/Member price/)).toBeNull();
+    expect(screen.getByText("32 credits/min")).toBeTruthy();
+  });
+
   it("shows a plain rate without a discount", () => {
     renderWithI18n(<RatePrice rate={sessionRate(session({ rate_per_minute: 40, list_rate_per_minute: 40 }))} />);
     expect(screen.queryByTestId("member-rate")).toBeNull();
     expect(screen.getByText("40 credits/min")).toBeTruthy();
   });
 
-  it("appears in the client's header next to the status", () => {
+  it("appears in the client's header next to the status only when memberships are on", () => {
     const s = session({ rate_per_minute: 32, list_rate_per_minute: 40, discount_pct: 20 });
-    header({ viewerRole: "client", counterpart: advisor, session: s, rate: sessionRate(s) });
+    withMemberships(<ChatHeader counterpart={advisor} viewerRole="client" session={s} elapsedSeconds={521} onOpenInbox={noop} onOpenDetails={noop} onEnd={noop} ending={false} rate={sessionRate(s)} />, true);
     expect(within(screen.getByTestId("chat-header-status")).getByTestId("member-rate")).toBeTruthy();
+    cleanup();
+    header({ viewerRole: "client", counterpart: advisor, session: s, rate: sessionRate(s) });
+    expect(screen.queryByTestId("member-rate")).toBeNull();
+    expect(within(screen.getByTestId("chat-header-status")).getByText("32 credits/min")).toBeTruthy();
   });
 });
 

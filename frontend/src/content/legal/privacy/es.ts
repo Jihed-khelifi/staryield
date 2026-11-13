@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-09",
-    "effective": "2026-11-09",
-    "lastUpdated": "2026-11-09",
+    "version": "2026-11-13",
+    "effective": "2026-11-13",
+    "lastUpdated": "2026-11-13",
     "badge": "ACUERDO DE PRIVACIDAD DE STARYIELD",
     "title": "Política de Privacidad"
   },
@@ -45,7 +45,7 @@ const content: LegalDocumentContent = {
     },
     {
       "type": "p",
-      "text": "AL UTILIZAR LOS SERVICIOS, USTED NOS PROMETE QUE (I) HA LEÍDO, ENTIENDE Y ACEPTA ESTA POLÍTICA DE PRIVACIDAD, Y (II) TIENE AL MENOS 18 AÑOS (O SU PADRE, MADRE O TUTOR HA LEÍDO Y ACEPTADO ESTA POLÍTICA DE PRIVACIDAD EN SU NOMBRE). Si no está de acuerdo o no puede hacer esta promesa, no debe utilizar los Servicios. En tal caso, debe (a) cerrar su cuenta desde la configuración de la cuenta en la Aplicación, (b) cancelar cualquier Membresía Premium activa en la configuración de su cuenta y (c) dejar de utilizar los Servicios."
+      "text": "AL UTILIZAR LOS SERVICIOS, USTED NOS PROMETE QUE (I) HA LEÍDO, ENTIENDE Y ACEPTA ESTA POLÍTICA DE PRIVACIDAD, Y (II) TIENE AL MENOS 18 AÑOS (O SU PADRE, MADRE O TUTOR HA LEÍDO Y ACEPTADO ESTA POLÍTICA DE PRIVACIDAD EN SU NOMBRE). Si no está de acuerdo o no puede hacer esta promesa, no debe utilizar los Servicios. En tal caso, debe (a) cerrar su cuenta desde la configuración de la cuenta en la Aplicación y (b) dejar de utilizar los Servicios."
     },
     {
       "type": "p",
@@ -105,7 +105,31 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Datos de pago. Cuando compra créditos o una Membresía Premium, introduce los datos de su tarjeta en campos alojados por nuestro procesador de pagos, no en nuestros servidores. Nunca recibimos ni almacenamos el número completo de su tarjeta ni su código de seguridad. El procesador nos facilita un token seguro de su método de pago junto con la marca de la tarjeta, los cuatro últimos dígitos y la fecha de caducidad, para que pueda reutilizar una tarjeta guardada, y nos comunica la fecha, la hora, el importe y el resultado de cada pago."
+          "text": "Datos de pago. Cuando compra créditos, introduce los datos de su tarjeta en campos alojados por nuestro procesador de pagos, no en nuestros servidores. Nunca recibimos ni almacenamos el número completo de su tarjeta ni su código de seguridad. El procesador nos facilita un token seguro de su método de pago junto con la marca de la tarjeta, los cuatro últimos dígitos y la fecha de caducidad, para que pueda reutilizar una tarjeta guardada, y nos comunica la fecha, la hora, el importe y el resultado de cada pago."
+        },
+        {
+          "type": "p",
+          "text": "Registros de facturación y lotes de créditos. Por cada compra de créditos conservamos un registro de la transacción, del paquete comprado, del importe pagado y de su moneda. También conservamos un registro de cada lote de Créditos de su Saldo, marcado como Créditos comprados o de bonificación e indicando cuántos siguen sin usar, para que los Créditos se utilicen en el orden descrito en nuestros Términos y los reembolsos se calculen correctamente. Estos registros forman parte de nuestros registros de facturación."
+        },
+        {
+          "type": "p",
+          "text": "Datos del método de pago y normas de las redes de tarjetas. Por cada compra conservamos la marca de la tarjeta y sus cuatro últimos dígitos (que figuran en su recibo), la referencia del pago en el procesador de pagos y la fecha, la hora, el importe y el resultado del pago. Utilizamos estos datos para emitir recibos y reembolsos, responder a las disputas de pago y cumplir las normas de las redes de tarjetas (como Visa y Mastercard) y de nuestros procesadores de pagos."
+        },
+        {
+          "type": "p",
+          "text": "Registro de consentimiento de la compra. Antes de pagar, usted confirma que acepta nuestros Términos de uso, nuestra Política de privacidad y nuestra Política de reembolso y cancelación. Por cada compra conservamos la versión (la fecha) de cada uno de esos documentos que aceptó, la hora de su aceptación, un hash unidireccional de su dirección IP (calculado con una clave secreta, por lo que no puede convertirse de nuevo en la dirección) y el agente de usuario de su navegador (el nombre y la versión de su navegador y dispositivo). Conservamos este registro junto con el registro de facturación de la compra como prueba de las condiciones que aceptó, para poder responder a las disputas de pago y a las devoluciones de cargo. Las versiones de los documentos y la hora de aceptación forman parte de la exportación de sus datos."
+        },
+        {
+          "type": "p",
+          "text": "Comprobación de la tarjeta para la oferta de bienvenida. Para hacer cumplir el límite de un paquete de bienvenida por método de pago, cuando compra el paquete de bienvenida pedimos a nuestro proveedor de pagos una huella de su tarjeta y guardamos solo un hash unidireccional con clave de la misma. Nunca guardamos el número de su tarjeta ni la propia huella, y el hash no permite recuperar ninguno de los dos. Lo utilizamos únicamente para reconocer una tarjeta que ya se ha usado para la oferta."
+        },
+        {
+          "type": "p",
+          "text": "Solicitudes de reembolso. Si solicita un reembolso, guardamos la transacción y el paquete correspondientes, los Créditos utilizados y restantes, el motivo que indica y los detalles que escribe, el estado de su solicitud y cómo se resolvió, incluido cualquier reembolso o Créditos de cortesía. Si envía su solicitud por correo electrónico, la registramos de la misma manera."
+        },
+        {
+          "type": "p",
+          "text": "Comprobación de la edad. Utilizamos la fecha de nacimiento que facilita al registrarse para determinar si tiene al menos 18 años. Guardamos un indicador que muestra que está confirmado como adulto o, si la fecha de nacimiento indicaba que es menor de 18 años, que su cuenta está restringida; las cuentas restringidas son revisadas por nuestro equipo (véase la Sección 6)."
         },
         {
           "type": "h3",
@@ -165,7 +189,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Información que ve su asesor. Durante una conversación, su asesor ve una ficha de cliente con su nombre o apodo, su foto de perfil, su estado de conexión, su país, su edad, su fecha de nacimiento completa, su signo solar y los signos de sus demás posiciones natales (su signo lunar solo cuando es seguro a partir de su fecha y hora de nacimiento, y los grados, las casas y su ascendente solo cuando nos facilitó una hora y un lugar de nacimiento), su horóscopo diario y el número y la duración de sus consultas anteriores con él. Su fecha de nacimiento se muestra siempre a los asesores con los que chatea, bajo su nombre en el chat y en el panel del cliente, porque las consultas dependen de ella; lo hacemos para ejecutar nuestro contrato con usted, es decir, para prestar la consulta que solicita. Su ciudad de nacimiento solo se muestra si activa «Compartir mi ciudad de nacimiento con los asesores» en sus preferencias de privacidad (está desactivado por defecto); puede desactivarlo en cualquier momento. Nunca mostramos a los asesores su dirección de correo electrónico, su saldo de créditos, sus compras, su membresía ni su hora exacta o sus coordenadas de nacimiento."
+          "text": "Información que ve su asesor. Durante una conversación, su asesor ve una ficha de cliente con su nombre o apodo, su foto de perfil, su estado de conexión, su país, su edad, su fecha de nacimiento completa, su signo solar y los signos de sus demás posiciones natales (su signo lunar solo cuando es seguro a partir de su fecha y hora de nacimiento, y los grados, las casas y su ascendente solo cuando nos facilitó una hora y un lugar de nacimiento), su horóscopo diario y el número y la duración de sus consultas anteriores con él. Su fecha de nacimiento se muestra siempre a los asesores con los que chatea, bajo su nombre en el chat y en el panel del cliente, porque las consultas dependen de ella; lo hacemos para ejecutar nuestro contrato con usted, es decir, para prestar la consulta que solicita. Su ciudad de nacimiento solo se muestra si activa «Compartir mi ciudad de nacimiento con los asesores» en sus preferencias de privacidad (está desactivado por defecto); puede desactivarlo en cualquier momento. Nunca mostramos a los asesores su dirección de correo electrónico, su saldo de créditos, sus compras ni su hora exacta o sus coordenadas de nacimiento."
         },
         {
           "type": "p",
@@ -231,7 +255,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Membresía y facturación. Si se suscribe a una Membresía Premium, almacenamos su plan, su estado y sus fechas de renovación, sus métodos de pago guardados (como tokens, con la marca de la tarjeta, los cuatro últimos dígitos y la fecha de caducidad), sus facturas y el historial de sus pagos, reembolsos y abonos de créditos."
+          "text": "Facturación. Almacenamos sus métodos de pago guardados (como tokens, con la marca de la tarjeta, los cuatro últimos dígitos y la fecha de caducidad), sus recibos y el historial de sus pagos, reembolsos y abonos de créditos."
         },
         {
           "type": "p",
@@ -332,7 +356,7 @@ const content: LegalDocumentContent = {
           ],
           "rows": [
             [
-              "Prestar los Servicios y administrar su cuenta, incluidas las cartas natales, los horóscopos, las calculadoras, las consultas en vivo, las lecturas personalizadas y su Membresía Premium",
+              "Prestar los Servicios y administrar su cuenta, incluidas las cartas natales, los horóscopos, las calculadoras, las consultas en vivo y las lecturas personalizadas",
               "Identificadores; Datos de registro y de perfil; Datos de nacimiento; Datos de comunicaciones; Datos de pago; Cuenta, dispositivos y preferencias",
               "Ejecución de un contrato con usted"
             ],
@@ -357,7 +381,7 @@ const content: LegalDocumentContent = {
               "Ejecución de un contrato con usted; Su consentimiento"
             ],
             [
-              "Procesar pagos, membresías, reembolsos y contracargos, y dirigir cada pago al procesador de pagos adecuado",
+              "Procesar pagos, reembolsos y contracargos, y dirigir cada pago al procesador de pagos adecuado",
               "Identificadores; Datos de pago; Datos del dispositivo y de ubicación (país); Datos de actividad en línea",
               "Ejecución de un contrato con usted; Obligación legal; Interés legítimo (consulte la descripción)"
             ],
@@ -400,6 +424,26 @@ const content: LegalDocumentContent = {
               "Cumplir las obligaciones legales",
               "Todas las categorías",
               "Obligación legal"
+            ],
+            [
+              "Para procesar las compras de créditos, mantener los registros de facturación y los lotes de créditos, y gestionar las solicitudes de reembolso",
+              "Datos de pago; Registros de facturación y lotes de créditos; Solicitudes de reembolso",
+              "Ejecución de un contrato con usted; Obligación legal (registros contables y fiscales)"
+            ],
+            [
+              "Para hacer cumplir el límite de un paquete de bienvenida por cliente y método de pago",
+              "Comprobación de la tarjeta para la oferta de bienvenida",
+              "Interés legítimo (evitar el uso repetido de una oferta de un solo uso)"
+            ],
+            [
+              "Para confirmar que los usuarios son adultos (18 años o más) y revisar las cuentas restringidas",
+              "Datos de registro y de perfil (fecha de nacimiento); Comprobación de la edad",
+              "Interés legítimo (reservar los Servicios a adultos, como exigen nuestros Términos); Obligación legal cuando proceda"
+            ],
+            [
+              "Conservar la prueba de las condiciones aceptadas en cada compra y responder a las disputas de pago y a las devoluciones de cargo",
+              "Registro de consentimiento de la compra; Registros de facturación y lotes de créditos; Datos del método de pago y normas de las redes de tarjetas",
+              "Interés legítimo (consulte la descripción)"
             ]
           ]
         },
@@ -418,7 +462,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Al procesar pagos, reembolsos y devoluciones de cargo: para proteger nuestro negocio de reclamaciones fraudulentas; para tomar decisiones informadas y eficientes con respecto a las solicitudes de reembolso."
+          "text": "Al procesar pagos, reembolsos y devoluciones de cargo: para proteger nuestro negocio de reclamaciones fraudulentas; para tomar decisiones informadas y eficientes con respecto a las solicitudes de reembolso; para conservar la prueba de las condiciones que aceptó en cada compra y poder responder a las disputas de pago y cumplir las normas de las redes de tarjetas."
         },
         {
           "type": "p",
@@ -472,9 +516,9 @@ const content: LegalDocumentContent = {
           "type": "ul",
           "items": [
             "Alojamiento, almacenamiento y distribución: utilizamos Cloudflare para alojar nuestro sitio web, almacenar las imágenes subidas y las exportaciones de datos en el almacenamiento de objetos Cloudflare R2, distribuir el contenido y proteger los Servicios frente a ataques malintencionados. Nuestros servidores de aplicaciones y bases de datos funcionan en Railway.",
-            "Envío de correos electrónicos: utilizamos Cloudflare Email Service para enviar correos transaccionales, como mensajes de seguridad de la cuenta, recibos, avisos de la membresía y notificaciones de exportación de datos. No lo utilizamos para enviar correos comerciales.",
+            "Envío de correos electrónicos: utilizamos Cloudflare Email Service para enviar correos transaccionales, como mensajes de seguridad de la cuenta, recibos y notificaciones de exportación de datos. No lo utilizamos para enviar correos comerciales.",
             "Notificaciones push: si activa las notificaciones push, se entregan a través del servicio push de su navegador (por ejemplo, Google, Mozilla, Apple o Microsoft). El contenido de cada notificación está cifrado para que el servicio push no pueda leerlo.",
-            "Procesamiento de pagos: los pagos con tarjeta de créditos y membresías los procesan procesadores de pagos externos. Según su país, su moneda, su cuenta y el producto adquirido, un pago puede gestionarlo Stripe u otro procesador de tarjetas; usted introduce los datos de su tarjeta directamente en el procesador, que solo comparte con nosotros un token de pago e información limitada de la tarjeta. Los retiros de los asesores se pagan mediante transferencia bancaria o PayPal.",
+            "Procesamiento de pagos: los pagos con tarjeta de créditos los procesan procesadores de pagos externos. Según su país, su moneda, su cuenta y el producto adquirido, un pago puede gestionarlo Stripe u otro procesador de tarjetas; usted introduce los datos de su tarjeta directamente en el procesador, que solo comparte con nosotros un token de pago e información limitada de la tarjeta. Los retiros de los asesores se pagan mediante transferencia bancaria o PayPal.",
             "Datos de lugares: utilizamos la base de datos geográfica GeoNames (CC BY 4.0) para sugerir lugares de nacimiento. Alojamos nosotros mismos una copia de esta base de datos, por lo que sus búsquedas no se envían a GeoNames.",
             "Analítica: nuestra analítica y nuestros informes de errores son propios y funcionan en nuestros propios sistemas. No utilizamos herramientas de analítica, de grabación de sesiones ni de publicidad de terceros. El widget de opiniones de Trustpilot descrito a continuación es el único contenido de terceros que incorporamos en nuestras páginas.",
             "Google (inicio de sesión): si decide registrarse o iniciar sesión con su cuenta de Google, Google actúa como proveedor de identidad. Nos facilita el identificador de su cuenta de Google, su dirección de correo electrónico y si ha verificado esa dirección; nosotros no enviamos a Google nada sobre sus lecturas, compras o mensajes. Google sabe que ha utilizado su cuenta de Google para iniciar sesión en Staryield y trata esa información conforme a su propia política de privacidad. Google no interviene si inicia sesión con su dirección de correo electrónico y su contraseña.",
@@ -586,7 +630,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Puede descargar una copia de sus datos personales en cualquier momento en la [configuración de su cuenta](/profile/settings), en Datos y privacidad. Preparamos un archivo ZIP con su cuenta y su perfil, sus preferencias y consentimientos, los dispositivos con sesión iniciada, sus métodos de inicio de sesión (por ejemplo, el correo electrónico de una cuenta de Google vinculada), sus compras, su membresía y sus transacciones, su historial de créditos, sus conversaciones (con las respuestas y los «Me gusta») y las imágenes que subió, sus mensajes guardados, sus notificaciones y sus valoraciones. Cuando está listo, se lo notificamos en la aplicación y por correo electrónico; el enlace de descarga solo puede utilizarse una vez y el archivo se elimina a los 7 días. Las notas que los asesores escribieron sobre usted no forman parte de esta exportación porque contienen las observaciones propias de los asesores; puede solicitarlas mediante este [formulario de solicitud](/contact?topic=privacy) y nuestro personal se las facilitará tras revisar su solicitud."
+          "text": "Puede descargar una copia de sus datos personales en cualquier momento en la [configuración de su cuenta](/profile/settings), en Datos y privacidad. Preparamos un archivo ZIP con su cuenta y su perfil, sus preferencias y consentimientos, los dispositivos con sesión iniciada, sus métodos de inicio de sesión (por ejemplo, el correo electrónico de una cuenta de Google vinculada), sus compras y sus transacciones, su historial de créditos, sus conversaciones (con las respuestas y los «Me gusta») y las imágenes que subió, sus mensajes guardados, sus notificaciones y sus valoraciones. Cuando está listo, se lo notificamos en la aplicación y por correo electrónico; el enlace de descarga solo puede utilizarse una vez y el archivo se elimina a los 7 días. Las notas que los asesores escribieron sobre usted no forman parte de esta exportación porque contienen las observaciones propias de los asesores; puede solicitarlas mediante este [formulario de solicitud](/contact?topic=privacy) y nuestro personal se las facilitará tras revisar su solicitud."
         },
         {
           "type": "h4",
@@ -616,7 +660,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Es posible que debamos verificar su identidad antes de poder procesar su solicitud. El proceso de verificación puede incluir la confirmación de su nombre, edad, dirección de correo electrónico, fecha de compra de la suscripción, fecha de creación de la cuenta u otros datos relevantes de uso de los Servicios que lo identifiquen razonablemente como propietario de la cuenta. También podemos solicitar prueba de identidad adicional si es necesario, pero nos esforzamos por minimizar la información requerida. Para determinadas solicitudes, podemos enviarle un código de verificación o pedirle que firme una declaración bajo pena de perjurio para autenticar su identidad."
+          "text": "Es posible que debamos verificar su identidad antes de poder procesar su solicitud. El proceso de verificación puede incluir la confirmación de su nombre, edad, dirección de correo electrónico, fecha de una compra, fecha de creación de la cuenta u otros datos relevantes de uso de los Servicios que lo identifiquen razonablemente como propietario de la cuenta. También podemos solicitar prueba de identidad adicional si es necesario, pero nos esforzamos por minimizar la información requerida. Para determinadas solicitudes, podemos enviarle un código de verificación o pedirle que firme una declaración bajo pena de perjurio para autenticar su identidad."
         },
         {
           "type": "p",
@@ -632,6 +676,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "No permitimos intencionalmente que ninguna persona menor de 18 años use los Servicios, y no recopilamos ni procesamos intencionalmente datos personales de ninguna persona menor de 18 años. Si se entera de que alguien menor de 18 años ha utilizado los Servicios o nos ha proporcionado datos personales, comuníquese con nosotros mediante [este formulario de solicitud](/contact?topic=privacy)."
+        },
+        {
+          "type": "p",
+          "text": "Determinamos la elegibilidad a partir de la fecha de nacimiento que facilita al registrarse. Si indica que es menor de 18 años, su cuenta se restringe y su fecha de nacimiento no puede modificarse hasta que nuestro equipo la haya revisado. Mientras una cuenta esté restringida, puede seguir contactando con soporte, exportando sus datos y cerrando su cuenta."
         }
       ]
     },
@@ -678,7 +726,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Plazos de conservación adicionales. Los mensajes y las imágenes de los chats se conservan mientras la conversación exista en su cuenta. Las notificaciones dentro de la aplicación se eliminan a los 180 días. El contenido de los correos transaccionales se elimina de nuestra cola de envío una vez enviado el mensaje. Las exportaciones de datos se eliminan 7 días después de estar listas. Las notas de los asesores se conservan hasta que su autor las elimina o hasta que se elimina la cuenta del cliente o la del asesor. Los registros de los dispositivos con sesión iniciada se conservan hasta que la sesión caduca o se cierra, y durante un periodo limitado posterior por motivos de seguridad. Los registros de consentimiento se conservan como prueba de sus decisiones mientras exista su cuenta y en la medida en que lo exija la ley. Los registros de clics de marketing se conservan de forma seudonimizada para los informes de campañas. Cuando cierra su cuenta, esta se desactiva de inmediato y, tras un periodo de gracia de 30 días, borramos los datos personales que le identifican y solo conservamos los registros seudonimizados necesarios por motivos contables, de prevención del fraude y de cumplimiento legal. Los registros de pagos, de membresías y de pagos a los asesores se conservan durante el tiempo que exijan las leyes contables y fiscales."
+          "text": "Plazos de conservación adicionales. Los mensajes y las imágenes de los chats se conservan mientras la conversación exista en su cuenta. Las notificaciones dentro de la aplicación se eliminan a los 180 días. El contenido de los correos transaccionales se elimina de nuestra cola de envío una vez enviado el mensaje. Las exportaciones de datos se eliminan 7 días después de estar listas. Las notas de los asesores se conservan hasta que su autor las elimina o hasta que se elimina la cuenta del cliente o la del asesor. Los registros de los dispositivos con sesión iniciada se conservan hasta que la sesión caduca o se cierra, y durante un periodo limitado posterior por motivos de seguridad. Los registros de consentimiento se conservan como prueba de sus decisiones mientras exista su cuenta y en la medida en que lo exija la ley. Los registros de clics de marketing se conservan de forma seudonimizada para los informes de campañas. Cuando cierra su cuenta, esta se desactiva de inmediato y, tras un periodo de gracia de 30 días, borramos los datos personales que le identifican y solo conservamos los registros seudonimizados necesarios por motivos contables, de prevención del fraude y de cumplimiento legal. Los registros de pagos y de pagos a los asesores se conservan durante el tiempo que exijan las leyes contables y fiscales."
+        },
+        {
+          "type": "p",
+          "text": "Registros de facturación y de reembolsos. Los registros de compras de créditos, lotes de créditos y solicitudes de reembolso (la transacción, el paquete, los Créditos utilizados y restantes, el motivo, los detalles, el estado y la resolución) se conservan como registros financieros durante el tiempo que exijan las normas contables, fiscales y de prescripción de las disputas, y no se eliminan cuando cierra su cuenta. Cuando se borra su cuenta, se eliminan los detalles que escribió en una solicitud de reembolso y nuestras notas sobre su resolución; se conservan los importes, los Créditos, el estado y las fechas. El hash unidireccional de la tarjeta utilizado para el paquete de bienvenida se conserva junto con el registro de la oferta mientras deba hacerse cumplir el límite de la oferta, es decir, mientras se conserve ese registro de facturación. El indicador de edad se conserva mientras su cuenta exista. El registro de consentimiento de la compra se conserva junto con el registro de facturación de la compra, mientras se conserve este."
         },
         {
           "type": "p",
@@ -1031,7 +1083,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "Puede comunicarse con nosotros en cualquier momento para obtener detalles sobre esta Política de Privacidad y sus versiones anteriores. Si tiene alguna pregunta sobre su cuenta o sus datos personales, comuníquese con nosotros mediante [este formulario de solicitud](/contact?topic=privacy)."
+          "text": "Puede comunicarse con nosotros en cualquier momento para obtener detalles sobre esta Política de Privacidad y sus versiones anteriores. Si tiene alguna pregunta sobre su cuenta o sus datos personales, comuníquese con nosotros mediante [este formulario de solicitud](/contact?topic=privacy). También puede escribir a [support@staryield.net](mailto:support@staryield.net). El soporte está disponible 24/7. Respondemos en un plazo de 1 a 2 días."
         },
         {
           "type": "p",

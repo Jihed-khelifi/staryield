@@ -78,6 +78,9 @@ type SubscribeInput struct {
 // card (customer-initiated). Replays with the same idempotency key return
 // the original membership.
 func (s *BillingService) Subscribe(ctx context.Context, userID uuid.UUID, in SubscribeInput) (*SubscriptionResult, error) {
+	if !s.cfg.MembershipsEnabled { // revisions 5.1 (§25.1)
+		return nil, errMembershipsOff()
+	}
 	if s.disabled() {
 		return nil, featureOff("subscriptions")
 	}
@@ -253,6 +256,9 @@ func (s *BillingService) CancelSubscription(ctx context.Context, userID uuid.UUI
 
 // ResumeSubscription undoes a cancellation before the period ends.
 func (s *BillingService) ResumeSubscription(ctx context.Context, userID uuid.UUID, locale string) (*SubscriptionView, error) {
+	if !s.cfg.MembershipsEnabled { // revisions 5.1 (§25.1)
+		return nil, errMembershipsOff()
+	}
 	now := s.clock.Now()
 	err := s.tx.WithinTx(ctx, func(ctx context.Context) error {
 		open, err := s.repo.GetOpenSubscription(ctx, userID)
@@ -289,6 +295,9 @@ type UpdateSubscriptionInput struct {
 // UpdateSubscription switches the membership to another saved card. A
 // past-due membership is charged immediately with the new card.
 func (s *BillingService) UpdateSubscription(ctx context.Context, userID uuid.UUID, in UpdateSubscriptionInput) (*SubscriptionResult, error) {
+	if !s.cfg.MembershipsEnabled { // revisions 5.1 (§25.1)
+		return nil, errMembershipsOff()
+	}
 	if in.PaymentMethodID == uuid.Nil {
 		return nil, apperror.Validation(map[string]string{"payment_method_id": "Choose a card."})
 	}

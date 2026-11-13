@@ -201,19 +201,19 @@ function PsychicsDirectory() {
       <SiteHeader />
       <main className="psychics-browse">
         <div className="text-center" ref={top}>
-          <p className="eyebrow md:hidden">{text("Trusted guidance")}</p>
+          <p className="eyebrow md:hidden">{text("Private Live Readings")}</p>
           <h1 className="mt-3 text-3xl md:font-display md:text-[40px]">
             <span className="md:hidden">{text("Our psychic advisors")}</span>
             <span className="hidden md:inline">{text("Our advisors")}</span>
           </h1>
           <p className="mx-auto mt-3 hidden max-w-[760px] text-base font-extralight leading-relaxed md:block">
             {text(
-              "Our advisors are widely acknowledged and recognized as being profoundly accurate and intuitive. Through consistent excellence, they have successfully cemented their already-established unwavering pillars as cornerstones within the guidance industry. ",
+              "Our advisors are independent practitioners offering intuitive readings by private chat. Browse their profiles, specialties and the ratings left by other clients, then choose who feels right for you. Readings are offered for entertainment purposes only. ",
             )}
           </p>
           <p className="mt-2 text-sm font-light md:hidden">
             {text(
-              "Accurate, intuitive specialists—available for private live readings. ",
+              "Intuitive advisors available for private live readings. ",
             )}
           </p>
         </div>
@@ -357,9 +357,7 @@ export function PsychicProfile({ slug }: { slug: string }) {
         <section className="profile-hero">
           <div className="relative overflow-hidden rounded-2xl">
             <img className="h-full w-full object-cover" src={advisor.image_url} alt={text(advisor.name)} />
-            <span className="absolute bottom-6 left-6 rounded-full bg-black px-4 py-2 text-xs text-white">
-              {text("♙ Verified Master Advisor ")}
-            </span>
+            {/* revisions 5.1: no "Verified Master Advisor" badge: Staryield does not verify advisors (Terms 2.2). */}
           </div>
           <div className="flex flex-col justify-center gap-6">
             <h1 className="flex items-center gap-4 font-display text-4xl lg:text-[56px]">

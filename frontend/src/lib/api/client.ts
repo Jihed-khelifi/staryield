@@ -15,6 +15,7 @@
  * - Every failure is converted into an ApiError and logged.
  */
 import { API_URL, currentLocale } from "@/lib/api/config";
+import { notifyAgeBlocked } from "@/lib/api/age-events";
 import { ApiError, toApiError } from "@/lib/api/errors";
 import { logger, setLogTransport } from "@/lib/logger";
 
@@ -445,6 +446,8 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
         await sleep(300, opts.signal);
         continue;
       }
+      // revisions 5.0: 403 birth_date_required / age_restricted (§24.6) are handled app-wide.
+      notifyAgeBlocked(err);
       throw err;
     } catch (raw) {
       const err = toApiError(raw);

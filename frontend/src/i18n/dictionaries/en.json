@@ -1,7 +1,7 @@
 {
   "meta": {
     "chatroomTitle": "Chatroom",
-    "chatroomDescription": "Talk to a Staryield reader in real time — tarot, astrology and numerology guidance."
+    "chatroomDescription": "Talk to a Staryield reader in real time: tarot, astrology and numerology readings, for entertainment purposes only."
   },
   "nav": {
     "brand": "Staryield",
@@ -49,7 +49,6 @@
     "composer": {
       "label": "Message",
       "placeholder": "Type your message...",
-      "note": "3 min free then 40 credits/min",
       "send": "Send message",
       "errors": {
         "required": "Write something before sending.",
@@ -66,29 +65,6 @@
       "experience_other": "{count} years of experience",
       "viewProfile": "View full profile"
     }
-  },
-  "readers": {
-    "ramone": {
-      "preview": "Pleasure talking to you today, I will be here if you...",
-      "bio": "Are you looking for clarity, comfort, or a deeper understanding of what is happening in your life right now? Sometimes all it takes is a different perspective to recognize the light."
-    },
-    "theo": {
-      "preview": "You will be surprised sweetheart!",
-      "bio": "Looking for clarity on the road ahead? I believe the answers you seek already live within you — my role is to help you uncover them."
-    },
-    "solomon": {
-      "preview": "Solomon may know an answer to your question. As...",
-      "bio": "Are you looking for clarity about the road ahead? Through Tarot, I translate the universal language of energy into actionable guidance for your life."
-    }
-  },
-  "conversation": {
-    "m1": "Hello dear i hope you're doing well i have a project i am starting right now and iwas hoping you could help me figre out how it will go in the near future",
-    "m2": "I hope that you are well too!",
-    "m3": "Thank you so much for sharing and asking your question!",
-    "m4": "I am already shuffling my cards for you!",
-    "m5": "thank you! do you need anything from my side Ramone",
-    "m6": "Sunshine, I can see through the death, 6 of wand, ace of wands cards and the judgment card",
-    "m7": "Sunshine, I can see through the death, 4 of wand, ace of wands cards and the judgment card that you are standing on the edge of a big transit brought in your professional path now!"
   },
   "analytics": {
     "ratings_one": "{count} rating",

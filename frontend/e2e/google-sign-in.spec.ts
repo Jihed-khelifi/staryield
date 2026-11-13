@@ -51,7 +51,7 @@ test.beforeEach(() => {
 });
 
 /** The signed-in account according to the API (cookies of this page's context). */
-async function me(page: Page): Promise<{ email: string; role: string } | null> {
+async function me(page: Page): Promise<{ email: string; role: string; age_status?: string } | null> {
   const res = await page.request.get(`${API_URL}/api/v1/me`);
   return res.ok() ? ((await res.json()) as { email: string; role: string }) : null;
 }
@@ -71,7 +71,7 @@ async function registerPasswordAccount(page: Page, email: string) {
 }
 
 /** Sign up through "Sign up with Google" in a throw-away context, so the account exists afterwards. */
-async function createGoogleAccount(browser: Browser, who: ReturnType<typeof identity>) {
+async function createGoogleAccount(browser: Browser, who: ReturnType<typeof identity>, opts: { birthDate?: string | null } = {}) {
   const context = await browser.newContext({ locale: "en-US" });
   const page = await context.newPage();
   mock.use(who);
@@ -80,6 +80,17 @@ async function createGoogleAccount(browser: Browser, who: ReturnType<typeof iden
   await page.getByRole("button", { name: "Sign up with Google" }).click();
   await page.waitForURL(/\/en\/signup\/birth$/);
   expect((await me(page))?.email).toBe(who.email);
+  // revisions 5.0 (§24.6): Google shares no date of birth, so the account is adult-confirmed only once the
+  // birth step is done. By default the account finishes sign-up; `birthDate: null` leaves it without a date.
+  const birthDate = opts.birthDate === undefined ? "1990-03-14" : opts.birthDate;
+  if (birthDate) {
+    const csrf = ((await (await page.request.get(`${API_URL}/api/v1/auth/csrf`)).json()) as { csrf_token: string }).csrf_token;
+    const res = await page.request.patch(`${API_URL}/api/v1/me/profile`, {
+      headers: { "X-CSRF-Token": csrf, "Content-Type": "application/json" },
+      data: { birth_date: birthDate },
+    });
+    expect(res.ok()).toBe(true);
+  }
   await context.close();
 }
 
@@ -142,6 +153,22 @@ test.describe("Google sign-in", () => {
     await page.goto("/en/login?next=%2Fen%2Fprofile%2Fsettings");
     await googleButton(page, "Continue with Google").click();
     await page.waitForURL(/\/en\/profile\/settings/);
+    await context.close();
+  });
+
+  // revisions 5.0 (§24.6): the age comes from the date of birth; a Google account without one is sent to
+  // the birth step when it signs in, and then on to where the person was going.
+  test("sign-in of a Google account without a date of birth goes to the birth step, keeping ?next", async ({ browser }) => {
+    const who = identity(unique("gnodob"));
+    await createGoogleAccount(browser, who, { birthDate: null });
+
+    const context = await browser.newContext({ locale: "en-US" });
+    const page = await context.newPage();
+    mock.use(who);
+    await page.goto("/en/login?next=%2Fen%2Fprofile%2Fsettings");
+    await googleButton(page, "Continue with Google").click();
+    await page.waitForURL((url) => url.pathname === "/en/signup/birth" && url.searchParams.get("next") === "/en/profile/settings");
+    expect(await me(page)).toMatchObject({ email: who.email, age_status: "birth_date_required" });
     await context.close();
   });
 

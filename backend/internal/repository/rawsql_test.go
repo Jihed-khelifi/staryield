@@ -109,6 +109,33 @@ var allowedRawSQL = map[string]int{
 	// batched DELETE ... FOR UPDATE SKIP LOCKED; every value is bound, no identifiers.
 	"support.go:GormSupportRepository.DeleteClosed": 1,
 	"support.go:GormSupportRepository.Summary":      1,
+	// revisions 5.0: credit lots. ApplyDeltas is one statement (data-modifying
+	// CTE: relative lot UPDATE … FROM (VALUES …) whose RETURNING rows feed the
+	// append-only allocation INSERT), so a movement's lot work is one round trip
+	// and an allocation exists only for a lot that really changed. Reconcile runs
+	// two index-backed statements per chunk of wallets (bounds: the upper
+	// bound of the chunk; Mismatches: one range aggregate of the chunk's lots
+	// hash-joined to its wallets). Every value is bound
+	// as a parameter; the only spliced fragment is the placeholder list of the
+	// VALUES rows, built from the number of lots touched.
+	"lots.go:GormLotRepository.ApplyDeltas": 1,
+	"lots.go:GormLotRepository.Mismatches":  1,
+	"lots.go:GormLotRepository.bounds":      1,
+	// revisions 5.0: revenue report (§24.5). Period aggregates over indexed
+	// columns (FILTER, percentile_cont, date_trunc with a unit from the
+	// RevenueUnits allow-list, a UNION ALL of the two recognized-revenue
+	// sources, EXISTS probes on the purchases index). Every value is a bound
+	// parameter; the only spliced fragments are constants and the unit.
+	"revenue.go:GormRevenueRepository.AdvisorNetCredits":  1,
+	"revenue.go:GormRevenueRepository.DeferredMillicents": 2,
+	"revenue.go:GormRevenueRepository.Disputes":           1,
+	"revenue.go:GormRevenueRepository.FreeTrial":          1,
+	"revenue.go:GormRevenueRepository.PackRefunds":        1,
+	"revenue.go:GormRevenueRepository.Packs":              1,
+	"revenue.go:GormRevenueRepository.RefundRequests":     1,
+	"revenue.go:GormRevenueRepository.Sales":              1,
+	"revenue.go:GormRevenueRepository.WelcomeOffer":       1,
+	"revenue.go:GormRevenueRepository.series":             1,
 }
 
 // rawSQLInventory returns "file:Receiver.Func" → number of .Raw/.Exec calls

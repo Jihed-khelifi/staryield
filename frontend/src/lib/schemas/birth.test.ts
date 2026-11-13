@@ -38,10 +38,16 @@ describe("birthInfoSchema", () => {
   it.each([
     [{ day: "", month: "3", year: "1990", time: "08:45" }, "Enter your date of birth."],
     [{ day: "31", month: "2", year: "1990", time: "08:45" }, "Enter a valid date."],
-    [{ day: "6", month: "11", year: "2008", time: "08:45" }, "You must be at least 18 years old."],
     [{ day: "14", month: "3", year: "1990", time: "24:00" }, "Use the 24-hour format HH:MM."],
   ])("rejects %o", (birth, message) => {
     expect(errorsFor({ birth }).birth).toBe(message);
+  });
+
+  // revisions 5.0: the API decides who is 18 (§24.6), so an under-age date
+  // reaches it and restricts the account; this step no longer blocks it.
+  it("does not block an under-age date: the API refuses it and restricts the account", () => {
+    const year = String(new Date().getFullYear() - 10);
+    expect(errorsFor({ birth: { day: "6", month: "11", year, time: "08:45" } })).toEqual({});
   });
 
   it("accepts someone who turns 18 today", () => {

@@ -6,6 +6,7 @@
  */
 import { API_URL } from "@/lib/api/config";
 import type { SiteBanner, SiteConfig } from "@/lib/api/types";
+import { createServerCache } from "@/lib/server-cache";
 
 /** Tight budget: a slow API must never hold up the page. */
 export const SITE_CONFIG_SERVER_TIMEOUT_MS = 700;
@@ -36,20 +37,18 @@ export function parseSiteConfig(body: unknown): SiteConfig | null {
   if (!c.free_mode || typeof c.free_mode.active !== "boolean") return null;
   // Older APIs send no `auth`: no sign-in provider is available then (§23.1).
   const auth = { google: (c.auth as { google?: unknown } | undefined)?.google === true };
-  return { ...(c as SiteConfig), auth, banners: { ...banners, items: banners.items.filter(isBanner) } };
+  // Memberships are off unless the API says so (§25.1): an absent field means false.
+  const features = { memberships: (c.features as { memberships?: unknown } | undefined)?.memberships === true };
+  return { ...(c as SiteConfig), auth, features, banners: { ...banners, items: banners.items.filter(isBanner) } };
 }
 
 /**
- * Per-isolate memory cache. Every server render needs the configuration, and
- * on the edge all renders reach the API from a few shared egress addresses
- * (one rate-limit bucket), so each isolate asks at most once per TTL and
- * locale, shares one request between concurrent renders, and backs off
- * briefly after a failure. The client provider still revalidates on its own.
+ * Per-isolate memory cache (see `lib/server-cache.ts`). The client provider
+ * still revalidates on its own.
  */
 export const SITE_CONFIG_SERVER_TTL_MS = 30_000;
 export const SITE_CONFIG_SERVER_FAILURE_TTL_MS = 5_000;
-type CacheEntry = { value: SiteConfig | null; expires: number; pending?: Promise<SiteConfig | null> };
-const memory = new Map<string, CacheEntry>();
+const memory = createServerCache<SiteConfig>({ ttlMs: SITE_CONFIG_SERVER_TTL_MS, failureTtlMs: SITE_CONFIG_SERVER_FAILURE_TTL_MS });
 
 /** Test hook: forget every cached configuration. */
 export function resetSiteConfigCache() {
@@ -62,20 +61,7 @@ export async function fetchSiteConfig(
 ): Promise<SiteConfig | null> {
   const { now = Date.now, cache = true } = opts;
   if (!cache) return fetchSiteConfigOnce(locale, opts);
-  const key = `${opts.baseUrl ?? API_URL}|${locale}`;
-  const hit = memory.get(key);
-  if (hit && hit.expires > now()) return hit.value;
-  const stale = hit?.value ?? null;
-  // A refresh is in flight: serve the last good copy at once, else wait for it.
-  if (hit?.pending) return stale ?? hit.pending;
-  const pending = fetchSiteConfigOnce(locale, opts).then((fresh) => {
-    // A failed refresh keeps the last good copy and is retried soon.
-    const value = fresh ?? stale;
-    memory.set(key, { value, expires: now() + (fresh ? SITE_CONFIG_SERVER_TTL_MS : SITE_CONFIG_SERVER_FAILURE_TTL_MS) });
-    return value;
-  });
-  memory.set(key, { value: stale, expires: 0, pending });
-  return stale ?? pending;
+  return memory.get(`${opts.baseUrl ?? API_URL}|${locale}`, () => fetchSiteConfigOnce(locale, opts), now);
 }
 
 async function fetchSiteConfigOnce(

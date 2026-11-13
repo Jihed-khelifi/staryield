@@ -85,6 +85,8 @@ type AccountDeps struct {
 type AccountService struct {
 	d   AccountDeps
 	cfg AccountSettings
+	// age applies the 18+ gate to birth-date writes (revisions 5.0, §24.6).
+	age ageGuard
 }
 
 // NewAccountService wires the account service.
@@ -98,7 +100,12 @@ func NewAccountService(d AccountDeps) *AccountService {
 	if d.Tracker == nil {
 		d.Tracker = analytics.Noop{}
 	}
-	return &AccountService{d: d, cfg: d.Settings.withDefaults()}
+	s := &AccountService{d: d, cfg: d.Settings.withDefaults()}
+	s.age = ageGuard{users: d.Users, clock: d.Clock, minimumAge: s.cfg.MinimumAge}
+	if d.Auth != nil {
+		s.age.invalidate = d.Auth.InvalidateStatus
+	}
+	return s
 }
 
 // ---------------------------------------------------------------------------
@@ -361,6 +368,7 @@ func (s *AccountService) validateProfile(p *ProfileSettingsPatch, v validation, 
 			fields[v.key("profile", "birth_date")] = msg
 		} else {
 			ch.profile["birth_date"] = *d
+			ch.user["adult_confirmed_at"] = now // revisions 5.0: age gate (§24.6)
 		}
 	}
 	if p.BirthTime != nil {
@@ -521,6 +529,18 @@ func (s *AccountService) pendingEmail(ctx context.Context, userID uuid.UUID) str
 // version is checked under a row lock so concurrent saves cannot silently
 // overwrite each other.
 func (s *AccountService) UpdateSettings(ctx context.Context, userID uuid.UUID, in SettingsPatch) (*SettingsView, error) {
+	// revisions 5.0: 18+ age gate (§24.6) before the date is validated.
+	if in.Profile != nil {
+		skip, err := s.age.beforeBirthDateWrite(ctx, userID, in.Profile.BirthDate)
+		if err != nil {
+			return nil, err
+		}
+		if skip {
+			p := *in.Profile
+			p.BirthDate = nil
+			in.Profile = &p
+		}
+	}
 	ch, fields := s.validateSettings(in, settingsPaths)
 	if len(fields) > 0 {
 		return nil, apperror.Validation(fields)
@@ -528,12 +548,21 @@ func (s *AccountService) UpdateSettings(ctx context.Context, userID uuid.UUID, i
 	if err := s.save(ctx, userID, in.ExpectedVersion, ch); err != nil {
 		return nil, err
 	}
+	s.birthDateSaved(ctx, userID, ch)
 	return s.Settings(ctx, userID)
 }
 
 // UpdateProfile is the PATCH /me/profile alias: the legacy body and field
 // names, saved through the same transactional path as the settings.
 func (s *AccountService) UpdateProfile(ctx context.Context, userID uuid.UUID, in ProfileUpdate) (*UserView, error) {
+	// revisions 5.0: 18+ age gate (§24.6) before the date is validated.
+	skip, err := s.age.beforeBirthDateWrite(ctx, userID, in.BirthDate)
+	if err != nil {
+		return nil, err
+	}
+	if skip {
+		in.BirthDate = nil
+	}
 	patch := SettingsPatch{
 		Profile: &ProfileSettingsPatch{Nickname: in.Nickname, BirthDate: in.BirthDate, BirthTime: in.BirthTime,
 			BirthPlaceID: in.BirthPlaceID, Location: in.Location, Mood: in.Mood},
@@ -550,7 +579,16 @@ func (s *AccountService) UpdateProfile(ctx context.Context, userID uuid.UUID, in
 	if err := s.save(ctx, userID, nil, ch); err != nil {
 		return nil, err
 	}
+	s.birthDateSaved(ctx, userID, ch)
 	return s.d.UserSvc.Me(ctx, userID)
+}
+
+// birthDateSaved drops the cached authorization state after a save that
+// confirmed adulthood (revisions 5.0, §24.6).
+func (s *AccountService) birthDateSaved(ctx context.Context, userID uuid.UUID, ch *settingsChange) {
+	if _, ok := ch.user["adult_confirmed_at"]; ok {
+		s.age.drop(ctx, userID)
+	}
 }
 
 func (s *AccountService) save(ctx context.Context, userID uuid.UUID, expected *int, ch *settingsChange) error {

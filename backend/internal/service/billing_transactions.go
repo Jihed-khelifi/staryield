@@ -38,9 +38,19 @@ func (s *BillingService) Transactions(ctx context.Context, userID uuid.UUID, cur
 	if err != nil {
 		return Page[TransactionView]{}, apperror.Internal(err)
 	}
+	// revisions 5.0: refund info of the page's credit purchases (one batched
+	// lots query and one batched requests query, however many rows).
+	var refunds map[uuid.UUID]*TransactionRefundInfo
+	if s.refundInfo != nil {
+		if refunds, err = s.refundInfo(ctx, rows); err != nil {
+			return Page[TransactionView]{}, apperror.Internal(err)
+		}
+	}
 	page := Page[TransactionView]{Items: make([]TransactionView, 0, len(rows))}
 	for i := range rows {
-		page.Items = append(page.Items, transactionView(&rows[i], methods))
+		v := transactionView(&rows[i], methods)
+		v.Refund = refunds[rows[i].ID]
+		page.Items = append(page.Items, v)
 	}
 	if len(rows) > 0 && len(rows) == clampPage(limit, 20, 100) {
 		last := rows[len(rows)-1]
@@ -196,7 +206,8 @@ func (s *BillingService) ChargePurchase(ctx context.Context, p *domain.CreditPur
 	}
 	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	res, err := co.Checkout(cctx, payment.CheckoutRequest{PurchaseID: p.ID, UserID: p.UserID, AmountCents: p.PriceCents, Currency: p.Currency,
-		Description: t.Description, PaymentToken: src.token, IdempotencyKey: t.IdempotencyKey})
+		Description: t.Description, PaymentToken: src.token, IdempotencyKey: t.IdempotencyKey,
+		StatementDescriptor: s.cfg.StatementDescriptor}) // revisions 5.1
 	cancel()
 	if err != nil {
 		logger.FromContext(ctx).Warn("billing: token checkout outcome unknown; will reconcile", zap.Error(err))
@@ -283,6 +294,9 @@ type AdminTransactionRow struct {
 	ParentTransactionID *uuid.UUID `json:"parent_transaction_id,omitempty"`
 	AttemptNo           int        `json:"attempt_no"`
 	Refundable          int64      `json:"refundable_cents"`
+	// Consent is what the buyer accepted before paying a credit purchase
+	// (revisions 5.1, §25.2); absent for older purchases and other rows.
+	Consent *PurchaseConsentView `json:"consent,omitempty"`
 }
 
 func adminTransactionRow(t *domain.PaymentTransaction, methods map[uuid.UUID]domain.PaymentMethod) AdminTransactionRow {
@@ -320,9 +334,17 @@ func (s *BillingService) AdminTransactions(ctx context.Context, userID *uuid.UUI
 	if err != nil {
 		return Page[AdminTransactionRow]{}, apperror.Internal(err)
 	}
+	consents, err := s.consentsOf(ctx, rows) // revisions 5.1: one batched query for the page
+	if err != nil {
+		return Page[AdminTransactionRow]{}, apperror.Internal(err)
+	}
 	page := Page[AdminTransactionRow]{Items: make([]AdminTransactionRow, 0, len(rows))}
 	for i := range rows {
-		page.Items = append(page.Items, adminTransactionRow(&rows[i], methods))
+		row := adminTransactionRow(&rows[i], methods)
+		if rows[i].CreditPurchaseID != nil {
+			row.Consent = consents[*rows[i].CreditPurchaseID]
+		}
+		page.Items = append(page.Items, row)
 	}
 	if len(rows) > 0 && len(rows) == clampPage(limit, 20, 100) {
 		last := rows[len(rows)-1]
@@ -393,6 +415,13 @@ type RefundInput struct {
 // the refunded period (proportionally for partial refunds, never below the
 // available balance).
 func (s *BillingService) RefundTransaction(ctx context.Context, id uuid.UUID, in RefundInput) (*AdminTransactionRow, error) {
+	row, _, err := s.refundTransaction(ctx, id, in)
+	return row, err
+}
+
+// refundTransaction is RefundTransaction that also returns the id of the
+// refund row it booked (refund requests link to it).
+func (s *BillingService) refundTransaction(ctx context.Context, id uuid.UUID, in RefundInput) (*AdminTransactionRow, uuid.UUID, error) {
 	reason := CleanLine(in.Reason)
 	fields := map[string]string{}
 	if reason == "" || utf8.RuneCountInString(reason) > 300 {
@@ -402,18 +431,18 @@ func (s *BillingService) RefundTransaction(ctx context.Context, id uuid.UUID, in
 		fields["amount_cents"] = "Enter an amount to refund."
 	}
 	if len(fields) > 0 {
-		return nil, apperror.Validation(fields)
+		return nil, uuid.Nil, apperror.Validation(fields)
 	}
 	parent, err := s.repo.GetTransaction(ctx, id)
 	if err != nil {
-		return nil, mapRepoErr(err, "Payment")
+		return nil, uuid.Nil, mapRepoErr(err, "Payment")
 	}
 	if parent.ProviderRef == nil || *parent.ProviderRef == "" {
-		return nil, apperror.InvalidState("This payment has no provider reference and must be refunded with the provider.")
+		return nil, uuid.Nil, apperror.InvalidState("This payment has no provider reference and must be refunded with the provider.")
 	}
 	refunder, ok := s.refunder(parent.Provider)
 	if !ok {
-		return nil, apperror.InvalidState("This payment must be refunded with the provider.")
+		return nil, uuid.Nil, apperror.InvalidState("This payment must be refunded with the provider.")
 	}
 	// A refund issued earlier but never booked (crash after the provider
 	// call) is completed first, with its own idempotency key, so a retry can
@@ -421,11 +450,11 @@ func (s *BillingService) RefundTransaction(ctx context.Context, id uuid.UUID, in
 	child, err := s.repo.PendingRefund(ctx, parent.ID)
 	if errors.Is(err, repository.ErrNotFound) {
 		if in.AmountCents > parent.Refundable() {
-			return nil, apperror.Validation(map[string]string{"amount_cents": "The amount exceeds what can still be refunded."})
+			return nil, uuid.Nil, apperror.Validation(map[string]string{"amount_cents": "The amount exceeds what can still be refunded."})
 		}
 		n, err := s.repo.CountChildren(ctx, parent.ID)
 		if err != nil {
-			return nil, apperror.Internal(err)
+			return nil, uuid.Nil, apperror.Internal(err)
 		}
 		now := s.clock.Now()
 		child = &domain.PaymentTransaction{ID: domain.NewID(), UserID: parent.UserID, Kind: domain.TxRefund, Status: domain.TxPending,
@@ -434,12 +463,12 @@ func (s *BillingService) RefundTransaction(ctx context.Context, id uuid.UUID, in
 			ParentTransactionID: &parent.ID, Description: truncateString("Refund: "+parent.Description, 200),
 			IdempotencyKey: fmt.Sprintf("refund:%s:%d", parent.ID, n+1), AttemptNo: 1, CreatedAt: now, UpdatedAt: now}
 		if err := s.repo.CreateTransaction(ctx, child); err != nil {
-			return nil, apperror.Internal(err)
+			return nil, uuid.Nil, apperror.Internal(err)
 		}
 	} else if err != nil {
-		return nil, apperror.Internal(err)
+		return nil, uuid.Nil, apperror.Internal(err)
 	} else if child.AmountCents != in.AmountCents {
-		return nil, apperror.InvalidState("A refund of this payment is still pending. Retry with the same amount to complete it.")
+		return nil, uuid.Nil, apperror.InvalidState("A refund of this payment is still pending. Retry with the same amount to complete it.")
 	}
 	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	res, err := refunder.Refund(cctx, payment.RefundRequest{ProviderRef: *parent.ProviderRef, AmountCents: child.AmountCents,
@@ -452,26 +481,26 @@ func (s *BillingService) RefundTransaction(ctx context.Context, id uuid.UUID, in
 		if !definitive {
 			// Unknown outcome: the row stays pending so a retry reuses its
 			// idempotency key instead of refunding twice.
-			return nil, apperror.Unavailable(err)
+			return nil, uuid.Nil, apperror.Unavailable(err)
 		}
 		_ = s.repo.UpdateTransaction(ctx, child.ID, map[string]any{"status": domain.TxFailed, "failure_code": "refund_failed", "updated_at": s.clock.Now()})
 		if errors.Is(err, payment.ErrRefundTooLarge) {
-			return nil, apperror.Validation(map[string]string{"amount_cents": "The amount exceeds what can still be refunded."})
+			return nil, uuid.Nil, apperror.Validation(map[string]string{"amount_cents": "The amount exceeds what can still be refunded."})
 		}
-		return nil, apperror.InvalidState("The provider refused this refund. Refund it from the provider's dashboard.")
+		return nil, uuid.Nil, apperror.RefundRefused() // revisions 5.0: its own code (409 refund_refused), not invalid_state
 	}
 	if err := s.bookRefund(ctx, parent.ID, child.ID, child.AmountCents, res.ProviderRef); err != nil {
-		return nil, err
+		return nil, uuid.Nil, err
 	}
 	s.record(ctx, "billing.refund", "payment_transaction", parent.ID.String(), map[string]any{"amount_cents": child.AmountCents,
 		"currency": parent.Currency, "reason": reason, "refund_id": child.ID})
 	updated, err := s.repo.GetTransaction(ctx, parent.ID)
 	if err != nil {
-		return nil, apperror.Internal(err)
+		return nil, uuid.Nil, apperror.Internal(err)
 	}
 	methods, _ := s.methodsOf(ctx, []domain.PaymentTransaction{*updated})
 	row := adminTransactionRow(updated, methods)
-	return &row, nil
+	return &row, child.ID, nil
 }
 
 // bookRefund records a refund (issued by us, or reported by the provider)
@@ -480,6 +509,7 @@ func (s *BillingService) bookRefund(ctx context.Context, parentID, childID uuid.
 	now := s.clock.Now()
 	var wallet *domain.Wallet
 	var owner uuid.UUID
+	var notice map[string]any // revisions 5.1: the customer's refund notice, built when this call books the refund
 	err := s.tx.WithinTx(ctx, func(ctx context.Context) error {
 		parent, err := s.repo.GetTransactionForUpdate(ctx, parentID)
 		if err != nil {
@@ -499,6 +529,7 @@ func (s *BillingService) bookRefund(ctx context.Context, parentID, childID uuid.
 			return nil
 		}
 		owner = parent.UserID
+		notice = refundNotice(parent, childID, amount, s.cfg.StatementDescriptor)
 		child := map[string]any{"status": domain.TxSucceeded, "updated_at": now}
 		if providerRef != "" {
 			child["provider_ref"] = providerRef
@@ -517,9 +548,8 @@ func (s *BillingService) bookRefund(ctx context.Context, parentID, childID uuid.
 		}
 		switch parent.Kind {
 		case domain.TxCreditPurchase:
-			credits := parent.Credits * amount / parent.AmountCents
-			if wallet, err = s.clawBack(ctx, parent.UserID, credits, domain.LedgerRefund, "credit_purchase", parent.CreditPurchaseID,
-				"refund:"+childID.String(), "Payment refunded"); err != nil {
+			// revisions 5.0: credit lots. Only this purchase's own lot is clawed back.
+			if wallet, err = s.clawBackPurchase(ctx, parent, amount, childID); err != nil {
 				return err
 			}
 			if status == domain.TxRefunded && parent.CreditPurchaseID != nil {
@@ -543,8 +573,7 @@ func (s *BillingService) bookRefund(ctx context.Context, parentID, childID uuid.
 				if reverse <= 0 {
 					continue
 				}
-				w, err := s.clawBack(ctx, parent.UserID, reverse, domain.LedgerSubscriptionGrantReversal, "subscription", parent.SubscriptionID,
-					fmt.Sprintf("subgrant_rev:%s:%s", g.ID, childID), "Membership credits refunded")
+				w, err := s.reverseGrant(ctx, parent, g, reverse, childID)
 				if err != nil {
 					return err
 				}
@@ -568,30 +597,109 @@ func (s *BillingService) bookRefund(ctx context.Context, parentID, childID uuid.
 		dctx := database.Detach(ctx)
 		warnErr(dctx, "billing: publish wallet", s.events.Publish(dctx, realtime.EventWalletUpdated, walletView(wallet), owner))
 	}
+	// revisions 5.1: every booked refund tells the customer (in-app and e-mail,
+	// §25.5) unless the caller sends its own notice (a refund request approval).
+	if notice != nil && !quietRefund(ctx) {
+		s.notify.Notify(database.Detach(ctx), NotificationSpec{Kind: NotifyPaymentRefunded, Data: notice, Link: "/profile/settings#billing"}, owner)
+	}
 	return nil
 }
 
-// clawBack removes up to credits from the wallet (spent credits cannot go
-// below zero). Runs inside a transaction.
-func (s *BillingService) clawBack(ctx context.Context, userID uuid.UUID, credits int64, kind domain.LedgerEntryType, refType string,
-	refID *uuid.UUID, key, description string) (*domain.Wallet, error) {
-	if credits <= 0 {
+// refundNotice is the data of a payment.refunded notification (§25.5): the
+// amount and currency refunded and the original payment, never a card number.
+func refundNotice(parent *domain.PaymentTransaction, refundID uuid.UUID, amount int64, descriptor string) map[string]any {
+	data := map[string]any{"amount_cents": amount, "currency": parent.Currency, "refund_id": refundID, "transaction_id": parent.ID,
+		"description": parent.Description, "purchased_at": parent.CreatedAt}
+	if parent.Kind == domain.TxCreditPurchase {
+		data["credits"] = parent.Credits
+		data["pack_name"] = parent.Description
+		if parent.CreditPurchaseID != nil {
+			data["purchase_id"] = *parent.CreditPurchaseID
+		}
+	}
+	if descriptor != "" {
+		data["statement_descriptor"] = descriptor
+	}
+	return data
+}
+
+type quietRefundKey struct{}
+
+// withQuietRefund marks a refund whose caller sends the customer's notice
+// itself (refund request approval), so bookRefund does not send a second one.
+func withQuietRefund(ctx context.Context) context.Context {
+	return context.WithValue(ctx, quietRefundKey{}, true)
+}
+
+func quietRefund(ctx context.Context) bool { v, _ := ctx.Value(quietRefundKey{}).(bool); return v }
+
+// clawBackPurchase takes back the credits a refund of amount cents un-buys,
+// from the purchase's own lot and nowhere else: ceil(amount × total ÷ paid),
+// never more than what is left of the lot, so a refund larger than the unused
+// value (a technical problem, say) only takes what is left. Runs inside a
+// transaction; the wallet is locked first so the lot cannot change before
+// Apply. Returns the updated wallet, or nil when nothing was taken.
+func (s *BillingService) clawBackPurchase(ctx context.Context, parent *domain.PaymentTransaction, amount int64, refundID uuid.UUID) (*domain.Wallet, error) {
+	if parent.CreditPurchaseID == nil {
 		return nil, nil
 	}
-	w, err := s.wallets.GetForUpdate(ctx, userID)
+	w, err := s.wallets.GetForUpdate(ctx, parent.UserID)
 	if err != nil {
 		return nil, err
 	}
-	amount := min(credits, w.Balance)
-	if amount < credits {
-		logger.FromContext(ctx).Warn("billing: refund exceeds available balance; partial clawback",
-			zap.Int64("credits", credits), zap.Int64("clawed_back", amount))
-	}
-	if amount <= 0 {
+	lot, err := s.wallet.PurchaseLot(ctx, *parent.CreditPurchaseID)
+	if errors.Is(err, repository.ErrNotFound) {
+		// A purchase from before lots existed whose credits were all spent.
+		logger.FromContext(ctx).Warn("billing: refunded purchase has no credit lot; nothing to claw back",
+			zap.String("purchase_id", parent.CreditPurchaseID.String()))
 		return nil, nil
 	}
-	w, _, err = s.wallet.Apply(ctx, Movement{UserID: userID, Type: kind, Amount: -amount, ReferenceType: refType, ReferenceID: refID,
-		IdempotencyKey: key, Description: description})
+	if err != nil {
+		return nil, err
+	}
+	credits := domain.ClawbackCredits(lot.CreditsTotal, lot.CreditsRemaining, lot.PaidCents, amount)
+	// The balance is authoritative; a lot claiming more than the wallet holds
+	// (invariant broken, reported by the reconciliation job) is capped by it.
+	credits = min(credits, w.Balance)
+	if credits <= 0 {
+		return nil, nil
+	}
+	w, _, err = s.wallet.Apply(ctx, Movement{UserID: parent.UserID, Type: domain.LedgerRefund, Amount: -credits,
+		ReferenceType: "credit_purchase", ReferenceID: parent.CreditPurchaseID, IdempotencyKey: "refund:" + refundID.String(),
+		Description: "Payment refunded", ConsumeLot: &lot.ID})
+	return w, err
+}
+
+// reverseGrant takes back up to reverse credits of a membership grant from
+// that grant's lot (never other lots, never below zero). Grants from before
+// lots existed have no lot of their own (their credits were merged into the
+// user's legacy bonus lot), so nothing is reversed and a warning says so.
+func (s *BillingService) reverseGrant(ctx context.Context, parent *domain.PaymentTransaction, g domain.SubscriptionGrant, reverse int64,
+	refundID uuid.UUID) (*domain.Wallet, error) {
+	w, err := s.wallets.GetForUpdate(ctx, parent.UserID)
+	if err != nil {
+		return nil, err
+	}
+	lot, err := s.wallet.GrantLot(ctx, g.ID)
+	if errors.Is(err, repository.ErrNotFound) {
+		logger.FromContext(ctx).Warn("billing: membership grant has no credit lot; its credits are not reversed",
+			zap.String("grant_id", g.ID.String()), zap.Int64("credits", reverse))
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	credits := min(reverse, lot.CreditsRemaining, w.Balance)
+	if credits < reverse {
+		logger.FromContext(ctx).Warn("billing: membership credits already spent; partial reversal",
+			zap.String("grant_id", g.ID.String()), zap.Int64("credits", reverse), zap.Int64("reversed", credits))
+	}
+	if credits <= 0 {
+		return nil, nil
+	}
+	w, _, err = s.wallet.Apply(ctx, Movement{UserID: parent.UserID, Type: domain.LedgerSubscriptionGrantReversal, Amount: -credits,
+		ReferenceType: "subscription", ReferenceID: parent.SubscriptionID,
+		IdempotencyKey: fmt.Sprintf("subgrant_rev:%s:%s", g.ID, refundID), Description: "Membership credits refunded", ConsumeLot: &lot.ID})
 	return w, err
 }
 

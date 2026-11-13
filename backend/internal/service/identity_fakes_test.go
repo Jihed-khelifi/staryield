@@ -158,6 +158,10 @@ func (r memUsers) Updates(_ context.Context, id uuid.UUID, fields map[string]any
 			u.DeletedAt = timePtr(v)
 		case "last_login_at":
 			u.LastLoginAt = timePtr(v)
+		case "adult_confirmed_at": // revisions 5.0: age gate
+			u.AdultConfirmedAt = timePtr(v)
+		case "age_restricted_at":
+			u.AgeRestrictedAt = timePtr(v)
 		case "token_version":
 			if !isExpr(v) {
 				return fmt.Errorf("token_version must be an expression")

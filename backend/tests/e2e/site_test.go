@@ -47,7 +47,7 @@ func (e *env) resetSite() {
 				'es', 'APROVECHA LA OFERTA DE BIENVENIDA →')
 			WHERE id = ?`, seedBannerID).Error)
 		must(db.Exec(`UPDATE site_settings SET value = '{"enabled": true, "rotation_seconds": 6}', version = version + 1 WHERE key = 'banners'`).Error)
-		must(db.Exec(`UPDATE site_settings SET value = '{"enabled": true, "free_minutes": 5}', version = version + 1 WHERE key = 'signup_offer'`).Error)
+		must(db.Exec(`UPDATE site_settings SET value = '{"enabled": true, "free_minutes": 4}', version = version + 1 WHERE key = 'signup_offer'`).Error)
 		must(db.Exec(`UPDATE site_settings SET value = '{"enabled": false, "reason": ""}', version = version + 1 WHERE key = 'free_mode'`).Error)
 	}
 	reset()
@@ -151,14 +151,14 @@ func TestSiteConfigPublicShapeLocalesAndETag(t *testing.T) {
 	e.resetSite()
 
 	cfg, r := e.siteConfig("")
-	if cfg.SignupOffer.FreeMinutes != 5 || !cfg.SignupOffer.Enabled || cfg.FreeMode.Active || cfg.Banners.RotationSeconds != 6 {
+	if cfg.SignupOffer.FreeMinutes != 4 || !cfg.SignupOffer.Enabled || cfg.FreeMode.Active || cfg.Banners.RotationSeconds != 6 {
 		t.Fatalf("seed configuration: %+v", cfg)
 	}
 	if len(cfg.Banners.Items) != 1 {
 		t.Fatalf("the seed banner is missing: %s", r.body)
 	}
 	b := cfg.Banners.Items[0]
-	if b.ID != seedBannerID || b.Text != "5 MINUTES FREE + 80% OFF FOR NEW CUSTOMERS" || b.CTALabel != "CLAIM INTRO OFFER →" ||
+	if b.ID != seedBannerID || b.Text != "4 MINUTES FREE + 80% OFF FOR NEW CUSTOMERS" || b.CTALabel != "CLAIM INTRO OFFER →" ||
 		b.Action.Type != "link" || b.Action.Href != "/signup" || b.Audience != "anonymous" {
 		t.Fatalf("seed banner: %+v", b)
 	}
@@ -201,13 +201,13 @@ func TestSiteConfigPublicShapeLocalesAndETag(t *testing.T) {
 
 	// Locales: X-Locale, Accept-Language, ?locale=; unknown falls back to English.
 	fr, frResp := e.siteConfig("fr")
-	if got := fr.Banners.Items[0]; got.Text != "5 MINUTES OFFERTES + 80 % DE RÉDUCTION POUR LES NOUVEAUX CLIENTS" || got.CTALabel != "PROFITEZ DE L'OFFRE DE BIENVENUE →" {
+	if got := fr.Banners.Items[0]; got.Text != "4 MINUTES OFFERTES + 80 % DE RÉDUCTION POUR LES NOUVEAUX CLIENTS" || got.CTALabel != "PROFITEZ DE L'OFFRE DE BIENVENUE →" {
 		t.Fatalf("fr: %+v", got)
 	}
 	if frResp.header.Get("ETag") == etag {
 		t.Fatal("languages share a validator")
 	}
-	if es, _ := e.siteConfig("es"); es.Banners.Items[0].Text != "5 MINUTOS GRATIS + 80 % DE DESCUENTO PARA NUEVOS CLIENTES" {
+	if es, _ := e.siteConfig("es"); es.Banners.Items[0].Text != "4 MINUTOS GRATIS + 80 % DE DESCUENTO PARA NUEVOS CLIENTES" {
 		t.Fatalf("es: %+v", es.Banners.Items[0])
 	}
 	if de, _ := e.siteConfig("de"); de.Banners.Items[0].Text != b.Text {
@@ -273,7 +273,7 @@ func TestSiteConfigSurvivesRedisOutage(t *testing.T) {
 	_ = e.app.Redis.Close()
 	for i := 0; i < 3; i++ {
 		cfg, _ := e.siteConfig("")
-		if len(cfg.Banners.Items) != 1 || cfg.SignupOffer.FreeMinutes != 5 {
+		if len(cfg.Banners.Items) != 1 || cfg.SignupOffer.FreeMinutes != 4 {
 			t.Fatalf("outage: %+v", cfg)
 		}
 	}
@@ -690,7 +690,7 @@ func TestSignupOfferControlsNewWalletsOnly(t *testing.T) {
 	admin := e.createAdmin()
 
 	first := e.registerClient()
-	if w := first.wallet(); w.FreeMinutes != 5 {
+	if w := first.wallet(); w.FreeMinutes != 4 {
 		t.Fatalf("seed offer: %+v", w)
 	}
 	// The registration event records the minutes granted.
@@ -709,7 +709,7 @@ func TestSignupOfferControlsNewWalletsOnly(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 		}
 	}
-	waitSignupEvent(first.user.ID, 5)
+	waitSignupEvent(first.user.ID, 4)
 
 	// Without a step-up the offer cannot change (the sign-in's window has passed).
 	e.clock.Advance(11 * time.Minute)
@@ -728,7 +728,7 @@ func TestSignupOfferControlsNewWalletsOnly(t *testing.T) {
 		t.Fatalf("after the change: %+v", w)
 	}
 	waitSignupEvent(second.user.ID, 7)
-	if w := first.wallet(); w.FreeMinutes != 5 {
+	if w := first.wallet(); w.FreeMinutes != 4 {
 		t.Fatalf("existing wallets must not change: %+v", w)
 	}
 	if cfg, _ := e.siteConfig("en"); cfg.SignupOffer.FreeMinutes != 7 || cfg.Banners.Items[0].Text != "7 MINUTES FREE + 80% OFF FOR NEW CUSTOMERS" {
@@ -792,12 +792,12 @@ func TestSignupOfferControlsNewWalletsOnly(t *testing.T) {
 	for _, row := range rows {
 		before, _ := row.Metadata["before"].(map[string]any)
 		after, _ := row.Metadata["after"].(map[string]any)
-		if before["free_minutes"] == float64(5) && after["free_minutes"] == float64(7) && after["enabled"] == true {
+		if before["free_minutes"] == float64(4) && after["free_minutes"] == float64(7) && after["enabled"] == true {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("no audit row records the change from 5 to 7 minutes: %v", rows)
+		t.Fatalf("no audit row records the change from 4 to 7 minutes: %v", rows)
 	}
 }
 
@@ -808,11 +808,11 @@ func TestSignupOfferIsSharedAcrossInstances(t *testing.T) {
 	// invalidation and the Pub/Sub announcement, not only through the TTL.
 	admin := e.createAdmin()
 	other := e.registerClient()
-	if other.wallet().FreeMinutes != 5 {
+	if other.wallet().FreeMinutes != 4 {
 		t.Fatal("seed")
 	}
 	// Warm the in-process copy of this instance, change the offer, and read again at once.
-	if cfg, _ := e.siteConfig("en"); cfg.SignupOffer.FreeMinutes != 5 {
+	if cfg, _ := e.siteConfig("en"); cfg.SignupOffer.FreeMinutes != 4 {
 		t.Fatal("warm-up")
 	}
 	admin.stepUp()
@@ -1165,7 +1165,7 @@ func TestFreeModeKeepsTheClientsOwnFreeMinutes(t *testing.T) {
 	cws.waitFor(realtime.EventSessionStarted, 5*time.Second)
 	e.tick(time.Minute + time.Second)
 	e.tick(time.Minute)
-	if w := client.wallet(); w.FreeMinutes != 5 || w.Balance != 0 {
+	if w := client.wallet(); w.FreeMinutes != 4 || w.Balance != 0 {
 		t.Fatalf("the client's own free minutes must be kept: %+v", w)
 	}
 	var sum service.SessionSummary
@@ -1233,7 +1233,7 @@ func TestFreeModeDoesNotAffectCustomRequestsOrPurchases(t *testing.T) {
 	f.pws.mustAck(realtime.FrameSessionJoin, map[string]any{"session_id": requested.ID})
 	cws.waitFor(realtime.EventSessionStarted, 5*time.Second)
 	e.tick(time.Minute + time.Second)
-	if w := client.wallet(); w.Balance != 250 || w.FreeMinutes != 5 {
+	if w := client.wallet(); w.Balance != 250 || w.FreeMinutes != 4 {
 		t.Fatalf("a sponsored chat touched the wallet: %+v", w)
 	}
 }

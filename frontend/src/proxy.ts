@@ -3,6 +3,7 @@ import Negotiator from "negotiator"
 import { NextResponse, type NextRequest } from "next/server"
 
 import { defaultLocale, locales } from "@/i18n/config"
+import { isRefundAlias } from "@/lib/legal/refund-aliases" // revisions 5.1
 
 const LOCALE_COOKIE = "STARYIELD_LOCALE"
 
@@ -28,6 +29,16 @@ function getLocale(request: NextRequest) {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // revisions 5.1: /refunds, /refund, /reimburse and /refunds-policy (with or without a locale)
+  // go permanently (308) to /{locale}/refund-policy, in one hop (docs/platform-extensions.md §25.6).
+  const segments = pathname.split("/").filter(Boolean)
+  const explicit = segments.length === 2 && (locales as readonly string[]).includes(segments[0]) ? segments[0] : null
+  if ((segments.length === 1 && isRefundAlias(segments[0])) || (explicit && isRefundAlias(segments[1]))) {
+    const target = request.nextUrl.clone()
+    target.pathname = `/${explicit ?? getLocale(request)}/refund-policy`
+    return NextResponse.redirect(target, 308)
+  }
 
   const pathnameHasLocale = locales.some(
     (locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`)

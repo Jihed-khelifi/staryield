@@ -67,7 +67,15 @@ export type ErrorCode =
   | "password_not_set"
   | "last_sign_in_method"
   | "reply_target_invalid"
-  | "message_not_likeable";
+  | "message_not_likeable"
+  // revisions 5.0: top-up offer and refund requests (§24.10).
+  | "offer_unavailable"
+  | "refund_request_exists"
+  | "refund_not_eligible"
+  | "refund_refused"
+  // --- revisions 5.0: 18+ age gate (§24.6) ---
+  | "birth_date_required"
+  | "age_restricted";
 
 export class ApiError extends Error {
   readonly code: ErrorCode | string;
@@ -215,6 +223,14 @@ export const errorCopy: Record<string, string> = {
   last_sign_in_method: "Create a password before you disconnect Google, so you can still sign in.",
   reply_target_invalid: "The message you replied to is no longer available.",
   message_not_likeable: "This message can't be liked.",
+  // revisions 5.0: top-up offer and refund requests (§24.10). Reason-specific copy lives with each flow.
+  offer_unavailable: "The Welcome Pack is no longer available. Choose another pack to continue.",
+  refund_request_exists: "You already have an open refund request for this payment.",
+  refund_not_eligible: "This payment can't be refunded from here. Contact support if you think this is a mistake.",
+  refund_refused: "The payment provider couldn't process this refund. Our support team will follow up with you.",
+  // --- revisions 5.0: 18+ age gate (§24.6) ---
+  birth_date_required: "Enter your date of birth to continue. Staryield is for adults 18 and over.",
+  age_restricted: "This account is restricted because Staryield is for adults 18 and over. Contact support if you entered the wrong date of birth.",
 };
 
 /** `network_error` while the browser believes it is online (API unreachable, blocked, DNS). */

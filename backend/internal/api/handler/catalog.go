@@ -87,6 +87,8 @@ type purchaseRequest struct {
 	PaymentToken    string     `json:"payment_token"`
 	Provider        string     `json:"provider"`
 	SaveMethod      bool       `json:"save_method"`
+	// revisions 5.1: the policy versions the buyer agreed to (§25.2).
+	Consent *service.PurchaseConsent `json:"consent"`
 }
 
 // Purchase buys a credit pack (FR-05).
@@ -104,7 +106,7 @@ func (h *Handler) Purchase(c echo.Context) error {
 	out, err := h.svc.Credits.Purchase(c.Request().Context(), principal(c).UserID, service.PurchaseInput{
 		PackID: req.PackID, IdempotencyKey: req.IdempotencyKey, ReceiptEmail: req.ReceiptEmail,
 		PaymentMethodID: req.PaymentMethodID, PaymentToken: req.PaymentToken, Provider: req.Provider, SaveMethod: req.SaveMethod,
-		TrustedCountry: h.trustedCountry(c),
+		TrustedCountry: h.trustedCountry(c), Consent: req.Consent,
 	})
 	if err != nil {
 		return err

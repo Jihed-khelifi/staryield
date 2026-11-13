@@ -92,7 +92,7 @@ const content: ArticleContent = {
           items: [
             "**Chemin de vie 11/2 (L’Illuminateur intuitif) :** Associe les qualités pacificatrices de la racine 2 à une intuition à haute tension et à une vision inspirée. Les personnes du Chemin 11 agissent comme des antennes spirituelles, même si elles doivent souvent composer avec une forte énergie nerveuse intérieure.",
             "**Chemin de vie 22/4 (Le Maître bâtisseur) :** Reprend l’ancrage structurel de la racine 4 et le porte à une échelle grandiose. Les personnes du Chemin 22 possèdent la rare capacité de concrétiser des rêves visionnaires abstraits en réalisations tangibles et durables.",
-            "**Chemin de vie 33/6 (Le Maître enseignant) :** Élève les qualités protectrices de la racine 6 vers l’altruisme universel et le service spirituel. Le Chemin 33 incarne l’accompagnement et la guérison désintéressés, et exige une grande maturité émotionnelle pour éviter l’épuisement.",
+            "**Chemin de vie 33/6 (Le Maître enseignant) :** Élève les qualités protectrices de la racine 6 vers l’altruisme universel et le service spirituel. Le Chemin 33 incarne l’accompagnement et la compassion désintéressés, et exige une grande maturité émotionnelle pour éviter l’épuisement.",
           ],
         },
       ],

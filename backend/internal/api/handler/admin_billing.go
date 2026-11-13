@@ -16,7 +16,8 @@ func (h *Handler) AdminBillingPlans(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return ok(c, map[string]any{"items": orEmpty(out)})
+	// revisions 5.1: the admin console shows when memberships are switched off (§25.1).
+	return ok(c, map[string]any{"items": orEmpty(out), "memberships_enabled": b.MembershipsEnabled()})
 }
 
 // AdminCreateBillingPlan creates a plan and its first version.

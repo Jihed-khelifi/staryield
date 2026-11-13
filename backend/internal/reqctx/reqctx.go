@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/Jihed-khelifi/staryield/backend/internal/apperror"
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
 )
 
@@ -28,6 +29,26 @@ type Principal struct {
 	UserID   uuid.UUID
 	Role     domain.Role
 	FamilyID uuid.UUID
+	// Age is the 18+ gate status, read from the cached authorization state
+	// (revisions 5.0, §24.6). Empty means "not loaded": for a client that is
+	// treated as birth_date_required (fail closed).
+	Age domain.AgeStatus
+}
+
+// RequireAdult answers the 18+ gate for client actions (§24.6): nil for
+// advisors, administrators and adult clients; 403 birth_date_required or
+// age_restricted otherwise.
+func (p Principal) RequireAdult() error {
+	if p.Role != domain.RoleClient {
+		return nil
+	}
+	switch p.Age {
+	case domain.AgeAdult:
+		return nil
+	case domain.AgeRestricted:
+		return apperror.AgeRestricted()
+	}
+	return apperror.BirthDateRequired()
 }
 
 // IsAdmin reports whether the principal is an administrator.

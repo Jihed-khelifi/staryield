@@ -28,6 +28,7 @@ import type { AppNotification, NotificationReadEvent } from "@/lib/api/types";
 import { useRealtimeEvent, useSession } from "@/lib/auth/session-provider";
 import { logger } from "@/lib/logger";
 import { notificationDestination, notificationText } from "@/lib/notifications/notification-copy";
+import { useMembershipsEnabled } from "@/lib/site-config/site-config-provider";
 import { announce } from "@/components/feedback/live-region";
 import { useToast } from "@/components/feedback/toast-provider";
 
@@ -97,6 +98,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const { status, user } = useSession();
   const userId = status === "authenticated" ? (user?.id ?? null) : null;
   const { text, locale } = useI18n();
+  const memberships = useMembershipsEnabled();
   const toast = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -317,7 +319,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     update(userId, (s) => ({ ...s, items: s.loaded ? [n, ...s.items] : s.items, unread: n.read_at ? s.unread : s.unread + 1 }));
     // The chatroom already announces chat requests itself.
     if (n.kind === "chat.requested" && pathRef.current?.includes("/chatroom")) return;
-    const copy = notificationText(n, locale, text);
+    const copy = notificationText(n, locale, text, { memberships });
     const href = notificationDestination(n, locale);
     toast.show({
       tone: "info",

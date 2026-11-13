@@ -49,7 +49,7 @@ export const LIFE_PATH_COPY: Record<number, { title: string; body: string }> = {
   },
   33: {
     title: "The master teacher",
-    body: "A master number: devoted to healing, guidance and selfless service. Life Path 33s uplift others through compassion. Their challenge is burnout from carrying everyone else's burdens.",
+    body: "A master number: devoted to compassion, guidance and selfless service. Life Path 33s uplift others through kindness. Their challenge is burnout from carrying everyone else's burdens.",
   },
 };
 

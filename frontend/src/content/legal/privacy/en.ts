@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-09",
-    "effective": "2026-11-09",
-    "lastUpdated": "2026-11-09",
+    "version": "2026-11-13",
+    "effective": "2026-11-13",
+    "lastUpdated": "2026-11-13",
     "badge": "STARYIELD PRIVACY AGREEMENT",
     "title": "Privacy Policy"
   },
@@ -45,7 +45,7 @@ const content: LegalDocumentContent = {
     },
     {
       "type": "p",
-      "text": "BY USING THE SERVICES, YOU PROMISE US THAT (I) YOU HAVE READ, UNDERSTAND, AND AGREE TO THIS PRIVACY POLICY, AND (II) YOU ARE AT LEAST 18 YEARS OLD (OR HAVE HAD YOUR PARENT OR GUARDIAN READ AND AGREE TO THIS PRIVACY POLICY FOR YOU). If you do not agree, or are unable to make this promise, you must not use the Services. In such case, you must (a) close your account using the account settings in the App, (b) cancel any active Premium Membership in your account settings, and (c) stop using the Services."
+      "text": "BY USING THE SERVICES, YOU PROMISE US THAT (I) YOU HAVE READ, UNDERSTAND, AND AGREE TO THIS PRIVACY POLICY, AND (II) YOU ARE AT LEAST 18 YEARS OLD (OR HAVE HAD YOUR PARENT OR GUARDIAN READ AND AGREE TO THIS PRIVACY POLICY FOR YOU). If you do not agree, or are unable to make this promise, you must not use the Services. In such case, you must (a) close your account using the account settings in the App, and (b) stop using the Services."
     },
     {
       "type": "p",
@@ -105,7 +105,31 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Payment data. When you buy credits or a Premium Membership, you enter your card details in fields hosted by our payment processor, not on our servers. We never receive or store your full card number or security code. The processor gives us a secure token for your payment method together with the card brand, the last four digits and the expiry date, so you can reuse a saved card, and tells us the date, time, amount and result of each payment."
+          "text": "Payment data. When you buy credits, you enter your card details in fields hosted by our payment processor, not on our servers. We never receive or store your full card number or security code. The processor gives us a secure token for your payment method together with the card brand, the last four digits and the expiry date, so you can reuse a saved card, and tells us the date, time, amount and result of each payment."
+        },
+        {
+          "type": "p",
+          "text": "Billing records and credit lots. For every credit purchase we keep a record of the transaction, the pack bought, the amount paid and its currency. We also keep a record of each batch (“lot”) of Credits in your Balance, marked as purchased or bonus Credits and showing how many are still unused, so that Credits are used in the order described in our Terms and refunds are calculated correctly. These records are part of our billing records."
+        },
+        {
+          "type": "p",
+          "text": "Payment-method data and card-network rules. For each purchase we keep the card brand and last four digits (shown on your receipt), the payment processor’s reference for the payment, and the date, time, amount and result of the payment. We use this data to issue receipts and refunds, to respond to payment disputes and to meet the rules of the card networks (such as Visa and Mastercard) and of our payment processors."
+        },
+        {
+          "type": "p",
+          "text": "Purchase consent record. Before you pay, you confirm that you accept our Terms of Use, Privacy Policy and Refund & Cancellation Policy. For every purchase we keep a record of the version (date) of each of those documents that you accepted, the time of your acceptance, a one-way hash of your IP address (computed with a secret key, so it cannot be turned back into the address) and your browser’s user agent (the name and version of your browser and device). We keep this record with the billing record of the purchase as evidence of the terms you agreed to, so that we can respond to payment disputes and chargebacks. The document versions and the time of acceptance are included in your data export."
+        },
+        {
+          "type": "p",
+          "text": "Welcome-offer card check. To enforce the limit of one Welcome Pack per payment method, when you buy the Welcome Pack we ask our payment processor for a fingerprint of your card and store only a one-way keyed hash of it. We never store your card number or the fingerprint itself, and the hash cannot be turned back into either. We use it only to recognise a card that has already been used for the offer."
+        },
+        {
+          "type": "p",
+          "text": "Refund requests. If you ask for a refund, we store the transaction and pack concerned, the Credits used and remaining, the reason you give and any details you write, the status of your request and how it was resolved, including any refund or courtesy Credits. If you send your request by email, we record it in the same way."
+        },
+        {
+          "type": "p",
+          "text": "Age check. We use the date of birth you give at sign-up to determine whether you are at least 18. We keep a flag showing that you are confirmed as an adult or, if the date of birth indicated that you are under 18, that your account is restricted; restricted accounts are reviewed by our team (see Section 6)."
         },
         {
           "type": "h3",
@@ -165,7 +189,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Information shown to your advisor. During a conversation, your advisor sees a client card with your first name or nickname, profile picture, online status, country, age, your full date of birth, your sun sign and the signs of your other natal placements (your moon sign only when it is certain from your birth date and time, and degrees, houses and your rising sign only when you gave a birth time and place), your daily horoscope and the number and length of your past readings with them. Your date of birth is always shown to the advisors you chat with, under your name in the chat and in the client panel, because readings rely on it; we do this to perform our contract with you, namely to provide the reading you request. Your birth city is shown only if you turn on “Share my birth city with advisors” in your privacy preferences (it is off by default); you can turn it off at any time. We never show advisors your email address, credit balance, purchases, membership, or your exact birth time or coordinates."
+          "text": "Information shown to your advisor. During a conversation, your advisor sees a client card with your first name or nickname, profile picture, online status, country, age, your full date of birth, your sun sign and the signs of your other natal placements (your moon sign only when it is certain from your birth date and time, and degrees, houses and your rising sign only when you gave a birth time and place), your daily horoscope and the number and length of your past readings with them. Your date of birth is always shown to the advisors you chat with, under your name in the chat and in the client panel, because readings rely on it; we do this to perform our contract with you, namely to provide the reading you request. Your birth city is shown only if you turn on “Share my birth city with advisors” in your privacy preferences (it is off by default); you can turn it off at any time. We never show advisors your email address, credit balance, purchases, or your exact birth time or coordinates."
         },
         {
           "type": "p",
@@ -231,7 +255,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Membership and billing. If you subscribe to a Premium Membership, we store your plan, its status and renewal dates, your saved payment methods (as tokens, with the card brand, last four digits and expiry date), your invoices and the history of your payments, refunds and credit grants."
+          "text": "Billing. We store your saved payment methods (as tokens, with the card brand, last four digits and expiry date), your receipts and the history of your payments, refunds and credit grants."
         },
         {
           "type": "p",
@@ -332,7 +356,7 @@ const content: LegalDocumentContent = {
           ],
           "rows": [
             [
-              "To provide the Services and administer your account, including natal charts, horoscopes, calculators, live readings, custom readings and your Premium Membership",
+              "To provide the Services and administer your account, including natal charts, horoscopes, calculators, live readings and custom readings",
               "Identifiers; Onboarding and profile data; Birth data; Communications data; Payment data; Account, devices and preferences",
               "Performance of a contract with you"
             ],
@@ -357,7 +381,7 @@ const content: LegalDocumentContent = {
               "Performance of a contract with you; Your consent"
             ],
             [
-              "To process payments, memberships, refunds and chargebacks, and to route each payment to an appropriate payment processor",
+              "To process payments, refunds and chargebacks, and to route each payment to an appropriate payment processor",
               "Identifiers; Payment data; Device and location data (country); Online activity data",
               "Performance of a contract with you; Legal obligation; Legitimate interest (check the description)"
             ],
@@ -400,6 +424,26 @@ const content: LegalDocumentContent = {
               "To comply with legal obligations",
               "All categories",
               "Legal obligation"
+            ],
+            [
+              "To process credit purchases, keep billing records and credit lots, and handle refund requests",
+              "Payment data; Billing records and credit lots; Refund requests",
+              "Performance of a contract with you; Legal obligation (accounting and tax records)"
+            ],
+            [
+              "To enforce the limit of one Welcome Pack per customer and payment method",
+              "Welcome-offer card check",
+              "Legitimate interest (preventing repeated use of a one-time offer)"
+            ],
+            [
+              "To confirm that users are adults (18+) and review restricted accounts",
+              "Onboarding and profile data (date of birth); Age check",
+              "Legitimate interest (keeping the Services for adults, as our Terms require); Legal obligation where applicable"
+            ],
+            [
+              "To keep proof of the terms accepted with each purchase and to respond to payment disputes and chargebacks",
+              "Purchase consent record; Billing records and credit lots; Payment-method data and card-network rules",
+              "Legitimate interest (check the description)"
             ]
           ]
         },
@@ -418,7 +462,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "When processing payments, refunds, and chargebacks: to protect our business from fraudulent claims; to make informed and efficient decisions regarding refund requests."
+          "text": "When processing payments, refunds, and chargebacks: to protect our business from fraudulent claims; to make informed and efficient decisions regarding refund requests; to keep evidence of the terms you accepted with each purchase, so that we can respond to payment disputes and meet card-network rules."
         },
         {
           "type": "p",
@@ -472,9 +516,9 @@ const content: LegalDocumentContent = {
           "type": "ul",
           "items": [
             "Hosting, storage and delivery: We use Cloudflare to host our website, to store uploaded images and data exports in Cloudflare R2 object storage, to deliver content and to protect the Services from malicious attacks. Our application servers and databases run on Railway.",
-            "Email delivery: We use Cloudflare Email Service to send transactional emails, such as account security messages, receipts, membership notices and data-export notifications. We do not use it to send marketing emails.",
+            "Email delivery: We use Cloudflare Email Service to send transactional emails, such as account security messages, receipts and data-export notifications. We do not use it to send marketing emails.",
             "Push notifications: If you enable push notifications, they are delivered through your browser’s push service (for example Google, Mozilla, Apple or Microsoft). The content of each notification is encrypted so that the push service cannot read it.",
-            "Payment processing: Card payments for credits and memberships are processed by third-party payment processors. Depending on your country, currency, account and the product purchased, a payment may be handled by Stripe or by another card processor; you enter your card details directly with the processor, which shares with us only a payment token and limited card information. Advisor withdrawals are paid by bank transfer or PayPal.",
+            "Payment processing: Card payments for credits are processed by third-party payment processors. Depending on your country, currency, account and the product purchased, a payment may be handled by Stripe or by another card processor; you enter your card details directly with the processor, which shares with us only a payment token and limited card information. Advisor withdrawals are paid by bank transfer or PayPal.",
             "Place data: We use the GeoNames geographical database (CC BY 4.0) to suggest birthplaces. We host a copy of this database ourselves, so your searches are not sent to GeoNames.",
             "Analytics: Our analytics and error reporting are first-party and run on our own systems. We do not use third-party analytics, session-recording or advertising tools. The Trustpilot review widget described below is the only third-party content we embed in our pages.",
             "Google (sign-in): If you choose to sign up or sign in with your Google account, Google acts as an identity provider. It gives us your Google account identifier, your email address and whether it has verified that address; we send Google nothing about your readings, purchases or messages. Google learns that you used your Google account to sign in to Staryield and processes that information under its own privacy policy. Google is not involved if you sign in with your email address and password.",
@@ -586,7 +630,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "You can download a copy of your personal data at any time in your [account settings](/profile/settings), under Data & privacy. We prepare a ZIP file containing your account and profile, preferences and consents, signed-in devices, sign-in methods (such as the email address of a connected Google account), purchases, membership and transactions, credit history, conversations (including replies and likes) and the images you uploaded, saved messages, notifications and ratings. When it is ready, we notify you in the app and by email; the download link can be used once and the file is deleted after 7 days. Notes that advisors wrote about you are not part of this export because they contain the advisors’ own observations; you can request them through this [request form](/contact?topic=privacy), and our staff will provide them after reviewing your request."
+          "text": "You can download a copy of your personal data at any time in your [account settings](/profile/settings), under Data & privacy. We prepare a ZIP file containing your account and profile, preferences and consents, signed-in devices, sign-in methods (such as the email address of a connected Google account), purchases and transactions, credit history, conversations (including replies and likes) and the images you uploaded, saved messages, notifications and ratings. When it is ready, we notify you in the app and by email; the download link can be used once and the file is deleted after 7 days. Notes that advisors wrote about you are not part of this export because they contain the advisors’ own observations; you can request them through this [request form](/contact?topic=privacy), and our staff will provide them after reviewing your request."
         },
         {
           "type": "h4",
@@ -616,7 +660,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "We may be required to verify your identity before being able to process your request. The verification process may include confirming your name, age, email address, date of subscription purchase, date of account creation, or other relevant Services usage data that reasonably identify you as the account owner. We may also request additional proof of identity if necessary, but we strive to minimize the information required. For certain requests, we may send a verification code or ask you to sign a declaration under penalty of perjury to authenticate your identity."
+          "text": "We may be required to verify your identity before being able to process your request. The verification process may include confirming your name, age, email address, date of a purchase, date of account creation, or other relevant Services usage data that reasonably identify you as the account owner. We may also request additional proof of identity if necessary, but we strive to minimize the information required. For certain requests, we may send a verification code or ask you to sign a declaration under penalty of perjury to authenticate your identity."
         },
         {
           "type": "p",
@@ -632,6 +676,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "We do not knowingly allow anyone under 18 to use the Services, and we do not knowingly collect or process personal data from anyone under 18. If you learn that anyone younger than 18 has used the Services or provided us with personal data, please contact us using [this request form](/contact?topic=privacy)."
+        },
+        {
+          "type": "p",
+          "text": "We determine eligibility from the date of birth you give when you sign up. If it indicates that you are under 18, your account is restricted and its date of birth cannot be changed until our team has reviewed it. While an account is restricted you can still contact support, export your data and close your account."
         }
       ]
     },
@@ -678,7 +726,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Additional retention periods. Chat messages and images are kept for as long as the conversation exists in your account. In-app notifications are deleted after 180 days. The content of transactional emails is deleted from our sending queue once the message has been sent. Data exports are deleted 7 days after they are ready. Advisor notes are kept until their author deletes them or until the client’s or the advisor’s account is deleted. Records of signed-in devices are kept until the session expires or is signed out, and for a limited period afterwards for security purposes. Consent records are kept as proof of your choices for as long as your account exists and as required by law. Marketing click records are kept in pseudonymous form for campaign reporting. When you close your account, it is deactivated immediately and, after a 30-day grace period, we erase the personal details that identify you and keep only the pseudonymous records required for accounting, fraud prevention and legal compliance. Payment, membership and advisor payout records are kept for as long as accounting and tax laws require."
+          "text": "Additional retention periods. Chat messages and images are kept for as long as the conversation exists in your account. In-app notifications are deleted after 180 days. The content of transactional emails is deleted from our sending queue once the message has been sent. Data exports are deleted 7 days after they are ready. Advisor notes are kept until their author deletes them or until the client’s or the advisor’s account is deleted. Records of signed-in devices are kept until the session expires or is signed out, and for a limited period afterwards for security purposes. Consent records are kept as proof of your choices for as long as your account exists and as required by law. Marketing click records are kept in pseudonymous form for campaign reporting. When you close your account, it is deactivated immediately and, after a 30-day grace period, we erase the personal details that identify you and keep only the pseudonymous records required for accounting, fraud prevention and legal compliance. Payment and advisor payout records are kept for as long as accounting and tax laws require."
+        },
+        {
+          "type": "p",
+          "text": "Billing and refund records. Records of credit purchases, credit lots and refund requests (the transaction, the pack, the Credits used and remaining, the reason, details, status and resolution) are kept as financial records for as long as accounting, tax and dispute-limitation rules require, and are not deleted when you close your account. When your account is erased, the details you wrote in a refund request and our notes on how it was resolved are deleted; the amounts, Credits, status and dates remain. The one-way card hash used for the Welcome Pack is kept with the record of the offer for as long as the offer limit has to be enforced, which is as long as that billing record. The age flag is kept for as long as your account exists. The purchase consent record is kept with the billing record of the purchase, for as long as that record is kept."
         },
         {
           "type": "p",
@@ -1031,7 +1083,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "You may contact us at any time for details regarding this Privacy Policy and its previous versions. For any questions concerning your account or your personal data please contact us using [this request form](/contact?topic=privacy)."
+          "text": "You may contact us at any time for details regarding this Privacy Policy and its previous versions. For any questions concerning your account or your personal data please contact us using [this request form](/contact?topic=privacy). You can also write to [support@staryield.net](mailto:support@staryield.net). Support is available 24/7. We reply within 1–2 days."
         },
         {
           "type": "p",

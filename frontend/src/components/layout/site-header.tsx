@@ -11,9 +11,10 @@ import { cn } from "@/lib/utils";
 import { SunLogo } from "@/components/brand/sun-logo";
 import { ChatShortcut } from "@/components/layout/chat-shortcut";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
-import { UserAvatar, UserMenu, useAccountLinks } from "@/components/layout/user-menu";
+import { HelpSupportBlock, UserAvatar, UserMenu, useAccountLinks } from "@/components/layout/user-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { AdvisorHeaderActions, WalletPill } from "@/components/psychic/header-actions";
+import { TopUpLink } from "@/components/billing/top-up/top-up-provider"; // revisions 5.0
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -98,7 +99,8 @@ export function SiteHeader({
           ) : (
             <>
               {user?.role === "client" ? (
-                <Link
+                // revisions 5.0: the balance opens the top-up in place; the href stays for middle-click and no-JS.
+                <TopUpLink
                   href={`/${locale}/credits`}
                   className="balance-pill"
                   aria-label={text("Balance: {value0} credits", { value0: wallet?.balance ?? 0 })}
@@ -107,7 +109,7 @@ export function SiteHeader({
                   <span className="hidden lg:inline">{text("Balance: ")}</span>
                   {(wallet?.balance ?? 0).toLocaleString(locale)}{" "}
                   <span className="balance-pill-unit md:capitalize">{text("credits")}</span>
-                </Link>
+                </TopUpLink>
               ) : null}
               <NotificationBell />
               <UserMenu className="user-menu-trigger hidden md:flex" />
@@ -164,6 +166,7 @@ export function SiteHeader({
                     </Link>
                   ))
                 )}
+                {signedIn ? <HelpSupportBlock onNavigate={() => setOpen(false)} /> : null}
                 {signedIn ? (
                   <button
                     type="button"

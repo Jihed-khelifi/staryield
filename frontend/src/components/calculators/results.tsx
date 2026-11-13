@@ -102,7 +102,7 @@ export function NatalResultView({ result }: { result: NatalResult }) {
         </p>
         {spread?.uncertain ? (
           <p className="mt-4 max-w-2xl rounded-lg border border-gold/50 bg-cream-light/70 px-4 py-3 text-sm" data-testid="spread-uncertain">
-            {text("Without an exact birth time, cards with a dashed frame may change. Add your time and place for a precise spread.")}
+            {text("Without an exact birth time, cards with a dashed frame may change. Add your time and place for a more detailed spread.")}
           </p>
         ) : null}
         {spread ? (
@@ -286,7 +286,7 @@ export function LifePathResultView({ result }: { result: LifePathResult }) {
         </h2>
         <p className="max-w-[800px] text-base leading-normal font-light">
           {text(
-            "Speak with our certified, strategic psychic advisors to map out your life alignment metrics, address upcoming planetary transitions, and clear your karmic debt with complete confidence. ",
+            "Chat with one of our psychic advisors to explore your chart and upcoming planetary transitions, for entertainment purposes only. ",
           )}
         </p>
         <div className="pt-3">

@@ -107,7 +107,7 @@ const content: ArticleContent = {
             },
             {
               type: "p",
-              text: "Interpretar bien la tirada de las Doce Casas exige evaluar las relaciones estructurales en toda la carta en lugar de analizar doce cartas aisladas. Los lectores expertos recurren a la triangulación entre casas y a la dinámica de las polaridades para extraer lecturas llenas de matices.",
+              text: "Interpretar bien la tirada de las Doce Casas exige evaluar las relaciones estructurales en toda la carta en lugar de analizar doce cartas aisladas. Los lectores con experiencia recurren a la triangulación entre casas y a la dinámica de las polaridades para extraer lecturas llenas de matices.",
             },
           ],
           image: {

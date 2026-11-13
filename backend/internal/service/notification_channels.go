@@ -28,7 +28,14 @@ const (
 	NotifySubscriptionRenewed         = "subscription.renewed"
 	NotifySubscriptionPaymentFailed   = "subscription.payment_failed"
 	NotifySubscriptionCanceled        = "subscription.canceled"
+	// revisions 5.1: the first membership period was paid (§25.5), and a
+	// payment was refunded outside a refund request (admin console or provider).
+	NotifySubscriptionStarted = "subscription.started"
+	NotifyPaymentRefunded     = "payment.refunded"
 )
+
+// (revisions 5.0: NotifyRefundReceived and NotifyRefundResolved are declared
+// in refunds.go; their policies are below.)
 
 // ChannelPolicy says how a notification kind reaches people outside the app.
 // E-mail of the security, billing and account categories is always sent;
@@ -49,8 +56,10 @@ var channelPolicies = map[string]ChannelPolicy{
 	NotifyReviewReceived: {Email: true, Category: domain.EmailNotification, Push: true},
 	NotifyRequestCreated: {Email: true, Category: domain.EmailNotification, Push: true},
 	NotifyRequestUpdated: {Email: true, Category: domain.EmailNotification, Push: true},
-	// Receipts are e-mailed by checkout to the address the buyer chose.
-	NotifyPurchase:                  {Push: true},
+	// revisions 5.1: the receipt is transactional (billing category): always
+	// e-mailed to the account address, whatever the notification settings
+	// (the purchase's receipt_email gets its own copy from CreditService, §25.5).
+	NotifyPurchase:                  {Email: true, Category: domain.EmailBilling, Push: true},
 	NotifyCreditsAdjusted:           {Email: true, Category: domain.EmailBilling, Push: true},
 	NotifyWithdrawal:                {Email: true, Category: domain.EmailBilling, Push: true},
 	NotifyBroadcast:                 {Email: true, Category: domain.EmailMarketing, Push: true},
@@ -59,6 +68,12 @@ var channelPolicies = map[string]ChannelPolicy{
 	NotifySubscriptionRenewed:       {Email: true, Category: domain.EmailBilling, Push: true},
 	NotifySubscriptionPaymentFailed: {Email: true, Category: domain.EmailBilling, Push: true},
 	NotifySubscriptionCanceled:      {Email: true, Category: domain.EmailBilling, Push: true},
+	// revisions 5.0: refund requests are billing mail (always sent, like receipts and renewals).
+	NotifyRefundReceived: {Email: true, Category: domain.EmailBilling, Push: true},
+	NotifyRefundResolved: {Email: true, Category: domain.EmailBilling, Push: true},
+	// revisions 5.1: membership start and refund confirmations (billing mail, always sent).
+	NotifySubscriptionStarted: {Email: true, Category: domain.EmailBilling, Push: true},
+	NotifyPaymentRefunded:     {Email: true, Category: domain.EmailBilling, Push: true},
 	// account.* kinds: in-app only here (their e-mails are sent directly).
 	// revisions 3.0: support desk. The reply e-mail is sent by the support
 	// desk itself (it carries the private link); the notification is in-app + push.

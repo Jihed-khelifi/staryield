@@ -8,6 +8,7 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { track } from "@/lib/analytics";
 import { authApi } from "@/lib/api/endpoints";
 import { toApiError } from "@/lib/api/errors";
+import { ageLanding } from "@/lib/auth/age-status"; // revisions 5.0: 18+ age gate (§24.6)
 import { useSession } from "@/lib/auth/session-provider";
 import { applyApiError } from "@/lib/forms/server-errors";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
@@ -53,7 +54,7 @@ export function LoginForm() {
       // A password sign-in that also connected the Google identity waiting in this browser (§23.1).
       if (res.linked === "google") toast.show({ tone: "success", message: text("Google is now connected.") });
       const fallback = res.user.role === "psychic" ? `/${locale}/chatroom` : `/${locale}/profile`;
-      router.push(safeNext(window.location.search, locale) ?? fallback);
+      router.push(ageLanding(res.user, locale, safeNext(window.location.search, locale) ?? fallback));
     } catch (err) {
       const e = toApiError(err);
       const offer = reactivationFrom(e);
@@ -92,7 +93,7 @@ export function LoginForm() {
               onSignedIn={(user) => {
                 setUser(user);
                 const fallback = user.role === "psychic" ? `/${locale}/chatroom` : `/${locale}/profile`;
-                router.push(safeNext(window.location.search, locale) ?? fallback);
+                router.push(ageLanding(user, locale, safeNext(window.location.search, locale) ?? fallback));
               }}
             />
           ) : null}

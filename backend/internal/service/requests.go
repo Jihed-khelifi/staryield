@@ -180,16 +180,20 @@ func (s *CustomRequestService) Order(ctx context.Context, clientID uuid.UUID, in
 	}
 	var wallet *domain.Wallet
 	err = s.tx.WithinTx(ctx, func(ctx context.Context) error {
-		if err := s.requests.Create(ctx, r); err != nil {
-			return err
-		}
-		w, _, err := s.wallet.Apply(ctx, Movement{
+		// revisions 5.0: credit lots. The hold consumes lots by priority and the
+		// request records the revenue basis of the paid credits it holds, so the
+		// hold comes first and the order is inserted once, with that value.
+		res, err := s.wallet.Execute(ctx, Movement{
 			UserID: clientID, Type: domain.LedgerHold, Amount: -r.PriceCredits, HeldAmount: r.PriceCredits,
-			ReferenceType: "custom_request", ReferenceID: &r.ID, IdempotencyKey: "request_hold:" + r.ID.String(),
+			ReferenceType: "custom_request", ReferenceID: &r.ID, IdempotencyKey: requestHoldKey(r.ID),
 			Description: "Held for " + r.ServiceName,
 		})
-		wallet = w
-		return err
+		wallet = res.Wallet
+		if err != nil {
+			return err
+		}
+		r.RevenueMillicents = res.ValueMillicents
+		return s.requests.Create(ctx, r)
 	})
 	if errors.Is(err, ErrInsufficientFunds) {
 		available := int64(0)
@@ -249,12 +253,18 @@ func (s *CustomRequestService) transition(ctx context.Context, id uuid.UUID, aut
 }
 
 func (s *CustomRequestService) refundHold(ctx context.Context, r *domain.CustomRequest, key, description string) error {
-	_, _, err := s.wallet.Apply(ctx, Movement{
+	// revisions 5.0: credit lots. The credits go back to the lots the hold took them from.
+	res, err := s.wallet.Execute(ctx, Movement{
 		UserID: r.ClientID, Type: domain.LedgerHoldRefund, Amount: r.PriceCredits, HeldAmount: -r.PriceCredits,
 		ReferenceType: "custom_request", ReferenceID: &r.ID, IdempotencyKey: key + ":" + r.ID.String(), Description: description,
+		RestoreKey: requestHoldKey(r.ID),
 	})
+	restoreRequestRevenue(r, res)
 	return err
 }
+
+// requestHoldKey is the idempotency key of the ledger entry that held an order's credits.
+func requestHoldKey(id uuid.UUID) string { return "request_hold:" + id.String() }
 
 func asPsychic(id uuid.UUID) func(*domain.CustomRequest) error {
 	return func(r *domain.CustomRequest) error {
@@ -455,11 +465,13 @@ func (s *CustomRequestService) Resolve(ctx context.Context, adminID, id uuid.UUI
 			case domain.RequestDelivered, domain.RequestDisputed:
 				// Credits were released; return them from the platform and
 				// reverse the psychic's earning.
-				if _, _, err := s.wallet.Apply(ctx, Movement{UserID: r.ClientID, Type: domain.LedgerRefund, Amount: r.PriceCredits,
+				res, err := s.wallet.Execute(ctx, Movement{UserID: r.ClientID, Type: domain.LedgerRefund, Amount: r.PriceCredits,
 					ReferenceType: "custom_request", ReferenceID: &r.ID, IdempotencyKey: "request_dispute_refund:" + r.ID.String(),
-					Description: "Refund issued by support", ActorID: &adminID}); err != nil {
+					Description: "Refund issued by support", ActorID: &adminID, RestoreKey: requestHoldKey(r.ID)}) // revisions 5.0: same lots as the hold
+				if err != nil {
 					return false, err
 				}
+				restoreRequestRevenue(r, res)
 				net, commission := domain.SplitEarnings(r.PriceCredits, s.cfg.SharePercent)
 				if err := s.earnings.Create(ctx, &domain.Earning{ID: domain.NewID(), PsychicID: r.PsychicID, SourceType: domain.EarningCustomRequest,
 					SourceID: r.ID, EntryKind: domain.EarningKindReversal, GrossCredits: -r.PriceCredits, CommissionCredits: -commission,
@@ -620,4 +632,13 @@ func ParseSessionStatuses(raw string) ([]domain.SessionStatus, error) {
 		out = append(out, st)
 	}
 	return out, nil
+}
+
+// restoreRequestRevenue takes back the revenue basis of credits a refund
+// returned to their lots (res.ValueMillicents is negative for a restore). A
+// replay (nothing applied) changes nothing.
+func restoreRequestRevenue(r *domain.CustomRequest, res MovementResult) {
+	if res.Applied {
+		r.RevenueMillicents = max(r.RevenueMillicents+res.ValueMillicents, 0)
+	}
 }

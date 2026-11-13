@@ -106,7 +106,7 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
             data-node-id="599:1924"
           >
             {text(
-              `Each advisor on our platform undergoes a thorough application and review process. Beyond that, we're committed to fostering a supportive space that centers ethical behavior, mindful communication, and emotional well-being.`,
+              `Each advisor on our platform completes an application and a review before joining. Beyond that, we're committed to fostering a supportive space that centers ethical behavior, mindful communication and respect.`,
             )}
           </p>
         </div>
@@ -162,7 +162,7 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
       <section
         className="bg-[#978f6e] border-[#aa9063] border-b border-solid border-t content-stretch flex gap-[60px] items-center px-[120px] py-[80px] relative shrink-0 w-full figma-section"
         data-node-id="599:1935"
-        data-name="Section / Vetting Step 1"
+        data-name="Section / Review Step 1"
       >
         <div
           className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0 w-[180px]"
@@ -202,14 +202,14 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
             className="font-serif font-semibold leading-[normal] relative shrink-0 text-[28px] text-white w-full"
             data-node-id="599:1941"
           >
-            {text(`Preliminary Assessment & Background Review`)}
+            {text(`Application & Profile Review`)}
           </p>
           <p
             className="font-serif font-light leading-[1.6] relative shrink-0 text-[#e0d5c3] text-[18px] w-full"
             data-node-id="599:1942"
           >
             {text(
-              "All prospective advisors start by completing a comprehensive application that covers their training, specializations, and areas of practice. Our team evaluates each profile to confirm they offer guidance rooted in genuine experience and a sincere dedication to supporting others. ",
+              "Prospective advisors start by completing an application that describes their practice, specializations and areas of focus. Our team reviews each profile before it goes live. We do not certify or verify any advisor's credentials, abilities or predictions. ",
             )}
           </p>
         </div>
@@ -217,7 +217,7 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
       <section
         className="bg-[var(--gold)] border-[#aa9063] border-b border-solid border-t content-stretch flex gap-[60px] items-center px-[120px] py-[80px] relative shrink-0 w-full figma-section"
         data-node-id="599:1943"
-        data-name="Section / Vetting Step 2"
+        data-name="Section / Review Step 2"
       >
         <div
           className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0 w-[180px]"
@@ -264,7 +264,7 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
             data-node-id="599:1953"
           >
             {text(
-              "Beyond qualifications, we place great emphasis on how advisors engage and create safe space for clients. ",
+              "Beyond their practice, we place great emphasis on how advisors engage and create a safe space for clients. ",
             )}
           </p>
           <p
@@ -280,7 +280,7 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
       <section
         className="bg-[var(--sage)] border-[#aa9063] border-b border-solid border-t content-stretch flex gap-[60px] items-center px-[120px] py-[80px] relative shrink-0 w-full figma-section"
         data-node-id="599:1955"
-        data-name="Section / Vetting Step 3"
+        data-name="Section / Review Step 3"
       >
         <div
           className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0 w-[180px]"
@@ -569,7 +569,7 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
               data-node-id="599:1994"
             >
               {text(
-                "Every advisor acknowledges and accepts our foundational ethical and platform principles. This guarantees that advisors are completely aligned with our commitment to safety, integrity, and professional behavior. ",
+                "Every advisor acknowledges and accepts our foundational ethical and platform principles. They set out what we expect of advisors: safety, integrity and respectful conduct. ",
               )}
             </p>
           </div>
@@ -618,7 +618,7 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
               data-node-id="599:2002"
             >
               {text(
-                `Advisors on Staryield have access to resources designed to support their professional advancement and keep them aligned with our platform expectations. We are convinced that continuous learning benefits everyone — and we're dedicated to sustaining an environment where advisors can perform at their highest level.`,
+                `Advisors on Staryield have access to resources designed to support their growth as practitioners and keep them aligned with our platform expectations. We are convinced that continuous learning benefits everyone, and we're dedicated to sustaining an environment where advisors can do their best work.`,
               )}
             </p>
           </div>
@@ -685,7 +685,7 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
                 data-node-id="599:2014"
               >
                 {text(
-                  "Advisors on Staryield operate as independent practitioners, not as Staryield employees. They contribute their unique backgrounds, expertise, methods of spiritual guidance, and may adopt professional names or representative imagery as part of their practice. ",
+                  "Advisors on Staryield operate as independent practitioners, not as Staryield employees. They contribute their unique backgrounds, experience and methods of spiritual guidance, and may adopt stage names or representative imagery as part of their practice. ",
                 )}
               </p>
               <p
@@ -693,7 +693,7 @@ export default function ScreenDesktopAdvisorIntegrityStandards() {
                 data-node-id="599:2015"
               >
                 {text(
-                  "Although we establish firm standards and vet every advisor prior to platform access, the decision of which advisor to consult remains entirely yours. We encourage you to browse advisor profiles, review feedback, and rely on your own intuition when selecting an advisor for your spiritual path. ",
+                  "Although we establish firm standards and review every advisor prior to platform access, the decision of which advisor to consult remains entirely yours. We encourage you to browse advisor profiles, review feedback, and rely on your own intuition when selecting an advisor for your spiritual path. ",
                 )}
               </p>
               <p

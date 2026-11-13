@@ -52,7 +52,9 @@ func buildTemplates() []template {
 					i++
 					continue
 				}
-				pattern.WriteString(regexp.QuoteMeta(string(key[i])))
+				// revisions 5.1: slice the byte instead of converting it to a rune, which mangled multi-byte
+				// characters (the en dash of "5–10") into Latin-1 look-alikes and broke the template.
+				pattern.WriteString(regexp.QuoteMeta(key[i : i+1]))
 			}
 			pattern.WriteString("$")
 			out = append(out, template{key: key, re: regexp.MustCompile(pattern.String()), verbs: verbs})

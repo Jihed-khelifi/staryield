@@ -182,6 +182,13 @@ func NewRouter(d Deps) *echo.Echo {
 	aliasRL := mw.RateLimit(limiter, rule("alias", cfg.RateLimit.Alias, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
 	client := mw.RequireRole(domain.RoleClient)
 	psychic := mw.RequireRole(domain.RolePsychic)
+	// revisions 5.0: 18+ age gate (§24.6). Clients without an adult date of
+	// birth get 403 birth_date_required / age_restricted; every other role
+	// passes. It reads the status loaded with the principal (no query).
+	// Routes that skip it are listed with a reason in
+	// tests/e2e/age_gate_routes_test.go, which fails for a new client route
+	// that is neither gated nor listed.
+	ageGate := mw.AgeGate()
 
 	v1.GET("/time", h.ServerTime)
 
@@ -215,7 +222,7 @@ func NewRouter(d Deps) *echo.Echo {
 	v1.GET("/psychics/:slug/reviews", h.PsychicReviews)
 	// Waiting lists: told once when the advisor is online (clients only).
 	waitlistRL := mw.RateLimit(limiter, rule("waitlist", config.Rule{Rate: 30, Period: time.Hour, Burst: 10}, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
-	v1.POST("/psychics/:slug/waitlist", h.JoinWaitlist, authed, client, waitlistRL)
+	v1.POST("/psychics/:slug/waitlist", h.JoinWaitlist, authed, client, ageGate, waitlistRL) // revisions 5.0: ageGate
 	v1.DELETE("/psychics/:slug/waitlist", h.LeaveWaitlist, authed, waitlistRL)
 	v1.GET("/credit-packs", h.CreditPacks)
 	// astrology: stateless calculators (birth data in POST bodies only,
@@ -262,6 +269,8 @@ func NewRouter(d Deps) *echo.Echo {
 	// also caches the answer per isolate); the reply comes from memory.
 	siteRL := mw.RateLimit(limiter, rule("site", config.Rule{Rate: 3000, Period: time.Minute, Burst: 600}, scale), mw.ByIP, true)
 	v1.GET("/site/config", h.SiteConfig, siteRL)
+	// revisions 5.0: pricing catalog (§24.1), public, cacheable, same bucket as the site configuration.
+	v1.GET("/pricing", h.Pricing, siteRL)
 	// --- end site settings ---
 
 	// Signed-in user.
@@ -330,7 +339,13 @@ func NewRouter(d Deps) *echo.Echo {
 
 	v1.GET("/wallet", h.Wallet, authed)
 	v1.GET("/wallet/ledger", h.Ledger, authed)
-	v1.POST("/credits/purchases", h.Purchase, authed, client, writeRL)
+	// revisions 5.0: the credits client group is age-gated (§24.6). New
+	// routes that start a purchase or read the top-up catalogue
+	// (GET /credits/catalog) belong on cc; purchase history stays outside it
+	// (receipts and refunds remain available to everyone).
+	cc := v1.Group("/credits", authed, client, ageGate)
+	cc.POST("/purchases", h.Purchase, writeRL)
+	cc.GET("/catalog", h.CreditCatalog) // revisions 5.0: top-up catalog (§24.1), adults only (§24.6)
 	v1.GET("/credits/purchases", h.Purchases, authed, client)
 
 	// billing: Premium Membership, saved cards and payment history. Card
@@ -342,26 +357,37 @@ func NewRouter(d Deps) *echo.Echo {
 	bl := v1.Group("/billing", authed, client)
 	bl.GET("/client-config", h.BillingClientConfig)
 	bl.GET("/payment-methods", h.PaymentMethods)
-	bl.POST("/payment-methods", h.AttachPaymentMethod, billingRL)
+	bl.POST("/payment-methods", h.AttachPaymentMethod, ageGate, billingRL) // revisions 5.0: ageGate
 	bl.DELETE("/payment-methods/:id", h.DeletePaymentMethod, writeRL)
 	bl.POST("/payment-methods/:id/default", h.SetDefaultPaymentMethod, writeRL)
 	bl.GET("/subscription", h.Subscription)
-	bl.POST("/subscriptions", h.Subscribe, billingRL)
-	bl.PATCH("/subscription", h.UpdateSubscription, billingRL)
+	bl.POST("/subscriptions", h.Subscribe, ageGate, billingRL)          // revisions 5.0: ageGate
+	bl.PATCH("/subscription", h.UpdateSubscription, ageGate, billingRL) // revisions 5.0: ageGate
 	bl.POST("/subscription/cancel", h.CancelSubscription, writeRL)
-	bl.POST("/subscription/resume", h.ResumeSubscription, writeRL)
+	bl.POST("/subscription/resume", h.ResumeSubscription, ageGate, writeRL) // revisions 5.0: ageGate
 	bl.GET("/transactions", h.Transactions)
+	// revisions 5.0: refund requests (§24.4). Never age-gated: asking for money
+	// back must stay possible for everyone (tests/e2e/age_gate_routes_test.go).
+	// Fails closed when the limiter is down, like the other money routes.
+	refundRL := mw.RateLimit(limiter, rule("refund_request", cfg.RateLimit.RefundRequest, scale), mw.ByUserOrIP, false)
+	bl.GET("/refund-quote", h.RefundQuote)
+	bl.POST("/refund-requests", h.CreateRefundRequest, refundRL)
+	bl.GET("/refund-requests", h.MyRefundRequests)
+	bl.POST("/refund-requests/:id/withdraw", h.WithdrawRefundRequest, writeRL)
+	// end revisions 5.0: refund requests
 
 	// Realtime (WebSocket primary, SSE fallback).
 	v1.POST("/realtime/ticket", h.RealtimeTicket, authed)
 	v1.GET("/realtime/ws", h.RealtimeWS)
 	v1.GET("/realtime/stream", h.RealtimeStream, authed)
-	v1.POST("/realtime/presence", h.RealtimePresence, authed)
+	v1.POST("/realtime/presence", h.RealtimePresence, authed, ageGate) // revisions 5.0: ageGate
 
 	// Live chat (FR-09–FR-12).
-	ch := v1.Group("/chat", authed)
+	// revisions 5.0: every /chat route is age-gated (§24.6) except the unread
+	// counter, which the app shell polls for every signed-in user.
+	v1.GET("/chat/unread-count", h.ChatUnreadCount, authed) // revisions 3.0: chat unread
+	ch := v1.Group("/chat", authed, ageGate)
 	ch.GET("/conversations", h.Conversations)
-	ch.GET("/unread-count", h.ChatUnreadCount) // revisions 3.0: chat unread
 	ch.GET("/conversations/:id/messages", h.Messages)
 	ch.GET("/conversations/:id/messages/since", h.MessagesSince)
 	ch.GET("/conversations/:id/client", h.ClientProfile, psychic)
@@ -404,9 +430,11 @@ func NewRouter(d Deps) *echo.Echo {
 	ch.DELETE("/notes/:id", h.DeleteNote, psychic, noteRL)
 
 	// Custom requests (FR-07, §5.1).
+	// revisions 5.0: only ordering is age-gated (§24.6): reading the list (the
+	// profile overview does) and cancelling for a refund stay available.
 	cr := v1.Group("/custom-requests", authed)
 	cr.GET("", h.ListRequests)
-	cr.POST("", h.OrderRequest, client, writeRL)
+	cr.POST("", h.OrderRequest, client, ageGate, writeRL)
 	cr.GET("/:id", h.GetRequest)
 	cr.POST("/:id/cancel", h.CancelRequest, client)
 	cr.POST("/:id/dispute", h.DisputeRequest, client)
@@ -469,6 +497,7 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.DELETE("/users/:id", h.AdminDeleteUser, stepUp, adminRL)
 	ad.POST("/users/:id/credits", h.AdminAdjustCredits, stepUp, adminRL)
 	ad.POST("/users/:id/logout-all", h.AdminLogoutUser, adminRL)
+	ad.POST("/users/:id/age-review", h.AdminAgeReview, stepUp, adminRL) // revisions 5.0: 18+ age gate (§24.6)
 	ad.GET("/psychics", h.AdminPsychics)
 	ad.POST("/psychics", h.AdminCreatePsychic, adminRL)
 	ad.GET("/psychics/:id", h.AdminPsychic)
@@ -482,9 +511,13 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.PATCH("/services/:id", h.AdminUpdateService, adminRL)
 	ad.DELETE("/services/:id", h.AdminDeleteService, adminRL)
 	ad.GET("/credit-packs", h.AdminPacks)
-	ad.POST("/credit-packs", h.AdminCreatePack, adminRL)
-	ad.PATCH("/credit-packs/:id", h.AdminUpdatePack, adminRL)
-	ad.DELETE("/credit-packs/:id", h.AdminDeletePack, adminRL)
+	// revisions 5.0: pack writes need step-up (§24.1); the order route is registered before :id.
+	ad.POST("/credit-packs", h.AdminCreatePack, stepUp, adminRL)
+	ad.PUT("/credit-packs/order", h.AdminReorderPacks, stepUp, adminRL)
+	ad.PATCH("/credit-packs/:id", h.AdminUpdatePack, stepUp, adminRL)
+	ad.DELETE("/credit-packs/:id", h.AdminDeletePack, stepUp, adminRL)
+	ad.GET("/pricing/settings", h.AdminPricingSettings)
+	ad.PUT("/pricing/settings", h.AdminUpdatePricingSettings, stepUp, adminRL)
 	ad.GET("/custom-requests", h.AdminRequests)
 	ad.POST("/custom-requests/:id/resolve", h.AdminResolveRequest, adminRL)
 	ad.GET("/chat/sessions", h.AdminSessions)
@@ -586,6 +619,15 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.POST("/billing/subscriptions/:id/cancel", h.AdminCancelBillingSubscription, stepUp, adminRL)
 	ad.GET("/billing/transactions", h.AdminBillingTransactions)
 	ad.POST("/billing/transactions/:id/refund", h.AdminRefundTransaction, stepUp, adminRL)
+	// revisions 5.0: refund requests (§24.4) and the revenue report (§24.5)
+	ad.GET("/billing/refund-requests", h.AdminRefundRequests)
+	ad.POST("/billing/refund-requests", h.AdminCreateRefundRequest, stepUp, adminRL)
+	ad.GET("/billing/refund-requests/:id", h.AdminRefundRequest)
+	ad.POST("/billing/refund-requests/:id/approve", h.AdminApproveRefundRequest, stepUp, adminRL)
+	ad.POST("/billing/refund-requests/:id/deny", h.AdminDenyRefundRequest, stepUp, adminRL)
+	ad.POST("/billing/refund-requests/:id/credit", h.AdminCreditRefundRequest, stepUp, adminRL)
+	ad.GET("/reports/revenue", h.AdminRevenue)
+	// end revisions 5.0: refund requests
 
 	return e
 }

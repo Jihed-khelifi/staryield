@@ -2339,3 +2339,800 @@ business unit `6ae3c22a0156593a343fe019`, `https://www.trustpilot.com/review/sta
   testimonials and statistics; (3) site footer; (4) the end-of-chat summary
   for **every** client whose live chat ended, whatever they rated (never for
   advisors). No reward is ever attached to a review.
+
+---
+
+## 24. Revisions 5.0: pricing, credit lots, refunds, 18+ age gate, chat actions
+
+All of §24 is the contract shared by the API, the web app and the admin
+console for this round. Conventions are unchanged (§22 preamble): strict
+JSON, error envelope, every new server sentence in the en/fr/es catalogue,
+every new code with copy in `frontend/src/lib/api/errors.ts` and
+`copy-{en,fr,es}.json`, admin writes audited, 🔐 = step-up. **Deploy the API
+before the web app and the admin console.**
+
+Sources: Figma `epPf5w6QoMtfcFuOIdkzEp` — "DEV ONLY — Pricing Logic & Unit
+Economics" (spec 1352:3210), "DEV ONLY — Refund implementation notes" (spec
+1360:3139), "Credit top-up — Desktop, mobile & states" (1352:2362), "Public
+pricing" (desktop 1352:2360, mobile 1352:2361), "Refund policy" (desktop
+1360:2766, mobile 1360:2771). Internal economics (processing fees, advisor
+share, contribution) are **never** sent to the web app or shown publicly.
+
+Migrations: `0025_credit_lots.sql` (§24.3), `0026_pricing_catalog.sql`
+(§24.1–24.2), `0027_age_gate.sql` (§24.6), `0028_refund_requests.sql` (§24.4),
+`0029_signup_trial_default.sql` (§24.0).
+
+### 24.0 What is static, dynamic, admin-controlled or an environment flag
+
+| Concern | Where | Why |
+| --- | --- | --- |
+| Packs: name, tagline, label (en/fr/es), credits, price, active, featured, sort order, reference pack, intro kind, new-clients-only | **Admin** (`/admin/credit-packs`, 🔐, audited) | Pricing is a business decision that must change without a deploy. Purchases snapshot credits and price, so edits only affect new purchases. |
+| Advisor rate range (30–60 credits/min), "most popular" substantiation threshold, unit-economics assumptions (processing 8 % + $0.30) | **Admin** (`/admin/pricing/settings`, 🔐, audited) | Business parameters; the assumptions feed admin analytics only. |
+| Free-trial minutes | **Admin**, existing sign-up offer (§15.3) | Already admin-controlled; the public page reads the live value. The spec's 4-minute trial (also stated in the Refund Policy §2) is the default: `0029_signup_trial_default.sql` moves an offer nobody has edited since the 0016 seed from 5 to 4, and the configuration fallback is now 4. |
+| Refund decisions, courtesy credits, age reviews | **Admin** (🔐, audited) | Case-by-case. |
+| Refund window (14 days), in-app refund requests on/off, intro-offer card check | **Env** (`STARYIELD_REFUNDS_WINDOW_DAYS`, `STARYIELD_REFUNDS_REQUESTS_ENABLED`, `STARYIELD_PRICING_OFFER_REQUIRE_CARD_CHECK`) | Bound to the published Refund Policy or to provider capabilities; changing them is an operational/legal act, not a console click. A test keeps the window equal to the English policy text. |
+| Payment providers, sandbox, currency (USD), minimum age (18; production refuses less) | **Env** (existing) | Infrastructure and legal floor. |
+| Savings %, "best value", "most popular", minute estimates, refund amounts | **Computed** on the server (minutes on the client from `rate_range`) | Claims must always match the live prices; never typed by hand. |
+| Pricing formulas, consumption order (purchased → membership → bonus), savings rounding (floor), legal copy | **Static** (code / `src/content/legal`) | Legal and accounting rules; changed only with a reviewed release. |
+
+Payment providers stay behind the `payment` package's adapter registry
+(`payment.Registry`, capability interfaces discovered by type assertion).
+This round adds one optional capability, `TokenInspector` (§24.2). Credit
+lots are the state of a purchase's credits; refund requests and the intro
+offer redemption are explicit state machines (§24.2, §24.4) whose
+transitions are guarded in one place each.
+
+### 24.1 Pricing catalog
+
+**Schema** (`0026_pricing_catalog.sql`), `credit_packs` gains:
+
+| column | type | notes |
+| --- | --- | --- |
+| `code` | text NOT NULL UNIQUE | `^[a-z0-9_]{2,40}$`, immutable once created (the spec's `pack_id`, e.g. `welcome_600`). Existing rows get `legacy_<first 8 hex of id>`. |
+| `kind` | text NOT NULL DEFAULT `standard` | `standard` \| `intro`. At most one **active** intro pack (partial unique index). |
+| `name_l10n` | jsonb NOT NULL | `{en, fr?, es?}`; `name` stays the English copy (receipts, legacy). |
+| `tagline_l10n` | jsonb NOT NULL DEFAULT `{}` | One line ("For one focused question."), ≤ 120 chars each. |
+| `label_l10n` | jsonb NOT NULL DEFAULT `{}` | Optional eyebrow shown when the pack has no badge ("One focused question"), ≤ 40 chars. |
+| `reference` | boolean NOT NULL DEFAULT false | The **standard-rate** pack savings are measured against (partial unique: one reference). Must be a `standard`, active pack. |
+| `new_clients_only` | boolean NOT NULL DEFAULT false | Intro packs default to true: only accounts without a succeeded credit purchase. |
+
+`featured` (existing) is the visually highlighted pack. The migration
+deactivates every existing pack (purchases keep referencing them) and inserts
+the canonical catalog from the spec, in this order:
+
+| sort | code | name | credits | price | flags | tagline |
+| --- | --- | --- | ---: | ---: | --- | --- |
+| 1 | `welcome_600` | Welcome Pack | 600 | $10 | intro, new_clients_only | Extra time to explore your first paid reading. |
+| 2 | `quick_150` | Quick Insight | 150 | $20 | reference, label "One focused question" | For one focused question. |
+| 3 | `starter_315` | Starter | 315 | $40 | | A little more time for a fuller conversation. |
+| 4 | `popular_675` | Most Popular | 675 | $80 | featured | The best balance of price and reading time. |
+| 5 | `deep_1350` | Deep Dive | 1,350 | $150 | | For multiple questions or a longer reading. |
+| 6 | `premium_2400` | Premium | 2,400 | $250 | | Our best ongoing rate for regular readings. |
+
+(The Figma top-up mock shows "300 credits" for the Welcome Pack; the spec's
+canonical table and acknowledgement say 600. The spec wins; admins can edit.)
+
+**Badges** (computed server-side, in this order, never stored):
+
+* `new_client_offer` — intro packs.
+* `most_popular` — the active standard pack with the most succeeded
+  purchases in the last `popular_window_days`, **only** when that window has
+  at least `popular_min_purchases` succeeded purchases and the pack leads
+  strictly. Until then nobody gets it (the claim must be substantiated). The
+  `featured` pack keeps its visual emphasis either way.
+* `best_value` — the active standard pack with the strictly lowest price per
+  credit.
+* `save` `{percent}` — standard packs cheaper per credit than the reference:
+  `percent = floor(100 × (1 − (price ÷ credits) ÷ (ref_price ÷ ref_credits)))`,
+  shown only when ≥ 1. **Floor**, never rounded up, so a savings claim is
+  never overstated (the design's 5/11/17/22 % become 4/11/16/21 %).
+
+```ts
+type L10n = { en: string; fr?: string; es?: string };
+type PackBadge = { type: "new_client_offer" | "most_popular" | "best_value" | "save"; percent?: number };
+type PricingPack = {
+  id: string; code: string; kind: "standard" | "intro";
+  name: string; tagline: string; label: string;      // localized (fallback en); label "" when unset
+  credits: number; price_cents: number; currency: string;
+  featured: boolean; new_clients_only: boolean; sort_order: number;
+  badges: PackBadge[];
+};
+type RateRange = { min: number; max: number };       // credits per minute
+type PricingSummary = {
+  currency: string;                                  // "USD"
+  free_trial: { enabled: boolean; minutes: number }; // the live sign-up offer (§15.3)
+  rate_range: RateRange;
+  reference?: { pack_id: string; credits: number; price_cents: number };
+  packs: PricingPack[];                              // active packs, canonical order, intro included (public showcase)
+  generated_at: string;
+};
+type TopUpCatalog = {
+  packs: PricingPack[];                              // what this account can buy now: the intro pack first when eligible, then standard packs
+  welcome_offer: { eligible: boolean; pack_id?: string };
+  rate_range: RateRange;
+  wallet: { balance: number; held: number; free_minutes: number };
+};
+type PricingSettings = {
+  rate_min: number; rate_max: number;                // 1–10000, min ≤ max; defaults 30 / 60
+  popular_min_purchases: number;                     // 1–100000, default 25
+  popular_window_days: number;                       // 7–365, default 90
+  processing_fee_bps: number;                        // 0–3000, default 800 (admin analytics only)
+  processing_fixed_cents: number;                    // 0–500, default 30 (admin analytics only)
+  version: number; updated_at: string; updated_by?: { id: string; name: string };
+};
+type AdminPack = {
+  id: string; code: string; kind: "standard" | "intro";
+  name: L10n; tagline: Partial<L10n>; label: Partial<L10n>;
+  credits: number; price_cents: number; currency: string;
+  active: boolean; featured: boolean; reference: boolean; new_clients_only: boolean; sort_order: number;
+  badges: PackBadge[];                               // what the public page shows right now
+  price_per_credit_millicents: number;               // price_cents × 1000 ÷ credits (floor)
+  purchases_window: number;                          // succeeded purchases in popular_window_days
+  created_at: string; updated_at: string;
+};
+type PackInput = {
+  code?: string; kind?: "standard" | "intro";        // create only (immutable)
+  name?: L10n; tagline?: Partial<L10n>; label?: Partial<L10n>;
+  credits?: number; price_cents?: number;            // 1–1,000,000 credits; 50–10,000,000 cents
+  active?: boolean; featured?: boolean; reference?: boolean; new_clients_only?: boolean; sort_order?: number;
+};
+```
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /pricing` | Public, no auth. `PricingSummary` in the caller's locale. `Cache-Control: public, max-age=60, stale-while-revalidate=300`, weak ETag (304), `Vary: Accept-Language, X-Locale`. Served from a Redis snapshot (`pricing:v1`, TTL 5 min) behind a 10 s in-process copy, invalidated on every pack or pricing-settings write (pub/sub `pricing:changed`). Database outage with nothing cached → `503` (no invented prices). Rate limit bucket `site`. |
+| `GET /credit-packs` | Unchanged shape (legacy), now also `code`. Deprecated in favour of `/pricing`. |
+| `GET /credits/catalog` | Client. `TopUpCatalog` (one round trip for the top-up dialog: packs, offer eligibility, rate range, wallet). `403 birth_date_required` / `age_restricted` (§24.6). |
+| `GET /admin/credit-packs` | `{items: AdminPack[]}` (inactive included, canonical order). |
+| 🔐 `POST /admin/credit-packs` | `PackInput` (code, name.en, credits, price_cents required) → `201 AdminPack`. |
+| 🔐 `PATCH /admin/credit-packs/:id` | `PackInput` minus code/kind → `AdminPack`. Price or credit edits are audited with before/after. |
+| 🔐 `DELETE /admin/credit-packs/:id` | `204`; `409 conflict` when purchases reference it (deactivate instead). |
+| 🔐 `PUT /admin/credit-packs/order` | `{ids}` (each pack exactly once) → `{items}`. |
+| `GET /admin/pricing/settings` · 🔐 `PUT` | `PricingSettings` (`expected_version` → `409 version_conflict`). Audited `pricing.settings_updated`. |
+
+Rules: setting `reference: true` clears it on the other pack in the same
+transaction; the reference pack cannot be deactivated or turned into an
+intro pack (`422`); a second active intro pack is `409 conflict`. Pack writes
+used to be plain admin writes: they now require step-up. Advisor rates set
+anywhere (admin psychic create/update) must lie within
+`rate_min…rate_max` (`422 fields.rate_per_minute`); existing out-of-range
+advisors are untouched and flagged in the admin psychics list
+(`rate_out_of_range: true`).
+
+### 24.2 Welcome (intro) offer: eligibility and redemption
+
+Eligible when: an active intro pack exists; the account has no `reserved` or
+`redeemed` redemption; and, if `new_clients_only`, no succeeded credit
+purchase. Limit one per customer **and** one per payment method.
+
+`offer_redemptions` (`0026`): `id, user_id, pack_id, purchase_id UNIQUE,
+provider, card_key text NOT NULL DEFAULT ''` (HMAC-SHA256 of
+`provider + ":" + fingerprint` with a key derived from
+`STARYIELD_SECURITY_DATA_ENCRYPTION_KEY`; the raw fingerprint is never
+stored), `status` (`reserved` → `redeemed` | `released`), `created_at,
+updated_at, redeemed_at, released_at`. Partial unique indexes: `(user_id)`
+and `(provider, card_key) WHERE card_key <> ''`, both `WHERE status IN
+('reserved','redeemed')`.
+
+State machine (one function owns every transition): purchase of an intro
+pack → `reserved` (inserted in the purchase's transaction, before the
+charge; a unique violation is `409 offer_unavailable`); charge succeeded →
+`redeemed`; charge failed or reconciliation failed → `released` (the client
+may retry); refund of a redeemed purchase → stays `redeemed` (Refund Policy
+§5: eligibility is not restored). A redeemed offer never appears in
+`/credits/catalog` again.
+
+Card check: the fingerprint must be known **before** charging. A saved card
+has one. A fresh token is inspected through the new optional capability
+
+```go
+// TokenInspector reads the card behind a single-use client token without charging it.
+type TokenInspector interface {
+	InspectToken(ctx context.Context, token string) (CardMeta, error)
+}
+```
+
+(capability name `inspect`; the sandboxes implement it; real adapters do
+when their API allows, e.g. Stripe PaymentMethod retrieval). When neither is
+possible: `409 offer_unavailable {reason: "card_check_unavailable"}` while
+`STARYIELD_PRICING_OFFER_REQUIRE_CARD_CHECK=true` (default); with `false` the
+offer is limited per account only and the redemption is stored with
+`card_key = ''` (admin analytics count these). Intro packs are never sold
+through the legacy hosted checkout (no card to check).
+
+`offer_unavailable` (409) `details.reason`: `already_redeemed` |
+`not_new_client` | `payment_method_used` | `card_check_unavailable` |
+`no_offer`. "Do not stack": an intro purchase receives no other bonus, and
+member discounts never apply to pack prices (they apply to chat rates only).
+
+### 24.3 Credit lots: purchased vs bonus credits
+
+Every credit in a wallet belongs to a **lot**. `credit_lots` (`0025`):
+
+| column | notes |
+| --- | --- |
+| `id, user_id` | |
+| `source` | `purchase` (paid credit pack) \| `membership` (Premium monthly grant) \| `bonus` (sign-up bonus, admin/courtesy credits, legacy backfill, returns without history) |
+| `priority` | smallint: purchase 0, membership 1, bonus 2 (consumption order) |
+| `origin` | the ledger entry type that created it, or `legacy_backfill` |
+| `ledger_entry_id` | UNIQUE: the movement that created the lot |
+| `reference_type, reference_id` | e.g. `credit_purchase` + purchase id |
+| `credits_total, credits_remaining` | `0 ≤ remaining ≤ total` |
+| `paid_cents, currency` | amount actually paid for the whole lot (0 for non-purchase lots) |
+| `value_remaining_millicents` | revenue basis still in the lot (`paid_cents × 1000` at creation) |
+| `created_at, updated_at` | |
+
+`credit_lot_allocations` (`0025`): `id, ledger_entry_id, lot_id, user_id,
+credits` (> 0 consumed, < 0 restored), `value_millicents` (same sign),
+`created_at`. Indexes on `ledger_entry_id` and `lot_id`.
+
+Invariant (checked by tests and by a daily reconciliation job that logs and
+counts mismatches without changing balances): `Σ credits_remaining =
+wallets.balance` per user. Held credits are already allocated (they left
+their lots when held).
+
+`WalletService.Apply` owns all lot changes (no other code touches lots):
+
+* `Amount > 0` with `Movement.Lot` → new lot (`source`, `paid_cents`).
+  Purchases create `purchase` lots priced at what was paid; membership grants
+  `membership`; sign-up bonus, admin positive adjustments and courtesy
+  credits `bonus`.
+* `Amount > 0` with `Movement.Restore = <ledger entry id>` → returns the
+  credits to the lots that entry consumed (exact reversal: hold refunds,
+  custom-request refunds). No allocations to restore (legacy) → a `bonus` lot
+  with origin `legacy_return`.
+* `Amount < 0` → consumes lots by `priority, created_at, id` (purchased
+  credits first, then membership, then bonus), or only the lot given in
+  `Movement.ConsumeLot` (refund clawbacks).
+* Value per allocation: `credits × value_remaining ÷ credits_remaining`
+  (floor); the allocation that empties a lot takes the whole remaining value,
+  so a lot's allocations always add up to exactly what was paid.
+* A movement without a lot directive is a programming error (unit-tested at
+  every call site); a debit the lots cannot cover (invariant broken) still
+  applies to the balance (the balance is authoritative), is logged at error
+  level and counted by the reconciliation job.
+
+Revenue basis: `chat_sessions.revenue_millicents` and
+`custom_requests.revenue_millicents` accumulate the value of the paid
+credits they consumed (written in the same statement that already saves the
+row). Advisor payouts are **unchanged** this round (60 % of list-rate credits
+× `PAYOUT_CENTS_PER_CREDIT`); the spec's revenue-basis compensation model is
+a business decision recorded as a follow-up, and the basis is now available
+for it.
+
+Backfill (`0025`): for each wallet with a positive balance, succeeded,
+not-refunded credit purchases are assigned newest first (their remaining =
+what is left of the balance), and any rest becomes one `bonus` lot with
+origin `legacy_backfill`.
+
+### 24.4 Refunds
+
+**Amount** (Refund Policy §4): for a credit-purchase payment and its lot,
+`refundable_cents = min(amount_paid − already_refunded, floor(credits_remaining × amount_paid ÷ credits_total))`.
+Credits held for a pending custom request are not remaining. Booking a refund
+of `amount` (admin, request approval or the provider's `charge.refunded`)
+claws back `min(credits_remaining, ceil(amount × credits_total ÷ amount_paid))`
+from **that purchase's lot only** (never from other purchases or bonus
+credits; a refund larger than the unused value, e.g. for a technical
+problem, takes back only what is left of the lot). This replaces the former
+proportional clawback against the whole balance.
+
+```ts
+type RefundReason = "unused_credits" | "technical_problem" | "incorrect_charge" | "unauthorized_charge" | "reading_concern" | "other";
+type RefundRequestStatus = "open" | "approved" | "denied" | "credited" | "withdrawn";
+type RefundQuote = {
+  transaction_id: string; pack_name: string; currency: string;
+  amount_paid_cents: number; already_refunded_cents: number;
+  credits_purchased: number; credits_used: number; credits_remaining: number;
+  refundable_cents: number;
+  purchased_at: string; window_ends_at: string; within_window: boolean;
+};
+type RefundRequest = {
+  id: string; reference: string;                      // "RR-" + 8 base32 chars, shown to the client and support
+  transaction_id: string; status: RefundRequestStatus;
+  reason: RefundReason; details: string;              // details ≤ 2000 chars, plain text
+  channel: "web" | "email" | "admin";
+  quote: RefundQuote;                                  // snapshot when the request was made
+  resolution?: { note: string; refunded_cents?: number; credits_granted?: number; resolved_at: string };
+  created_at: string; updated_at: string;
+};
+type TransactionRefundInfo = {                       // on credit_purchase rows of GET /billing/transactions
+  refundable_cents: number; credits_remaining: number; window_ends_at: string;
+  can_request: boolean;                                // paid, not fully refunded, no open request, requests enabled
+  request?: { id: string; reference: string; status: RefundRequestStatus };
+};
+```
+
+`refund_requests` (`0028`): the fields above plus `user_id,
+credit_purchase_id, pack_id, refund_transaction_id, resolved_by, resolved_at,
+idempotency_key` (unique per user), with a partial unique index on
+`transaction_id WHERE status = 'open'`. Status machine (one function):
+`open → approved | denied | credited | withdrawn`; terminal states never move.
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /billing/transactions` | Credit-purchase rows gain `refund?: TransactionRefundInfo` (lots and open requests loaded in one batched query per page). |
+| `GET /billing/refund-quote?transaction_id=` | `RefundQuote` (caller's own payment). |
+| `POST /billing/refund-requests` | `{transaction_id, reason, details?, idempotency_key}` → `201 RefundRequest` (`200` on replay). `409 refund_request_exists`; `409 refund_not_eligible {reason: "not_credit_purchase" \| "not_paid" \| "fully_refunded" \| "outside_window"}` (`outside_window` only for `unused_credits`; other reasons may be sent any time); `503 feature_unavailable` when `STARYIELD_REFUNDS_REQUESTS_ENABLED=false`. Rate limited (bucket `refund_request`, 5/h per user). Not age-gated. |
+| `GET /billing/refund-requests?cursor=&limit=` | `Page<RefundRequest>` (newest first, 20/100). |
+| `POST /billing/refund-requests/:id/withdraw` | `RefundRequest`; `409 invalid_state` unless open. |
+| `GET /admin/billing/refund-requests?status=&user_id=&cursor=&limit=` | `Page<RefundRequest & {user: {id, display_name, email}, live_quote: RefundQuote}>`. |
+| `GET /admin/billing/refund-requests/:id` | Same row plus `lots: {source, credits_total, credits_remaining, paid_cents, created_at}[]` for the user. |
+| 🔐 `POST /admin/billing/refund-requests` | `{transaction_id, reason, details, channel: "email" \| "admin"}` → `201` (requests received by e-mail). |
+| 🔐 `POST /admin/billing/refund-requests/:id/approve` | `{amount_cents, note}` (amount ≤ paid − refunded; the console defaults to `live_quote.refundable_cents`) → refunds through the provider (§12.2 path, lot clawback) → `approved`. Provider failure leaves the request `open` with the error. |
+| 🔐 `POST /admin/billing/refund-requests/:id/deny` | `{note}` (5–1000 chars) → `denied`. |
+| 🔐 `POST /admin/billing/refund-requests/:id/credit` | `{credits, note}` (1–`MAX_ADMIN_ADJUSTMENT`) → courtesy `bonus` credits → `credited`. |
+
+Notifications (§7.1): `refund_request.received {request_id, reference}`,
+`refund_request.resolved {request_id, reference, status, refunded_cents?, credits_granted?, currency}`.
+Audit: `refund_request.created|approved|denied|credited`. The existing
+`POST /admin/billing/transactions/:id/refund` stays and uses the new clawback.
+
+### 24.5 Revenue analytics (admin)
+
+`GET /admin/reports/revenue?from=&to=&interval=` (USD only):
+
+```ts
+type RevenueReport = {
+  from: string; to: string; interval: "day" | "week" | "month"; currency: "USD";
+  totals: {
+    gross_cents: number; refunds_cents: number; net_cents: number;
+    purchases: number; paying_clients: number; avg_order_cents: number;
+    recognized_cents: number;        // value of purchased credits consumed by chats and released custom requests
+    deferred_cents: number;          // unconsumed purchased-credit value at `to` (liability)
+    advisor_cost_cents: number;      // advisor earnings in the period × PAYOUT_CENTS_PER_CREDIT
+    processing_estimate_cents: number;  // Σ per purchase (price × fee_bps + fixed) — assumption
+    contribution_estimate_cents: number; // net − advisor_cost − processing_estimate (NOT profit)
+    refund_rate_bps: number; disputes: number;
+  };
+  series: { bucket: string; gross_cents: number; refunds_cents: number; net_cents: number; recognized_cents: number }[];
+  packs: { pack_id: string; code: string; name: string; purchases: number; gross_cents: number; refunds_cents: number; share_bps: number }[];
+  welcome_offer: { redemptions: number; unverified_card: number; repeat_buyers_30d: number; repeat_rate_bps: number };
+  free_trial: { signups_with_trial: number; purchased: number; conversion_bps: number };
+  refund_requests: { open: number; approved: number; denied: number; credited: number; withdrawn: number; median_hours_to_resolve: number | null };
+  assumptions: { processing_fee_bps: number; processing_fixed_cents: number };
+};
+```
+
+`GET /admin/reports/overview` gains `refunds_cents` and `net_revenue_cents`
+(per currency, like `revenue_cents`). Nothing is removed from the API; the
+console's Overview tile shows **net** revenue and links to the new Revenue
+page, and the credit-based "platform commission" tile is relabelled
+"Advisor share (credits)" so it is not read as money.
+
+### 24.6 18+ age gate (no age pop-up)
+
+Age is derived from the date of birth collected at sign-up (the existing
+birth step) and checked at sign-in. `users` gains `adult_confirmed_at` and
+`age_restricted_at` (`0027`). Backfill: a birth date on file ≥ 18 years
+ago → `adult_confirmed_at = now()`; under 18 → `age_restricted_at = now()`.
+
+`User` (every view of the signed-in user, e.g. `GET /me`, login, register)
+gains `age_status: "adult" | "birth_date_required" | "restricted"`
+(`restricted` when `age_restricted_at` is set; `adult` when
+`adult_confirmed_at` is set; otherwise `birth_date_required`). Advisors and
+admins are vetted by Staryield and always `adult`.
+
+* Saving a birth date (sign-up birth step, settings) that is ≥ 18 years
+  ago sets `adult_confirmed_at`. A date under 18 is refused (422
+  `fields.birth_date`, unchanged message) **and** sets `age_restricted_at`
+  (neutral age screen: no retry with another date). A restricted account
+  cannot change its birth date (`403 age_restricted`) until an admin review.
+* Client actions that need an adult answer `403 birth_date_required`
+  (`details.next = "/signup/birth"`) or `403 age_restricted`: creating chat
+  requests and every client chat action (REST and WebSocket), messages
+  outside live chats, waiting lists, custom requests, credit catalog and
+  purchases, saved cards and memberships (writes), ratings. Never gated:
+  sign-in/out, profile and birth data, settings, notifications, support,
+  refund requests, data export, deactivation and closure (privacy rights and
+  refunds stay available to everyone).
+* 🔐 `POST /admin/users/:id/age-review` `{decision: "clear" | "restrict", reason}`
+  (reason 5–500) → admin user view; audited `user.age_review`. "clear"
+  removes `age_restricted_at` and requires the person to enter a birth date
+  again; "restrict" sets it. The admin users list and detail show
+  `age_status`.
+* Production refuses `STARYIELD_AUTH_MINIMUM_AGE` below 18.
+
+Web app: after sign-in, sign-up and on every gated page, `birth_date_required`
+sends the person to `/signup/birth?next=<path>` (the existing step, copy:
+adults 18+ only) and `restricted` to a calm "account restricted" screen
+(support link, close account, privacy). A gated API answer
+(`birth_date_required` / `age_restricted`) is handled the same way globally.
+Public pages carry an "18+ · For entertainment purposes only" line in the
+footer.
+
+### 24.7 Top-up (web)
+
+One component, `CreditTopUp`, used by the `/credits` route and by the
+chatroom (opened in place through a `TopUpProvider` context, never by
+navigating away, so a live chat is not paused; §21 presence rule unchanged).
+Desktop: centred dialog 960–1100 px; below 768 px: full-screen sheet whose
+pack list scrolls above a reserved summary dock (a sibling, never an
+overlay; safe-area padding).
+
+* Step 1 — choose (Figma 1352:2362): radio group (`role="radiogroup"`,
+  arrow keys, visible focus, ≥ 44 px targets) of `TopUpCatalog.packs`; the
+  eligible Welcome Pack first, preselected visually with "Your one-time
+  new-client offer."; otherwise the first standard pack (redeemed offer is
+  absent, never disabled). Each card: badges (or label, else "One-time
+  pack"), name, credits, `$X USD`, "≈ N min. at {min} credits/min. · ≈ M min.
+  at {max} credits/min.", "One-time purchase". During a live reading the
+  dock adds "At {advisor}'s rate of {X} credits/minute, this pack provides
+  approximately {credits ÷ X} minutes." (X = the session's rate the client
+  pays). Dock: "{Pack} · {credits} credits", "Total: ${price} USD", "One-time
+  payment", primary "Continue to Checkout — ${price}", secondary "Not now",
+  and the acknowledgement: "By continuing, you agree to purchase {credits}
+  credits for ${price} USD as a one-time payment. No subscription or
+  automatic top-up is included. Review our [Terms] and [Refund Policy]."
+  Total, acknowledgement and CTA always come from the selected pack.
+  Selecting never charges.
+* Step 2 — pay: saved card or the provider's fields (existing
+  `PaymentFields` adapters), optional receipt e-mail, "Pay ${price} USD" and
+  the same acknowledgement; back returns to step 1 with the selection kept.
+  The old consent checkbox is replaced by this acknowledgement next to the
+  button (explicit click = consent). Success, processing (`pending`), decline
+  (`payment_failed` reasons), `offer_unavailable` reasons (the catalog is
+  reloaded and the offer disappears), network errors with retry: all have
+  copy. One idempotency key per attempt (existing).
+* Minutes: `credits ÷ rate`, at most two decimals, trailing zeros removed
+  (`10.5`, `5.25`, `13.33`), prefixed "≈".
+
+Billing history (`Settings → Billing`): credit purchases show the refund
+state and "Request a refund" (dialog: quote, reason select, details, policy
+link, submit with loading/success/error states; or the request's status and
+reference, with "Withdraw" while open).
+
+### 24.8 Public pages (web)
+
+* `/pricing` (Figma 1352:2360 / 1352:2361), public, indexed, server-rendered
+  from `GET /pricing` (revalidated every 60 s; if the API fails the page
+  renders without prices and shows a retry, never invented prices). Every CTA
+  ("Start 4 Free Minutes", "Get Started", "Start With the Welcome Offer",
+  "Start My Free Reading", "Sign In") goes to sign-up (signed-in users to the
+  chat directory / `/credits`); no payment fields on the page. Trial copy
+  uses `free_trial.minutes` and is replaced by plain "Sign up" copy when the
+  offer is off. Grid: 3 × 2 from 1200 px, 2 columns 768–1199 px, 1 column
+  below; canonical order always; 8 px card corners. Footnote: "Minute
+  estimates are approximate and depend on the advisor's displayed rate and
+  applicable billing increments. Credits are added after successful payment.
+  Pack purchases are one-time payments." plus the savings basis ("Savings
+  compared with the {reference} pack rate").
+* `/refund-policy` (Figma 1360:2766 / 1360:2771), public, a legal document
+  in `src/content/legal/refund/{en,fr,es}.ts` rendered with the legal
+  document component (desktop: sticky "On this page" list + 760 px reading
+  card; mobile: stacked, collapsible list). Effective and last-updated
+  11.11.2026 (2026-11-13 since revisions 5.1, §25). The business confirmed the design's placeholders on 2026-11-13:
+  requests are acknowledged within 2 business days, approved refunds are
+  submitted within 5 business days, and the card-statement descriptor is
+  "STARYIELD MEDIA LLC" (19 of the networks' 22 characters; it must be the
+  descriptor configured with the payment processor). Linked from the footer, the pricing FAQ,
+  the top-up dialog, the checkout acknowledgement, purchase receipts and the
+  Terms (§6.3.1 now points to it).
+
+### 24.9 Chat (web)
+
+* The chatroom page no longer scrolls past the viewport (the frame fills
+  exactly `100dvh`; only the feed, inbox and panel scroll).
+* Scrollbars inside the chatroom are thin, low-opacity and only darken on
+  hover/scroll (WebKit and `scrollbar-color`/`scrollbar-width`).
+* Each delivered message gets a quiet three-dot button (icon only,
+  `aria-label="Message actions"`, ≥ 44 px hit area on touch) at the bubble's
+  top-left corner for sent messages and top-right for received ones; it opens
+  a small menu: Reply, Bookmark/Remove bookmark (then Like/Unlike and Copy
+  text, kept from §23 so nothing regresses). Long-press on touch opens the
+  same menu. The always-visible side bookmark and hover reply/like buttons
+  are removed; a saved message shows a small filled bookmark in its meta
+  line; likes keep their badge and double-tap.
+
+### 24.10 Configuration and error codes
+
+| Environment variable | Default | Purpose |
+| --- | --- | --- |
+| `STARYIELD_REFUNDS_WINDOW_DAYS` | 14 | Refund window for unused credits (must equal the published policy). |
+| `STARYIELD_REFUNDS_REQUESTS_ENABLED` | true | In-app refund requests (e-mail requests are unaffected). |
+| `STARYIELD_PRICING_OFFER_REQUIRE_CARD_CHECK` | true | Intro offer needs a known card fingerprint (§24.2). |
+
+| code | HTTP | meaning |
+| --- | --- | --- |
+| `offer_unavailable` | 409 | The welcome offer can't be bought (`details.reason`, §24.2). CTA: choose another pack. |
+| `birth_date_required` | 403 | Enter a date of birth first (`details.next`). |
+| `age_restricted` | 403 | The account is restricted to adults. CTA: support. |
+| `refund_request_exists` | 409 | An open request already exists for this payment (`details.request_id`). |
+| `refund_not_eligible` | 409 | `details.reason` (§24.4). |
+| `refund_refused` | 409 | The payment provider definitively refused a refund (admin approve, and the older `POST /admin/billing/transactions/:id/refund`). No money moved; the request stays open. Refund from the provider's dashboard. |
+
+### Implementation notes (ledger)
+
+How §24.3 and the lot clawback of §24.4 are built (migration `0025`,
+`internal/service/wallet.go`, `internal/repository/lots.go`).
+
+* **Movement directives.** `Movement` gained `Lot` (a new lot), `Restore` /
+  `RestoreKey` (reverse the allocations of a ledger entry, named by id or by
+  idempotency key), `ConsumeLot` (debit one lot only) and `Locked` (a wallet
+  the caller already locked in this transaction, to save the second lock).
+  `Amount > 0` needs exactly one of `Lot` / `Restore*`, a debit takes neither,
+  and a movement with no valid directive returns `ErrLotDirective` **in
+  production too** (nothing written): silently minting a bonus lot would hide
+  a mispriced purchase. Every call site is covered by the e2e suite.
+  `WalletService.Execute` is `Apply` plus the new entry id and the revenue
+  basis (`ValueMillicents`: positive when consumed, negative when restored).
+* **Round trips per movement:** the wallet lock; one `INSERT … ON CONFLICT DO
+  NOTHING` on the ledger (a replay is "0 rows", no key lookup; only a movement
+  that would overdraw looks the key up, so a replay still answers
+  `applied=false`); one `SELECT` of the candidate lots (16, then all if they
+  do not cover it); one statement that updates the lots and appends the
+  allocations (data-modifying CTE); the wallet save. Lots need no row locks:
+  every lot change happens in `Apply` after the user's wallet row is locked.
+* **Restore** nets what the entry consumed against what earlier restores
+  returned (`credit_lot_allocations.restores_entry_id`, added to the §24.3
+  columns), so a second restore of the same hold cannot refill a lot twice;
+  credits with nothing left to restore become a `bonus` lot with origin
+  `legacy_return`. A partial restore walks the lots in consumption order.
+* **Backfill:** purchase lots are created for **every** succeeded purchase
+  that has its ledger entry, with `credits_remaining = 0` for fully spent ones
+  (so refund quotes can show credits used); refunded purchases get none. The
+  legacy `bonus` lot has no ledger entry (`ledger_entry_id` is NULL, allowed
+  only for origin `legacy_backfill`, so the unique key stays meaningful and the
+  append-only ledger gets no marker rows).
+* **Membership grants** are found again by the grant (`reference_type =
+  subscription_grant`, `reference_id = subscription_grants.id`). A grant from
+  before lots has no lot of its own, so refunding its payment reverses nothing
+  and logs a warning (follow-up if that matters).
+* **Reconciliation** (`credit-lot-reconcile`, daily, every instance): pages
+  through wallets by user id, 5 000 per chunk, compares the balance with
+  `Σ credits_remaining`, logs each mismatch (first 50) and a summary at error
+  level, never changes a balance.
+* `PurchaseLot`, `PurchaseLots` (one query), `GrantLot`, `LotsForUser`,
+  `domain.RefundableCents` and `domain.ClawbackCredits` are the entry points
+  for refund requests and revenue analytics.
+
+### Implementation notes (refunds and revenue)
+
+How §24.4 and §24.5 are built (migration `0028`, `internal/service/refunds*.go`,
+`internal/service/revenue.go`, `internal/repository/refunds.go`, `revenue.go`).
+
+* **One function moves a request.** `RefundService.transition` is the only code
+  that changes `refund_requests.status`. It opens a transaction, locks the row
+  (`SELECT … FOR UPDATE`), checks `domain.RefundRequestStatus.CanTransition`
+  (the transition table: only `open` moves, to the four resolutions), runs the
+  move's side effect and writes the status and the resolution in that same
+  transaction. Two administrators acting on one request serialise on the row
+  lock; the second finds it resolved (`409 invalid_state`). The database also
+  refuses an impossible row (`refund_requests_resolution_valid`).
+* **Approving** calls `BillingService.refundTransaction` (the body of
+  `RefundTransaction`, which also returns the refund row's id) outside the
+  request's transaction, so the provider call and the booking commit in their own
+  units and the request's transaction only holds the row lock. The transaction runs
+  on a context the HTTP deadline cannot cancel (bounded at 45 s), so a refund the
+  provider executed is never left without its row. If the provider call or booking
+  fails the whole move rolls back and the request stays `open`: `409 invalid_state`
+  (request not open, or another amount while a refund of this payment is pending),
+  `422 fields.amount_cents` (more than paid − refunded), `409 refund_refused` (the
+  provider definitively refused: nothing moved, refund from its dashboard),
+  `503 service_unavailable` (unknown outcome: repeat with the same amount, which
+  completes the pending refund under its own idempotency key). If the money moved
+  but writing the request fails, the write is retried once in a fresh transaction
+  (never the refund); if that fails too, an error-level log names the request and
+  refund row for manual reconciliation. `refund_refused` replaces `invalid_state`
+  for a definitive refusal on the older `POST /admin/billing/transactions/:id/refund`
+  too (same 409, new code, same localized message).
+* **Notes.** Approve/deny/credit notes are 5–1000 characters (stored in full as
+  `resolution_note`); the provider and ledger reason is the first 300 of them.
+* **Credit** goes through the admin adjustment movement (`adminAdjustmentMovement`,
+  shared with `AdminService.AdjustCredits`: a positive amount is a `bonus` lot)
+  inside the same transaction as the status change; its idempotency key is the
+  request's, so it cannot be granted twice.
+* **Quote.** `purchased_at` is the payment's `created_at`; the window ends
+  `STARYIELD_REFUNDS_WINDOW_DAYS` calendar days later (`within_window` is true on
+  the last instant). Credits and remaining come from the purchase's lot (a purchase
+  without a lot reads as fully used: remaining 0); credits held for a pending
+  request already left the lot, so they count as used. `refundable_cents` is 0
+  unless the payment is `succeeded` or `partially_refunded`. The request stores the
+  quote as `quote_*` columns; the console's `live_quote` is recomputed (so a refund
+  issued from the provider's dashboard, a `charge.refunded` webhook included, shows
+  in `already_refunded_cents` while the request stays open).
+* **Who may ask.** Eligibility order: not a credit purchase, fully refunded, not
+  paid (pending, failed, disputed), then `outside_window` (only for
+  `unused_credits`). An open request is reported (`refund_request_exists`) before
+  the last three. The administrator's `POST /admin/billing/refund-requests`
+  (e-mail or admin channel) skips the kill switch and the window (she decides) but
+  not the other rules. A retry with the same `idempotency_key` for the same payment
+  is `200` with the stored request; for another payment it is `422`.
+* **Notifications.** `refund_request.received` is sent for every channel;
+  `refund_request.resolved` for approved, denied and credited (not for a
+  withdrawal, which the client did). Both are billing-category e-mail (always sent,
+  like receipts) plus push, rendered from the data only.
+* **Transactions page.** The `refund` object of credit-purchase rows costs two
+  queries per page whatever its size: `PurchaseLots` (one) and
+  `RefundRepository.Latest` (one `DISTINCT ON`). `can_request` is false while a
+  request is open, when the payment is not paid or fully refunded, and when
+  `STARYIELD_REFUNDS_REQUESTS_ENABLED=false`.
+* **Revenue report** (`GET /admin/reports/revenue`, 366 days at most, `day`
+  default | `week` | `month`, buckets in UTC, weeks start on Monday). Every figure
+  is one statement on an indexed column; the service runs them concurrently.
+  * `gross` counts purchases with status `succeeded` **or** `refunded` by
+    `completed_at` (a refund is reported as `refunds`, not by hiding the purchase);
+    `refunds` is the successful `refund` payments of credit purchases by their
+    date. `GET /admin/reports/overview` now counts revenue, purchases, paying
+    clients and credits purchased the same way (previously fully refunded
+    purchases dropped out) and adds `refunds_cents` and `net_revenue_cents`.
+  * `recognized` = Σ allocation value of `chat_charge` ledger entries in the window
+    + Σ allocation value of the hold of every custom request whose `hold_release`
+    entry falls in the window. Credits held for a request that is not yet released
+    are therefore neither recognized nor deferred (they left their lot at the hold).
+  * `deferred` is Σ `value_remaining_millicents` of purchase lots at `to`. For a
+    `to` that is not in the past it is the live column (`credit_lots_purchase_value_idx`,
+    index-only). For a past `to`: value now of the lots created before `to`, plus
+    the value of every allocation made at or after `to` on those lots (consumption
+    and clawbacks add back, restores subtract). The figure is not limited to the
+    window's purchases; it is a balance.
+  * `advisor_cost` = Σ `psychic_earnings.net_credits` in the window (reversals are
+    negative) × `STARYIELD_BILLING_PAYOUT_CENTS_PER_CREDIT`; `processing_estimate`
+    = Σ per purchase of `round_half_up(price × fee_bps ÷ 10000) + fixed` with the
+    admin assumptions; `contribution_estimate` = net − advisor cost − processing.
+  * Free trial: `signups_with_trial` counts distinct users with a `user.registered`
+    analytics event in the window whose `signup_free_minutes` is above 0 (the value
+    actually granted, recorded at registration; the wallet only holds what is left
+    and the setting changes over time). It is as reliable as the analytics buffer
+    (best effort). `purchased` counts those who have a paid purchase before `to`.
+  * Welcome offer: redemptions with status `redeemed` and `redeemed_at` in the
+    window; `unverified_card` those with an empty `card_key`; `repeat_buyers_30d`
+    those with another paid purchase in the 30 days after the redemption (also when
+    the 30 days are not over yet).
+  * Refund requests: the requests *created* in the window by their current status;
+    `median_hours_to_resolve` over those approved, denied or credited
+    (`resolved_at − created_at`), null when none.
+  * Disputes: credit-purchase payments flagged `disputed` by the date of the flag.
+* **Indexes added by `0028`** for the report: `credit_purchases_paid_completed_idx`,
+  `payment_transactions_refund_created_idx`, `payment_transactions_disputed_idx`,
+  `credit_lots_purchase_value_idx`, `credit_lot_allocations_created_idx`,
+  `psychic_earnings_created_idx`, `offer_redemptions_redeemed_idx`.
+* **Follow-ups.** Refund request texts (`details`, `resolution_note`) are not yet
+  part of the personal-data export or erased at account closure (the row keeps the
+  pseudonymous user id, like the ledger). The revenue report is USD only (the
+  platform's single currency).
+
+---
+
+## 25. Revisions 5.1: merchant-account readiness (card-scheme website requirements)
+
+A payment processor's underwriting team reviews the public website. §25 makes
+the site meet Visa/Mastercard website requirements and say the same thing
+everywhere. Conventions as in §24 (strict JSON, en/fr/es for every sentence,
+admin writes audited). **Deploy the API before the web app.** Migration:
+`0030_purchase_consent.sql`.
+
+Decisions (user, 2026-11-13): memberships/subscriptions are **disabled and
+not shown anywhere** (built, kept, switched off); only one-time credit packs
+are sold. Dropped readings stay a manual review (Refund Policy §7). Support is
+available 24/7 and replies within 1–2 days. No phone number.
+
+### 25.1 Memberships switched off
+
+* Env `STARYIELD_BILLING_MEMBERSHIPS_ENABLED` (default **false**; config +
+  `.env.example`). While false: `GET /billing/plans` → `{items: []}`;
+  `POST /billing/subscriptions`, `PATCH /billing/subscription` and
+  `POST /billing/subscription/resume` → `503 feature_unavailable`
+  ("Memberships are not available."); `GET /billing/subscription` and
+  `POST /billing/subscription/cancel` keep working (an existing membership can
+  always be seen and cancelled). The renewal worker is unchanged (it only
+  touches existing memberships). Admin plan endpoints stay usable.
+* `GET /site/config` gains `features: { memberships: boolean }`. The web app
+  shows **no** membership surface (settings billing card, plans, member
+  discounts, "Premium", member-only benefits in FAQs, waitlist priority…)
+  unless it is `true`; an absent field means false.
+* Legal documents describe only what is sold: the membership clauses (Terms
+  §6.2.1–6.2.8 and their Privacy counterparts, including the free-trial
+  paragraph §6.2.5) are removed from the published Terms and Privacy Policy
+  and archived verbatim (en/fr/es) under `docs/legal-archive/` for when
+  memberships launch. Anchors that other pages link to (`#right-of-withdrawal`,
+  `#refunds`, `#chargebacks-and-payment-disputes`, …) keep their ids.
+* The membership checkout (hidden) is completed anyway: plan, monthly price
+  with currency, "Billed every month until you cancel", next renewal date,
+  how to cancel online (Settings → Billing), the statement descriptor, and a
+  required unchecked box "I agree to the Terms of Use, Privacy Policy and
+  Refund & Cancellation Policy" plus "I understand my membership renews
+  automatically every month until I cancel."
+
+### 25.2 Consent evidence on every purchase
+
+* `POST /credits/purchases` requires `consent: { terms: "YYYY-MM-DD", privacy:
+  "YYYY-MM-DD", refund: "YYYY-MM-DD" }`: the versions of the Terms, Privacy
+  Policy and Refund & Cancellation Policy the buyer agreed to (web:
+  `LEGAL_VERSIONS` in `frontend/src/lib/legal/versions.ts`). Each must be a
+  real date, not in the future. Missing or invalid → `422 fields.consent`
+  ("Accept the Terms of Use, Privacy Policy and Refund & Cancellation Policy
+  to continue."). Idempotent replays don't need to repeat it.
+* Stored on `credit_purchases` (`0030`, nullable for older rows):
+  `consent_terms_version`, `consent_privacy_version`, `consent_refund_version`,
+  `consent_at` (server time), `consent_ip_hash` (HMAC of the client IP with
+  the analytics secret, as refund requests do), `consent_user_agent` (≤ 300
+  chars). Purpose: chargeback evidence (card schemes' compelling-evidence
+  rules match IP/device). Disclosed in Privacy (billing records).
+* Admin `GET /admin/billing/transactions` credit-purchase rows gain
+  `consent?: {terms, privacy, refund, at}`; the personal-data export includes
+  the consent versions and time with each purchase (not the IP hash).
+
+### 25.3 Statement descriptor
+
+* Env `STARYIELD_PAYMENTS_STATEMENT_DESCRIPTOR` (default `STARYIELD MEDIA LLC`;
+  5–22 characters, `^[A-Za-z0-9 .,-]+$`, at least one letter; production
+  refuses an empty value). Passed to provider adapters on every charge
+  (`payment.CheckoutRequest.StatementDescriptor`, `payment.StoredCharge.StatementDescriptor`;
+  sandboxes ignore it). A test keeps the default equal to the descriptor in the
+  English Refund Policy §11.
+* `TopUpCatalog` gains `statement_descriptor` (web: "This charge appears on
+  your card statement as STARYIELD MEDIA LLC.").
+
+### 25.4 Company and customer-service details
+
+Facts (web: `frontend/src/config/company.ts`; API e-mails: same values, the
+support address being `STARYIELD_MAIL_SUPPORT_INBOX`): **Staryield Media LLC**,
+**30 N Gould St, Ste N, Sheridan, WY 82801, United States**,
+**support@staryield.net**, "Support is available 24/7. We reply within 1–2
+days." They appear in: the footer of every page that has one (legal name,
+address, support e-mail, hours), the Contact page, the top-up dialog's pay
+step, the signed-in account menu or settings (pages without a footer), Terms
+§16.1 and Privacy §14 (e-mail next to the form links), the Refund Policy
+contact section, and the footer of **every** e-mail.
+
+### 25.5 Confirmation e-mails
+
+* `purchase.succeeded` (e-mail and in-app data): subject "Your receipt:
+  {credits} credits"; pack name, credits, amount and currency, date and time
+  (UTC), purchase reference, card brand and last 4 digits when known,
+  "One-time payment. No subscription or automatic top-up.", "This charge
+  appears on your card statement as {descriptor}.", links to the Refund &
+  Cancellation Policy and Terms, support e-mail and hours. Always e-mailed
+  (transactional, whatever the notification settings), to the account address
+  and also to the purchase's `receipt_email` when one was given.
+* Refund e-mails (request approved, and refunds issued from the admin console
+  or reported by the provider): amount and currency refunded, the original
+  purchase, "It appears as a credit from {descriptor}; your bank may take 5–10
+  business days to show it.", support line.
+* Membership e-mails (sent for every real membership charge: the switch of
+  §25.1 only stops new memberships, and a charge always gets its receipt): a new
+  `subscription.started` confirmation, and `subscription.renewed` with plan,
+  amount and currency, billing period, next renewal date, a direct "Cancel
+  membership" link (settings, billing section), descriptor and support line.
+* Every e-mail's footer: legal name, postal address, support e-mail and hours.
+
+### 25.6 Web
+
+* `/refunds`, `/refund`, `/reimburse` and `/refunds-policy` (with or without a
+  locale) redirect permanently to `/{locale}/refund-policy`.
+* Checkout (top-up pay step): a required, unchecked box "I agree to the [Terms
+  of Use], [Privacy Policy] and [Refund & Cancellation Policy]." (links open in
+  a new tab) before "Pay $X USD"; the acknowledgement stays; the consent
+  versions are sent with the purchase. Card acceptance marks (Visa,
+  Mastercard: `components/billing/accepted-cards.tsx`, R2 assets) on the pay
+  step, the pricing page and the footer. Statement descriptor and support line
+  on the pay step.
+* Marketing copy matches "for entertainment purposes only" (Terms §2.1): no
+  certification, verification, accuracy, guarantee, expert/professional
+  advice, therapy, healing or medical/financial/legal claims, and no
+  unsubstantiated statistics or testimonials; footer tagline "Astrology and
+  psychic readings for entertainment purposes only." and "© 2026 Staryield
+  Media LLC. All rights reserved. For entertainment purposes only."
+* Terms §6.3.2's "allow at least 15 business days" is aligned with the Refund
+  Policy (submitted within 5 business days; banks may take another 5–10). The
+  Refund Policy states that there are no subscriptions or automatic charges
+  and gives the EEA/UK/Switzerland right of withdrawal (Terms §6.2.9).
+
+Implementation notes (revisions 5.1):
+
+* Terms §6 is now "CREDITS, PAYMENTS, AND REFUNDS" (anchor
+  `credits-payments-and-refunds`): 6.1 Credits (6.1.4 keeps the introductory
+  free minutes and free mode, anchor `free-trials-and-promotional-offers`),
+  6.2 Right of Withdrawal (`#right-of-withdrawal`), 6.3 General Terms, 6.4
+  Advisor Earnings. Terms, Privacy Policy and Refund Policy are all version
+  2026-11-13 (`LEGAL_VERSIONS`). Removed membership clauses and FAQ entries are
+  archived in `docs/legal-archive/2026-11-13-memberships/` (README explains how
+  to restore them at launch).
+* Purchases are refused (`422 fields.consent`) when a consent version date is
+  later than "today" in UTC, so a release that bumps `LEGAL_VERSIONS` must not
+  reach users before that date in UTC.
+* Card marks: `payment-icons` 1.2.1 (MPL-2.0, unmodified SVGs) served from R2
+  (`assets/payments/`).
+* Billing e-mails (receipt, refund, membership started/renewed) are always
+  sent, whatever the notification settings or the memberships switch.

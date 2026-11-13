@@ -16,8 +16,10 @@ import {
   notificationText,
   pickLocalized,
   relativeTime,
+  refundResolvedCopy,
   requestStatusCopy,
   subscriptionCanceledCopy,
+  subscriptionCanceledPlainCopy,
   withdrawalStatusCopy,
 } from "@/lib/notifications/notification-copy";
 
@@ -77,6 +79,15 @@ describe("notificationText", () => {
     expect(notificationText(n("broadcast", { title: {}, body: null }), "en", textEn)).toEqual({ title: "Notification", body: "" });
   });
 
+  it("tells a refund request's resolution by status and sends the person to their billing history (§24.4)", () => {
+    const resolved = (status: string) => n("refund_request.resolved", { reference: "RR-AB12CD34", status });
+    expect(notificationText(resolved("approved"), "en", textEn).body).toBe("Your refund request RR-AB12CD34 was approved.");
+    expect(notificationText(resolved("denied"), "en", textEn).body).toBe("Your refund request RR-AB12CD34 was declined.");
+    expect(notificationText(resolved("credited"), "en", textEn).body).toContain("credits added");
+    expect(notificationText(resolved("something-new"), "en", textEn).body).toBe(refundResolvedCopy.other.replace("{reference}", "RR-AB12CD34"));
+    expect(notificationDestination(n("refund_request.resolved", {}, ""), "fr")).toBe("/fr/profile/settings#billing");
+  });
+
   it("pickLocalized prefers the locale, then English, then any value", () => {
     expect(pickLocalized({ es: "Hola" }, "fr")).toBe("Hola");
     expect(pickLocalized({ fr: "  ", en: "Hi" }, "fr")).toBe("Hi");
@@ -110,6 +121,12 @@ const samples: Record<NotificationKind, Record<string, unknown>> = {
   "subscription.renewed": { period_end: "2026-12-01T00:00:00Z" },
   "subscription.payment_failed": { reason: "declined", retry: true },
   "subscription.canceled": { reason: "period_ended" },
+  // revisions 5.0 (§24.4)
+  "refund_request.received": { request_id: "r1", reference: "RR-AB12CD34" },
+  "refund_request.resolved": { request_id: "r1", reference: "RR-AB12CD34", status: "approved", refunded_cents: 1000, currency: "USD" },
+  // revisions 5.1 (§25.5)
+  "payment.refunded": { amount_cents: 2667, currency: "USD", transaction_id: "t1" },
+  "subscription.started": { plan_name: "Premium", amount_cents: 999, currency: "USD" },
 };
 
 describe("copy for every kind (§23.6)", () => {
@@ -158,6 +175,21 @@ describe("copy for every kind (§23.6)", () => {
     expect(notificationText(n("subscription.payment_failed", { grace_until: "garbage" }), "en", textEn).body).toBe(notificationTemplates.subscriptionPaymentFailedBody);
   });
 
+  it("still reports a membership's end while memberships are off, but never invites a new one (§25.1)", () => {
+    for (const reason of ["period_ended", "payment_failed", "canceled_by_user", "admin", "dispute", "account_closed", "something-new"]) {
+      const on = notificationText(n("subscription.canceled", { reason }), "en", textEn).body;
+      const off = notificationText(n("subscription.canceled", { reason }), "en", textEn, { memberships: false }).body;
+      expect(off).toBeTruthy();
+      expect(off).not.toMatch(/subscribe/i);
+      expect(off.length).toBeLessThanOrEqual(on.length);
+    }
+    expect(notificationText(n("subscription.canceled", { reason: "period_ended" }), "en", textEn, { memberships: false }).body).toBe("Your membership has ended.");
+    expect(notificationText(n("subscription.canceled", { reason: "period_ended" }), "en", textEn, { memberships: true }).body).toContain("You can subscribe again");
+    // The default keeps the copy people already knew.
+    expect(notificationText(n("subscription.canceled", { reason: "payment_failed" }), "en", textEn).body).toBe(subscriptionCanceledCopy.payment_failed);
+    expect(notificationText(n("subscription.canceled", { reason: "canceled_by_user" }), "fr", textFr, { memberships: false }).body).toBe("Vous avez annulé votre abonnement et il est maintenant terminé.");
+  });
+
   it("falls back to a sensible link when the API sent none, and never to an unsafe one", () => {
     expect(notificationDestination(n("waitlist.available", { psychic_slug: "the o" }, ""), "fr")).toBe("/fr/chatroom?reader=the%20o");
     expect(notificationDestination(n("subscription.canceled", {}, ""), "es")).toBe("/es/profile/settings");
@@ -203,11 +235,32 @@ describe("dictionary coverage of non-literal copy", () => {
     ...Object.values(requestStatusCopy),
     ...Object.values(withdrawalStatusCopy),
     ...Object.values(subscriptionCanceledCopy),
+    ...Object.values(subscriptionCanceledPlainCopy),
+    ...Object.values(refundResolvedCopy),
     ...Object.values(attachmentProblemCopy),
     errorCopy.step_up_required,
     errorCopy.invalid_code,
   ];
   it.each(all.map((s) => [s]))("%s is translated in every locale", (key) => {
     for (const dict of [en, fr, es] as Record<string, string>[]) expect(dict[key], key).toBeTruthy();
+  });
+});
+
+// revisions 5.1 (§25.5): refunds issued by support or the provider.
+describe("payment.refunded", () => {
+  const english = createTranslateCopy(en);
+  const refunded = (data: Record<string, unknown>) =>
+    ({ id: "n1", kind: "payment.refunded", data, read: false, created_at: "2026-11-13T10:00:00Z" }) as unknown as AppNotification;
+
+  it("states the amount in the refund's currency and the bank's posting time", () => {
+    const copy = notificationText(refunded({ amount_cents: 2667, currency: "usd" }), "en", english);
+    expect(copy.title).toBe("Refund issued");
+    expect(copy.body).toBe("$26.67 was refunded to your payment method. Your bank may take 5–10 business days to show it.");
+  });
+
+  it("still reads well without an amount", () => {
+    expect(notificationText(refunded({}), "en", english).body).toBe(
+      "A refund was issued to your payment method. Your bank may take 5–10 business days to show it.",
+    );
   });
 });

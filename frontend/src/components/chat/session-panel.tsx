@@ -1,13 +1,13 @@
 "use client";
 
-import Link from "next/link";
-
 import { useI18n } from "@/i18n/i18n-provider";
 import { errorMessage, type ApiError } from "@/lib/api/errors";
 import type { ChatSession, Participant, Review, SessionSummary, Wallet } from "@/lib/api/types";
 import { formatDuration } from "@/lib/format";
+import { useMembershipsEnabled } from "@/lib/site-config/site-config-provider";
 import { useClientName } from "@/lib/chat/client-alias-provider";
 import { unlockRingtone, useRingtoneState } from "@/lib/chat/ringtone";
+import { TopUpLink } from "@/components/billing/top-up/top-up-provider"; // revisions 5.0
 import { Button } from "@/components/ui/button";
 import { endReasonCopy, type RateView } from "@/components/chat/chat-model";
 import { RatePrice } from "@/components/chat/rate-price";
@@ -51,6 +51,8 @@ const unavailableCopy: Record<string, string> = {
 export function SessionPanel(p: Props) {
   const { text, locale } = useI18n();
   const ringtone = useRingtoneState();
+  // The member-discount note under a request is a membership surface (§25.1).
+  const memberships = useMembershipsEnabled();
   const s = p.session;
   // Advisors see their private nickname for the client (§23.4).
   const name = text(useClientName(p.role === "psychic" ? p.counterpart.id : null, p.counterpart.name));
@@ -59,9 +61,15 @@ export function SessionPanel(p: Props) {
     <div role="alert" className="mt-3 text-sm text-red-800">
       <p>{text(errorMessage(p.error))}</p>
       {p.error.code === "insufficient_credits" && !p.free ? (
-        <Link className="underline" href={`/${locale}/credits?next=${encodeURIComponent(p.returnPath)}`}>
+        // revisions 5.0: opens the top-up in place, with this advisor's rate for the minute estimate (§24.7).
+        <TopUpLink
+          className="underline"
+          href={`/${locale}/credits?next=${encodeURIComponent(p.returnPath)}`}
+          advisorName={p.counterpart.name}
+          ratePerMinute={p.rateView?.rate ?? p.rate}
+        >
           {text("Top up credits")}
-        </Link>
+        </TopUpLink>
       ) : null}
     </div>
   ) : null;
@@ -90,7 +98,7 @@ export function SessionPanel(p: Props) {
       <div className="chat-session-card" role="status">
         <p className="font-semibold">{text("Waiting for {value0} to accept…", { value0: name })}</p>
         <p className="text-xs">{text("This request expires in {value0} seconds.", { value0: p.secondsLeft })}</p>
-        {p.rateView?.discounted ? (
+        {memberships && p.rateView?.discounted ? (
           <p className="mt-1 text-xs" data-testid="request-rate">
             <RatePrice rate={p.rateView} />
           </p>

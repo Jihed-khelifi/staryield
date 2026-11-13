@@ -1,7 +1,7 @@
 {
   "meta": {
     "chatroomTitle": "Sala de chat",
-    "chatroomDescription": "Habla en directo con un lector de Staryield: tarot, astrología y numerología."
+    "chatroomDescription": "Habla en directo con un lector de Staryield: tarot, astrología y numerología, únicamente con fines de entretenimiento."
   },
   "nav": {
     "brand": "Staryield",
@@ -49,7 +49,6 @@
     "composer": {
       "label": "Mensaje",
       "placeholder": "Escribe tu mensaje...",
-      "note": "3 min gratis y luego 40 créditos/min",
       "send": "Enviar mensaje",
       "errors": {
         "required": "Escribe algo antes de enviar.",
@@ -66,29 +65,6 @@
       "experience_other": "{count} años de experiencia",
       "viewProfile": "Ver el perfil completo"
     }
-  },
-  "readers": {
-    "ramone": {
-      "preview": "Un placer hablar contigo hoy, estaré aquí si...",
-      "bio": "¿Buscas claridad, consuelo o una comprensión más profunda de lo que estás viviendo ahora? A veces basta con otra perspectiva para reconocer la luz."
-    },
-    "theo": {
-      "preview": "¡Te vas a sorprender, cielo!",
-      "bio": "¿Buscas claridad sobre el camino que viene? Creo que las respuestas ya viven en ti: mi papel es ayudarte a descubrirlas."
-    },
-    "solomon": {
-      "preview": "Solomon quizá conozca la respuesta a tu pregunta. Como...",
-      "bio": "¿Buscas claridad sobre el camino que viene? Con el tarot traduzco el lenguaje universal de la energía en pasos concretos para tu vida."
-    }
-  },
-  "conversation": {
-    "m1": "Hola, espero que estés bien. Estoy empezando un proyecto ahora mismo y esperaba que pudieras ayudarme a entender cómo irá en un futuro próximo.",
-    "m2": "¡Espero que tú también estés bien!",
-    "m3": "¡Muchas gracias por compartir y por tu pregunta!",
-    "m4": "¡Ya estoy mezclando mis cartas para ti!",
-    "m5": "¡gracias! ¿necesitas algo de mi parte, Ramone?",
-    "m6": "Sol mío, veo pasar la Muerte, el 6 de bastos, el as de bastos y la carta del Juicio",
-    "m7": "Sol mío, veo a través de la Muerte, el 4 de bastos, el as de bastos y el Juicio que estás al borde de una gran transición en tu camino profesional."
   },
   "analytics": {
     "ratings_one": "{count} valoración",

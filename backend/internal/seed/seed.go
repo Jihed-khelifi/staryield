@@ -57,20 +57,20 @@ var advisors = []advisor{
 		philosophy: "\"There are no absolute deterministic outcomes—only waves of energy waiting to be realized. Every session aims to return power to your hands through conscious choices.\"",
 		services: []service{
 			{"Schedule a Reading", "30 Min Live Session", "Book a dedicated calendar slot for a private, uninterrupted deep-dive session focusing on career, love, or spiritual transition.", 1200},
-			{"Candle Ritual", "Spiritual Attunement", "An ancient candle-burning manifestation ritual tailored to your specific numerological charts to draw alignment and luck.", 850},
+			{"Candle Ritual", "Spiritual Attunement", "A candle-lit reflection session themed on your numerology chart, offered for entertainment.", 850},
 		},
 	},
 	{
 		slug: "theo", name: "Theo", image: "https://assets.staryield.net/assets/figma/1f3a8.png", zodiac: "Gemini",
 		headline: "Channeling ancestral wisdom through crystal energy and dream interpretation.",
-		skills:   []string{"Crystal Healing", "Mediumship", "Dream Analysis"}, rating: 4.8, reviews: 280, readings: 1200, years: 5, rate: 55,
+		skills:   []string{"Crystal Reading", "Mediumship", "Dream Analysis"}, rating: 4.8, reviews: 280, readings: 1200, years: 5, rate: 55,
 		about: []string{
 			"She channels ancestral wisdom passed down through generations of mystic tradition, forging a deep and sacred connection with spirit guides who dwell beyond the veil of ordinary perception. Through ancient rituals and meditative practices, she opens doorways to illuminate hidden truths that lie beneath the surface of everyday awareness. Drawing upon the vibrational power of carefully arranged crystal energy grids, she amplifies intuitive frequencies and harmonizes the flow of spiritual energy around you. Her gift for dream interpretation allows her to decode the symbolic language of your sleeping mind, mapping the vast and intricate terrain of your subconscious landscape. With gentle clarity, she reveals the profound messages your higher self is trying to send — guiding you toward deeper self-understanding, spiritual alignment, and the awakening of your true inner potential.",
 		},
 		philosophy: "\"The crystals don't lie — they amplify what your soul already knows. My role is to help you listen to the frequencies that have always been there.\"",
 		services: []service{
 			{"Schedule a Reading", "30 Min Live Session", "Book a dedicated calendar slot for a private, uninterrupted deep-dive session focusing on career, love, or spiritual transition.", 1200},
-			{"Crystal Energy Session", "45 Min Deep Healing", "A guided crystal grid session aligned to your chakra map, designed to clear energetic debris and restore spiritual flow.", 1800},
+			{"Crystal Energy Session", "45 Min Deep-Dive Session", "A guided crystal reading built around your chakra map, offered for reflection and entertainment.", 1800},
 			{"Dream Decode Package", "Symbolic Analysis", "Submit your recurring dreams for a detailed symbolic breakdown revealing patterns, warnings, and guidance from your subconscious mind.", 600},
 		},
 	},
@@ -79,23 +79,22 @@ var advisors = []advisor{
 		headline: "Ancient wisdom meets modern intuition for life's biggest questions.",
 		skills:   []string{"Palmistry", "Aura Reading", "Past Life"}, rating: 4.8, reviews: 671, readings: 1200, years: 5, rate: 45,
 		about: []string{
-			"Solomon reads the map written in your hands and the colors radiating from your energy field. Trained in past life regression therapy, he helps clients understand karmic cycles and ancestral patterns that shape present-day choices.",
+			"Solomon reads the map written in your hands and the colors radiating from your energy field. He offers past-life readings that explore karmic themes and ancestral patterns as a lens for reflection.",
 			"In sessions, he moves between the physical landscape of the body and the subtle currents of the aura. He listens for the stories that the hands hold-lines that speak to resilience, the shape of the fingers that reveal how a person receives and acts on intuition, and the spaces between the fingers that describe the way a person navigates freedom and responsibility. When he looks at the energy field, he is not just seeing color; he is reading the vibration of a person's current state. A cool blue may indicate a need for stillness and trust, while a sharp orange may signal a call to creative action and the breaking of old patterns.",
 		},
 		philosophy: "\"Your palms hold the blueprint of every life you've lived. Understanding those lines is the first step to rewriting the ones ahead.\"",
 		services: []service{
 			{"Schedule a Reading", "30 Min Live Session", "Book a dedicated calendar slot for a private, uninterrupted deep-dive session focusing on career, love, or spiritual transition.", 1200},
-			{"evil eye ritual", "45 Min Deep Healing", "A guided crystal grid session aligned to your chakra map, designed to clear energetic debris and restore spiritual flow.", 500},
+			{"evil eye ritual", "45 Min Deep-Dive Session", "A guided crystal reading built around your chakra map, offered for reflection and entertainment.", 500},
 			{"Soul mate sketch", "Symbolic Analysis", "Submit your recurring dreams for a detailed symbolic breakdown revealing patterns, warnings, and guidance from your subconscious mind.", 1590},
 		},
 	},
 }
 
-var packs = []domain.CreditPack{
-	{Name: "Starter", Credits: 250, PriceCents: 999, Currency: "USD", SortOrder: 1},
-	{Name: "Seeker", Credits: 600, PriceCents: 1999, Currency: "USD", SortOrder: 2, Featured: true},
-	{Name: "Devotee", Credits: 1500, PriceCents: 3999, Currency: "USD", SortOrder: 3},
-}
+// revisions 5.0: the canonical pricing catalog (§24.1). Migration 0026 inserts
+// the same six packs; Run only adds the ones missing by code, so seeding
+// stays idempotent and dev/e2e databases match production.
+var packs = CanonicalPacks()
 
 // Run seeds reference data. It is safe to run repeatedly.
 func Run(ctx context.Context, db *gorm.DB, hasher *security.PasswordHasher, opts Options, log *zap.Logger) error {
@@ -103,21 +102,25 @@ func Run(ctx context.Context, db *gorm.DB, hasher *security.PasswordHasher, opts
 	users := repository.NewUserRepository(db)
 	wallets := repository.NewWalletRepository(db)
 	psychics := repository.NewPsychicRepository(db)
-	credits := repository.NewCreditRepository(db)
 	now := time.Now().UTC()
 
-	existing, err := credits.ListPacks(ctx, false)
-	if err != nil {
-		return err
-	}
-	if len(existing) == 0 {
-		for _, p := range packs {
-			p.ID, p.Active, p.CreatedAt, p.UpdatedAt = domain.NewID(), true, now, now
-			if err := credits.CreatePack(ctx, &p); err != nil {
-				return fmt.Errorf("seed pack: %w", err)
-			}
+	// revisions 5.0: ensure the canonical catalog by code.
+	pricing := repository.NewPricingRepository(db)
+	seededPacks := 0
+	for _, p := range packs {
+		if _, err := pricing.PackByCode(ctx, p.Code); err == nil {
+			continue
+		} else if !errors.Is(err, repository.ErrNotFound) {
+			return err
 		}
-		log.Info("seeded credit packs", zap.Int("count", len(packs)))
+		p.ID, p.CreatedAt, p.UpdatedAt = domain.NewID(), now, now
+		if err := pricing.CreatePack(ctx, &p); err != nil {
+			return fmt.Errorf("seed pack: %w", err)
+		}
+		seededPacks++
+	}
+	if seededPacks > 0 {
+		log.Info("seeded credit packs", zap.Int("count", seededPacks))
 	}
 
 	ensureUser := func(ctx context.Context, email, password string, role domain.Role, name string, freeMinutes int) (*domain.User, bool, error) {
@@ -201,9 +204,16 @@ func Run(ctx context.Context, db *gorm.DB, hasher *security.PasswordHasher, opts
 				}
 				w.Balance += opts.DemoCredits
 				w.UpdatedAt = now
-				if err := wallets.AppendLedger(ctx, &domain.LedgerEntry{ID: domain.NewID(), UserID: u.ID, EntryType: domain.LedgerAdminAdjustment,
+				entry := &domain.LedgerEntry{ID: domain.NewID(), UserID: u.ID, EntryType: domain.LedgerAdminAdjustment,
 					Amount: opts.DemoCredits, BalanceAfter: w.Balance, HeldAfter: w.Held, ReferenceType: "seed",
-					IdempotencyKey: "seed_demo_credits:" + u.ID.String(), Description: "Demo credits", CreatedAt: now}); err != nil {
+					IdempotencyKey: "seed_demo_credits:" + u.ID.String(), Description: "Demo credits", CreatedAt: now}
+				if err := wallets.AppendLedger(ctx, entry); err != nil {
+					return err
+				}
+				// revisions 5.0: credit lots. Demo credits are bonus credits.
+				if err := repository.NewLotRepository(db).CreateLot(ctx, &domain.CreditLot{ID: domain.NewID(), UserID: u.ID, Source: domain.LotBonus,
+					Priority: domain.LotBonus.Priority(), Origin: string(domain.LedgerAdminAdjustment), LedgerEntryID: &entry.ID, ReferenceType: "seed",
+					CreditsTotal: opts.DemoCredits, CreditsRemaining: opts.DemoCredits, CreatedAt: now, UpdatedAt: now}); err != nil {
 					return err
 				}
 				return wallets.Save(ctx, w)
@@ -224,10 +234,17 @@ func createAccount(ctx context.Context, users *repository.GormUserRepository, wa
 	email, hash string, role domain.Role, name string, freeMinutes int, now time.Time) (*domain.User, error) {
 	u := &domain.User{ID: domain.NewID(), Email: email, PasswordHash: hash, Role: role, Status: domain.UserActive,
 		DisplayName: name, Locale: "en", TermsAcceptedAt: now, CreatedAt: now, UpdatedAt: now}
+	// revisions 5.0: demo accounts are adults (the 18+ gate, §24.6).
+	u.AdultConfirmedAt = &now
+	var birth *time.Time
+	if role == domain.RoleClient {
+		b := time.Date(1990, 6, 15, 0, 0, 0, 0, time.UTC)
+		birth = &b
+	}
 	if err := users.Create(ctx, u); err != nil {
 		return nil, err
 	}
-	if err := users.CreateProfile(ctx, &domain.Profile{UserID: u.ID, Mood: "Empowered", Theme: "Warm Beige", NotifyHoroscope: true, UpdatedAt: now}); err != nil {
+	if err := users.CreateProfile(ctx, &domain.Profile{UserID: u.ID, BirthDate: birth, Mood: "Empowered", Theme: "Warm Beige", NotifyHoroscope: true, UpdatedAt: now}); err != nil {
 		return nil, err
 	}
 	if err := wallets.Create(ctx, &domain.Wallet{UserID: u.ID, FreeMinutes: freeMinutes, UpdatedAt: now}); err != nil {

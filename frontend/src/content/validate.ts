@@ -95,6 +95,16 @@ function legalEntries(doc: LegalDocumentContent) {
             row.forEach((cell, c) => entries.push({ path: `${at}.r${r}c${c}`, text: cell })),
           );
           break;
+        // revisions 5.0: reading-card policy blocks.
+        case "callout":
+          signature.push(`${at}:callout`);
+          entries.push({ path: at, text: block.text });
+          break;
+        case "button":
+          signature.push(`${at}:button`);
+          // Written as a link so the label and the href are checked like any other link.
+          entries.push({ path: at, text: `[${block.label}](${block.href})` });
+          break;
       }
     });
   entries.push({ path: "meta.badge", text: doc.meta.badge });
@@ -108,6 +118,16 @@ function legalEntries(doc: LegalDocumentContent) {
     entries.push({ path: `${section.id}.title`, text: section.title });
     blocks(section.blocks, section.id);
   });
+  // revisions 5.0: policy layout extras (header actions, related links, breadcrumb).
+  if (doc.policy) {
+    const { actions, related, breadcrumb } = doc.policy;
+    signature.push(`policy:${actions.length}:${related.links.length}`);
+    actions.forEach((link, i) => entries.push({ path: `policy.actions${i}`, text: `[${link.label}](${link.href})` }));
+    entries.push({ path: "policy.related.title", text: related.title });
+    related.links.forEach((link, i) => entries.push({ path: `policy.related${i}`, text: `[${link.label}](${link.href})` }));
+    entries.push({ path: "policy.breadcrumb.home", text: breadcrumb.home });
+    entries.push({ path: "policy.breadcrumb.current", text: breadcrumb.current });
+  }
   return { entries, signature, ids };
 }
 

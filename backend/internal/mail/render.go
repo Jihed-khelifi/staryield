@@ -21,6 +21,19 @@ type Content struct {
 	Action     *Action
 	// Note is small print under the action (e.g. "ignore this e-mail").
 	Note string
+	// Details are labelled facts shown as a table under the paragraphs (a
+	// receipt's pack, amount, date and reference; revisions 5.1).
+	Details []Detail
+	// Links are secondary links under the action (policies). A URL starting
+	// with "/" is a locale-less app path and is made absolute by Render.
+	Links []Action
+}
+
+// Detail is one labelled fact of a receipt-style e-mail. Label is translated;
+// Value is plain text.
+type Detail struct {
+	Label string
+	Value string
 }
 
 // Action is the primary call-to-action button.
@@ -37,6 +50,9 @@ type Layout struct {
 	// Category is the delivery category; notification e-mails get a footer
 	// link to the notification settings and a List-Unsubscribe header.
 	Category string
+	// SupportEmail is the support address printed in the footer of every
+	// e-mail (STARYIELD_MAIL_SUPPORT_INBOX; empty: DefaultSupportEmail).
+	SupportEmail string
 }
 
 // Rendered is a ready-to-send message body.
@@ -52,6 +68,21 @@ func Render(c Content, l Layout) (Rendered, error) {
 	locale := i18n.Normalize(l.Locale)
 	t := func(s string) string { return i18n.T(locale, s) }
 	settings := settingsURL(l.FrontendURL, locale)
+	support := strings.TrimSpace(l.SupportEmail)
+	if support == "" {
+		support = DefaultSupportEmail
+	}
+	details := make([]Detail, 0, len(c.Details))
+	for _, d := range c.Details {
+		details = append(details, Detail{Label: d.Label, Value: d.Value})
+	}
+	links := make([]Action, 0, len(c.Links))
+	for _, a := range c.Links {
+		if strings.HasPrefix(a.URL, "/") {
+			a.URL = AppURL(l.FrontendURL, locale, a.URL)
+		}
+		links = append(links, a)
+	}
 	view := struct {
 		Lang, Subject, Preheader, Heading, Note string
 		Paragraphs                              []string
@@ -59,13 +90,20 @@ func Render(c Content, l Layout) (Rendered, error) {
 		Home, Settings                          string
 		Footer, SettingsLabel, Notification     string
 		Tagline, Rights                         string
+		// revisions 5.1: company footer and receipt details (§25.4, §25.5).
+		Company, Address, Support, SupportLabel, Hours string
+		Details                                        []Detail
+		Links                                          []Action
 	}{
 		Lang: locale, Subject: c.Subject, Preheader: c.Preheader, Heading: c.Heading, Note: c.Note, Paragraphs: c.Paragraphs,
 		Action: c.Action, Home: home(l.FrontendURL, locale), Settings: settings,
 		Footer:        t("This is an automated message from Staryield. Please do not reply."),
 		SettingsLabel: t("Notification settings"),
-		Tagline:       t("Professional spiritual guidance built with analytical clarity and strict privacy standards."),
-		Rights:        t("For entertainment purposes only."),
+		// revisions 5.1: the tagline matches the site's "entertainment purposes only" wording (§25.6).
+		Tagline: t("Astrology and psychic readings for entertainment purposes only."),
+		Rights:  t("For entertainment purposes only."),
+		Company: CompanyLegalName, Address: CompanyAddress, Support: support, SupportLabel: t("Support"), Hours: t(SupportHours),
+		Details: details, Links: links,
 	}
 	if l.Category == "notification" || l.Category == "marketing" {
 		view.Notification = t("You receive this email because email notifications are on for your account.")
@@ -81,17 +119,31 @@ func Render(c Content, l Layout) (Rendered, error) {
 		text.WriteString(p)
 		text.WriteString("\n\n")
 	}
+	for _, d := range details {
+		text.WriteString(d.Label + ": " + d.Value + "\n")
+	}
+	if len(details) > 0 {
+		text.WriteString("\n")
+	}
 	if c.Action != nil {
 		text.WriteString(c.Action.Label)
 		text.WriteString(":\n")
 		text.WriteString(c.Action.URL)
 		text.WriteString("\n\n")
 	}
+	for _, a := range links {
+		text.WriteString(a.Label + ": " + a.URL + "\n")
+	}
+	if len(links) > 0 {
+		text.WriteString("\n")
+	}
 	if c.Note != "" {
 		text.WriteString(c.Note)
 		text.WriteString("\n\n")
 	}
 	text.WriteString("— Staryield\n")
+	text.WriteString(view.Company + "\n" + view.Address + "\n")
+	text.WriteString(view.SupportLabel + ": " + view.Support + "\n" + view.Hours + "\n")
 	text.WriteString(view.Footer)
 	text.WriteString("\n")
 	if view.Notification != "" {
@@ -167,18 +219,28 @@ var htmlLayout = template.Must(template.New("layout").Parse(`<!doctype html>
 <h1 style="margin:0 0 16px 0;font-family:Castellar,Cinzel,Georgia,'Times New Roman',serif;font-weight:normal;font-size:24px;line-height:1.3;color:#15100B;">{{.Heading}}</h1>
 {{range .Paragraphs}}<p style="margin:0 0 14px 0;font-size:16px;line-height:1.6;color:#15100B;">{{.}}</p>
 {{end}}</td></tr>
+{{if .Details}}<tr><td style="padding:0 32px 8px 32px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #E0D5C3;">
+{{range .Details}}<tr><td style="padding:8px 0;border-bottom:1px solid #E0D5C3;font-family:'Source Serif 4',Georgia,serif;font-size:14px;line-height:1.5;color:#978F6E;width:38%;vertical-align:top;">{{.Label}}</td><td style="padding:8px 0;border-bottom:1px solid #E0D5C3;font-family:'Source Serif 4',Georgia,serif;font-size:14px;line-height:1.5;color:#15100B;vertical-align:top;word-break:break-word;">{{.Value}}</td></tr>
+{{end}}</table>
+</td></tr>{{end}}
 {{if .Action}}<tr><td style="padding:8px 32px 8px 32px;">
 <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:#C29A3D;border-radius:8px;box-shadow:0 4px 15px rgba(194,154,61,0.42);">
 <a href="{{.Action.URL}}" style="display:inline-block;padding:12px 28px;font-family:Castellar,Cinzel,Georgia,serif;font-size:15px;letter-spacing:1px;color:#15100B;text-decoration:none;">{{.Action.Label}}</a>
 </td></tr></table>
 <p style="margin:12px 0 0 0;font-family:'Source Serif 4',Georgia,serif;font-size:12px;line-height:1.5;color:#978F6E;word-break:break-all;">{{.Action.URL}}</p>
 </td></tr>{{end}}
+{{if .Links}}<tr><td style="padding:12px 32px 0 32px;font-family:'Source Serif 4',Georgia,serif;font-size:13px;line-height:1.7;color:#978F6E;">
+{{range .Links}}<a href="{{.URL}}" style="color:#AA8E62;">{{.Label}}</a><br>
+{{end}}</td></tr>{{end}}
 {{if .Note}}<tr><td style="padding:8px 32px 0 32px;font-family:'Source Serif 4',Georgia,serif;font-size:13px;line-height:1.5;color:#978F6E;">{{.Note}}</td></tr>{{end}}
 <tr><td style="padding:24px 32px 28px 32px;font-family:'Source Serif 4',Georgia,serif;font-size:12px;line-height:1.5;color:#978F6E;border-top:1px solid #E0D5C3;">
 <p style="margin:16px 0 6px 0;">{{.Tagline}}</p>
+<p style="margin:0 0 6px 0;"><strong>{{.Company}}</strong><br>{{.Address}}</p>
+<p style="margin:0 0 6px 0;">{{.SupportLabel}}: <a href="mailto:{{.Support}}" style="color:#AA8E62;">{{.Support}}</a><br>{{.Hours}}</p>
 <p style="margin:0 0 6px 0;">{{.Footer}}</p>
 {{if .Notification}}<p style="margin:0 0 6px 0;">{{.Notification}}{{if .Settings}} <a href="{{.Settings}}" style="color:#AA8E62;">{{.SettingsLabel}}</a>{{end}}</p>{{end}}
-<p style="margin:0;">© Staryield · {{.Rights}}</p>
+<p style="margin:0;">© {{.Company}} · {{.Rights}}</p>
 </td></tr>
 </table>
 </td></tr>

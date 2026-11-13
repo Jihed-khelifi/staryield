@@ -260,7 +260,7 @@ var (
 		{"Buenos Aires, Argentina", "AR", "America/Argentina/Buenos_Aires", -34.6037, -58.3816},
 		{"Tunis, Tunisia", "TN", "Africa/Tunis", 36.8065, 10.1815},
 	}
-	skills    = []string{"Tarot Reading", "Astrology", "Numerology", "Aura Reading", "Palmistry", "Dream Analysis", "Crystal Healing", "Mediumship", "Past Life"}
+	skills    = []string{"Tarot Reading", "Astrology", "Numerology", "Aura Reading", "Palmistry", "Dream Analysis", "Crystal Reading", "Mediumship", "Past Life"}
 	zodiac    = []string{"Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"}
 	headlines = []string{"Clarity for love, career and the crossroads in between.", "Grounded tarot guidance for real decisions.",
 		"Astrological timing for the seasons of your life.", "Intuitive readings with a practical plan."}
@@ -268,7 +268,7 @@ var (
 		"I sense a strong bond, but also tension that needs attention.", "That resonates so much. What should I do?",
 		"The Lovers paired with the Five of Cups speaks of love and unmet expectations.", "Give it until the next full moon.",
 		"Thank you, this helps a lot.", "Trust your intuition on this one.", "Your path is lit by the stars.", "Can we look at my career next?"}
-	reviewComments = []string{"Accurate and kind.", "Helped me see things clearly.", "Very insightful reading.", "Good, but a little rushed.",
+	reviewComments = []string{"Kind and thoughtful.", "Helped me see things clearly.", "Very insightful reading.", "Good, but a little rushed.",
 		"Exactly what I needed today.", "Not what I expected."}
 )
 
@@ -292,6 +292,7 @@ func (d *Dataset) newAccount(email, hash string, role domain.Role, name string, 
 	if status != domain.UserActive {
 		u.StatusChangedAt = &last
 	}
+	u.AdultConfirmedAt = &created // revisions 5.0: the profile below has an adult birth date (§24.6)
 	city := cities[d.Rand.IntN(len(cities))]
 	birth := time.Date(1950+d.Rand.IntN(56), time.Month(1+d.Rand.IntN(12)), 1+d.Rand.IntN(28), 0, 0, 0, 0, time.UTC)
 	p := domain.Profile{UserID: u.ID, BirthDate: &birth, BirthPlace: city.name, BirthPlaceLabel: city.name, BirthTimezone: city.tz,
@@ -384,6 +385,7 @@ func (d *Dataset) clients(hash string) error {
 		profiles := make([]domain.Profile, 0, size)
 		wallets := make([]domain.Wallet, 0, size)
 		var ledger []domain.LedgerEntry
+		var lots []domain.CreditLot // revisions 5.0: credit lots
 		for i := start; i < start+size; i++ {
 			created := d.Past()
 			name := firstNames[d.Rand.IntN(len(firstNames))] + " " + string(rune('A'+d.Rand.IntN(26))) + "."
@@ -406,6 +408,12 @@ func (d *Dataset) clients(hash string) error {
 				e.BalanceAfter = w.Balance
 				ledger = append(ledger, e)
 			}
+			if w.Balance > 0 {
+				// revisions 5.0: the synthetic ledger has no purchase rows, so the balance
+				// is one legacy bonus lot, exactly what migration 0025 gives such a wallet.
+				lots = append(lots, domain.CreditLot{ID: d.ID(at), UserID: u.ID, Source: domain.LotBonus, Priority: domain.LotBonus.Priority(),
+					Origin: domain.LotOriginLegacyBackfill, CreditsTotal: w.Balance, CreditsRemaining: w.Balance, CreatedAt: created, UpdatedAt: at})
+			}
 			users, profiles, wallets = append(users, u), append(profiles, p), append(wallets, w)
 			d.Clients = append(d.Clients, u.ID)
 		}
@@ -413,6 +421,9 @@ func (d *Dataset) clients(hash string) error {
 			return err
 		}
 		if err := d.insert("credit_ledger", &ledger, len(ledger), false); err != nil {
+			return err
+		}
+		if err := d.insert("credit_lots", &lots, len(lots), true); err != nil {
 			return err
 		}
 		if start/chunk%10 == 0 {

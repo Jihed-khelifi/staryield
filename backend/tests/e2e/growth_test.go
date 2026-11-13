@@ -115,6 +115,7 @@ func TestCampaignsLinksAttributionAndReports(t *testing.T) {
 	}
 	visitor.must(http.StatusCreated, http.MethodPost, "/api/v1/auth/register", map[string]any{
 		"email": uniq("attr") + "@example.com", "password": strongPassword, "accept_terms": true, "locale": "en",
+		"birth_date": "1990-05-17", // revisions 5.0: the purchase below needs an adult date of birth (§24.6)
 		"attribution": map[string]any{"click_id": click, "utm_source": "instagram", "utm_medium": "social", "utm_campaign": slug,
 			"referrer": "https://l.instagram.com/x?secret=1", "landing_path": "/en/psychics?utm_source=instagram", "first_seen_at": e.clock.Now().Add(-time.Minute)},
 	}, &reg)

@@ -171,7 +171,14 @@ func TestSettingsValidationMatrix(t *testing.T) {
 			if _, ok := fields[tc.field]; !ok || len(fields) != 1 {
 				t.Fatalf("fields %v, want only %s", fields, tc.field)
 			}
-			if f.db.profiles[f.user.ID].version != before.profiles[f.user.ID].version || f.db.users[f.user.ID] != before.users[f.user.ID] {
+			after := f.db.users[f.user.ID]
+			if tc.name == "under age" { // revisions 5.0: the refusal persists the restriction (§24.6)
+				if after.AgeRestrictedAt == nil {
+					t.Fatal("an under-age date must restrict the account")
+				}
+				after.AgeRestrictedAt = nil
+			}
+			if f.db.profiles[f.user.ID].version != before.profiles[f.user.ID].version || after != before.users[f.user.ID] {
 				t.Fatal("a rejected patch must not write anything")
 			}
 		})

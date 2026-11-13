@@ -12,6 +12,7 @@ import { applyApiError } from "@/lib/forms/server-errors";
 import { keepFocusOnPress } from "@/lib/forms/submit-press";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { contactSchema, isSupportTopic, SUPPORT_TOPICS, supportTopicLabels, type ContactValues } from "@/lib/schemas/contact";
+import { COMPANY, supportMailto } from "@/config/company"; // revisions 5.1
 import { PublicFrame } from "@/components/layout/public-frame";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,6 +23,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 
 const MESSAGE_MAX = 5000;
+
+/**
+ * revisions 5.1: who we are and how to reach us, next to the form (docs/platform-extensions.md §25.4):
+ * support e-mail, hours and reply time, legal name and postal address.
+ */
+export function ContactDetails() {
+  const { text } = useI18n();
+  return (
+    <aside
+      className="mx-auto mt-8 grid max-w-[800px] gap-6 rounded-lg border border-gold/60 bg-cream p-6 text-sm sm:grid-cols-2 [overflow-wrap:anywhere]"
+      aria-label={text("Contact details")}
+      data-testid="contact-details"
+    >
+      <div>
+        <h2 className="mb-2 font-display text-lg">{text("Customer support")}</h2>
+        <p>
+          <a className="font-semibold underline underline-offset-4" href={supportMailto()} data-testid="contact-support-email">
+            {COMPANY.supportEmail}
+          </a>
+        </p>
+        <p className="mt-1 font-light" data-testid="contact-support-hours">{text("Support is available 24/7. We reply within 1–2 days.")}</p>
+      </div>
+      <address className="not-italic" data-testid="contact-company">
+        <h2 className="mb-2 font-display text-lg">{text("Company")}</h2>
+        <p className="font-medium" data-testid="contact-company-name">{COMPANY.legalName}</p>
+        <p className="font-light" data-testid="contact-company-address">{COMPANY.addressLine}</p>
+      </address>
+    </aside>
+  );
+}
 
 function blank(email = ""): ContactValues {
   return { topic: "general", subject: "", email, message: "", consent: false };
@@ -66,6 +97,7 @@ export function ContactForm() {
         <p className="eyebrow text-center">{text("Support portal")}</p>
         <h1 className="mt-4 text-center font-display text-[44px]">{text("Contact us ")}</h1>
         <div className="mx-auto my-6 h-px w-24 bg-gold" />
+        <ContactDetails />
         {receipt ? (
           <div className="contact-card paper-page" role="status" data-testid="contact-success">
             <CheckCircle2 aria-hidden className="mx-auto size-10 text-success" />
@@ -116,7 +148,7 @@ export function ContactForm() {
             <form className="contact-card paper-page" onSubmit={form.handleSubmit(submit)} noValidate data-testid="contact-form">
               <p className="mb-7 border-b border-gold/30 pb-6 font-light leading-relaxed">
                 {text(
-                  "Have questions about your spiritual readings, natal chart accuracy, or billing? Our dedicated support circle is here to offer guidance and align your technical path. "
+                  "Have a question about your readings, your natal chart or billing? Write to us and we will reply within 1–2 days. "
                 )}
               </p>
               <FormRootError className="mb-6" />
@@ -175,7 +207,7 @@ export function ContactForm() {
                   control={form.control}
                   name="message"
                   label={text("Describe your issue")}
-                  description={text("Please describe your situation in as much detail as possible so we can help you quickly and accurately.")}
+                  description={text("Please describe your situation in as much detail as possible so we can help you quickly.")}
                   maxLength={MESSAGE_MAX}
                 >
                   {(field) => (

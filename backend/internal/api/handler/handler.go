@@ -80,6 +80,13 @@ type Services struct {
 
 	// revisions 4.0: Sign in with Google.
 	GoogleAuth *service.GoogleAuth
+
+	// revisions 5.0: pricing catalog, welcome offer and advisor rate range (§24.1, §24.2).
+	Pricing *service.PricingService
+
+	// revisions 5.0: refund requests (§24.4) and the revenue report (§24.5).
+	Refunds *service.RefundService
+	Revenue *service.RevenueService
 }
 
 // Limits bounds request bodies per upload type.

@@ -9,6 +9,7 @@ import { track } from "@/lib/analytics";
 import { newId } from "@/lib/api/client";
 import { requestsApi } from "@/lib/api/endpoints";
 import type { Service } from "@/lib/api/types";
+import { useRequireAdult } from "@/lib/auth/age-gate"; // revisions 5.0: 18+ age gate (§24.6)
 import { useSession } from "@/lib/auth/session-provider";
 import { applyApiError } from "@/lib/forms/server-errors";
 import { keepFocusOnPress } from "@/lib/forms/submit-press";
@@ -50,6 +51,7 @@ export const ORDER_DATETIME_ROW_CLASS = "grid grid-cols-1 items-start gap-4 sm:g
 export function ServiceOrderForm({ service, advisorName, slug, returnHere }: Props) {
   const { text, locale } = useI18n();
   const { wallet, setWallet } = useSession();
+  const requireAdult = useRequireAdult();
   const toast = useToast();
   const form = useSchemaForm(orderSchema, { defaultValues: emptyOrder });
   const [notice, setNotice] = React.useState("");
@@ -59,6 +61,7 @@ export function ServiceOrderForm({ service, advisorName, slug, returnHere }: Pro
   const needsCredits = form.formState.errors.root?.server?.type === "insufficient_credits";
 
   async function submit(values: OrderValues) {
+    if (!requireAdult()) return;
     setNotice("");
     track("service_order_started", { slug, credits: service.price_credits });
     try {

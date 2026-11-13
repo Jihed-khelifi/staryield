@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import About from "@/components/content/about";
 import Reviews from "@/components/content/reviews";
 import Standards from "@/components/content/standards";
@@ -18,11 +18,18 @@ import {
 } from "@/components/calculators/calculator";
 import { CalculatorArticle } from "@/components/content/article/calculator-article";
 import { Account, type AccountView } from "@/components/account/account";
-import { CreditCheckout } from "@/components/account/credit-checkout";
+import { CreditsRoute } from "@/components/billing/top-up/credits-route"; // revisions 5.0: top-up replaces the old checkout
+// revisions 5.0: 18+ age gate (§24.6).
+import { AgeRestricted } from "@/components/account/age-restricted";
+import { AgeGuard } from "@/lib/auth/age-gate";
 // account settings: one-time e-mail link pages (tokens are read client-side, then stripped).
 import { EmailLinkPage, type EmailLinkAction } from "@/components/account/email-link-page";
 import { LinkTicketPage, MyTicketPage, SupportRequestsPage } from "@/components/support/support-pages";
+// revisions 5.0: public pricing page and the Refund Policy (docs/platform-extensions.md §24.8).
+import RefundPolicy from "@/components/content/refund-policy";
+import { PricingScreen } from "@/components/pricing/pricing-screen";
 import { isLocale } from "@/i18n/config";
+import { isRefundAlias } from "@/lib/legal/refund-aliases"; // revisions 5.1
 import advisors from "@/data/advisors.json";
 import { getDictionary } from "@/i18n/dictionaries";
 import { createTranslateCopy } from "@/i18n/translate-copy";
@@ -36,7 +43,7 @@ const content = {
   disclaimer: Disclaimer,
 };
 // Legal documents are server-rendered from src/content/legal and need the locale.
-const legal = { terms: Terms, privacy: Privacy };
+const legal = { terms: Terms, privacy: Privacy, "refund-policy": RefundPolicy }; // revisions 5.0: refund-policy
 const auth: Record<string, AuthStep> = {
   signup: "email",
   "signup/password": "password",
@@ -82,6 +89,7 @@ export async function generateMetadata({
   if (!isLocale(lang)) return {};
   const text = createTranslateCopy((await getDictionary(lang)).copy);
   const route = screen.join("/");
+  if (screen.length === 1 && isRefundAlias(screen[0])) return { robots: { index: false, follow: false } }; // revisions 5.1: redirect only
   const titles: Record<string, string> = {
     about: "About",
     reviews: "Reviews",
@@ -90,6 +98,8 @@ export async function generateMetadata({
     disclaimer: "Disclaimer",
     terms: "Terms of Use",
     privacy: "Privacy Policy",
+    pricing: "Pricing", // revisions 5.0
+    "refund-policy": "Refund Policy", // revisions 5.0
     contact: "Contact",
     psychics: "Psychics",
     profile: "Profile",
@@ -112,6 +122,7 @@ export async function generateMetadata({
     "cancel-email-change": "Email change",
     "keep-account": "Keep your account",
     "support/requests": "Support requests",
+    "age-restricted": "Account restricted", // revisions 5.0
   };
   const advisor =
     screen[0] === "psychics"
@@ -121,7 +132,7 @@ export async function generateMetadata({
     advisor?.name ?? text(titles[route.replace(/\/results$/, "")] ?? "Home");
   // One-time links: never indexed, and the URL (with its token) is never
   // sent as a referrer.
-  if (route in emailLinks || route === "auth/google")
+  if (route in emailLinks || route === "auth/google" || route === "age-restricted")
     return { title, referrer: "no-referrer", robots: { index: false, follow: false } };
   // Support desk (requester side): signed-in pages and the private link are never indexed;
   // the private link also never leaks its URL as a referrer.
@@ -134,7 +145,15 @@ export async function generateMetadata({
   }
   // The directory is for signed-in customers (visitors are redirected home).
   if (route === "psychics") return { title, robots: { index: false } };
+  // revisions 5.0: the public pricing and refund pages are indexed and described.
+  const description =
+    route === "pricing"
+      ? text("Simple, transparent pricing: start with free minutes, then choose a one-time credit pack. No subscriptions and no automatic top-ups.")
+      : route === "refund-policy"
+        ? text("How refunds work for Staryield credit packs, promotional credits and readings, and how to request one.")
+        : undefined;
   return {
+    ...(description ? { description } : {}),
     title:
       screen.at(-1) === "results" ? `${title} — ${text("Results")}` : title,
     alternates: {
@@ -148,6 +167,8 @@ export default async function ScreenPage({ params }: RouteProps) {
   const { lang, screen } = await params;
   if (!isLocale(lang)) notFound();
   const route = screen.join("/");
+  // revisions 5.1: fallback for the refund aliases (the proxy normally redirects them first), §25.6.
+  if (screen.length === 1 && isRefundAlias(screen[0])) permanentRedirect(`/${lang}/refund-policy`);
   if (route in content) {
     const Content = content[route as keyof typeof content];
     return (
@@ -164,11 +185,15 @@ export default async function ScreenPage({ params }: RouteProps) {
       </PublicFrame>
     );
   }
+  // revisions 5.0: server-rendered from GET /pricing.
+  if (route === "pricing") return <PricingScreen locale={lang} />;
   if (route in auth) return <AuthFlow key={route} step={auth[route]} />;
   if (route in accounts) return <Account key={route} view={accounts[route]} />;
   if (route in emailLinks) return <EmailLinkPage key={route} action={emailLinks[route]} />;
   // Google sign-in: where the API sends the browser back (result in the query, read client-side).
   if (route === "auth/google") return <GoogleReturn key={route} />;
+  // revisions 5.0: the screen of an account restricted to adults (§24.6).
+  if (route === "age-restricted") return <AgeRestricted key={route} />;
   if (route === "contact") return <ContactForm />;
   const support = supportRoute(screen);
   if (support?.kind === "list") return <SupportRequestsPage />;
@@ -186,10 +211,10 @@ export default async function ScreenPage({ params }: RouteProps) {
     return <PsychicProfile key={route} slug={screen[1]} />;
   if (route === "credits")
     return (
-      <>
-        <Account view="overview" />
-        <CreditCheckout />
-      </>
+      // revisions 5.0: top-ups are for adults (§24.6): no date of birth sends the person to the birth step.
+      <AgeGuard>
+        <CreditsRoute />
+      </AgeGuard>
     );
   if (
     screen[0] === "calculators" &&

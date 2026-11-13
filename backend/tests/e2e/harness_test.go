@@ -118,6 +118,11 @@ type env struct {
 
 type option func(*config.Config)
 
+// withMemberships sets STARYIELD_BILLING_MEMBERSHIPS_ENABLED (the suite default is on, §25.1).
+func withMemberships(on bool) option {
+	return func(c *config.Config) { c.Billing.MembershipsEnabled = on }
+}
+
 func newEnv(t *testing.T, opts ...option) *env {
 	t.Helper()
 	cfg, err := config.Load("")
@@ -135,6 +140,9 @@ func newEnv(t *testing.T, opts ...option) *env {
 	cfg.Security.AdminOrigins = []string{adminOrigin}
 	cfg.Log.Level = envOr("STARYIELD_TEST_LOG_LEVEL", "error")
 	cfg.Analytics.FlushInterval = 50 * time.Millisecond
+	// revisions 5.1: production ships with memberships off (§25.1); the suite exercises them
+	// unless a test turns the switch off with withMemberships(false).
+	cfg.Billing.MembershipsEnabled = true
 	for _, o := range opts {
 		o(cfg)
 	}
@@ -335,15 +343,32 @@ func (e *env) registerClient() *client {
 }
 
 // createPsychic creates an advisor via the admin service and signs in.
+// revisions 5.0: admin writes refuse a rate outside the advisor rate range
+// (30-60 by default), but many tests want cheap or dear advisors: the advisor
+// is created at an in-range rate and moved to the wanted one directly, the
+// way a rate set before the range existed would be.
 func (e *env) createPsychic(rate int64) *client {
 	e.t.Helper()
 	slug := uniq("psy")
 	email := slug + "@advisors.example.com"
-	_, err := e.app.Services.Admin.CreatePsychic(context.Background(), service.PsychicInput{
-		Email: &email, Password: ptr(strongPassword), Name: ptr("Advisor " + slug), Slug: &slug, RatePerMinute: &rate,
+	create := rate
+	if rate < 30 || rate > 60 {
+		create = 30
+	}
+	v, err := e.app.Services.Admin.CreatePsychic(context.Background(), service.PsychicInput{
+		Email: &email, Password: ptr(strongPassword), Name: ptr("Advisor " + slug), Slug: &slug, RatePerMinute: &create,
 	})
 	if err != nil {
 		e.t.Fatalf("create psychic: %v", err)
+	}
+	if create != rate {
+		if err := e.app.DB.Exec("UPDATE psychics SET rate_per_minute = ? WHERE user_id = ?", rate, v.ID).Error; err != nil {
+			e.t.Fatalf("set legacy rate: %v", err)
+		}
+		// Any admin edit marks the cached directory stale.
+		if _, err := e.app.Services.Admin.UpdatePsychic(context.Background(), v.ID, service.PsychicInput{Headline: ptr("")}); err != nil {
+			e.t.Fatalf("refresh directory: %v", err)
+		}
 	}
 	return e.login(email, strongPassword)
 }
@@ -439,7 +464,14 @@ func (e *env) login(email, password string) *client {
 
 func ptr[T any](v T) *T { return &v }
 
-// buyCredits purchases the pack with the given credit amount.
+// purchaseConsent is a valid consent for POST /credits/purchases: the policy
+// version dates the buyer accepted (revisions 5.1, §25.2).
+func purchaseConsent() map[string]any {
+	return map[string]any{"terms": "2026-11-13", "privacy": "2026-11-13", "refund": "2026-11-13"}
+}
+
+// buyCredits purchases the standard pack with the given credit amount (the
+// welcome pack is an intro offer with its own rules and is never picked).
 func (c *client) buyCredits(credits int64) service.WalletView {
 	c.e.t.Helper()
 	var packs struct {
@@ -447,10 +479,10 @@ func (c *client) buyCredits(credits int64) service.WalletView {
 	}
 	c.must(http.StatusOK, http.MethodGet, "/api/v1/credit-packs", nil, &packs)
 	for _, p := range packs.Items {
-		if p.Credits == credits {
+		if p.Credits == credits && !strings.HasPrefix(p.Code, "welcome_") {
 			var out service.PurchaseView
 			c.must(http.StatusCreated, http.MethodPost, "/api/v1/credits/purchases", map[string]any{
-				"pack_id": p.ID, "idempotency_key": uniq("purchase-key-"),
+				"pack_id": p.ID, "idempotency_key": uniq("purchase-key-"), "consent": purchaseConsent(),
 			}, &out)
 			return *out.Wallet
 		}
@@ -459,27 +491,30 @@ func (c *client) buyCredits(credits int64) service.WalletView {
 	return service.WalletView{}
 }
 
-// ensurePacks makes sure the reference packs exist in the shared database.
+// ensurePacks makes sure the reference test packs exist in the shared
+// database next to the canonical catalog (revisions 5.0: by code, inactive
+// ones included, so a test that parked them never makes duplicates).
 func (e *env) ensurePacks() {
 	e.t.Helper()
-	packs, err := e.app.Services.Credits.Packs(context.Background())
+	have := map[string]bool{}
+	packs, err := e.app.Services.Pricing.AdminPacks(context.Background())
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	have := map[int64]bool{}
 	for _, p := range packs {
-		have[p.Credits] = true
+		have[p.Code] = true
 	}
 	for i, p := range []struct {
 		credits, cents int64
 	}{{250, 999}, {600, 1999}, {1500, 3999}, {40, 113}} {
-		if have[p.credits] {
+		code := fmt.Sprintf("test_%d", p.credits)
+		if have[code] {
 			continue
 		}
-		name := fmt.Sprintf("Pack %d", p.credits)
-		if _, err := e.app.Services.Admin.CreatePack(context.Background(), service.PackInput{
-			Name: &name, Credits: ptr(p.credits), PriceCents: ptr(p.cents), SortOrder: ptr(i),
-		}, "USD"); err != nil {
+		if _, err := e.app.Services.Pricing.CreatePack(context.Background(), service.PackInput{
+			Code: ptr(code), Name: map[string]string{"en": fmt.Sprintf("Pack %d", p.credits)},
+			Credits: ptr(p.credits), PriceCents: ptr(p.cents), SortOrder: ptr(100 + i),
+		}); err != nil {
 			e.t.Fatal(err)
 		}
 	}

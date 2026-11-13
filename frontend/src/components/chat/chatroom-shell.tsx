@@ -41,6 +41,7 @@ import { ChatFeed, type Announcement, type ChatFeedHandle } from "@/components/c
 import { MessageActionsProvider, type MessageActions } from "@/components/chat/message-actions-context";
 import { ChatHeader, ChatroomTopBar, useEarningsLabel } from "@/components/chat/chat-header";
 import { SessionTools, SwitcherAccount, SwitcherHeader, SwitcherQuickLinks } from "@/components/chat/chat-mobile";
+import { TopUpAdvisorScope, TopUpLink } from "@/components/billing/top-up/top-up-provider"; // revisions 5.0
 import type { ReportIssueTarget } from "@/components/chat/report-issue";
 import { ComposerNote } from "@/components/chat/composer-note";
 import { ChatPushPrompt } from "@/components/chat/push-prompt";
@@ -787,6 +788,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const secondsLeft = secondsUntil(deadline, snap);
   const elapsed = elapsedSeconds(snap);
   const returnPath = `/${locale}/chatroom${slug ? `?reader=${slug}` : ""}`;
+  // revisions 5.0: the top-up opens in place (the chat keeps running) and knows this advisor's rate (§24.7).
+  const topUp = role === "client" && counterpart && rateView.rate > 0 ? { advisorName: counterpart.name, ratePerMinute: rateView.rate } : undefined;
   const shownSession = session ?? summary?.session ?? null;
   const report: ReportIssueTarget | null =
     role === "client" && activeConvId && counterpart
@@ -918,7 +921,9 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                 })
               }
             />
-            <SessionTools role={role} wallet={wallet} free={freeChat} earned={earned} returnPath={returnPath} onOpenDetails={() => setDetailsOpen(true)} report={report} />
+            {/* revisions 5.0: every top-up opened while this conversation is on screen uses this advisor's rate (§24.7). */}
+            <TopUpAdvisorScope advisor={topUp} />
+            <SessionTools role={role} wallet={wallet} free={freeChat} earned={earned} returnPath={returnPath} onOpenDetails={() => setDetailsOpen(true)} report={report} topUp={topUp} />
             {otherSession && role === "client" ? (
               <p className="chat-connection-banner" role="status">
                 {text("You already have a live chat with {value0}.", { value0: otherSession.psychic.name })}{" "}
@@ -930,9 +935,9 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
             {lowBalance !== null && session?.status === "active" && !freeChat ? (
               <p className="chat-connection-banner" role="alert">
                 {text("About {value0} minutes of credit left.", { value0: lowBalance })}{" "}
-                <a className="underline" href={`/${locale}/credits?next=${encodeURIComponent(returnPath)}`} target="_blank" rel="noopener">
+                <TopUpLink className="underline" href={`/${locale}/credits?next=${encodeURIComponent(returnPath)}`} {...topUp}>
                   {text("Top up credits")}
-                </a>
+                </TopUpLink>
               </p>
             ) : null}
             {threadError || thread.error ? (
@@ -1053,7 +1058,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
           <SheetHeader className="pb-0">
             <SheetTitle>{t("chatroom.inbox.title")}</SheetTitle>
           </SheetHeader>
-          <SwitcherAccount role={role} returnPath={returnPath} free={freeChat} onNavigate={() => setInboxOpen(false)} />
+          <SwitcherAccount role={role} returnPath={returnPath} free={freeChat} onNavigate={() => setInboxOpen(false)} topUp={topUp} />
           <SwitcherHeader
             role={role}
             counterpart={counterpart}

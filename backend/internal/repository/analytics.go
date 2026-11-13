@@ -197,6 +197,12 @@ type Overview struct {
 	// revisions 3.0: site settings. Chats sponsored by free mode: kept out
 	// of revenue and credits_spent (they never touch a wallet).
 	Sponsored SponsoredUsage `json:"sponsored"`
+
+	// revisions 5.0 (§24.5): money paid back in the period and what is left of
+	// revenue after it, per currency. revenue_cents is what was charged
+	// (refunded purchases included): a refund is a separate, visible figure.
+	RefundsCents    map[string]int64 `json:"refunds_cents"`
+	NetRevenueCents map[string]int64 `json:"net_revenue_cents"`
 }
 
 // SponsoredUsage totals the sponsored (free mode) chats of a period: chats
@@ -268,8 +274,23 @@ func (r *GormReportRepository) Overview(ctx context.Context, from, to time.Time)
 		return nil, err
 	}
 	if o.RevenueCents, err = r.keyed(ctx, `SELECT currency AS key, COALESCE(sum(price_cents),0) AS count FROM credit_purchases
-		WHERE status = 'succeeded' AND completed_at >= ? AND completed_at < ? GROUP BY currency`, from, to); err != nil {
+		WHERE status IN ('succeeded', 'refunded') AND completed_at >= ? AND completed_at < ? GROUP BY currency`, from, to); err != nil {
 		return nil, err
+	}
+	// revisions 5.0: refunds of credit purchases and net revenue (§24.5).
+	if o.RefundsCents, err = r.keyed(ctx, `SELECT currency AS key, COALESCE(sum(amount_cents),0) AS count FROM payment_transactions
+		WHERE kind = 'refund' AND status = 'succeeded' AND credit_purchase_id IS NOT NULL AND created_at >= ? AND created_at < ?
+		GROUP BY currency`, from, to); err != nil {
+		return nil, err
+	}
+	o.NetRevenueCents = make(map[string]int64, len(o.RevenueCents))
+	for cur, v := range o.RevenueCents {
+		o.NetRevenueCents[cur] = v - o.RefundsCents[cur]
+	}
+	for cur, v := range o.RefundsCents {
+		if _, ok := o.NetRevenueCents[cur]; !ok {
+			o.NetRevenueCents[cur] = -v
+		}
 	}
 	var purchases struct {
 		Purchases        int64
@@ -277,7 +298,7 @@ func (r *GormReportRepository) Overview(ctx context.Context, from, to time.Time)
 		CreditsPurchased int64
 	}
 	if err := conn.Raw(`SELECT count(*) AS purchases, count(DISTINCT user_id) AS paying_clients, COALESCE(sum(credits),0) AS credits_purchased
-		FROM credit_purchases WHERE status = 'succeeded' AND completed_at >= ? AND completed_at < ?`, from, to).Scan(&purchases).Error; err != nil {
+		FROM credit_purchases WHERE status IN ('succeeded', 'refunded') AND completed_at >= ? AND completed_at < ?`, from, to).Scan(&purchases).Error; err != nil {
 		return nil, err
 	}
 	o.Purchases, o.PayingClients, o.CreditsPurchased = purchases.Purchases, purchases.PayingClients, purchases.CreditsPurchased

@@ -16,8 +16,8 @@ const CITY_SWITCH = { en: "Share my birth city with advisors", fr: "Partager ma 
 const OLD_SWITCH = { en: "Share birth details with advisors", fr: "Partager mes données de naissance avec les conseillers", es: "Compartir los datos de nacimiento con los asesores" } as const;
 
 describe("revisions 3.3 legal updates", () => {
-  it.each(locales.flatMap((l) => (["privacy", "terms"] as const).map((d) => [d, l] as const)))("%s/%s is dated 2026-11-09", (d, l) => {
-    expect(legalDocuments[d][l].meta).toMatchObject({ version: "2026-11-09", effective: "2026-11-09", lastUpdated: "2026-11-09" });
+  it.each(locales.flatMap((l) => (["privacy", "terms"] as const).map((d) => [d, l] as const)))("%s/%s is dated 2026-11-13 (re-dated by revisions 5.1)", (d, l) => {
+    expect(legalDocuments[d][l].meta).toMatchObject({ version: "2026-11-13", effective: "2026-11-13", lastUpdated: "2026-11-13" });
   });
 
   it.each(locales)("%s: both documents have the messages-outside-live-readings clause", (l) => {

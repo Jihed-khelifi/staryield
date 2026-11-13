@@ -1,0 +1,485 @@
+/* ---------------------------------------------------------------------------
+   Credit top-up, revisions 5.0 (docs/platform-extensions.md §24.7):
+     Figma 1352:2362 "Credit top-up — Desktop, mobile & states".
+   One dialog for every size: a centred card from 768 px (960–1100 px wide, the
+   pack grid has 3 columns from 1200 px and 2 below), a full-screen sheet on
+   phones. The pack list scrolls above a reserved summary dock (a sibling of
+   the list, never an overlay) with safe-area padding.
+   --------------------------------------------------------------------------- */
+.top-up-dialog {
+  --tu-card: #f7f3eb;
+  --tu-selected: #f0e6cd;
+  --tu-hover: #ebe5d9;
+  --tu-line: var(--warm-gray);
+  --tu-gold: #aa9063;
+  --tu-focus: #4e533d;
+  --tu-text: #26271f;
+  --tu-muted: #505245;
+  position: fixed;
+  inset: 0;
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--tu-card);
+  color: var(--tu-text);
+  font-family: var(--settings-serif);
+  outline: none;
+}
+@media (min-width: 768px) {
+  .top-up-dialog {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(1080px, calc(100vw - 48px));
+    height: auto;
+    max-height: calc(100dvh - 48px);
+    border-radius: 8px;
+    box-shadow: 0 24px 40px rgb(21 16 11 / 0.25);
+  }
+  .top-up-dialog[data-step="pay"] {
+    width: min(640px, calc(100vw - 48px));
+  }
+}
+
+/* Header -------------------------------------------------------------------- */
+.top-up-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 12px 8px 24px;
+}
+.top-up-heading {
+  display: grid;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.top-up-title {
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.25;
+  outline: none;
+}
+.top-up-subtitle {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--tu-muted);
+}
+.top-up-close {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  color: var(--tu-text);
+}
+.top-up-close:hover {
+  background: var(--tu-hover);
+}
+.top-up-close:focus-visible,
+.top-up-back:focus-visible,
+.top-up-dismiss:focus-visible {
+  outline: 3px solid var(--tu-focus);
+  outline-offset: 2px;
+}
+@media (min-width: 768px) {
+  .top-up-header {
+    padding: 20px 24px 4px 32px;
+  }
+  .top-up-title {
+    font-size: 28px;
+  }
+  .top-up-subtitle {
+    font-size: 16px;
+  }
+}
+
+/* Scrolling body --------------------------------------------------------------- */
+.top-up-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 24px;
+}
+@media (min-width: 768px) {
+  .top-up-body {
+    padding: 12px 32px 20px;
+  }
+}
+.top-up-free {
+  margin-bottom: 16px;
+}
+.top-up-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--tu-gold);
+  border-radius: 8px;
+  background: var(--tu-selected);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.top-up-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 0;
+  font-size: 16px;
+}
+
+/* Packs -------------------------------------------------------------------------- */
+.top-up-packs {
+  display: grid;
+  gap: 16px;
+}
+.top-up-pack-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 768px) {
+  .top-up-pack-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1200px) {
+  .top-up-pack-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.top-up-pack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  padding: 16px 20px;
+  border: 1px solid var(--tu-line);
+  border-radius: 8px;
+  background: var(--tu-card);
+  color: var(--tu-text);
+  font: inherit;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+/* Hover, selected (2 px gold) and keyboard focus (3 px dark sage): the border
+   grows inward, so the cards never shift (Figma "Action states"). */
+.top-up-pack:hover {
+  background: var(--tu-hover);
+}
+.top-up-pack[data-state="checked"] {
+  border-color: var(--tu-gold);
+  background: var(--tu-selected);
+  box-shadow: inset 0 0 0 1px var(--tu-gold);
+}
+.top-up-pack:focus-visible {
+  outline: none;
+  border-color: var(--tu-focus);
+  box-shadow: inset 0 0 0 2px var(--tu-focus);
+}
+.top-up-pack-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.top-up-pack-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.top-up-pack-name,
+.top-up-pack-price {
+  font-size: 18px;
+}
+.top-up-pack-credits {
+  font-size: 24px;
+  line-height: 1.3;
+}
+.top-up-pack-minutes {
+  font-size: 14px;
+}
+.top-up-pack-note {
+  font-size: 12px;
+  color: var(--tu-muted);
+}
+.top-up-skeleton {
+  height: 200px;
+  border-radius: 8px;
+}
+.top-up-skeleton-wide {
+  height: 230px;
+}
+
+/* Summary dock ------------------------------------------------------------------ */
+.top-up-dock {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 55dvh;
+  overflow-y: auto;
+  padding: 16px 24px max(16px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--tu-line);
+  background: var(--tu-hover);
+}
+@media (min-width: 768px) {
+  .top-up-dock {
+    gap: 6px;
+    padding: 16px 32px 8px;
+  }
+}
+.top-up-dock-summary {
+  display: grid;
+  gap: 8px;
+}
+.top-up-dock-pack {
+  font-size: 18px;
+}
+.top-up-dock-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  font-size: 24px;
+}
+.top-up-dock-total p:last-child {
+  font-size: 14px;
+  color: var(--tu-muted);
+}
+.top-up-dock-estimate {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--tu-muted);
+}
+@media (min-width: 768px) {
+  .top-up-dock-estimate {
+    font-size: 14px;
+  }
+}
+.top-up-cta {
+  width: 100%;
+  height: 48px;
+  border-radius: 8px;
+  font-size: 16px;
+}
+.top-up-ack {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--tu-muted);
+}
+.top-up-ack a {
+  display: inline-block;
+  min-height: 24px;
+  color: var(--tu-text);
+}
+.top-up-dismiss {
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: center;
+}
+.top-up-dismiss:hover {
+  text-decoration: underline;
+}
+
+/* Step 2: pay ----------------------------------------------------------------------- */
+.top-up-form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.top-up-pay-body {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+.top-up-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  min-height: 44px;
+  padding-right: 8px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.top-up-back:hover {
+  text-decoration: underline;
+}
+.top-up-pay-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--tu-line);
+  border-radius: 8px;
+  background: var(--tu-selected);
+  font-size: 18px;
+}
+.top-up-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.77px;
+  text-transform: uppercase;
+  color: var(--settings-danger-text);
+}
+.top-up-method {
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--settings-line);
+  background: #fbf6e9;
+}
+.top-up-secure {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgb(151 143 110 / 0.16);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--tu-muted);
+}
+.top-up-receipt {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+/* An 18 px box with a 44 px touch target. */
+.top-up-checkbox {
+  position: relative;
+  margin-top: 2px;
+}
+.top-up-checkbox::after {
+  content: "";
+  position: absolute;
+  inset: -13px;
+}
+.top-up-email {
+  display: grid;
+  gap: 7px;
+}
+.top-up-email input[type="email"] {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--settings-line);
+  border-radius: 6px;
+  background: #fbf6e9;
+  font-family: var(--settings-serif);
+  font-weight: 300;
+}
+.top-up-email input[type="email"]:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 1px;
+}
+
+/* Short screens (small phones, landscape): give the list room. The subtitle
+   stays for assistive technology; the dock tightens but keeps every element. */
+@media (max-height: 640px) {
+  .top-up-header {
+    padding: 8px 8px 0 16px;
+  }
+  .top-up-title {
+    font-size: 20px;
+  }
+  .top-up-subtitle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .top-up-body {
+    padding: 8px 16px;
+  }
+  .top-up-dock {
+    gap: 4px;
+    padding: 8px 16px max(8px, env(safe-area-inset-bottom));
+  }
+  .top-up-dock-summary {
+    gap: 2px;
+  }
+  .top-up-dock-pack {
+    font-size: 15px;
+  }
+  .top-up-dock-total {
+    font-size: 20px;
+  }
+  .top-up-cta {
+    height: 44px;
+  }
+  .top-up-ack {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+}
+.top-up-pay-summary p:last-child {
+  white-space: nowrap;
+}
+
+/* Policy agreement (§25.6), shared by the top-up pay step and the membership checkout. */
+.policy-consent {
+  display: grid;
+  gap: 6px;
+}
+.policy-consent-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+/* An 18 px box with a 44 px touch target. */
+.policy-consent-box {
+  position: relative;
+  margin-top: 2px;
+}
+.policy-consent-box::after {
+  content: "";
+  position: absolute;
+  inset: -13px;
+}
+.policy-consent-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.45;
+  cursor: pointer;
+}
+.policy-consent-label a {
+  display: inline-block;
+  min-height: 24px;
+  cursor: pointer;
+}
+.top-up-descriptor,
+.top-up-support {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--tu-muted);
+}
+.top-up-support a {
+  display: inline-block;
+  min-height: 24px;
+  color: var(--tu-text);
+}
+.top-up-cards {
+  color: var(--tu-muted);
+}

@@ -106,7 +106,7 @@ export function ConversationList({
   };
 
   return (
-    <div className={cn("conversation-scroll h-full overflow-y-auto overscroll-contain", className)} onScroll={onScroll} data-testid="inbox" data-variant={variant}>
+    <div className={cn("conversation-scroll relative h-full overflow-y-auto overscroll-contain", className)} onScroll={onScroll} data-testid="inbox" data-variant={variant}>
       <ul aria-label={t("chatroom.inbox.srHeading")} className="flex flex-col gap-2 p-3">
         {rows.map((conversation) => {
           const isActive = conversation.id === activeId;

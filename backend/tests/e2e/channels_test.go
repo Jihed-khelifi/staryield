@@ -76,7 +76,8 @@ func TestNotificationEmailsFollowPreferences(t *testing.T) {
 	// Push-only kinds never e-mail; in-app history keeps everything.
 	e.mail.Reset()
 	e.setPrefs(c.user.ID, map[string]any{"notify_email": true})
-	e.notify(service.NotificationSpec{Kind: service.NotifyPurchase, Data: map[string]any{"credits": 600}, Link: "/profile"}, c.user.ID)
+	// (revisions 5.1: the purchase receipt is billing mail now, so a push-only kind stands in.)
+	e.notify(service.NotificationSpec{Kind: service.NotifyChatRequested, Data: map[string]any{"client_name": "Nova"}, Link: "/chatroom"}, c.user.ID)
 	if msgs := sentTo(e.flushMail(), c.user.Email); len(msgs) != 0 {
 		t.Fatalf("push-only kind e-mailed: %+v", msgs)
 	}

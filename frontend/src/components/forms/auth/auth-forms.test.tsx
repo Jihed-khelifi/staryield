@@ -202,24 +202,103 @@ describe("BirthInfoForm", () => {
     await waitFor(() => expect(api.updateMe).toHaveBeenCalledWith({ birth_date: "1990-03-14", birth_time: "", birth_place_id: "" }));
   });
 
-  it("rejects minors and shows server field errors on the right field", async () => {
+  // revisions 5.0: the API decides who is 18 (docs §24.6). An under-age date is sent,
+  // refused and restricts the account: no retry with another date.
+  it("sends an under-age date to the API and shows the restricted screen instead of the form", async () => {
     const u = userEvent.setup();
+    const reload = vi.fn().mockResolvedValue({ ...user, age_status: "restricted" });
+    session.current = { status: "authenticated", user, setUser, reload };
+    api.updateMe.mockRejectedValue(
+      new ApiError({ code: "validation_failed", message: "bad", status: 422, details: { fields: { birth_date: "You must be at least 18 years old." } } })
+    );
     renderWithI18n(<BirthInfoForm />);
     await u.type(screen.getByRole("textbox", { name: /Day/ }), "01");
     await u.type(screen.getByRole("textbox", { name: "Month" }), "01");
     await u.type(screen.getByRole("textbox", { name: "Year" }), String(new Date().getFullYear() - 10));
     await u.click(screen.getByRole("checkbox", { name: "I don't know my time" }));
     await u.click(submitButton());
-    expect(await screen.findByText("You must be at least 18 years old.")).toBeTruthy();
+    await waitFor(() => expect(api.updateMe).toHaveBeenCalledTimes(1));
+    expect(api.updateMe.mock.calls[0][0].birth_date).toBe(`${new Date().getFullYear() - 10}-01-01`);
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/en/age-restricted"));
+    expect(reload).toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  });
 
-    await u.clear(screen.getByRole("textbox", { name: "Year" }));
-    await u.type(screen.getByRole("textbox", { name: "Year" }), "1990");
+  it("stays on the form when the API refuses the date without restricting (a malformed date)", async () => {
+    const u = userEvent.setup();
+    const reload = vi.fn().mockResolvedValue({ ...user, age_status: "birth_date_required" });
+    session.current = { status: "authenticated", user, setUser, reload };
+    api.updateMe.mockRejectedValue(
+      new ApiError({ code: "validation_failed", message: "bad", status: 422, details: { fields: { birth_date: "Enter a valid birth date that is not in the future." } } })
+    );
+    renderWithI18n(<BirthInfoForm />);
+    await fillDate(u, "");
+    await u.click(screen.getByRole("checkbox", { name: "I don't know my time" }));
+    await u.click(submitButton());
+    expect(await screen.findByText("Enter a valid birth date that is not in the future.")).toBeTruthy();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("shows server field errors on the right field", async () => {
+    const u = userEvent.setup();
+    renderWithI18n(<BirthInfoForm />);
+    await fillDate(u);
     api.updateMe.mockRejectedValue(
       new ApiError({ code: "validation_failed", message: "bad", status: 422, details: { fields: { birth_place_id: "Choose a place from the list." } } })
     );
+    await u.type(screen.getByRole("combobox"), "Par");
+    await u.click(await screen.findByRole("option", { name: "Paris, Île-de-France, France" }));
     await u.click(submitButton());
     expect(await screen.findByText("Choose a place from the list.")).toBeTruthy();
     expect(screen.getByRole("combobox").getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("explains that Staryield is for adults and why the date is needed", () => {
+    renderWithI18n(<BirthInfoForm />);
+    expect(screen.getByTestId("birth-age-notice").textContent).toBe(
+      "Staryield is for adults 18 and over. Your date of birth confirms your eligibility and powers your chart."
+    );
+  });
+
+  describe("coming from a gated page (?next=)", () => {
+    afterEach(() => window.history.replaceState(null, "", "/"));
+
+    async function save(u: ReturnType<typeof userEvent.setup>) {
+      api.updateMe.mockResolvedValue({ ...user, age_status: "adult", profile: { birth_date: "1990-03-14" } });
+      await fillDate(u, "");
+      await u.click(screen.getByRole("checkbox", { name: "I don't know my time" }));
+      await u.click(submitButton());
+    }
+
+    it("returns to the page the person was heading to instead of the sign-up offer", async () => {
+      window.history.replaceState(null, "", `/en/signup/birth?next=${encodeURIComponent("/en/chatroom?reader=theo")}`);
+      renderWithI18n(<BirthInfoForm />);
+      await save(userEvent.setup());
+      await waitFor(() => expect(router.push).toHaveBeenCalledWith("/en/chatroom?reader=theo"));
+      expect(router.push).not.toHaveBeenCalledWith("/en/signup/offer");
+    });
+
+    it.each(["https://evil.example/x", "//evil.example", "/fr/chatroom"])("ignores the unsafe next %s", async (next) => {
+      window.history.replaceState(null, "", `/en/signup/birth?next=${encodeURIComponent(next)}`);
+      renderWithI18n(<BirthInfoForm />);
+      await save(userEvent.setup());
+      await waitFor(() => expect(router.push).toHaveBeenCalledWith("/en/signup/offer"));
+    });
+
+    it("keeps the next when a signed-out visitor is sent to log in first", () => {
+      window.history.replaceState(null, "", `/en/signup/birth?next=${encodeURIComponent("/en/credits")}`);
+      session.current = { status: "anonymous", user: null, setUser };
+      renderWithI18n(<BirthInfoForm />);
+      expect(router.replace).toHaveBeenCalledWith(
+        `/en/login?next=${encodeURIComponent(`/en/signup/birth?next=${encodeURIComponent("/en/credits")}`)}`
+      );
+    });
+  });
+
+  it("sends an account that is already restricted to the restricted screen", () => {
+    session.current = { status: "authenticated", user: { ...user, age_status: "restricted" }, setUser };
+    renderWithI18n(<BirthInfoForm />);
+    expect(router.replace).toHaveBeenCalledWith("/en/age-restricted");
   });
 
   it("sends signed-out visitors to log in", () => {
@@ -268,6 +347,32 @@ describe("LoginForm", () => {
     await signIn(u);
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/en/credits"));
     expect(api.login).toHaveBeenCalledWith("jane@example.com", "Secret-pass1");
+  });
+
+  // revisions 5.0: the age comes from the sign-up or the login (docs §24.6), no pop-up.
+  it("sends an account without a birth date to the birth step, then on to where it was going", async () => {
+    const u = userEvent.setup();
+    window.history.replaceState(null, "", "/en/login?next=%2Fen%2Fcredits");
+    api.login.mockResolvedValue({ user: { ...user, age_status: "birth_date_required" } });
+    renderWithI18n(<LoginForm />);
+    await signIn(u);
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/en/signup/birth?next=${encodeURIComponent("/en/credits")}`));
+  });
+
+  it("sends a restricted account to the restricted screen", async () => {
+    const u = userEvent.setup();
+    api.login.mockResolvedValue({ user: { ...user, age_status: "restricted" } });
+    renderWithI18n(<LoginForm />);
+    await signIn(u);
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/en/age-restricted"));
+  });
+
+  it("lets an adult through as before", async () => {
+    const u = userEvent.setup();
+    api.login.mockResolvedValue({ user: { ...user, age_status: "adult" } });
+    renderWithI18n(<LoginForm />);
+    await signIn(u);
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/en/profile"));
   });
 });
 

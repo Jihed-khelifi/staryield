@@ -1946,6 +1946,20 @@
     "sha256": "5cb693ca51bbb81e68cf7b2c7fd32865f8b8c386d0bb4b4324b60bb5073c7e64"
   },
   {
+    "key": "assets/payments/mastercard-d3d09ebf1c.svg",
+    "url": "https://assets.staryield.net/assets/payments/mastercard-d3d09ebf1c.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 3246,
+    "sha256": "d3d09ebf1c76e16650bad22b267bd1ed2c48440ffb16027e8d8b7f5fb441407b"
+  },
+  {
+    "key": "assets/payments/visa-52743e9957.svg",
+    "url": "https://assets.staryield.net/assets/payments/visa-52743e9957.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 1383,
+    "sha256": "52743e9957faf04644fdde6b9cecde4b51387f23c4f65a41f7d769cf422b5332"
+  },
+  {
     "key": "assets/planets/v2/ascendant-3d5fd3fdd8.svg",
     "url": "https://assets.staryield.net/assets/planets/v2/ascendant-3d5fd3fdd8.svg",
     "contentType": "image/svg+xml",

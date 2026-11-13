@@ -16,6 +16,9 @@ import { useOwnStatus } from "@/components/psychic/use-own-status";
 import { ReportIssueButton, type ReportIssueTarget } from "@/components/chat/report-issue";
 import { ReaderAvatar } from "@/components/chat/reader-avatar";
 import { RatePrice } from "@/components/chat/rate-price";
+// revisions 5.0: the balance pills open the top-up in place, so the live chat is not left (§24.7).
+import { TopUpLink } from "@/components/billing/top-up/top-up-provider";
+import type { TopUpAdvisor } from "@/lib/billing/top-up";
 import type { RateView } from "@/components/chat/chat-model";
 
 const statusCopy: Record<string, string> = {
@@ -44,6 +47,7 @@ export function SessionTools({
   onOpenDetails,
   free = false,
   report,
+  topUp,
 }: {
   role: "client" | "psychic";
   wallet: Wallet | null;
@@ -55,6 +59,8 @@ export function SessionTools({
   free?: boolean;
   /** Clients with a conversation: the "Report an issue" button. */
   report?: ReportIssueTarget | null;
+  /** revisions 5.0: the advisor and rate the top-up dialog uses for its minute estimate. */
+  topUp?: TopUpAdvisor;
 }) {
   const { text, locale } = useI18n();
   return (
@@ -64,14 +70,15 @@ export function SessionTools({
           <strong>{text("Free chat")}</strong>
         </span>
       ) : role === "client" ? (
-        <Link
+        <TopUpLink
           href={`/${locale}/credits?next=${encodeURIComponent(returnPath)}`}
           className="chat-credit-pill"
           aria-label={text("Balance: {value0} credits. Top up credits", { value0: (wallet?.balance ?? 0).toLocaleString(locale) })}
+          {...topUp}
         >
           <strong>{(wallet?.balance ?? 0).toLocaleString(locale)}</strong>{" "}
           <span>{text("credits")}</span>
-        </Link>
+        </TopUpLink>
       ) : earned ? (
         <span className="chat-credit-pill" data-testid="session-earnings-pill">
           <strong>{earned}</strong>
@@ -96,7 +103,20 @@ export function SessionTools({
  * signed in, the client's balance or the advisor's wallet and availability,
  * and the notification bell (it opens its own sheet above the drawer).
  */
-export function SwitcherAccount({ role, returnPath, free = false, onNavigate }: { role: "client" | "psychic"; returnPath: string; free?: boolean; onNavigate?: () => void }) {
+export function SwitcherAccount({
+  role,
+  returnPath,
+  free = false,
+  onNavigate,
+  topUp,
+}: {
+  role: "client" | "psychic";
+  returnPath: string;
+  free?: boolean;
+  onNavigate?: () => void;
+  /** revisions 5.0: the advisor and rate the top-up dialog uses for its minute estimate. */
+  topUp?: TopUpAdvisor;
+}) {
   const { text, locale } = useI18n();
   const { user, wallet } = useSession();
   if (!user) return null;
@@ -118,16 +138,17 @@ export function SwitcherAccount({ role, returnPath, free = false, onNavigate }: 
             <strong>{text("Free chat")}</strong>
           </span>
         ) : role === "client" ? (
-          <Link
+          <TopUpLink
             href={`/${locale}/credits?next=${encodeURIComponent(returnPath)}`}
             onClick={onNavigate}
             className="chat-credit-pill"
             data-testid="drawer-balance-pill"
             aria-label={text("Balance: {value0} credits. Top up credits", { value0: balance })}
+            {...topUp}
           >
             <strong>{balance}</strong>{" "}
             <span>{text("credits")}</span>
-          </Link>
+          </TopUpLink>
         ) : (
           <>
             <WalletPill className="chat-wallet-pill" onNavigate={onNavigate} />

@@ -85,7 +85,7 @@ const content: ArticleContent = {
           items: [
             {
               q: "Et si je ne connais pas mon heure exacte de naissance ?",
-              a: "Si vous ne connaissez pas votre heure de naissance, sélectionnez l’option « Heure inconnue » dans notre calculateur. Le moteur calculera votre thème pour 12 h 00 (midi), heure locale. Vous obtiendrez ainsi des positions exactes des planètes par signe (comme vos signes du Soleil et de Vénus), mais votre signe ascendant et les cuspides précises des maisons ne seront pas calculés.",
+              a: "Si vous ne connaissez pas votre heure de naissance, sélectionnez l’option « Heure inconnue » dans notre calculateur. Le moteur calculera votre thème pour 12 h 00 (midi), heure locale. Vous obtiendrez ainsi des positions des planètes par signe (comme vos signes du Soleil et de Vénus), mais votre signe ascendant et les cuspides précises des maisons ne seront pas calculés.",
             },
             {
               q: "Qu’est-ce qu’un aspect dans un thème natal ?",

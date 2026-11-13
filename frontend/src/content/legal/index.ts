@@ -10,6 +10,10 @@ import privacyFr from "@/content/legal/privacy/fr";
 import termsEn from "@/content/legal/terms/en";
 import termsEs from "@/content/legal/terms/es";
 import termsFr from "@/content/legal/terms/fr";
+// revisions 5.0: Refund Policy.
+import refundEn from "@/content/legal/refund/en";
+import refundEs from "@/content/legal/refund/es";
+import refundFr from "@/content/legal/refund/fr";
 
 /**
  * Legal documents are imported only by server components, so their text is
@@ -21,6 +25,8 @@ export const legalDocuments: Record<
 > = {
   privacy: { en: privacyEn, es: privacyEs, fr: privacyFr },
   terms: { en: termsEn, es: termsEs, fr: termsFr },
+  // revisions 5.0
+  refund: { en: refundEn, es: refundEs, fr: refundFr },
 };
 
 export function getLegalDocument(

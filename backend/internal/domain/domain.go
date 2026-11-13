@@ -66,8 +66,11 @@ type User struct {
 	// (the grace period during which it can still be cancelled).
 	ClosureScheduledAt *time.Time
 	DeletedAt          *time.Time
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	// revisions 5.0: 18+ age gate (§24.6). See AgeStatusOf.
+	AdultConfirmedAt *time.Time
+	AgeRestrictedAt  *time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 func (User) TableName() string { return "users" }
@@ -401,8 +404,16 @@ type CreditPack struct {
 	Active     bool      `gorm:"not null"`
 	Featured   bool      `gorm:"not null"`
 	SortOrder  int       `gorm:"not null"`
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	// revisions 5.0: pricing catalog (§24.1).
+	Code           string `gorm:"not null"`
+	Kind           string `gorm:"not null"`
+	NameL10n       L10n   `gorm:"column:name_l10n;type:jsonb;not null"`
+	TaglineL10n    L10n   `gorm:"column:tagline_l10n;type:jsonb;not null"`
+	LabelL10n      L10n   `gorm:"column:label_l10n;type:jsonb;not null"`
+	Reference      bool   `gorm:"not null"`
+	NewClientsOnly bool   `gorm:"not null"`
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 func (CreditPack) TableName() string { return "credit_packs" }
@@ -435,6 +446,14 @@ type CreditPurchase struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	CompletedAt    *time.Time
+	// revisions 5.1: consent evidence (migration 0030, §25.2). Nil before 5.1.
+	ConsentTermsVersion   *string
+	ConsentPrivacyVersion *string
+	ConsentRefundVersion  *string
+	ConsentAt             *time.Time
+	ConsentIPHash         *string
+	ConsentUserAgent      *string
+	// end revisions 5.1
 }
 
 func (CreditPurchase) TableName() string { return "credit_purchases" }

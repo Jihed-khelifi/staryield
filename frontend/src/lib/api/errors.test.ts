@@ -2,6 +2,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, errorCopy, errorMessage, toApiError, unreachableCopy } from "@/lib/api/errors";
+import copyEn from "@/i18n/dictionaries/copy-en.json";
+import copyEs from "@/i18n/dictionaries/copy-es.json";
+import copyFr from "@/i18n/dictionaries/copy-fr.json";
 
 describe("ApiError", () => {
   it("normalizes thrown values", () => {
@@ -24,6 +27,49 @@ describe("ApiError", () => {
   it("has user copy for every error code and falls back safely", () => {
     expect(errorMessage(new ApiError({ code: "insufficient_credits", message: "server text" }))).toBe(errorCopy.insufficient_credits);
     expect(errorMessage(new ApiError({ code: "something_new", message: "x" }))).toBe(errorCopy.internal_error);
+  });
+});
+
+describe("revisions 5.0 codes (§24.10)", () => {
+  it.each([
+    ["offer_unavailable", "The Welcome Pack is no longer available. Choose another pack to continue."],
+    ["refund_request_exists", "You already have an open refund request for this payment."],
+    ["refund_not_eligible", "This payment can't be refunded from here. Contact support if you think this is a mistake."],
+  ])("%s has its own copy", (code, copy) => {
+    expect(errorMessage(new ApiError({ code, message: "server text", status: 409 }))).toBe(copy);
+  });
+
+  it("none of them is retryable: the same request would fail the same way", () => {
+    for (const code of ["offer_unavailable", "refund_request_exists", "refund_not_eligible"]) expect(new ApiError({ code, message: "x", status: 409 }).retryable).toBe(false);
+  });
+});
+
+// revisions 5.0: 18+ age gate (docs §24.6).
+describe("age-gate error codes", () => {
+  it("have their own copy, not the generic fallback", () => {
+    const required = errorMessage(new ApiError({ code: "birth_date_required", message: "x", status: 403 }));
+    const restricted = errorMessage(new ApiError({ code: "age_restricted", message: "x", status: 403 }));
+    expect(required).toBe("Enter your date of birth to continue. Staryield is for adults 18 and over.");
+    expect(restricted).toContain("restricted");
+    expect(restricted).toContain("Contact support");
+    expect(required).not.toBe(errorCopy.internal_error);
+    expect(restricted).not.toBe(errorCopy.internal_error);
+  });
+
+  it("are translated into every language", () => {
+    for (const code of ["birth_date_required", "age_restricted"]) {
+      const english = errorCopy[code];
+      for (const copy of [copyEn, copyFr, copyEs] as Record<string, string>[]) expect(copy[english]).toBeTruthy();
+      expect((copyFr as Record<string, string>)[english]).not.toBe(english);
+      expect((copyEs as Record<string, string>)[english]).not.toBe(english);
+    }
+  });
+
+  it("are not retryable and keep the API's next step", () => {
+    const e = new ApiError({ code: "birth_date_required", message: "x", status: 403, details: { next: "/signup/birth" } });
+    expect(e.retryable).toBe(false);
+    expect(e.details?.next).toBe("/signup/birth");
+    expect(new ApiError({ code: "age_restricted", message: "x", status: 403 }).retryable).toBe(false);
   });
 });
 

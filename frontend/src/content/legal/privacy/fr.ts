@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-09",
-    "effective": "2026-11-09",
-    "lastUpdated": "2026-11-09",
+    "version": "2026-11-13",
+    "effective": "2026-11-13",
+    "lastUpdated": "2026-11-13",
     "badge": "ACCORD DE CONFIDENTIALITÉ STARYIELD",
     "title": "Politique de confidentialité"
   },
@@ -45,7 +45,7 @@ const content: LegalDocumentContent = {
     },
     {
       "type": "p",
-      "text": "EN UTILISANT LES SERVICES, VOUS NOUS PROMETTEZ QUE (I) VOUS AVEZ LU, COMPRIS ET ACCEPTÉ LA PRÉSENTE POLITIQUE DE CONFIDENTIALITÉ, ET (II) VOUS AVEZ AU MOINS 18 ANS (OU QUE VOTRE PARENT OU TUTEUR A LU ET ACCEPTÉ LA PRÉSENTE POLITIQUE DE CONFIDENTIALITÉ POUR VOUS). Si vous n’êtes pas d’accord ou si vous ne pouvez pas faire cette promesse, vous ne devez pas utiliser les Services. Dans ce cas, vous devez (a) fermer votre compte depuis les paramètres de votre compte dans l’Application, (b) résilier tout abonnement Premium actif dans les paramètres de votre compte et (c) cesser d’utiliser les Services."
+      "text": "EN UTILISANT LES SERVICES, VOUS NOUS PROMETTEZ QUE (I) VOUS AVEZ LU, COMPRIS ET ACCEPTÉ LA PRÉSENTE POLITIQUE DE CONFIDENTIALITÉ, ET (II) VOUS AVEZ AU MOINS 18 ANS (OU QUE VOTRE PARENT OU TUTEUR A LU ET ACCEPTÉ LA PRÉSENTE POLITIQUE DE CONFIDENTIALITÉ POUR VOUS). Si vous n’êtes pas d’accord ou si vous ne pouvez pas faire cette promesse, vous ne devez pas utiliser les Services. Dans ce cas, vous devez (a) fermer votre compte depuis les paramètres de votre compte dans l’Application et (b) cesser d’utiliser les Services."
     },
     {
       "type": "p",
@@ -105,7 +105,31 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Données de paiement. Lorsque vous achetez des crédits ou un abonnement Premium, vous saisissez les données de votre carte dans des champs hébergés par notre prestataire de paiement, et non sur nos serveurs. Nous ne recevons ni ne conservons jamais le numéro complet de votre carte ni son code de sécurité. Le prestataire nous transmet un jeton sécurisé représentant votre moyen de paiement, accompagné de la marque de la carte, des quatre derniers chiffres et de la date d’expiration, afin que vous puissiez réutiliser une carte enregistrée, ainsi que la date, l’heure, le montant et le résultat de chaque paiement."
+          "text": "Données de paiement. Lorsque vous achetez des crédits, vous saisissez les données de votre carte dans des champs hébergés par notre prestataire de paiement, et non sur nos serveurs. Nous ne recevons ni ne conservons jamais le numéro complet de votre carte ni son code de sécurité. Le prestataire nous transmet un jeton sécurisé représentant votre moyen de paiement, accompagné de la marque de la carte, des quatre derniers chiffres et de la date d’expiration, afin que vous puissiez réutiliser une carte enregistrée, ainsi que la date, l’heure, le montant et le résultat de chaque paiement."
+        },
+        {
+          "type": "p",
+          "text": "Registres de facturation et lots de crédits. Pour chaque achat de crédits, nous conservons un enregistrement de la transaction, du pack acheté, du montant payé et de sa devise. Nous conservons aussi un enregistrement de chaque lot de Crédits de votre Solde, indiqué comme Crédits achetés ou bonus et précisant combien restent inutilisés, afin que les Crédits soient utilisés dans l’ordre décrit dans nos Conditions et que les remboursements soient calculés correctement. Ces enregistrements font partie de nos registres de facturation."
+        },
+        {
+          "type": "p",
+          "text": "Données du moyen de paiement et règles des réseaux de cartes. Pour chaque achat, nous conservons la marque de la carte et ses quatre derniers chiffres (indiqués sur votre reçu), la référence du paiement chez le prestataire de paiement, ainsi que la date, l’heure, le montant et le résultat du paiement. Nous utilisons ces données pour émettre des reçus et des remboursements, répondre aux litiges de paiement et respecter les règles des réseaux de cartes (comme Visa et Mastercard) et de nos prestataires de paiement."
+        },
+        {
+          "type": "p",
+          "text": "Registre de consentement à l’achat. Avant de payer, vous confirmez que vous acceptez nos Conditions d’utilisation, notre Politique de confidentialité et notre Politique de remboursement et d’annulation. Pour chaque achat, nous conservons la version (la date) de chacun de ces documents que vous avez acceptée, l’heure de votre acceptation, un hachage unidirectionnel de votre adresse IP (calculé avec une clé secrète, il ne peut pas être reconverti en adresse) et l’agent utilisateur de votre navigateur (le nom et la version de votre navigateur et de votre appareil). Nous conservons cet enregistrement avec le registre de facturation de l’achat comme preuve des conditions que vous avez acceptées, afin de pouvoir répondre aux litiges de paiement et aux rétrofacturations. Les versions des documents et l’heure d’acceptation figurent dans l’export de vos données."
+        },
+        {
+          "type": "p",
+          "text": "Contrôle de la carte pour l’offre de bienvenue. Pour faire respecter la limite d’un pack de bienvenue par moyen de paiement, lorsque vous achetez le pack de bienvenue, nous demandons à notre prestataire de paiement une empreinte de votre carte et n’en conservons qu’un hachage unidirectionnel à clé. Nous ne conservons jamais votre numéro de carte ni l’empreinte elle-même, et le hachage ne permet de retrouver ni l’un ni l’autre. Nous l’utilisons uniquement pour reconnaître une carte déjà utilisée pour l’offre."
+        },
+        {
+          "type": "p",
+          "text": "Demandes de remboursement. Si vous demandez un remboursement, nous conservons la transaction et le pack concernés, les Crédits utilisés et restants, le motif que vous indiquez et les détails que vous écrivez, le statut de votre demande et la manière dont elle a été traitée, y compris tout remboursement ou Crédits de courtoisie. Si vous envoyez votre demande par e-mail, nous l’enregistrons de la même manière."
+        },
+        {
+          "type": "p",
+          "text": "Contrôle de l’âge. Nous utilisons la date de naissance que vous indiquez à l’inscription pour déterminer si vous avez au moins 18 ans. Nous conservons un indicateur précisant que vous êtes confirmé comme adulte ou, si la date de naissance indiquait que vous avez moins de 18 ans, que votre compte est restreint ; les comptes restreints sont examinés par notre équipe (voir la Section 6)."
         },
         {
           "type": "h3",
@@ -165,7 +189,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Informations visibles par votre conseiller. Pendant une conversation, votre conseiller voit une fiche client indiquant votre prénom ou pseudonyme, votre photo de profil, votre statut de connexion, votre pays, votre âge, votre date de naissance complète, votre signe solaire et les signes de vos autres positions natales (votre signe lunaire uniquement s’il est certain d’après votre date et votre heure de naissance, et les degrés, les maisons et votre ascendant uniquement si vous avez indiqué une heure et un lieu de naissance), votre horoscope du jour ainsi que le nombre et la durée de vos lectures précédentes avec lui. Votre date de naissance est toujours affichée aux conseillers avec lesquels vous échangez, sous votre nom dans la conversation et dans le panneau client, car les lectures en dépendent ; nous procédons ainsi pour exécuter notre contrat avec vous, à savoir fournir la lecture que vous demandez. Votre ville de naissance n’est affichée que si vous activez « Partager ma ville de naissance avec les conseillers » dans vos préférences de confidentialité (option désactivée par défaut) ; vous pouvez la désactiver à tout moment. Nous ne montrons jamais aux conseillers votre adresse e-mail, votre solde de crédits, vos achats, votre abonnement, ni votre heure exacte ou vos coordonnées de naissance."
+          "text": "Informations visibles par votre conseiller. Pendant une conversation, votre conseiller voit une fiche client indiquant votre prénom ou pseudonyme, votre photo de profil, votre statut de connexion, votre pays, votre âge, votre date de naissance complète, votre signe solaire et les signes de vos autres positions natales (votre signe lunaire uniquement s’il est certain d’après votre date et votre heure de naissance, et les degrés, les maisons et votre ascendant uniquement si vous avez indiqué une heure et un lieu de naissance), votre horoscope du jour ainsi que le nombre et la durée de vos lectures précédentes avec lui. Votre date de naissance est toujours affichée aux conseillers avec lesquels vous échangez, sous votre nom dans la conversation et dans le panneau client, car les lectures en dépendent ; nous procédons ainsi pour exécuter notre contrat avec vous, à savoir fournir la lecture que vous demandez. Votre ville de naissance n’est affichée que si vous activez « Partager ma ville de naissance avec les conseillers » dans vos préférences de confidentialité (option désactivée par défaut) ; vous pouvez la désactiver à tout moment. Nous ne montrons jamais aux conseillers votre adresse e-mail, votre solde de crédits, vos achats, ni votre heure exacte ou vos coordonnées de naissance."
         },
         {
           "type": "p",
@@ -231,7 +255,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Abonnement et facturation. Si vous souscrivez un abonnement Premium, nous conservons votre formule, son statut et ses dates de renouvellement, vos moyens de paiement enregistrés (sous forme de jetons, avec la marque de la carte, les quatre derniers chiffres et la date d’expiration), vos factures ainsi que l’historique de vos paiements, remboursements et crédits attribués."
+          "text": "Facturation. Nous conservons vos moyens de paiement enregistrés (sous forme de jetons, avec la marque de la carte, les quatre derniers chiffres et la date d’expiration), vos reçus ainsi que l’historique de vos paiements, remboursements et crédits attribués."
         },
         {
           "type": "p",
@@ -332,7 +356,7 @@ const content: LegalDocumentContent = {
           ],
           "rows": [
             [
-              "Fournir les Services et gérer votre compte, y compris les thèmes natals, les horoscopes, les calculateurs, les lectures en direct, les lectures personnalisées et votre abonnement Premium",
+              "Fournir les Services et gérer votre compte, y compris les thèmes natals, les horoscopes, les calculateurs, les lectures en direct et les lectures personnalisées",
               "Identifiants; Données d’inscription et de profil; Données de naissance; Données de communication; Données de paiement; Compte, appareils et préférences",
               "Exécution d’un contrat avec vous"
             ],
@@ -357,7 +381,7 @@ const content: LegalDocumentContent = {
               "Exécution d’un contrat avec vous; Votre consentement"
             ],
             [
-              "Traiter les paiements, les abonnements, les remboursements et les rétrofacturations, et acheminer chaque paiement vers le prestataire de paiement approprié",
+              "Traiter les paiements, les remboursements et les rétrofacturations, et acheminer chaque paiement vers le prestataire de paiement approprié",
               "Identifiants; Données de paiement; Données relatives à l’appareil et à la localisation (pays); Données d’activité en ligne",
               "Exécution d’un contrat avec vous; Obligation légale; Intérêt légitime (voir la description)"
             ],
@@ -400,6 +424,26 @@ const content: LegalDocumentContent = {
               "Respecter nos obligations légales",
               "Toutes les catégories",
               "Obligation légale"
+            ],
+            [
+              "Pour traiter les achats de crédits, tenir les registres de facturation et les lots de crédits, et traiter les demandes de remboursement",
+              "Données de paiement ; Registres de facturation et lots de crédits ; Demandes de remboursement",
+              "Exécution d’un contrat avec vous ; Obligation légale (registres comptables et fiscaux)"
+            ],
+            [
+              "Pour faire respecter la limite d’un pack de bienvenue par client et par moyen de paiement",
+              "Contrôle de la carte pour l’offre de bienvenue",
+              "Intérêt légitime (empêcher l’utilisation répétée d’une offre unique)"
+            ],
+            [
+              "Pour confirmer que les utilisateurs sont majeurs (18 ans et plus) et examiner les comptes restreints",
+              "Données d’inscription et de profil (date de naissance) ; Contrôle de l’âge",
+              "Intérêt légitime (réserver les Services aux adultes, comme l’exigent nos Conditions) ; Obligation légale le cas échéant"
+            ],
+            [
+              "Conserver la preuve des conditions acceptées lors de chaque achat et répondre aux litiges de paiement et aux rétrofacturations",
+              "Registre de consentement à l’achat ; Registres de facturation et lots de crédits ; Données du moyen de paiement et règles des réseaux de cartes",
+              "Intérêt légitime (voir la description)"
             ]
           ]
         },
@@ -418,7 +462,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Lors du traitement des paiements, des remboursements et des rétrofacturations : pour protéger notre entreprise contre les réclamations frauduleuses ; prendre des décisions éclairées et efficaces concernant les demandes de remboursement."
+          "text": "Lors du traitement des paiements, des remboursements et des rétrofacturations : pour protéger notre entreprise contre les réclamations frauduleuses ; prendre des décisions éclairées et efficaces concernant les demandes de remboursement ; conserver la preuve des conditions que vous avez acceptées lors de chaque achat, afin de répondre aux litiges de paiement et de respecter les règles des réseaux de cartes."
         },
         {
           "type": "p",
@@ -472,9 +516,9 @@ const content: LegalDocumentContent = {
           "type": "ul",
           "items": [
             "Hébergement, stockage et diffusion : nous utilisons Cloudflare pour héberger notre site web, stocker les images téléversées et les exports de données dans le stockage d’objets Cloudflare R2, diffuser les contenus et protéger les Services contre les attaques malveillantes. Nos serveurs d’applications et nos bases de données fonctionnent sur Railway.",
-            "Envoi d’e-mails : nous utilisons Cloudflare Email Service pour envoyer des e-mails transactionnels, tels que les messages de sécurité du compte, les reçus, les avis relatifs à l’abonnement et les notifications d’export de données. Nous ne l’utilisons pas pour envoyer des e-mails marketing.",
+            "Envoi d’e-mails : nous utilisons Cloudflare Email Service pour envoyer des e-mails transactionnels, tels que les messages de sécurité du compte, les reçus et les notifications d’export de données. Nous ne l’utilisons pas pour envoyer des e-mails marketing.",
             "Notifications push : si vous activez les notifications push, elles sont distribuées par le service push de votre navigateur (par exemple Google, Mozilla, Apple ou Microsoft). Le contenu de chaque notification est chiffré afin que le service push ne puisse pas le lire.",
-            "Traitement des paiements : les paiements par carte des crédits et des abonnements sont traités par des prestataires de paiement tiers. Selon votre pays, votre devise, votre compte et le produit acheté, un paiement peut être traité par Stripe ou par un autre prestataire de cartes ; vous saisissez les données de votre carte directement auprès du prestataire, qui ne nous transmet qu’un jeton de paiement et des informations limitées sur la carte. Les retraits des conseillers sont versés par virement bancaire ou PayPal.",
+            "Traitement des paiements : les paiements par carte des crédits sont traités par des prestataires de paiement tiers. Selon votre pays, votre devise, votre compte et le produit acheté, un paiement peut être traité par Stripe ou par un autre prestataire de cartes ; vous saisissez les données de votre carte directement auprès du prestataire, qui ne nous transmet qu’un jeton de paiement et des informations limitées sur la carte. Les retraits des conseillers sont versés par virement bancaire ou PayPal.",
             "Données de lieux : nous utilisons la base de données géographique GeoNames (CC BY 4.0) pour suggérer des lieux de naissance. Nous hébergeons nous-mêmes une copie de cette base de données, de sorte que vos recherches ne sont pas transmises à GeoNames.",
             "Statistiques : nos statistiques et nos rapports d’erreurs sont internes et fonctionnent sur nos propres systèmes. Nous n’utilisons pas d’outils tiers de statistiques, d’enregistrement de sessions ou de publicité. Le widget d’avis Trustpilot décrit ci-dessous est le seul contenu tiers que nous intégrons à nos pages.",
             "Google (connexion) : si vous choisissez de créer un compte ou de vous connecter avec votre compte Google, Google intervient comme fournisseur d’identité. Il nous transmet l’identifiant de votre compte Google, votre adresse e-mail et l’indication qu’il a vérifié ou non cette adresse ; nous n’envoyons à Google rien concernant vos lectures, vos achats ou vos messages. Google apprend que vous avez utilisé votre compte Google pour vous connecter à Staryield et traite cette information conformément à sa propre politique de confidentialité. Google n’intervient pas si vous vous connectez avec votre adresse e-mail et votre mot de passe.",
@@ -586,7 +630,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Vous pouvez télécharger une copie de vos données personnelles à tout moment dans les [paramètres de votre compte](/profile/settings), rubrique Données et confidentialité. Nous préparons un fichier ZIP contenant votre compte et votre profil, vos préférences et consentements, vos appareils connectés, vos modes de connexion (par exemple l’adresse e-mail d’un compte Google associé), vos achats, votre abonnement et vos transactions, l’historique de vos crédits, vos conversations (avec les réponses et les mentions « J’aime ») et les images que vous avez téléversées, vos messages enregistrés, vos notifications et vos évaluations. Lorsqu’il est prêt, nous vous prévenons dans l’application et par e-mail ; le lien de téléchargement ne peut être utilisé qu’une fois et le fichier est supprimé au bout de 7 jours. Les notes que les conseillers ont rédigées à votre sujet ne figurent pas dans cet export, car elles contiennent les observations propres aux conseillers ; vous pouvez les demander via ce [formulaire de demande](/contact?topic=privacy) et notre équipe vous les communiquera après examen de votre demande."
+          "text": "Vous pouvez télécharger une copie de vos données personnelles à tout moment dans les [paramètres de votre compte](/profile/settings), rubrique Données et confidentialité. Nous préparons un fichier ZIP contenant votre compte et votre profil, vos préférences et consentements, vos appareils connectés, vos modes de connexion (par exemple l’adresse e-mail d’un compte Google associé), vos achats et vos transactions, l’historique de vos crédits, vos conversations (avec les réponses et les mentions « J’aime ») et les images que vous avez téléversées, vos messages enregistrés, vos notifications et vos évaluations. Lorsqu’il est prêt, nous vous prévenons dans l’application et par e-mail ; le lien de téléchargement ne peut être utilisé qu’une fois et le fichier est supprimé au bout de 7 jours. Les notes que les conseillers ont rédigées à votre sujet ne figurent pas dans cet export, car elles contiennent les observations propres aux conseillers ; vous pouvez les demander via ce [formulaire de demande](/contact?topic=privacy) et notre équipe vous les communiquera après examen de votre demande."
         },
         {
           "type": "h4",
@@ -616,7 +660,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Nous pouvons être amenés à vérifier votre identité avant de pouvoir traiter votre demande. Le processus de vérification peut inclure la confirmation de votre nom, de votre âge, de votre adresse e-mail, de la date d'achat de l'abonnement, de la date de création du compte ou d'autres données pertinentes sur l'utilisation des services qui vous identifient raisonnablement en tant que propriétaire du compte. Nous pouvons également demander une preuve d'identité supplémentaire si nécessaire, mais nous nous efforçons de minimiser les informations requises. Pour certaines demandes, nous pouvons vous envoyer un code de vérification ou vous demander de signer une déclaration sous peine de parjure pour authentifier votre identité."
+          "text": "Nous pouvons être amenés à vérifier votre identité avant de pouvoir traiter votre demande. Le processus de vérification peut inclure la confirmation de votre nom, de votre âge, de votre adresse e-mail, de la date d'un achat, de la date de création du compte ou d'autres données pertinentes sur l'utilisation des services qui vous identifient raisonnablement en tant que propriétaire du compte. Nous pouvons également demander une preuve d'identité supplémentaire si nécessaire, mais nous nous efforçons de minimiser les informations requises. Pour certaines demandes, nous pouvons vous envoyer un code de vérification ou vous demander de signer une déclaration sous peine de parjure pour authentifier votre identité."
         },
         {
           "type": "p",
@@ -632,6 +676,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Nous n'autorisons sciemment aucune personne de moins de 18 ans à utiliser les Services, et nous ne collectons ni ne traitons sciemment les données personnelles d'une personne de moins de 18 ans. Si vous apprenez qu'une personne de moins de 18 ans a utilisé les Services ou nous a fourni des données personnelles, veuillez nous contacter en utilisant [ce formulaire de demande](/contact?topic=privacy)."
+        },
+        {
+          "type": "p",
+          "text": "Nous déterminons l’éligibilité à partir de la date de naissance que vous indiquez lors de votre inscription. Si elle indique que vous avez moins de 18 ans, votre compte est restreint et sa date de naissance ne peut pas être modifiée tant que notre équipe ne l’a pas examiné. Tant qu’un compte est restreint, vous pouvez toujours contacter l’assistance, exporter vos données et clôturer votre compte."
         }
       ]
     },
@@ -678,7 +726,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Durées de conservation complémentaires. Les messages et images des conversations sont conservés tant que la conversation existe dans votre compte. Les notifications dans l’application sont supprimées au bout de 180 jours. Le contenu des e-mails transactionnels est supprimé de notre file d’envoi une fois le message envoyé. Les exports de données sont supprimés 7 jours après leur mise à disposition. Les notes des conseillers sont conservées jusqu’à ce que leur auteur les supprime ou jusqu’à la suppression du compte du client ou du conseiller. Les traces des appareils connectés sont conservées jusqu’à l’expiration ou la déconnexion de la session, puis pendant une durée limitée à des fins de sécurité. Les preuves de consentement sont conservées tant que votre compte existe et dans la mesure requise par la loi. Les enregistrements de clics marketing sont conservés sous forme pseudonymisée pour le suivi des campagnes. Lorsque vous fermez votre compte, celui-ci est immédiatement désactivé et, à l’issue d’un délai de grâce de 30 jours, nous effaçons les données personnelles qui vous identifient et ne conservons que les enregistrements pseudonymisés nécessaires à la comptabilité, à la prévention de la fraude et au respect de nos obligations légales. Les enregistrements de paiements, d’abonnements et de versements aux conseillers sont conservés aussi longtemps que l’exigent les lois comptables et fiscales."
+          "text": "Durées de conservation complémentaires. Les messages et images des conversations sont conservés tant que la conversation existe dans votre compte. Les notifications dans l’application sont supprimées au bout de 180 jours. Le contenu des e-mails transactionnels est supprimé de notre file d’envoi une fois le message envoyé. Les exports de données sont supprimés 7 jours après leur mise à disposition. Les notes des conseillers sont conservées jusqu’à ce que leur auteur les supprime ou jusqu’à la suppression du compte du client ou du conseiller. Les traces des appareils connectés sont conservées jusqu’à l’expiration ou la déconnexion de la session, puis pendant une durée limitée à des fins de sécurité. Les preuves de consentement sont conservées tant que votre compte existe et dans la mesure requise par la loi. Les enregistrements de clics marketing sont conservés sous forme pseudonymisée pour le suivi des campagnes. Lorsque vous fermez votre compte, celui-ci est immédiatement désactivé et, à l’issue d’un délai de grâce de 30 jours, nous effaçons les données personnelles qui vous identifient et ne conservons que les enregistrements pseudonymisés nécessaires à la comptabilité, à la prévention de la fraude et au respect de nos obligations légales. Les enregistrements de paiements et de versements aux conseillers sont conservés aussi longtemps que l’exigent les lois comptables et fiscales."
+        },
+        {
+          "type": "p",
+          "text": "Registres de facturation et de remboursement. Les enregistrements des achats de crédits, des lots de crédits et des demandes de remboursement (la transaction, le pack, les Crédits utilisés et restants, le motif, les détails, le statut et la résolution) sont conservés comme documents financiers aussi longtemps que l’exigent les règles comptables, fiscales et de prescription des litiges, et ne sont pas supprimés lorsque vous clôturez votre compte. Lorsque votre compte est effacé, les détails que vous avez écrits dans une demande de remboursement et nos notes sur sa résolution sont supprimés ; les montants, les Crédits, le statut et les dates sont conservés. Le hachage unidirectionnel de la carte utilisé pour le pack de bienvenue est conservé avec l’enregistrement de l’offre aussi longtemps que la limite de l’offre doit être appliquée, soit aussi longtemps que cet enregistrement de facturation. L’indicateur d’âge est conservé aussi longtemps que votre compte existe. Le registre de consentement à l’achat est conservé avec l’enregistrement de facturation de l’achat, aussi longtemps que celui-ci est conservé."
         },
         {
           "type": "p",
@@ -1031,7 +1083,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "Vous pouvez nous contacter à tout moment pour plus de détails concernant cette politique de confidentialité et ses versions précédentes. Pour toute question concernant votre compte ou vos données personnelles veuillez nous contacter via [ce formulaire de demande](/contact?topic=privacy)."
+          "text": "Vous pouvez nous contacter à tout moment pour plus de détails concernant cette politique de confidentialité et ses versions précédentes. Pour toute question concernant votre compte ou vos données personnelles veuillez nous contacter via [ce formulaire de demande](/contact?topic=privacy). Vous pouvez aussi écrire à [support@staryield.net](mailto:support@staryield.net). L’assistance est disponible 24/7. Nous répondons sous 1 à 2 jours."
         },
         {
           "type": "p",

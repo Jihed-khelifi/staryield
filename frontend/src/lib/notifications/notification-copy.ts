@@ -40,6 +40,12 @@ export const NOTIFICATION_KINDS = [
   "subscription.renewed",
   "subscription.payment_failed",
   "subscription.canceled",
+  // revisions 5.0 (§24.4)
+  "refund_request.received",
+  "refund_request.resolved",
+  // revisions 5.1 (§25.5)
+  "payment.refunded",
+  "subscription.started",
 ] as const satisfies readonly NotificationKind[];
 
 type MissingKinds = Exclude<NotificationKind, (typeof NOTIFICATION_KINDS)[number]>;
@@ -94,12 +100,21 @@ export const notificationTemplates = {
   googleUnlinkedTitle: "Google sign-in removed",
   googleUnlinkedBody: "The Google account {email} can no longer be used to sign in.",
   googleUnlinkedNoEmail: "Google sign-in was removed from your account.",
+  paymentRefundedTitle: "Refund issued",
+  paymentRefundedBody: "{amount} was refunded to your payment method. Your bank may take 5–10 business days to show it.",
+  paymentRefundedNoAmount: "A refund was issued to your payment method. Your bank may take 5–10 business days to show it.",
+  subscriptionStartedTitle: "Membership started",
+  subscriptionStartedBody: "Your membership is active. Thank you for joining.",
   subscriptionRenewedTitle: "Membership renewed",
   subscriptionRenewedBody: "Your membership was renewed. Thank you for staying with us.",
   subscriptionPaymentFailedTitle: "Membership payment failed",
   subscriptionPaymentFailedBody: "We couldn't charge your payment method. Update it to keep your benefits.",
   subscriptionPaymentFailedGrace: "We couldn't charge your payment method. Update it by {date} to keep your benefits.",
   subscriptionCanceledTitle: "Membership ended",
+  // revisions 5.0 (§24.4): refund requests.
+  refundReceivedTitle: "Refund request received",
+  refundReceivedBody: "We received your request {reference}. We aim to acknowledge requests within 2 business days.",
+  refundResolvedTitle: "Refund request update",
   fallbackTitle: "Notification",
   someone: "A client",
 } as const;
@@ -113,6 +128,27 @@ export const subscriptionCanceledCopy: Record<string, string> = {
   dispute: "Your membership was ended after a payment dispute. Contact support if you have questions.",
   account_closed: "Your membership ended with your account.",
   other: "Your membership has ended. You can subscribe again at any time.",
+};
+
+/**
+ * The same sentences without "You can subscribe again at any time.": while
+ * memberships are switched off (§25.1) an old membership's end is still
+ * reported, but nothing promotes a new one.
+ */
+export const subscriptionCanceledPlainCopy: Record<string, string> = {
+  ...subscriptionCanceledCopy,
+  period_ended: "Your membership has ended.",
+  payment_failed: "Your membership ended because we couldn't renew it.",
+  canceled_by_user: "You canceled your membership and it has now ended.",
+  other: "Your membership has ended.",
+};
+
+/** One sentence per resolved refund request status (`refund_request.resolved`, §24.4). */
+export const refundResolvedCopy: Record<string, string> = {
+  approved: "Your refund request {reference} was approved.",
+  denied: "Your refund request {reference} was declined.",
+  credited: "Your refund request {reference} was settled with credits added to your balance.",
+  other: "Your refund request {reference} was updated.",
 };
 
 /** Request statuses (same copy as the orders list). */
@@ -161,7 +197,13 @@ export function pickLocalized(value: unknown, locale: string): string {
 }
 
 /** Localized title and body for a notification. */
-export function notificationText(n: AppNotification, locale: string, text: Translate): NotificationCopy {
+export function notificationText(
+  n: AppNotification,
+  locale: string,
+  text: Translate,
+  /** Memberships are on (§25.1): off, a membership's end is reported without inviting a new one. Default on. */
+  { memberships = true }: { memberships?: boolean } = {},
+): NotificationCopy {
   const T = notificationTemplates;
   const d = n.data ?? {};
   const fmt = (v: number) => new Intl.NumberFormat(locale).format(v);
@@ -245,6 +287,18 @@ export function notificationText(n: AppNotification, locale: string, text: Trans
     }
     case "subscription.renewed":
       return { title: text(T.subscriptionRenewedTitle), body: text(T.subscriptionRenewedBody) };
+    // revisions 5.1 (§25.5)
+    case "subscription.started":
+      return { title: text(T.subscriptionStartedTitle), body: text(T.subscriptionStartedBody) };
+    case "payment.refunded": {
+      const cents = num(d.amount_cents) ?? 0;
+      const currency = str(d.currency).trim().toUpperCase();
+      const amount =
+        cents > 0 && /^[A-Z]{3}$/.test(currency)
+          ? new Intl.NumberFormat(locale, { style: "currency", currency }).format(cents / 100)
+          : "";
+      return { title: text(T.paymentRefundedTitle), body: amount ? text(T.paymentRefundedBody, { amount }) : text(T.paymentRefundedNoAmount) };
+    }
     case "subscription.payment_failed": {
       const until = Date.parse(str(d.grace_until));
       const date = Number.isFinite(until) ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(until) : "";
@@ -254,9 +308,14 @@ export function notificationText(n: AppNotification, locale: string, text: Trans
       };
     }
     case "subscription.canceled": {
-      const template = subscriptionCanceledCopy[str(d.reason)] ?? subscriptionCanceledCopy.other;
+      const copy = memberships ? subscriptionCanceledCopy : subscriptionCanceledPlainCopy;
+      const template = copy[str(d.reason)] ?? copy.other;
       return { title: text(T.subscriptionCanceledTitle), body: text(template) };
     }
+    case "refund_request.received":
+      return { title: text(T.refundReceivedTitle), body: text(T.refundReceivedBody, { reference: str(d.reference) }) };
+    case "refund_request.resolved":
+      return { title: text(T.refundResolvedTitle), body: text(refundResolvedCopy[str(d.status)] ?? refundResolvedCopy.other, { reference: str(d.reference) }) };
     case "broadcast":
       return { title: pickLocalized(d.title, locale) || text(T.fallbackTitle), body: pickLocalized(d.body, locale) };
     default:
@@ -279,10 +338,15 @@ export function notificationFallbackLink(n: AppNotification): string | null {
     case "account.google_linked":
     case "account.google_unlinked":
       return "/profile/settings#security";
+    case "subscription.started":
     case "subscription.renewed":
     case "subscription.payment_failed":
     case "subscription.canceled":
       return "/profile/settings";
+    case "refund_request.received":
+    case "refund_request.resolved":
+    case "payment.refunded":
+      return "/profile/settings#billing";
     case "account.reactivated":
       return "/profile";
     default:

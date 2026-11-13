@@ -44,6 +44,10 @@ type CheckoutRequest struct {
 	PaymentToken string
 	// IdempotencyKey de-duplicates the charge at the provider.
 	IdempotencyKey string
+	// StatementDescriptor is what the customer's card statement shows
+	// (revisions 5.1, §25.3). Adapters pass it to the processor when it
+	// supports one; the sandboxes ignore it.
+	StatementDescriptor string
 }
 
 // CheckoutResult is the provider response.

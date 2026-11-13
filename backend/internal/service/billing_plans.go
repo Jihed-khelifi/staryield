@@ -19,6 +19,9 @@ import (
 // Plans lists the memberships on sale: the current version of every active
 // plan, localised.
 func (s *BillingService) Plans(ctx context.Context, locale string) ([]PlanView, error) {
+	if !s.cfg.MembershipsEnabled { // revisions 5.1: nothing is on sale while memberships are off (§25.1)
+		return []PlanView{}, nil
+	}
 	plans, err := s.repo.ListPlans(ctx, true)
 	if err != nil {
 		return nil, apperror.Internal(err)

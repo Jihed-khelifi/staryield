@@ -51,7 +51,7 @@ test.describe("Trustpilot widget", () => {
     expect(requests).toHaveLength(1);
   });
 
-  test("home: nothing is requested until the widget under the testimonials scrolls into view", async ({ page }) => {
+  test("home: nothing is requested until the reviews widget scrolls into view", async ({ page }) => {
     const requests = await stubTrustpilot(page);
     await settle(page, "/en");
     expect(requests).toEqual([]);
@@ -63,8 +63,8 @@ test.describe("Trustpilot widget", () => {
     await request;
     await expect(home).toHaveAttribute("data-state", "loaded");
     await expect(home.locator(".trustpilot-widget")).toHaveAttribute("data-stub-loaded", "full");
-    // It sits under the testimonials and statistics.
-    await expect(page.locator('[data-name="Container / Testimonials & Stats"]').locator("[data-testid=trustpilot-widget]")).toHaveCount(1);
+    // revisions 5.1: it sits alone in the reviews band (no hard-coded testimonial or statistics).
+    await expect(page.locator('[data-name="Container / Reviews"]').locator("[data-testid=trustpilot-widget]")).toHaveCount(1);
   });
 
   test("footer: the script is requested only after the footer widget comes into view", async ({ page }) => {

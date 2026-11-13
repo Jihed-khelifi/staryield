@@ -96,6 +96,9 @@ type BillingRepository interface {
 	CreateTransaction(ctx context.Context, t *domain.PaymentTransaction) error
 	GetTransaction(ctx context.Context, id uuid.UUID) (*domain.PaymentTransaction, error)
 	GetTransactionForUpdate(ctx context.Context, id uuid.UUID) (*domain.PaymentTransaction, error)
+	// TransactionsByIDs loads several payments with one query (revisions 5.0:
+	// refund requests).
+	TransactionsByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.PaymentTransaction, error)
 	GetTransactionByKey(ctx context.Context, provider, key string) (*domain.PaymentTransaction, error)
 	GetTransactionByProviderRef(ctx context.Context, provider, ref string) (*domain.PaymentTransaction, error)
 	GetTransactionByPurchase(ctx context.Context, purchaseID uuid.UUID) (*domain.PaymentTransaction, error)
@@ -583,6 +586,15 @@ func (r *GormBillingRepository) GetTransactionForUpdate(ctx context.Context, id 
 		return nil, notFound(err)
 	}
 	return &t, nil
+}
+
+func (r *GormBillingRepository) TransactionsByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.PaymentTransaction, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var out []domain.PaymentTransaction
+	err := r.conn(ctx).Where("id IN ?", ids).Find(&out).Error
+	return out, err
 }
 
 func (r *GormBillingRepository) GetTransactionByKey(ctx context.Context, provider, key string) (*domain.PaymentTransaction, error) {

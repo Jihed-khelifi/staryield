@@ -86,7 +86,7 @@ const content: ArticleContent = {
           items: [
             {
               q: "What if I do not know my exact birth time?",
-              a: "If your birth time is unknown, select the “Time Unknown” option in our calculator. The engine will set your chart to 12:00 PM (Noon) local time. While this provides accurate planet sign placements (such as your Sun and Venus signs), your Rising Sign and specific House Cusps will not be calculated.",
+              a: "If your birth time is unknown, select the “Time Unknown” option in our calculator. The engine will set your chart to 12:00 PM (Noon) local time. While this gives you the planet sign placements (such as your Sun and Venus signs), your Rising Sign and specific House Cusps will not be calculated.",
             },
             {
               q: "What is an aspect in a natal chart?",

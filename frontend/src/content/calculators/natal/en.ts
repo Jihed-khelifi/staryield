@@ -120,7 +120,7 @@ const content: ArticleContent = {
             },
             {
               type: "p",
-              text: "Interpreting the Twelve Houses Spread effectively requires evaluating structural relationships across the entire chart rather than analyzing twelve isolated cards. Expert readers utilize cross-house triangulation and polarity dynamics to extract nuanced readings.",
+              text: "Interpreting the Twelve Houses Spread effectively requires evaluating structural relationships across the entire chart rather than analyzing twelve isolated cards. Experienced readers use cross-house triangulation and polarity dynamics to extract nuanced readings.",
             },
           ],
           image: {

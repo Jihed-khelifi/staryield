@@ -107,6 +107,9 @@ type StoredCharge struct {
 	// customer-initiated charge (required by some networks for renewals).
 	NetworkTxnRef string
 	Description   string
+	// StatementDescriptor is what the customer's card statement shows
+	// (revisions 5.1, §25.3); the sandboxes ignore it.
+	StatementDescriptor string
 }
 
 // ChargeStatus is a charge outcome reported by a provider.
@@ -202,6 +205,16 @@ type ClientConfig struct {
 	ExpiresAt       *time.Time `json:"expires_at,omitempty"`
 }
 
+// TokenInspector reads the card behind a single-use client token without
+// charging it (revisions 5.0, §24.2): the welcome offer needs the card's
+// fingerprint before the charge to enforce one offer per payment method.
+// Real adapters implement it when the processor's API allows it (Stripe:
+// PaymentMethod retrieval); the fingerprint must be the same value Attach
+// reports for the same card.
+type TokenInspector interface {
+	InspectToken(ctx context.Context, token string) (CardMeta, error)
+}
+
 // ClientTokenizer configures client-side card entry.
 type ClientTokenizer interface {
 	ClientConfig(ctx context.Context, req ClientConfigRequest) (ClientConfig, error)
@@ -259,6 +272,8 @@ const (
 	CapLookup
 	CapRefund
 	CapClientConfig
+	// CapInspect: the provider can read a token's card without charging it.
+	CapInspect
 )
 
 var capabilityNames = []struct {
@@ -267,6 +282,7 @@ var capabilityNames = []struct {
 }{
 	{CapCheckout, "checkout"}, {CapWebhooks, "webhooks"}, {CapVault, "vault"}, {CapAttach, "attach"},
 	{CapStoredCharge, "stored_charge"}, {CapLookup, "lookup"}, {CapRefund, "refund"}, {CapClientConfig, "client_config"},
+	{CapInspect, "inspect"},
 }
 
 // Has reports whether c includes every capability in want.
@@ -309,6 +325,9 @@ func CapabilitiesOf(p Named) Capability {
 	}
 	if _, ok := p.(ClientTokenizer); ok {
 		c |= CapClientConfig
+	}
+	if _, ok := p.(TokenInspector); ok {
+		c |= CapInspect
 	}
 	return c
 }

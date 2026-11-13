@@ -22,6 +22,7 @@
 import { API_URL, WS_URL, currentLocale } from "@/lib/api/config";
 import { refreshSessionOutcome } from "@/lib/api/client";
 import { chatApi, realtimeApi } from "@/lib/api/endpoints";
+import { notifyAgeBlocked } from "@/lib/api/age-events";
 import { ApiError, toApiError } from "@/lib/api/errors";
 import { logger } from "@/lib/logger";
 
@@ -306,15 +307,16 @@ export class RealtimeClient {
           clearTimeout(p.timer);
           this.pending.delete(env.ref);
           if (env.type === "ack") p.resolve(env.data);
-          else
-            p.reject(
-              new ApiError({
-                code: env.error?.code ?? "internal_error",
-                message: env.error?.message ?? "Request failed.",
-                details: env.error?.details,
-                retryAfter: env.error?.retry_after,
-              }),
-            );
+          else {
+            const error = new ApiError({
+              code: env.error?.code ?? "internal_error",
+              message: env.error?.message ?? "Request failed.",
+              details: env.error?.details,
+              retryAfter: env.error?.retry_after,
+            });
+            notifyAgeBlocked(error); // revisions 5.0: 18+ age gate (§24.6)
+            p.reject(error);
+          }
           return;
         }
         if (env.type === "error") logger.debug("realtime: unsolicited error", { code: env.error?.code });

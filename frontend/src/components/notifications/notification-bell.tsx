@@ -25,6 +25,7 @@ import {
 import { useI18n } from "@/i18n/i18n-provider";
 import { errorMessage } from "@/lib/api/errors";
 import type { AppNotification } from "@/lib/api/types";
+import { useMembershipsEnabled } from "@/lib/site-config/site-config-provider";
 import { notificationText, relativeTime } from "@/lib/notifications/notification-copy";
 import { useNotifications } from "@/lib/notifications/notifications-provider";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -68,7 +69,8 @@ function useMinuteTick(active: boolean) {
 
 function NotificationRow({ notification, now, onOpen }: { notification: AppNotification; now: number; onOpen: () => void }) {
   const { text, locale } = useI18n();
-  const copy = notificationText(notification, locale, text);
+  const memberships = useMembershipsEnabled();
+  const copy = notificationText(notification, locale, text, { memberships });
   const Icon = icons[notification.kind] ?? Bell;
   const unread = !notification.read_at;
   return (

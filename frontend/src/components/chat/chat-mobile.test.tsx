@@ -7,7 +7,7 @@ import copy from "@/i18n/dictionaries/copy-en.json";
 import { I18nProvider } from "@/i18n/i18n-provider";
 import type { Dictionary } from "@/i18n/types";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/en/chatroom" }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/en/chatroom", useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a> }));
 vi.mock("@/components/layout/site-header", async () => {
   const { Sun, Sparkles, MessageCircle, UserRound } = await import("lucide-react");
@@ -35,6 +35,12 @@ vi.mock("@/components/chat/report-issue", () => ({
   ReportIssueButton: ({ placement }: { placement: string }) => <button type="button" data-testid="report-issue-trigger" data-placement={placement}>Report</button>,
 }));
 
+// revisions 5.0: the dialog itself is tested with the top-up; here only what the pills hand to it.
+vi.mock("@/components/billing/top-up/credit-top-up", () => ({
+  CreditTopUp: ({ context }: { context?: unknown }) => <div data-testid="top-up-stub">{JSON.stringify(context ?? null)}</div>,
+}));
+
+import { TopUpProvider } from "@/components/billing/top-up/top-up-provider";
 import { SessionTools, SwitcherAccount, SwitcherQuickLinks } from "@/components/chat/chat-mobile";
 
 const dictionary = { ...en, copy } as Dictionary;
@@ -126,5 +132,28 @@ describe("SwitcherAccount (drawer account block)", () => {
   it("is phone only (md:hidden)", () => {
     render(wrap(<SwitcherAccount role="client" returnPath="/en/chatroom" />));
     expect(screen.getByTestId("switcher-account").className).toContain("md:hidden");
+  });
+});
+
+describe("balance pills open the top-up in place (revisions 5.0, §24.7)", () => {
+  const withStatus = () => {
+    session.current = { ...session.current, status: "authenticated" };
+  };
+  it("the tools row pill opens the dialog with the live advisor's rate, keeping the href", () => {
+    withStatus();
+    const wallet = { balance: 40, free_minutes: 0 } as never;
+    render(wrap(<TopUpProvider><SessionTools role="client" wallet={wallet} returnPath="/en/chatroom?reader=theo" onOpenDetails={() => undefined} topUp={{ advisorName: "Theo", ratePerMinute: 35 }} /></TopUpProvider>));
+    const pill = screen.getByRole("link", { name: /Top up credits/ });
+    expect(pill.getAttribute("href")).toBe("/en/credits?next=%2Fen%2Fchatroom%3Freader%3Dtheo");
+    expect(fireEvent.click(pill)).toBe(false);
+    expect(JSON.parse(screen.getByTestId("top-up-stub").textContent ?? "")).toEqual({ advisorName: "Theo", ratePerMinute: 35 });
+  });
+  it("the drawer pill closes the drawer and opens the dialog", () => {
+    withStatus();
+    const onNavigate = vi.fn();
+    render(wrap(<TopUpProvider><SwitcherAccount role="client" returnPath="/en/chatroom" onNavigate={onNavigate} topUp={{ advisorName: "Solomon", ratePerMinute: 45 }} /></TopUpProvider>));
+    fireEvent.click(screen.getByTestId("drawer-balance-pill"));
+    expect(onNavigate).toHaveBeenCalled();
+    expect(JSON.parse(screen.getByTestId("top-up-stub").textContent ?? "")).toEqual({ advisorName: "Solomon", ratePerMinute: 45 });
   });
 });

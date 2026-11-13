@@ -184,6 +184,16 @@ describe("ChatFeed", () => {
     expect(g.top).toBe(800);
   });
 
+  it("marks the saved messages with the small bookmark in their meta line (§24.9), and only those", () => {
+    feed({ savedIds: new Set(["m1"]) });
+    const marks = screen.getAllByTestId("message-saved");
+    expect(marks).toHaveLength(1);
+    expect(marks[0].closest("[data-testid=chat-message]")?.getAttribute("data-message-id")).toBe("m1");
+    expect(marks[0].closest(".message-meta")).toBeTruthy();
+    // A saved message no longer has a bookmark button beside it.
+    expect(screen.queryByRole("button", { name: /bookmark/i })).toBeNull();
+  });
+
   it("does not re-pin on re-renders that do not change the messages (§22.5)", () => {
     const messages = [m(1), m(2)];
     const { rerender } = feed({ messages });

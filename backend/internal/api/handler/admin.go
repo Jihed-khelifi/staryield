@@ -174,7 +174,7 @@ func (h *Handler) AdminUpdateService(c echo.Context) error {
 
 // AdminPacks lists credit packs.
 func (h *Handler) AdminPacks(c echo.Context) error {
-	out, err := h.svc.Admin.Packs(c.Request().Context())
+	out, err := h.svc.Pricing.AdminPacks(c.Request().Context()) // revisions 5.0
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (h *Handler) AdminCreatePack(c echo.Context) error {
 	if err := bind(c, &req); err != nil {
 		return err
 	}
-	out, err := h.svc.Admin.CreatePack(c.Request().Context(), req, h.defaultCurrency)
+	out, err := h.svc.Pricing.CreatePack(c.Request().Context(), req) // revisions 5.0
 	if err != nil {
 		return err
 	}
@@ -204,7 +204,7 @@ func (h *Handler) AdminUpdatePack(c echo.Context) error {
 	if err := bind(c, &req); err != nil {
 		return err
 	}
-	out, err := h.svc.Admin.UpdatePack(c.Request().Context(), id, req)
+	out, err := h.svc.Pricing.UpdatePack(c.Request().Context(), id, req) // revisions 5.0
 	if err != nil {
 		return err
 	}

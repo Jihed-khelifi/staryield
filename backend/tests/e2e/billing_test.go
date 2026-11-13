@@ -47,6 +47,9 @@ func newEnvWithProcessor(t *testing.T, proc *payment.SandboxProcessor, opts ...o
 	cfg.Security.AdminOrigins = []string{adminOrigin}
 	cfg.Log.Level = "error"
 	cfg.Analytics.FlushInterval = 50 * time.Millisecond
+	// revisions 5.1: production ships with memberships off (§25.1); the suite exercises them
+	// unless a test turns the switch off with withMemberships(false).
+	cfg.Billing.MembershipsEnabled = true
 	for _, o := range opts {
 		o(cfg)
 	}
@@ -576,7 +579,7 @@ func TestCreditPurchasesWithSavedCardsAndTokens(t *testing.T) {
 	}
 	card := c.attachCard("sbx_a_visa_4242_12_2035")
 	buy := func(extra map[string]any) response {
-		body := map[string]any{"pack_id": pack250.ID, "idempotency_key": uniq("purchase-key-")}
+		body := map[string]any{"pack_id": pack250.ID, "idempotency_key": uniq("purchase-key-"), "consent": purchaseConsent()}
 		for k, v := range extra {
 			body[k] = v
 		}
@@ -664,6 +667,15 @@ func TestAdminBillingConsole(t *testing.T) {
 	}
 	var plan service.AdminPlanView
 	admin.must(http.StatusCreated, http.MethodPost, plans, body, &plan)
+	// revisions 5.1: the list also tells the console whether memberships are switched on (§25.1).
+	var listed struct {
+		Items       []service.AdminPlanView `json:"items"`
+		Memberships *bool                   `json:"memberships_enabled"`
+	}
+	admin.must(http.StatusOK, http.MethodGet, plans, nil, &listed)
+	if listed.Memberships == nil || !*listed.Memberships || len(listed.Items) == 0 {
+		t.Fatalf("admin plans list: %+v", listed)
+	}
 	if r := admin.call(http.MethodPost, plans, body); r.status != http.StatusUnprocessableEntity {
 		t.Fatalf("duplicate code: %d", r.status)
 	}

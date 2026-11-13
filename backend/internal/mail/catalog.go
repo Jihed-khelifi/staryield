@@ -132,9 +132,7 @@ func Notification(locale, kind string, data map[string]any, link string) (Conten
 			Paragraphs: []string{requestStatus(t, str(data["service_name"]), str(data["status"]))},
 			Action:     &Action{Label: t("View the request"), URL: link}}
 	case "purchase.succeeded":
-		c = Content{Subject: t("Credits added"),
-			Paragraphs: []string{t(fmt.Sprintf("%d credits were added to your balance.", intOf(data["credits"])))},
-			Action:     &Action{Label: t("View your balance"), URL: link}}
+		c = purchaseReceipt(t, data, link) // revisions 5.1: the receipt (§25.5)
 	case "credits.adjusted":
 		amount := intOf(data["amount"])
 		p := t(fmt.Sprintf("%d credits were added to your balance by our support team.", amount))
@@ -170,11 +168,14 @@ func Notification(locale, kind string, data map[string]any, link string) (Conten
 				t("Download it from your account settings before the link expires."),
 			},
 			Action: &Action{Label: t("Download your data"), URL: link}}
+	// revisions 5.1: membership confirmations (§25.5)
+	case "subscription.started":
+		c = membershipConfirmation(locale, t, true, data, link)
 	case "subscription.renewed":
-		c = Content{Subject: t("Your membership was renewed"),
-			Paragraphs: []string{named(t, data, "plan_name", "Your %s membership was renewed. Thank you for staying with us.",
-				"Your membership was renewed. Thank you for staying with us.")},
-			Action: &Action{Label: t("Manage membership"), URL: link}}
+		c = membershipConfirmation(locale, t, false, data, link)
+	case "payment.refunded":
+		c = refundIssued(t, data, link)
+	// end revisions 5.1
 	case "subscription.payment_failed":
 		c = Content{Subject: t("We could not renew your membership"),
 			Paragraphs: []string{
@@ -186,6 +187,39 @@ func Notification(locale, kind string, data map[string]any, link string) (Conten
 		c = Content{Subject: t("Your membership has ended"),
 			Paragraphs: []string{t("Your membership has ended. You can subscribe again at any time.")},
 			Action:     &Action{Label: t("See plans"), URL: link}}
+	// revisions 5.0: refund requests (§24.4). References are "RR-" + 8 base32
+	// characters; amounts and credit counts are the ones the app shows.
+	case "refund_request.received":
+		c = Content{Subject: t("We received your refund request"),
+			Paragraphs: []string{
+				named(t, data, "reference", "We received your refund request %s.", "We received your refund request."),
+				t("Our team will review it and reply by email and in the app."),
+			},
+			Action: &Action{Label: t("View your requests"), URL: link}}
+	case "refund_request.resolved":
+		var paragraphs []string
+		switch str(data["status"]) {
+		case "approved":
+			paragraphs = []string{named(t, data, "reference", "Your refund request %s was approved.", "Your refund request was approved."),
+				t(fmt.Sprintf("Amount refunded: %s.", moneyText(intOf(data["refunded_cents"]), str(data["currency"])))),
+				// revisions 5.1: the descriptor and the 5-10 business days (§25.5).
+				t("It goes back to your original payment method."), bankPostingSentence(t, data)}
+		case "credited":
+			paragraphs = []string{named(t, data, "reference", "Your refund request %s was answered with courtesy credits.",
+				"Your refund request was answered with courtesy credits."),
+				t(fmt.Sprintf("%d credits were added to your balance.", intOf(data["credits_granted"])))}
+		default:
+			paragraphs = []string{named(t, data, "reference", "Your refund request %s was reviewed and could not be approved.",
+				"Your refund request was reviewed and could not be approved."),
+				t("Open your billing settings to read our note.")}
+		}
+		c = Content{Subject: t("Update on your refund request"), Paragraphs: paragraphs,
+			Action: &Action{Label: t("View your requests"), URL: link}}
+		if str(data["status"]) == "approved" { // revisions 5.1: amount and the original purchase (§25.5)
+			c.Details = refundDetails(t, data, intOf(data["refunded_cents"]))
+			c.Links = policyLinks(t)
+		}
+	// end revisions 5.0: refund requests
 	// revisions 3.0: support desk
 	case "support.replied":
 		ref := truncateRunes(oneLine(str(data["reference"])), 20)
@@ -224,6 +258,19 @@ func PushText(locale, kind string, data map[string]any) (title, body string, ok 
 		body = c.Paragraphs[0]
 	}
 	return c.Subject, truncateRunes(body, 180), true
+}
+
+// moneyText formats cents as "12.34 USD" (the currency code is the platform's;
+// the app shows the same figure in the viewer's locale).
+func moneyText(cents int64, currency string) string {
+	if currency == "" {
+		currency = "USD"
+	}
+	sign := ""
+	if cents < 0 {
+		sign, cents = "-", -cents
+	}
+	return fmt.Sprintf("%s%d.%02d %s", sign, cents/100, cents%100, truncateRunes(oneLine(currency), 3))
 }
 
 // named formats withName with the data value (a person or service name), or

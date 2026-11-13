@@ -1,6 +1,8 @@
 import { deflateSync } from "node:zlib";
 import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 
+import { purchaseConsent } from "../src/lib/legal/versions";
+
 /** API origin of the stack under test. */
 export const API_URL = (process.env.E2E_API_URL ?? "http://localhost:8080").replace(/\/+$/, "");
 
@@ -125,25 +127,94 @@ export function wavFixture(seconds = 0.5, sampleRate = 8000): Buffer {
   return Buffer.concat([header, data]);
 }
 
+/** A pack of the signed-in account's top-up catalog (`GET /credits/catalog`, §24.1). */
+export type CatalogPack = { id: string; code: string; kind: "standard" | "intro"; name: string; credits: number; price_cents: number };
+
+/** The packs this account can buy now (the eligible Welcome Pack first), and whether it is eligible for it. */
+export async function topUpCatalog(page: Page): Promise<{ packs: CatalogPack[]; welcomeEligible: boolean }> {
+  const res = await page.context().request.get(`${API_URL}/api/v1/credits/catalog`);
+  expect(res.ok(), `credit catalog: ${res.status()} ${await res.text()}`).toBe(true);
+  const body = (await res.json()) as { packs: CatalogPack[]; welcome_offer: { eligible: boolean } };
+  return { packs: body.packs, welcomeEligible: body.welcome_offer.eligible };
+}
+
+/** The signed-in account's credit balance (`GET /wallet`). */
+export async function walletBalance(page: Page): Promise<number> {
+  const wallet = (await (await page.context().request.get(`${API_URL}/api/v1/wallet`)).json()) as { balance?: number };
+  return wallet.balance ?? 0;
+}
+
+/**
+ * Buy a pack through the API with a sandbox payment (no card: the sandbox
+ * charges the default route). Returns what was bought. The Welcome Pack is
+ * never bought this way: its redemption is what the top-up specs test.
+ */
+export async function buyStandardPack(page: Page, pick: (packs: CatalogPack[]) => CatalogPack = (packs) => packs.reduce((a, b) => (b.credits > a.credits ? b : a))) {
+  const req = page.context().request;
+  const { packs } = await topUpCatalog(page);
+  const pack = pick(packs.filter((p) => p.kind === "standard"));
+  const { csrf_token } = (await (await req.get(`${API_URL}/api/v1/auth/csrf`)).json()) as { csrf_token: string };
+  const res = await req.post(`${API_URL}/api/v1/credits/purchases`, {
+    headers: { "X-CSRF-Token": csrf_token },
+    // The API refuses a purchase without the consent versions (§25.2): the ones the web checkout sends.
+    data: { pack_id: pack.id, idempotency_key: `e2e-credits-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, consent: purchaseConsent() },
+  });
+  expect(res.ok(), `credit purchase: ${res.status()} ${await res.text()}`).toBe(true);
+  return pack;
+}
+
 /**
  * Make sure the client signed in on `page` can pay for live chats. The suite
  * shares one seed client whose credits run out over many chat specs, and a
- * request it cannot pay for never reaches the advisor. Buys a credit pack
- * (sandbox payments in development) until the balance reaches `min`.
+ * request it cannot pay for never reaches the advisor. Buys the largest
+ * standard pack of the top-up catalog (sandbox payments in development) until
+ * the balance reaches `min`.
  */
 export async function ensureCredits(page: Page, min = 400) {
-  const req = page.context().request;
   for (let attempt = 0; attempt < 5; attempt++) {
-    const wallet = (await (await req.get(`${API_URL}/api/v1/wallet`)).json()) as { balance?: number };
-    if ((wallet.balance ?? 0) >= min) return;
-    const { csrf_token } = (await (await req.get(`${API_URL}/api/v1/auth/csrf`)).json()) as { csrf_token: string };
-    const { items } = (await (await req.get(`${API_URL}/api/v1/credit-packs`)).json()) as { items: { id: string; credits: number }[] };
-    const pack = items.reduce((a, b) => (b.credits > a.credits ? b : a));
-    const res = await req.post(`${API_URL}/api/v1/credits/purchases`, {
-      headers: { "X-CSRF-Token": csrf_token },
-      data: { pack_id: pack.id, idempotency_key: `e2e-credits-${Date.now()}-${attempt}` },
-    });
-    expect(res.ok(), `credit purchase: ${res.status()} ${await res.text()}`).toBe(true);
+    if ((await walletBalance(page)) >= min) return;
+    await buyStandardPack(page);
   }
   throw new Error(`could not top the client up to ${min} credits`);
+}
+
+const NEW_CLIENT_PASSWORD = "E2e!Secure#2026x";
+
+/**
+ * Register a brand-new client through the API and sign in with the login
+ * form. Specs that depend on "never bought credits" (the Welcome Pack, the
+ * first refund) use their own account, so the shared seed client is never changed.
+ */
+export async function newClient(page: Page, tag = "client"): Promise<{ email: string; password: string }> {
+  const email = `e2e+${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@staryield.test`;
+  const csrf = ((await (await page.request.get(`${API_URL}/api/v1/auth/csrf`)).json()) as { csrf_token: string }).csrf_token;
+  const res = await page.request.post(`${API_URL}/api/v1/auth/register`, {
+    headers: { "X-CSRF-Token": csrf, "Content-Type": "application/json" },
+    data: { email, password: NEW_CLIENT_PASSWORD, accept_terms: true, display_name: "Top-up Tester", birth_date: "1990-03-14" },
+  });
+  expect(res.status(), await res.text()).toBe(201);
+  await page.request.post(`${API_URL}/api/v1/auth/logout`, { headers: { "X-CSRF-Token": csrf } });
+  await signIn(page, email, NEW_CLIENT_PASSWORD);
+  return { email, password: NEW_CLIENT_PASSWORD };
+}
+
+// revisions 5.0: the Welcome Pack is limited to one per payment method (§24.2), so specs that buy
+// it need a card no earlier run used. The sandbox fingerprints brand + last 4 + expiry.
+/** A Luhn-valid Visa test number with random last digits and a random future expiry ("MMYY"). */
+export function uniqueSandboxCard(): { number: string; expiry: string } {
+  for (;;) {
+    const body = "424242424242" + String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+    let sum = 0;
+    for (let i = 0; i < body.length; i++) {
+      let d = Number(body[body.length - 1 - i]);
+      if (i % 2 === 0) d = d * 2 > 9 ? d * 2 - 9 : d * 2;
+      sum += d;
+    }
+    const number = body + String((10 - (sum % 10)) % 10);
+    // Last 4 "0002" (declined) and "9995" (soft decline) are the sandbox's failure cards.
+    if (number.endsWith("0002") || number.endsWith("9995")) continue;
+    const month = String(1 + Math.floor(Math.random() * 12)).padStart(2, "0");
+    const year = String(30 + Math.floor(Math.random() * 10));
+    return { number, expiry: month + year };
+  }
 }

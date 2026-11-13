@@ -1,7 +1,7 @@
 {
   "meta": {
     "chatroomTitle": "Salon de discussion",
-    "chatroomDescription": "Échangez en direct avec un médium Staryield — tarot, astrologie et numérologie."
+    "chatroomDescription": "Échangez en direct avec un médium Staryield : tarot, astrologie et numérologie, à des fins de divertissement uniquement."
   },
   "nav": {
     "brand": "Staryield",
@@ -49,7 +49,6 @@
     "composer": {
       "label": "Message",
       "placeholder": "Écrivez votre message...",
-      "note": "3 min offertes puis 40 crédits/min",
       "send": "Envoyer le message",
       "errors": {
         "required": "Écrivez quelque chose avant d'envoyer.",
@@ -66,29 +65,6 @@
       "experience_other": "{count} ans d'expérience",
       "viewProfile": "Voir le profil complet"
     }
-  },
-  "readers": {
-    "ramone": {
-      "preview": "Ravi d'avoir parlé avec vous aujourd'hui, je reste là si vous...",
-      "bio": "Cherchez-vous de la clarté, du réconfort ou une compréhension plus profonde de ce que vous vivez en ce moment ? Il suffit parfois d'un autre regard pour reconnaître la lumière."
-    },
-    "theo": {
-      "preview": "Vous allez être surpris, mon cœur !",
-      "bio": "Vous cherchez à voir clair sur le chemin à venir ? Je crois que les réponses vivent déjà en vous — mon rôle est de vous aider à les révéler."
-    },
-    "solomon": {
-      "preview": "Solomon connaît peut-être la réponse à votre question. Comme...",
-      "bio": "Vous cherchez à voir clair sur la route à venir ? Grâce au tarot, je traduis le langage universel de l'énergie en conseils concrets pour votre vie."
-    }
-  },
-  "conversation": {
-    "m1": "Bonjour, j'espère que vous allez bien. Je démarre un projet en ce moment et j'espérais que vous puissiez m'aider à comprendre comment il va évoluer dans un futur proche.",
-    "m2": "J'espère que vous allez bien aussi !",
-    "m3": "Merci beaucoup de partager et de poser votre question !",
-    "m4": "Je mélange déjà mes cartes pour vous !",
-    "m5": "merci ! avez-vous besoin de quelque chose de ma part, Ramone ?",
-    "m6": "Mon rayon de soleil, je vois passer la Mort, le 6 de bâtons, l'as de bâtons et la carte du Jugement",
-    "m7": "Mon rayon de soleil, je vois à travers la Mort, le 4 de bâtons, l'as de bâtons et le Jugement que vous êtes au bord d'une grande transition sur votre chemin professionnel !"
   },
   "analytics": {
     "ratings_one": "{count} note",

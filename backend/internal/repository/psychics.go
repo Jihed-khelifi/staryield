@@ -220,6 +220,19 @@ type CreditRepository interface {
 	GetPurchaseByProviderRef(ctx context.Context, provider, ref string) (*domain.CreditPurchase, error)
 	UpdatePurchase(ctx context.Context, id uuid.UUID, fields map[string]any) error
 	ListPurchases(ctx context.Context, userID uuid.UUID, cursor *Cursor, limit int) ([]domain.CreditPurchase, error)
+	// revisions 5.1: PurchasesByIDs loads purchases in one query (admin
+	// consent records); PurchaseReceipt reads what a receipt shows in one join.
+	PurchasesByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.CreditPurchase, error)
+	PurchaseReceipt(ctx context.Context, purchaseID uuid.UUID) (*PurchaseReceipt, error)
+}
+
+// PurchaseReceipt is the pack and the card behind a purchase (revisions 5.1,
+// §25.5): the pack name and, when the payment used a card (saved or tokenised),
+// its brand and last four digits.
+type PurchaseReceipt struct {
+	PackName string
+	Brand    string
+	Last4    string
 }
 
 // GormCreditRepository implements CreditRepository.
@@ -322,4 +335,45 @@ func (r *GormCreditRepository) ListPurchases(ctx context.Context, userID uuid.UU
 	var out []domain.CreditPurchase
 	err := q.Order("created_at DESC, id DESC").Limit(clampLimit(limit, 20, 100)).Find(&out).Error
 	return out, err
+}
+
+// PurchasesByIDs loads purchases by id in one query.
+func (r *GormCreditRepository) PurchasesByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.CreditPurchase, error) {
+	var out []domain.CreditPurchase
+	if len(ids) == 0 {
+		return out, nil
+	}
+	err := database.Conn(ctx, r.db).Where("id IN ?", ids).Find(&out).Error
+	return out, err
+}
+
+// PurchaseReceipt reads the pack name and the card of a purchase: one query
+// joining the pack, the purchase's ledger transaction and the card it charged
+// (cards removed since still carry their brand and last four digits).
+func (r *GormCreditRepository) PurchaseReceipt(ctx context.Context, purchaseID uuid.UUID) (*PurchaseReceipt, error) {
+	var row struct {
+		PackName string
+		Brand    *string
+		Last4    *string
+	}
+	res := database.Conn(ctx, r.db).Table("credit_purchases AS p").
+		Select("cp.name AS pack_name, pm.brand AS brand, pm.last4 AS last4").
+		Joins("JOIN credit_packs cp ON cp.id = p.pack_id").
+		Joins("LEFT JOIN payment_transactions t ON t.credit_purchase_id = p.id AND t.kind = ?", domain.TxCreditPurchase).
+		Joins("LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id").
+		Where("p.id = ?", purchaseID).Limit(1).Scan(&row)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil, ErrNotFound
+	}
+	out := &PurchaseReceipt{PackName: row.PackName}
+	if row.Brand != nil {
+		out.Brand = *row.Brand
+	}
+	if row.Last4 != nil {
+		out.Last4 = *row.Last4
+	}
+	return out, nil
 }

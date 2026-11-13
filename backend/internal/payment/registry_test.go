@@ -26,12 +26,12 @@ func TestCapabilitiesOfSandboxes(t *testing.T) {
 	r, _ := newTestRegistry()
 	a, _ := r.Get("sandbox_a")
 	b, _ := r.Get("sandbox_b")
-	all := CapCheckout | CapWebhooks | CapVault | CapAttach | CapStoredCharge | CapLookup | CapRefund | CapClientConfig
+	all := CapCheckout | CapWebhooks | CapVault | CapAttach | CapStoredCharge | CapLookup | CapRefund | CapClientConfig | CapInspect
 	if got := CapabilitiesOf(a); got != all {
 		t.Fatalf("sandbox_a capabilities: %v", got.Names())
 	}
 	got := CapabilitiesOf(b)
-	if !got.Has(CapVault|CapAttach|CapStoredCharge|CapRefund|CapClientConfig) || got.Has(CapCheckout) || got.Has(CapLookup) || got.Has(CapWebhooks) {
+	if !got.Has(CapVault|CapAttach|CapStoredCharge|CapRefund|CapClientConfig|CapInspect) || got.Has(CapCheckout) || got.Has(CapLookup) || got.Has(CapWebhooks) {
 		t.Fatalf("sandbox_b capabilities: %v", got.Names())
 	}
 	if (&Sandbox{}).Name() != "sandbox" || CapabilitiesOf(NewSandbox("x", time.Minute))&CapRefund == 0 {
@@ -281,5 +281,72 @@ func TestSandboxAWebhooksAndCheckout(t *testing.T) {
 	}
 	if _, err := a.Checkout(ctx, CheckoutRequest{AmountCents: 999, PaymentToken: "sbx_b_visa_4242_12_2030"}); !errors.Is(err, ErrInvalidToken) {
 		t.Fatalf("foreign token: %v", err)
+	}
+}
+
+// revisions 5.0: TokenInspector (§24.2) is an optional capability named
+// "inspect"; the sandboxes report the card behind a token with the same
+// fingerprint their Attach derives, charging nothing.
+func TestTokenInspectorCapability(t *testing.T) {
+	r, proc := newTestRegistry()
+	a, _ := r.Get("sandbox_a")
+	b, _ := r.Get("sandbox_b")
+	for _, p := range []Named{a, b} {
+		if !CapabilitiesOf(p).Has(CapInspect) {
+			t.Fatalf("%s must report the inspect capability: %v", p.Name(), CapabilitiesOf(p).Names())
+		}
+	}
+	if CapabilitiesOf(NewSandbox("x", time.Minute)).Has(CapInspect) {
+		t.Fatal("the legacy hosted sandbox cannot inspect tokens")
+	}
+	names := CapabilitiesOf(a).Names()
+	if names[len(names)-1] != "inspect" {
+		t.Fatalf("capability names: %v", names)
+	}
+
+	ctx := context.Background()
+	token := "sbx_a_visa_4242_12_2035_fr"
+	inspector := a.(TokenInspector)
+	meta, err := inspector.InspectToken(ctx, token)
+	if err != nil || meta.Last4 != "4242" || meta.Brand != "visa" || meta.Country != "FR" || meta.Fingerprint == "" {
+		t.Fatalf("inspect: %+v %v", meta, err)
+	}
+	// Same fingerprint as Attach reports for the same card.
+	cust, _ := a.(CustomerVault).EnsureCustomer(ctx, CustomerRequest{})
+	_, attached, err := a.(MethodAttacher).Attach(ctx, AttachRequest{CustomerRef: cust, ClientToken: token, Now: time.Now()})
+	if err != nil || attached.Fingerprint != meta.Fingerprint {
+		t.Fatalf("inspect and attach disagree: %q vs %q (%v)", meta.Fingerprint, attached.Fingerprint, err)
+	}
+	// The same card has the same fingerprint at both sandboxes' own letter; a
+	// different card does not.
+	other, _ := inspector.InspectToken(ctx, "sbx_a_visa_4444_12_2035")
+	if other.Fingerprint == meta.Fingerprint {
+		t.Fatal("different cards must have different fingerprints")
+	}
+	// Inspecting never charges, saves or consumes anything.
+	if proc.SuccessfulCharges() != 0 {
+		t.Fatal("inspecting a token must not charge")
+	}
+	// A token of the other sandbox, a malformed one and an expired card.
+	if _, err := inspector.InspectToken(ctx, "sbx_b_visa_4242_12_2035"); !errors.Is(err, ErrInvalidToken) {
+		t.Fatalf("foreign token: %v", err)
+	}
+	if _, err := inspector.InspectToken(ctx, "garbage"); !errors.Is(err, ErrInvalidToken) {
+		t.Fatalf("malformed token: %v", err)
+	}
+	if _, err := inspector.InspectToken(ctx, "sbx_a_visa_4242_01_2001"); err == nil {
+		t.Fatal("an expired card must not be inspectable")
+	} else if d, ok := AsDecline(err); !ok || d.Code != "expired_card" {
+		t.Fatalf("expired card: %v", err)
+	}
+	cctx, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := inspector.InspectToken(cctx, token); err == nil {
+		t.Fatal("a cancelled context must be honoured")
+	}
+	// Routing can require the capability.
+	got, _, err := r.Route(RouteInput{Purpose: PurposeCredits, Needs: CapInspect}, nil)
+	if err != nil || len(got) != 1 || got[0].Name() != "sandbox_a" {
+		t.Fatalf("route by inspect: %v %v", got, err)
 	}
 }

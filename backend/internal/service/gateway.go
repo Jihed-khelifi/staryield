@@ -20,6 +20,31 @@ type RealtimeGateway struct {
 	chat     *ChatService
 	psychics *PsychicService
 	presence realtime.Presence
+	// age reads the account's 18+ gate status (revisions 5.0, §24.6); nil
+	// disables the gate (unit tests).
+	age func(ctx context.Context, userID uuid.UUID) (domain.AgeStatus, error)
+}
+
+// SetAgeStatus installs the 18+ gate lookup (AuthService.AgeStatus: one
+// cache read per client frame, never a query on the hot path).
+func (g *RealtimeGateway) SetAgeStatus(fn func(ctx context.Context, userID uuid.UUID) (domain.AgeStatus, error)) {
+	g.age = fn
+}
+
+// requireAdult refuses client frames of an account without an adult date of
+// birth with the same 403 codes as the REST gate. The connection itself stays
+// open (presence, notifications and wallet events still flow); leaving a
+// session is always allowed.
+func (g *RealtimeGateway) requireAdult(ctx context.Context, p reqctx.Principal) error {
+	if g.age == nil || p.Role != domain.RoleClient {
+		return nil
+	}
+	st, err := g.age(ctx, p.UserID)
+	if err != nil {
+		return err
+	}
+	p.Age = st
+	return p.RequireAdult()
 }
 
 // NewRealtimeGateway wires the gateway.
@@ -105,6 +130,12 @@ func (g *RealtimeGateway) HandleFrame(ctx context.Context, c *realtime.Client, f
 	ctx = reqctx.WithPrincipal(ctx, p)
 	if len(data) == 0 {
 		data = json.RawMessage("{}")
+	}
+	// revisions 5.0: 18+ age gate (§24.6) for every client action but leaving.
+	if frameType != realtime.FrameSessionLeave {
+		if err := g.requireAdult(ctx, p); err != nil {
+			return nil, err
+		}
 	}
 	switch frameType {
 	case realtime.FrameSessionJoin:

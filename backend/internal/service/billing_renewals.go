@@ -62,7 +62,8 @@ func (s *BillingService) execute(ctx context.Context, a *chargeAttempt) chargeOu
 	}
 	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	res, err := charger.ChargeStored(cctx, payment.StoredCharge{CustomerRef: customerRef, MethodRef: methodRef, AmountCents: a.tx.AmountCents,
-		Currency: a.tx.Currency, IdempotencyKey: a.tx.IdempotencyKey, Reason: a.reason, NetworkTxnRef: networkRef, Description: a.tx.Description})
+		Currency: a.tx.Currency, IdempotencyKey: a.tx.IdempotencyKey, Reason: a.reason, NetworkTxnRef: networkRef, Description: a.tx.Description,
+		StatementDescriptor: s.cfg.StatementDescriptor}) // revisions 5.1
 	cancel()
 	if d, ok := payment.AsDecline(err); ok {
 		return chargeOutcome{decline: d}
@@ -147,11 +148,17 @@ func (s *BillingService) applySubscriptionOutcome(ctx context.Context, a *charge
 					}
 				}
 			}
-			if !initial {
-				notifyKind = NotifySubscriptionRenewed
-				notifyData = map[string]any{"subscription_id": sub.ID, "period_end": inv.PeriodEnd, "amount_cents": t.AmountCents,
-					"currency": t.Currency}
+			// revisions 5.1: the first paid period and every renewal are confirmed
+			// by e-mail with plan, amount, period, next renewal and descriptor (§25.5).
+			notifyKind = NotifySubscriptionRenewed
+			if initial {
+				notifyKind = NotifySubscriptionStarted
 			}
+			plan, perr := s.repo.GetPlan(ctx, sub.PlanID)
+			if perr != nil && !errors.Is(perr, repository.ErrNotFound) {
+				return perr
+			}
+			notifyData = membershipNotice(sub, plan, v, inv, t, s.cfg.StatementDescriptor)
 			return nil
 		}
 		// Declined.
@@ -214,9 +221,36 @@ func (s *BillingService) applySubscriptionOutcome(ctx context.Context, a *charge
 		warnErr(ctx, "billing: publish wallet", s.events.Publish(ctx, realtime.EventWalletUpdated, walletView(wallet), sub.UserID))
 	}
 	if notifyKind != "" {
-		s.notify.Notify(ctx, NotificationSpec{Kind: notifyKind, Data: notifyData, Link: "/profile/settings"}, sub.UserID)
+		link := "/profile/settings"
+		if notifyKind == NotifySubscriptionStarted || notifyKind == NotifySubscriptionRenewed {
+			link = "/profile/settings#billing" // revisions 5.1: the cancel link goes to the billing section
+		}
+		s.notify.Notify(ctx, NotificationSpec{Kind: notifyKind, Data: notifyData, Link: link}, sub.UserID)
 	}
 	return sub, nil
+}
+
+// membershipNotice is the data of subscription.started and subscription.renewed
+// (revisions 5.1, §25.5). plan_name is the English name (older clients read it);
+// plan_names carries every language for the e-mail.
+func membershipNotice(sub *domain.Subscription, plan *domain.SubscriptionPlan, v *domain.PlanVersion, inv *domain.SubscriptionInvoice,
+	t *domain.PaymentTransaction, descriptor string) map[string]any {
+	data := map[string]any{"subscription_id": sub.ID, "amount_cents": t.AmountCents, "currency": t.Currency,
+		"period_start": inv.PeriodStart, "period_end": inv.PeriodEnd, "next_renewal_at": inv.PeriodEnd, "period_months": v.PeriodMonths()}
+	if plan != nil {
+		data["plan_name"] = plan.Name.For("en")
+		names := map[string]any{}
+		for loc, name := range plan.Name {
+			if name != "" {
+				names[loc] = name
+			}
+		}
+		data["plan_names"] = names
+	}
+	if descriptor != "" {
+		data["statement_descriptor"] = descriptor
+	}
+	return data
 }
 
 func nonEmpty(s string) any {
@@ -273,7 +307,9 @@ func (s *BillingService) grant(ctx context.Context, sub *domain.Subscription, v 
 	if v.MonthlyCreditGrant > 0 {
 		w, _, err = s.wallet.Apply(ctx, Movement{UserID: sub.UserID, Type: domain.LedgerSubscriptionGrant, Amount: v.MonthlyCreditGrant,
 			ReferenceType: "subscription", ReferenceID: &sub.ID, IdempotencyKey: fmt.Sprintf("subgrant:%s:%d", sub.ID, grantIndex),
-			Description: "Membership credits"})
+			Description: "Membership credits",
+			// revisions 5.0: credit lots. One membership lot per grant, found again by the grant when a refund reverses it.
+			Lot: &LotSpec{Source: domain.LotMembership, ReferenceType: domain.LotRefSubscriptionGrant, ReferenceID: &g.ID}})
 		if err != nil {
 			return nil, err
 		}

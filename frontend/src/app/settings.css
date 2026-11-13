@@ -1,7 +1,6 @@
 /* ---------------------------------------------------------------------------
    Account settings, revisions 2.0 (FE-SETTINGS):
      settings page ............ Figma 384:1498 (desktop), 867:17015 (mobile)
-     top-up checkout .......... Figma 387:1599 (desktop), 867:16866 (mobile)
      e-mail link pages ........ logo page (auth card) pattern
    Themes: html[data-theme] is rendered on the server from the sy_theme
    cookie. Where a Figma colour fails WCAG AA for its text size it is
@@ -544,6 +543,12 @@ textarea.settings-textarea {
   border-radius: 8px;
   background: var(--settings-field);
 }
+.settings-terms {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 1.45;
+}
 .settings-benefits {
   display: grid;
   gap: 6px;
@@ -830,246 +835,71 @@ textarea.settings-textarea {
   display: grid;
 }
 
-/* Top-up checkout (Figma 387:1599 desktop, 867:16866 mobile) ------------- */
-.checkout-card .checkout-mobile-only {
-  display: none;
+/* Refund requests in the billing history (revisions 5.0, §24.4) ---------- */
+.settings-transaction {
+  flex-wrap: wrap;
 }
-.checkout-card .payment-fields[data-variant="checkout"] .payment-label {
-  font-family: var(--settings-display);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: normal;
-  color: #15100b;
-}
-.checkout-card .payment-fields[data-variant="checkout"] .payment-input {
-  height: 38px;
-  border: 0;
-  border-radius: 8px;
-  background: #fff;
-  padding: 0 16px;
-  font-size: 16px;
-  font-weight: 300;
-  letter-spacing: 1.5px;
-}
-.checkout-card .payment-fields[data-variant="checkout"] {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
-}
-.checkout-section {
-  display: grid;
-  gap: 12px;
-  margin-top: 20px;
-}
-.checkout-section-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.7px;
-  text-transform: uppercase;
-  color: var(--settings-danger-text);
-}
-.checkout-balance {
+.settings-transaction-refund {
   display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  border-radius: 6px;
-  background: var(--sage);
+  gap: 4px 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(170 144 99 / 0.35);
 }
-.checkout-balance span:first-child {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: #fbf6e9;
+.settings-refund-action {
+  min-height: 44px;
+  padding-inline: 4px;
+  font-size: 13px;
 }
-.checkout-balance span:last-child {
-  font-size: 17px;
-  font-weight: 500;
-  color: #fff;
+.settings-status[data-status="refund_approved"],
+.settings-status[data-status="refund_credited"] {
+  background: rgb(74 93 35 / 0.16);
+  color: var(--success);
 }
-.checkout-subtitle {
-  color: var(--settings-gold-text);
+.settings-status[data-status="refund_denied"] {
+  background: rgb(153 27 27 / 0.1);
+  color: var(--danger);
 }
-.checkout-email {
+.settings-status[data-status="refund_open"] {
+  background: rgb(194 154 61 / 0.22);
+}
+.settings-refund-quote {
   display: grid;
-  gap: 7px;
-  margin-top: 16px;
-}
-.checkout-email-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.77px;
-  text-transform: uppercase;
-  color: var(--settings-danger-text);
-}
-.checkout-card .checkout-email input[type="email"][name] {
-  height: 48px;
-  padding: 0 14px;
+  gap: 8px;
+  padding: 12px;
   border: 1px solid var(--settings-line);
+  border-radius: 8px;
+  background: var(--settings-field);
+}
+.settings-refund-quote dl {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  font-size: 14px;
+}
+.settings-refund-quote dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.settings-refund-quote dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.settings-refund-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--settings-muted);
+}
+.settings-refund-note {
+  padding: 8px 10px;
   border-radius: 6px;
-  background: #fbf6e9;
-  font-weight: 300;
-}
-.checkout-pay-label-mobile {
-  display: none;
-}
-/* rgba(0,0,0,.49) in Figma; #5E5A4B keeps 4.5:1 on the card at 12 px. */
-.checkout-card .checkout-ssl {
-  color: var(--settings-danger-text);
-}
-.checkout-method {
-  height: 40px;
-  border: 1px solid var(--settings-line);
-  background: #fff;
-}
-
-@media (max-width: 767px) {
-  .checkout-card.checkout-card {
-    width: calc(100vw - 36px);
-    max-width: 354px;
-    border: 1px solid #fbf6e9;
-    border-radius: 18px;
-    background-color: #f3ebd9;
-    box-shadow: 0 10px 14px rgb(23 21 15 / 0.09);
-  }
-  .checkout-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background-image: url("https://assets.staryield.net/assets/figma/fb9ee.jpg");
-    background-size: cover;
-    mix-blend-mode: overlay;
-    opacity: 0.2;
-    pointer-events: none;
-  }
-  .checkout-card > form {
-    position: relative;
-  }
-  .checkout-card .checkout-body {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 22px 18px 0;
-  }
-  .checkout-card .checkout-body > * {
-    margin-top: 0 !important;
-  }
-  .checkout-card .checkout-mobile-only {
-    display: block;
-  }
-  .checkout-card .checkout-balance.checkout-mobile-only {
-    display: flex;
-  }
-  .checkout-card .checkout-desktop-only {
-    display: none;
-  }
-  .checkout-title {
-    font-family: var(--settings-serif);
-    font-size: 24px;
-    font-weight: 600;
-    text-transform: none;
-    color: #17150f;
-  }
-  .checkout-subtitle {
-    margin-top: 4px !important;
-    font-size: 10px;
-  }
-  .checkout-close {
-    top: 22px !important;
-    right: 18px !important;
-    width: 30px;
-    height: 30px;
-    padding: 0 !important;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #d6d0bc !important;
-  }
-  .checkout-card .bundle-grid {
-    margin-top: 0;
-    padding-top: 0;
-    border-top: 0;
-  }
-  .checkout-card .bundle-grid label {
-    gap: 3px;
-    padding: 11px 8px;
-    background: #fbf6e9;
-  }
-  .checkout-card .bundle-grid label .text-xl {
-    font-size: 18px;
-    font-weight: 700;
-  }
-  .checkout-card .bundle-grid label .text-xs {
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--settings-danger-text);
-  }
-  .checkout-card .bundle-grid label.selected {
-    background: #e6c82d;
-    border-color: #17150f;
-    box-shadow: var(--shadow-cta-glow);
-  }
-  .checkout-card .payment-fields[data-variant="checkout"] {
-    grid-template-columns: minmax(0, 1fr) 105px;
-    gap: 11px 10px;
-  }
-  .checkout-card .payment-fields[data-variant="checkout"] .payment-label {
-    font-family: var(--settings-serif);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.77px;
-    color: var(--settings-danger-text);
-  }
-  .checkout-card .payment-fields[data-variant="checkout"] .payment-input {
-    height: 48px;
-    border: 1px solid var(--settings-line);
-    border-radius: 6px;
-    background: #fbf6e9;
-    padding: 0 14px;
-    font-size: 14px;
-    letter-spacing: normal;
-  }
-  .checkout-notice {
-    justify-content: center;
-    padding: 0 !important;
-    background: transparent !important;
-    font-size: 10px !important;
-    color: var(--settings-danger-text);
-  }
-  .checkout-consents {
-    font-size: 11px !important;
-    line-height: 1.4;
-    color: var(--settings-danger-text);
-  }
-  .checkout-card .checkout-pay {
-    width: calc(100% - 36px);
-    height: 50px;
-    margin: 16px 18px 0;
-    border: 1px solid var(--settings-line);
-    border-radius: 12px;
-    font-family: var(--settings-serif);
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.65px;
-  }
-  .checkout-pay-label-desktop {
-    display: none;
-  }
-  .checkout-pay-label-mobile {
-    display: inline;
-  }
-  .checkout-ssl {
-    display: none !important;
-  }
-  .checkout-footnote {
-    display: block;
-    padding: 12px 18px 22px;
-    font-size: 10px;
-    line-height: 1.4;
-    text-align: center;
-    color: var(--settings-danger-text);
-  }
+  background: rgb(194 154 61 / 0.22);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 /* E-mail link pages (confirm, cancel, keep account) ----------------------- */

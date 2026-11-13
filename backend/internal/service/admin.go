@@ -34,6 +34,8 @@ type AdminUserRow struct {
 	Locale       string     `json:"locale"`
 	CreatedAt    time.Time  `json:"created_at"`
 	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
+	// AgeStatus is the 18+ gate status (revisions 5.0, §24.6).
+	AgeStatus domain.AgeStatus `json:"age_status"`
 }
 
 // AdminProfile is the subset of a profile administrators see.
@@ -123,16 +125,7 @@ type ServiceInput struct {
 	SortOrder    *int    `json:"sort_order"`
 }
 
-// PackInput creates or updates a credit pack (BR-09).
-type PackInput struct {
-	Name       *string `json:"name"`
-	Credits    *int64  `json:"credits"`
-	PriceCents *int64  `json:"price_cents"`
-	Currency   *string `json:"currency"`
-	Active     *bool   `json:"active"`
-	Featured   *bool   `json:"featured"`
-	SortOrder  *int    `json:"sort_order"`
-}
+// revisions 5.0: credit pack administration moved to PricingService (pricing_admin.go).
 
 // AdminDeps are the admin service's collaborators.
 type AdminDeps struct {
@@ -179,6 +172,7 @@ type AdminService struct {
 	tokens       repository.TokenRepository
 	psychics     repository.PsychicRepository
 	credits      repository.CreditRepository
+	rateRange    RateRangeFunc // revisions 5.0: advisor rate range
 	audit        repository.AuditRepository
 	chatRepo     repository.ChatRepository
 	growth       repository.GrowthRepository
@@ -235,7 +229,7 @@ func (s *AdminService) record(ctx context.Context, action, targetType, targetID 
 
 func adminUserRow(u *domain.User) AdminUserRow {
 	return AdminUserRow{ID: u.ID, Email: u.Email, Role: string(u.Role), Status: string(u.Status), StatusReason: u.StatusReason,
-		DisplayName: u.DisplayName, Locale: u.Locale, CreatedAt: u.CreatedAt, LastLoginAt: u.LastLoginAt}
+		DisplayName: u.DisplayName, Locale: u.Locale, CreatedAt: u.CreatedAt, LastLoginAt: u.LastLoginAt, AgeStatus: u.AgeStatus()}
 }
 
 // Users lists accounts with optional search and filters.
@@ -560,6 +554,18 @@ func (s *AdminService) LogoutEverywhere(ctx context.Context, id uuid.UUID) error
 	return nil
 }
 
+// adminAdjustmentMovement is the wallet movement of a manual credit
+// adjustment. revisions 5.0: positive adjustments and courtesy credits (refund
+// requests, §24.4) are bonus credits, a negative adjustment spends by priority.
+func adminAdjustmentMovement(adminID, userID uuid.UUID, amount int64, reason, key string) Movement {
+	mv := Movement{UserID: userID, Type: domain.LedgerAdminAdjustment, Amount: amount,
+		ReferenceType: "admin", IdempotencyKey: "admin_adjust:" + key, Description: reason, ActorID: &adminID}
+	if amount > 0 {
+		mv.Lot = &LotSpec{Source: domain.LotBonus}
+	}
+	return mv
+}
+
 // AdjustCredits applies a manual credit correction with a reason.
 func (s *AdminService) AdjustCredits(ctx context.Context, adminID, userID uuid.UUID, amount int64, reason, key string) (*WalletView, error) {
 	reason = CleanLine(reason)
@@ -576,8 +582,7 @@ func (s *AdminService) AdjustCredits(ctx context.Context, adminID, userID uuid.U
 	var applied bool
 	err := s.tx.WithinTx(ctx, func(ctx context.Context) error {
 		var err error
-		w, applied, err = s.wallet.Apply(ctx, Movement{UserID: userID, Type: domain.LedgerAdminAdjustment, Amount: amount,
-			ReferenceType: "admin", IdempotencyKey: "admin_adjust:" + key, Description: reason, ActorID: &adminID})
+		w, applied, err = s.wallet.Apply(ctx, adminAdjustmentMovement(adminID, userID, amount, reason, key))
 		return err
 	})
 	if errors.Is(err, ErrInsufficientFunds) {
@@ -762,6 +767,9 @@ func (s *AdminService) CreatePsychic(ctx context.Context, in PsychicInput) (*Adm
 	if len(fields) > 0 {
 		return nil, apperror.Validation(fields)
 	}
+	if err := s.checkRate(ctx, in.RatePerMinute); err != nil { // revisions 5.0
+		return nil, err
+	}
 	hash, err := s.hasher.HashContext(ctx, *in.Password)
 	if err != nil {
 		return nil, hashError(err)
@@ -825,6 +833,8 @@ type AdminPsychicView struct {
 	CreatedAt    time.Time  `json:"created_at"`
 	ImageKey     string     `json:"-"`
 	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+	// RateOutOfRange: the rate lies outside the advisor rate range (revisions 5.0).
+	RateOutOfRange bool `json:"rate_out_of_range"`
 }
 
 func adminPsychicView(p *domain.Psychic, st domain.PresenceStatus, u *domain.User) AdminPsychicView {
@@ -847,6 +857,7 @@ func (s *AdminService) psychic(ctx context.Context, id uuid.UUID) (*AdminPsychic
 		return nil, mapRepoErr(err, "Advisor")
 	}
 	v := adminPsychicView(p, st, u)
+	s.flagRates(ctx, &v) // revisions 5.0
 	return &v, nil
 }
 
@@ -904,6 +915,12 @@ func (s *AdminService) Psychics(ctx context.Context, f PsychicFilter) ([]AdminPs
 		}
 		out = append(out, adminPsychicView(p, st[p.UserID], u))
 	}
+	// revisions 5.0: flag advisors outside the rate range (one range read for the page).
+	views := make([]*AdminPsychicView, len(out))
+	for i := range out {
+		views[i] = &out[i]
+	}
+	s.flagRates(ctx, views...)
 	return out, nil
 }
 
@@ -916,6 +933,9 @@ func (s *AdminService) UpdatePsychic(ctx context.Context, id uuid.UUID, in Psych
 	}
 	if len(upd) == 0 {
 		return nil, apperror.Validation(map[string]string{"name": "Nothing to update."})
+	}
+	if err := s.checkRate(ctx, in.RatePerMinute); err != nil { // revisions 5.0
+		return nil, err
 	}
 	if r, ok := upd["rating"].(float64); ok {
 		// Editing the displayed rating rebases the aggregate used by reviews.
@@ -1124,138 +1144,6 @@ func (s *AdminService) DeletePsychicImage(ctx context.Context, id uuid.UUID) (*A
 	s.psySvc.DirectoryChanged()
 	s.record(ctx, "psychic.image_removed", "psychic", id.String(), nil)
 	return s.psychic(ctx, id)
-}
-
-// DeletePack removes a credit pack that no purchase references.
-func (s *AdminService) DeletePack(ctx context.Context, id uuid.UUID) error {
-	if err := s.credits.DeletePack(ctx, id); err != nil {
-		if errors.Is(err, repository.ErrInUse) {
-			return apperror.Conflict(apperror.CodeConflict, "Purchases reference this pack. Deactivate it instead.")
-		}
-		return mapRepoErr(err, "Credit pack")
-	}
-	s.record(ctx, "pack.deleted", "credit_pack", id.String(), nil)
-	return nil
-}
-
-// Packs lists all credit packs including inactive ones.
-func (s *AdminService) Packs(ctx context.Context) ([]PackView, error) {
-	packs, err := s.credits.ListPacks(ctx, false)
-	if err != nil {
-		return nil, apperror.Internal(err)
-	}
-	out := make([]PackView, 0, len(packs))
-	for i := range packs {
-		out = append(out, packView(&packs[i]))
-	}
-	return out, nil
-}
-
-func validatePack(in PackInput, creating bool) (map[string]any, map[string]string) {
-	upd, fields := map[string]any{}, map[string]string{}
-	if in.Name != nil {
-		v := CleanLine(*in.Name)
-		if v == "" || utf8.RuneCountInString(v) > 60 {
-			fields["name"] = "Use between 1 and 60 characters."
-		} else {
-			upd["name"] = v
-		}
-	} else if creating {
-		fields["name"] = "This field is required."
-	}
-	if in.Credits != nil {
-		if *in.Credits < 1 || *in.Credits > 1000000 {
-			fields["credits"] = "Use between 1 and 1,000,000 credits."
-		} else {
-			upd["credits"] = *in.Credits
-		}
-	} else if creating {
-		fields["credits"] = "This field is required."
-	}
-	if in.PriceCents != nil {
-		if *in.PriceCents < 50 || *in.PriceCents > 10000000 {
-			fields["price_cents"] = "Use a price between 0.50 and 100,000.00."
-		} else {
-			upd["price_cents"] = *in.PriceCents
-		}
-	} else if creating {
-		fields["price_cents"] = "This field is required."
-	}
-	if in.Currency != nil {
-		c := strings.ToUpper(strings.TrimSpace(*in.Currency))
-		if len(c) != 3 {
-			fields["currency"] = "Use a 3-letter ISO currency code."
-		} else {
-			upd["currency"] = c
-		}
-	}
-	if in.Active != nil {
-		upd["active"] = *in.Active
-	}
-	if in.Featured != nil {
-		upd["featured"] = *in.Featured
-	}
-	if in.SortOrder != nil {
-		upd["sort_order"] = *in.SortOrder
-	}
-	return upd, fields
-}
-
-// CreatePack adds a credit pack.
-func (s *AdminService) CreatePack(ctx context.Context, in PackInput, defaultCurrency string) (*PackView, error) {
-	upd, fields := validatePack(in, true)
-	if len(fields) > 0 {
-		return nil, apperror.Validation(fields)
-	}
-	now := s.clock.Now()
-	p := &domain.CreditPack{ID: domain.NewID(), Name: upd["name"].(string), Credits: upd["credits"].(int64), PriceCents: upd["price_cents"].(int64),
-		Currency: defaultCurrency, Active: true, CreatedAt: now, UpdatedAt: now}
-	if v, ok := upd["currency"].(string); ok {
-		p.Currency = v
-	}
-	if v, ok := upd["active"].(bool); ok {
-		p.Active = v
-	}
-	if v, ok := upd["featured"].(bool); ok {
-		p.Featured = v
-	}
-	if v, ok := upd["sort_order"].(int); ok {
-		p.SortOrder = v
-	}
-	if err := s.credits.CreatePack(ctx, p); err != nil {
-		return nil, apperror.Internal(err)
-	}
-	s.record(ctx, "pack.created", "credit_pack", p.ID.String(), map[string]any{"credits": p.Credits, "price_cents": p.PriceCents, "currency": p.Currency})
-	v := packView(p)
-	return &v, nil
-}
-
-// UpdatePack edits a credit pack (pricing changes are audited).
-func (s *AdminService) UpdatePack(ctx context.Context, id uuid.UUID, in PackInput) (*PackView, error) {
-	upd, fields := validatePack(in, false)
-	if len(fields) > 0 {
-		return nil, apperror.Validation(fields)
-	}
-	if len(upd) == 0 {
-		return nil, apperror.Validation(map[string]string{"name": "Nothing to update."})
-	}
-	before, err := s.credits.GetPack(ctx, id)
-	if err != nil {
-		return nil, mapRepoErr(err, "Credit pack")
-	}
-	if err := s.credits.UpdatePack(ctx, id, upd); err != nil {
-		return nil, mapRepoErr(err, "Credit pack")
-	}
-	after, err := s.credits.GetPack(ctx, id)
-	if err != nil {
-		return nil, mapRepoErr(err, "Credit pack")
-	}
-	s.record(ctx, "pack.updated", "credit_pack", id.String(), map[string]any{
-		"credits_before": before.Credits, "credits_after": after.Credits,
-		"price_before": before.PriceCents, "price_after": after.PriceCents, "active": after.Active,
-	})
-	v := packView(after)
-	return &v, nil
 }
 
 // Sessions lists chat sessions platform-wide (monitoring).

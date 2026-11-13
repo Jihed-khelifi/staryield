@@ -50,6 +50,14 @@ go run ./cmd/seed -profile=large -extend "message replies and likes,client alias
 # so the sender refuses them before any network request, and Web Push stays off
 # without VAPID keys anyway.
 go run ./cmd/seed -profile=large -extend "notifications"
+
+# revisions 5.0: credit purchases and welcome-offer redemptions — about 30% of the
+# clients get 1–12 purchases of the canonical packs over 18 months (~8% declined,
+# ~2% refunded), and ~15% of them opened with the Welcome Pack and hold a redeemed
+# offer (about 390k purchases and 8k redemptions with the default profile). It gives
+# the "most popular" aggregation and the top-up catalog's eligibility check real
+# volume (TestExplainHotQueries "pricing: …", TestLoadPricing). Needs migration 0026.
+go run ./cmd/seed -profile=large -extend "credit purchases"
 ```
 
 Synthetic accounts are `load-<tag>-pNNNNNN@load.staryield.test` (advisors) and `load-<tag>-cNNNNNNN@load.staryield.test` (clients), all with the password in `seed.LoadPassword`.
@@ -155,3 +163,15 @@ go run ./cmd/seed -profile=large -extend "message replies and likes,client alias
 * `TestLoadLikeFanout` (`chat_revisions4_test.go`): `LOAD_LIKE_PAIRS` (default 20) synthetic client and advisor pairs with a conversation open both sockets; the client likes a message and waits for the advisor's `message.liked` event, the advisor unlikes and waits for the client's, `LOAD_LIKE_ROUNDS` (default 20) times, one toggle every 250 ms per pair. The objective is the time from the request to the event on the other side (p95 < 250 ms, p99 < 500 ms). `like` is 120/min per user: keep `STARYIELD_RATE_LIMIT_SCALE=1000`. Needs `LOAD_DATABASE_DSN` to pick the pairs.
 * `TestExplainHotQueries` includes the reply-target and likes lookups of a page of 50 and of 200 messages, the advisor's inbox with the alias join and the 50-client alias lookup (`chat: reply targets …`, `chat: likes of a page …`, `chat: inbox (advisor with aliases)`, `aliases: lookup …`, see `explain_chat_revisions4_test.go`). They use the busiest conversation and the advisor with the most aliases, and run on random ids when the extension data is absent.
 * The e2e suite has self-contained checks at size (`TestRepliesAndLikesAtSize`: 6,000 messages, about 60% replies and half liked; `TestAdvisorInboxWithThousandsOfAliasesIsOneQuery`: 3,000 conversations with 1,800 aliases): query counts per page do not depend on the page size, every quote and like matches the database, and pages stay fast.
+
+## Credit lots (revisions 5.0)
+
+* `TestLoadBilledMinutes` (`credit_lots_test.go`): needs `LOAD_DATABASE_DSN` only (no running API: it builds the application in process and calls `ChatService.BillDue`, the loop the worker runs). It creates `LOAD_BILL_CLIENTS` (default 2000, at most the advisors of the large seed without an open session) synthetic clients with two credit packs and a bonus lot, an active chat session each, and bills `LOAD_BILL_ROUNDS` (default 5) minutes per client with `LOAD_BILL_WORKERS` (default 16) concurrent workers, one billed minute per call. It reports the latency of a billed minute, the throughput and the SQL statements per minute, and checks that every wallet equals the sum of its lots and the ledger has one entry per minute. It removes every row it wrote when it ends; the ledger and the allocations are append-only, so the cleanup runs with `session_replication_role = replica` and needs a PostgreSQL superuser. `LOAD_BILL_SKIP_LOT_CHECK=1` measures a checkout from before credit lots, which leaves the lots alone (use it to compare).
+* `TestExplainHotQueries` adds `lots: …` (the consumption read, the purchase-lot lookups, the allocations of an entry, the reconciliation bounds and chunk); `TestExplainCreditLotConsumptionUsesTheIndex` asserts the consumption read uses `credit_lots_consume_idx` in index order, without a sort.
+* Migration `0025` on the 200k-user dataset: see the report notes of the change (about 10 s, one lot per wallet with credits).
+
+## Refund requests and the revenue report (revisions 5.0)
+
+* Needs migration `0028` and, for volume, `go run ./cmd/seed -profile=large -extend "credit purchases,payment transactions"` (about 390k purchases and payments). The seeded payments are not linked to the purchases and no lots or allocations exist for them: to time the report on realistic data, link them (`payment_transactions.credit_purchase_id`), give succeeded purchases a `purchase` lot and every `chat_charge` entry an allocation, and add a few thousand `refund_requests` (the throw-away SQL used for the figures in the change report is not kept in the repository).
+* `TestLoadRevenueAndRefundQueue` (`refunds_test.go`): builds the application in process and times, `LOAD_REVENUE_RUNS` (default 10) times each, the revenue report (30, 90 and 366 days, and a 30-day window ending 20 days ago, which reconstructs the deferred figure from the allocations since), the console's refund list (open and all) and a client's transactions page with its refund info. Objective: p95 below 1 s for a 30-day report (3 s for 366 days). Needs `LOAD_DATABASE_DSN` and `LOAD_REDIS_URL` (default db 13).
+* `TestExplainHotQueries` adds `refunds: …` (the transactions page's newest-request-per-payment and pack lookups, payments by id, the open request of a payment, the client list and the console lists by status/user) and `revenue: …` (one statement per figure of the report over 30 days). Two revenue statements may hash-join with a sequential scan when the window covers a large share of a table; they are listed in `seqScanAllowed` with the reason.

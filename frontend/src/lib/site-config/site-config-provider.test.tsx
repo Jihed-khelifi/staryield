@@ -11,6 +11,8 @@ vi.mock("@/lib/api/endpoints", () => ({ siteApi: { config } }));
 
 import {
   freeModeActive,
+  membershipsEnabled,
+  useMembershipsEnabled,
   SiteConfigProvider,
   SITE_CONFIG_REFRESH_MS,
   useFreeMode,
@@ -86,3 +88,39 @@ describe("SiteConfigProvider", () => {
     expect(freeModeActive(null, now)).toBe(false);
   });
 });
+
+describe("memberships switch (§25.1)", () => {
+  afterEach(cleanup);
+
+  it("is off unless the API says true: absent, false and unknown config all mean off", () => {
+    expect(membershipsEnabled(null)).toBe(false);
+    expect(membershipsEnabled(site())).toBe(false);
+    expect(membershipsEnabled(site({ features: { memberships: false } }))).toBe(false);
+    expect(membershipsEnabled(site({ features: { memberships: "yes" as unknown as boolean } }))).toBe(false);
+    expect(membershipsEnabled(site({ features: { memberships: true } }))).toBe(true);
+  });
+
+  function Flag() {
+    return <p data-testid="flag">{String(useMembershipsEnabled())}</p>;
+  }
+
+  it("the hook is false outside a provider and before the first answer, and follows the config", () => {
+    renderWithI18n(<Flag />);
+    expect(screen.getByTestId("flag").textContent).toBe("false");
+    cleanup();
+    renderWithI18n(
+      <SiteConfigProvider initial={site({ features: { memberships: true } })}>
+        <Flag />
+      </SiteConfigProvider>,
+    );
+    expect(screen.getByTestId("flag").textContent).toBe("true");
+    cleanup();
+    renderWithI18n(
+      <SiteConfigProvider initial={site()}>
+        <Flag />
+      </SiteConfigProvider>,
+    );
+    expect(screen.getByTestId("flag").textContent).toBe("false");
+  });
+});
+
