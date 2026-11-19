@@ -35,11 +35,16 @@ func (s *BillingService) ClientConfig(ctx context.Context, userID uuid.UUID, in 
 	if purpose == "" {
 		purpose = payment.PurposeCredits
 	}
-	if purpose != payment.PurposeCredits && purpose != payment.PurposeSubscription {
-		return nil, apperror.Validation(map[string]string{"purpose": "Choose credits or subscription."})
+	if purpose != payment.PurposeCredits && purpose != payment.PurposeSubscription && purpose != payment.PurposeMethod {
+		return nil, apperror.Validation(map[string]string{"purpose": "Choose credits, subscription or method."})
+	}
+	// revisions 6.0 (§26.5): saving a card without paying (purpose=method) is routed like credits.
+	routePurpose := purpose
+	if purpose == payment.PurposeMethod {
+		routePurpose = payment.PurposeCredits
 	}
 	route := payment.RouteInput{UserID: userID.String(), Countries: countries(in.TrustedCountry), Currency: s.cfg.Currency,
-		Purpose: purpose, Needs: payment.CapClientConfig | payment.CapVault | payment.CapAttach | payment.CapStoredCharge}
+		Purpose: routePurpose, Needs: payment.CapClientConfig | payment.CapVault | payment.CapAttach | payment.CapStoredCharge}
 	amount := int64(0)
 	if in.PlanVersionID != nil {
 		v, err := s.repo.GetVersion(ctx, *in.PlanVersionID)
@@ -56,10 +61,17 @@ func (s *BillingService) ClientConfig(ctx context.Context, userID uuid.UUID, in 
 		return nil, apperror.Internal(err)
 	}
 	tok := providers[0].(payment.ClientTokenizer)
-	cfg, err := tok.ClientConfig(ctx, payment.ClientConfigRequest{UserID: userID, Purpose: purpose, AmountCents: amount,
-		Currency: route.Currency, Now: s.clock.Now()})
+	req := payment.ClientConfigRequest{UserID: userID, Purpose: purpose, AmountCents: amount, Currency: route.Currency, Now: s.clock.Now(),
+		ThreeDSecure: s.policies(ctx).ThreeDSecure} // revisions 6.0: the 3-D Secure policy
+	if purpose == payment.PurposeMethod {
+		// A SetupIntent belongs to the user's customer at the provider.
+		if _, req.CustomerRef, err = s.ensureCustomer(ctx, userID, providers[0]); err != nil {
+			return nil, err
+		}
+	}
+	cfg, err := tok.ClientConfig(ctx, req)
 	if err != nil {
-		return nil, apperror.Unavailable(err)
+		return nil, s.providerError(ctx, "client config", err)
 	}
 	return &cfg, nil
 }
@@ -180,6 +192,7 @@ func (s *BillingService) AttachPaymentMethod(ctx context.Context, userID uuid.UU
 		detach()
 		return nil, false, apperror.Internal(err)
 	}
+	m.ProviderMethodRefHash = refHash(methodRef) // revisions 6.0 (§26.5): payment_method.detached finds the card by it
 	err = s.tx.WithinTx(ctx, func(ctx context.Context) error {
 		if _, err := s.users.GetForUpdate(ctx, userID); err != nil { // serialises a user's card changes
 			return err
@@ -249,36 +262,49 @@ func normalizeBrand(b string) string {
 // at the provider (and locally) the first time.
 func (s *BillingService) ensureCustomer(ctx context.Context, userID uuid.UUID, p payment.Named) (*domain.PaymentCustomer, string, error) {
 	vault := p.(payment.CustomerVault)
+	// revisions 6.0 (§26.5): the account e-mail and name go to the provider (fraud screening, dispute evidence).
+	email, name := s.customerIdentity(ctx, userID)
+	key := "cus:" + userID.String() + ":" + p.Name()
+	fresh := "" // a replacement customer the provider already created
 	if c, err := s.repo.GetCustomer(ctx, userID, p.Name()); err == nil {
 		ref, err := s.sealer.Open(c.ProviderCustomerRefEnc, customerAD(c))
 		if err != nil {
 			return nil, "", apperror.Internal(err)
 		}
 		cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-		confirmed, err := vault.EnsureCustomer(cctx, payment.CustomerRequest{UserID: userID, ExistingRef: ref})
+		confirmed, err := vault.EnsureCustomer(cctx, payment.CustomerRequest{UserID: userID, ExistingRef: ref, Email: email, Name: name})
 		cancel()
 		if err != nil {
-			return nil, "", apperror.Unavailable(err)
+			return nil, "", s.providerError(ctx, "ensure customer", err)
 		}
 		if confirmed == ref {
 			return c, ref, nil
 		}
-		// The provider lost the customer: retire the local link, create anew.
+		// The provider lost the customer and created a new one while confirming it:
+		// retire the local link and keep the new reference (no second customer).
 		warnErr(ctx, "billing: retire stale customer", s.repo.SoftDeleteCustomer(ctx, c.ID, s.clock.Now()))
+		fresh = confirmed
 	} else if !errors.Is(err, repository.ErrNotFound) {
 		return nil, "", apperror.Internal(err)
 	}
-	cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-	ref, err := vault.EnsureCustomer(cctx, payment.CustomerRequest{UserID: userID, IdempotencyKey: "cus:" + userID.String() + ":" + p.Name()})
-	cancel()
-	if err != nil {
-		return nil, "", apperror.Unavailable(err)
+	ref := fresh
+	if ref == "" {
+		cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		var err error
+		ref, err = vault.EnsureCustomer(cctx, payment.CustomerRequest{UserID: userID, IdempotencyKey: key, Email: email, Name: name})
+		cancel()
+		if err != nil {
+			return nil, "", s.providerError(ctx, "ensure customer", err)
+		}
 	}
 	now := s.clock.Now()
 	c := &domain.PaymentCustomer{ID: domain.NewID(), UserID: userID, Provider: p.Name(), CreatedAt: now, UpdatedAt: now}
-	if c.ProviderCustomerRefEnc, err = s.sealer.Seal(ref, customerAD(c)); err != nil {
+	sealed, err := s.sealer.Seal(ref, customerAD(c))
+	if err != nil {
 		return nil, "", apperror.Internal(err)
 	}
+	c.ProviderCustomerRefEnc = sealed
+	c.ProviderCustomerRefHash = refHash(ref) // revisions 6.0 (§26.5): customer.deleted finds the customer by it
 	if err := s.repo.CreateCustomer(ctx, c); err != nil {
 		if errors.Is(err, repository.ErrDuplicate) { // a concurrent request created it
 			existing, err2 := s.repo.GetCustomer(ctx, userID, p.Name())
@@ -331,48 +357,9 @@ func (s *BillingService) DeletePaymentMethod(ctx context.Context, userID, id uui
 	now := s.clock.Now()
 	var m *domain.PaymentMethod
 	err := s.tx.WithinTx(ctx, func(ctx context.Context) error {
-		if _, err := s.users.GetForUpdate(ctx, userID); err != nil {
-			return err
-		}
 		var err error
-		if m, err = s.repo.GetMethod(ctx, userID, id); err != nil {
-			return err
-		}
-		others, err := s.repo.ListMethods(ctx, userID)
-		if err != nil {
-			return err
-		}
-		var replacement *domain.PaymentMethod
-		for i := range others {
-			o := &others[i]
-			if o.ID != m.ID && o.Usable(now) && (replacement == nil || o.IsDefault) {
-				replacement = o
-			}
-		}
-		subs, err := s.repo.OpenSubscriptionsUsingMethod(ctx, m.ID)
-		if err != nil {
-			return err
-		}
-		for _, sub := range subs {
-			if sub.CancelAtPeriodEnd && sub.Status == domain.SubActive {
-				continue // ends anyway; no renewal will charge this card
-			}
-			if replacement == nil {
-				return apperror.Conflict(CodePaymentMethodRequired,
-					"This card pays for your membership. Add another card or cancel the membership first.")
-			}
-			if err := s.repo.UpdateSubscription(ctx, sub.ID, map[string]any{"payment_method_id": replacement.ID,
-				"provider": replacement.Provider, "updated_at": now}); err != nil {
-				return err
-			}
-		}
-		if err := s.repo.SoftDeleteMethod(ctx, m.ID, now); err != nil {
-			return err
-		}
-		if m.IsDefault && replacement != nil {
-			return s.repo.UpdateMethod(ctx, replacement.ID, map[string]any{"is_default": true, "updated_at": now})
-		}
-		return nil
+		m, err = s.removeMethodTx(ctx, userID, id, now, false)
+		return err
 	})
 	if err != nil {
 		return mapRepoErr(err, "Payment method")
@@ -387,4 +374,59 @@ func (s *BillingService) DeletePaymentMethod(ctx context.Context, userID, id uui
 	}
 	s.track(ctx, "billing.method_removed", map[string]any{"provider": m.Provider})
 	return nil
+}
+
+// removeMethodTx removes the saved card id of userID inside the caller's
+// transaction: memberships paid with it move to the user's other usable card
+// (the default one first), and the default flag moves too. Without another
+// card a membership that still renews blocks the removal (Conflict), unless
+// force is set: the card is already gone at the provider (revisions 6.0,
+// §26.5: payment_method.detached), so the membership keeps pointing at it and
+// falls into dunning instead of keeping the card alive.
+func (s *BillingService) removeMethodTx(ctx context.Context, userID, id uuid.UUID, now time.Time, force bool) (*domain.PaymentMethod, error) {
+	if _, err := s.users.GetForUpdate(ctx, userID); err != nil {
+		return nil, err
+	}
+	m, err := s.repo.GetMethod(ctx, userID, id)
+	if err != nil {
+		return nil, err
+	}
+	others, err := s.repo.ListMethods(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	var replacement *domain.PaymentMethod
+	for i := range others {
+		o := &others[i]
+		if o.ID != m.ID && o.Usable(now) && (replacement == nil || o.IsDefault) {
+			replacement = o
+		}
+	}
+	subs, err := s.repo.OpenSubscriptionsUsingMethod(ctx, m.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, sub := range subs {
+		if sub.CancelAtPeriodEnd && sub.Status == domain.SubActive {
+			continue // ends anyway; no renewal will charge this card
+		}
+		if replacement == nil {
+			if force {
+				continue
+			}
+			return nil, apperror.Conflict(CodePaymentMethodRequired,
+				"This card pays for your membership. Add another card or cancel the membership first.")
+		}
+		if err := s.repo.UpdateSubscription(ctx, sub.ID, map[string]any{"payment_method_id": replacement.ID,
+			"provider": replacement.Provider, "updated_at": now}); err != nil {
+			return nil, err
+		}
+	}
+	if err := s.repo.SoftDeleteMethod(ctx, m.ID, now); err != nil {
+		return nil, err
+	}
+	if m.IsDefault && replacement != nil {
+		return m, s.repo.UpdateMethod(ctx, replacement.ID, map[string]any{"is_default": true, "updated_at": now})
+	}
+	return m, nil
 }

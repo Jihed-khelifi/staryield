@@ -19,6 +19,7 @@ import {
   type CalculatorKind,
   type CalculatorPlace,
 } from "@/lib/schemas/calculator";
+import { BIRTH_DATA_NOTICE } from "@/components/calculators/birth-data-notice";
 import { calculate, type CalculatorResult } from "@/components/calculators/calculate";
 import { PlaceCombobox } from "@/components/astrology/place-combobox";
 import { RadiantPanel } from "@/components/forms/radiant-panel";
@@ -37,13 +38,6 @@ const DESCRIPTIONS: Record<CalculatorKind, string> = {
     "Your birth date holds the mathematical blueprint of your destiny. We use it to calculate your Life Path number—the primary force shaping your journey.",
   astrology:
     "Discover your zodiac sign instantly — enter your birth date and uncover the traits, elements, and cosmic insights tied to your star sign.",
-};
-
-/** Privacy line under each calculator (natal and astrology run on the server). */
-const PRIVACY: Record<CalculatorKind, string> = {
-  "natal-chart": "Your birth data is used only to draw this spread and is never stored.",
-  astrology: "Your data is processed securely & never stored.",
-  "path-of-life": "Your data is calculated locally & never stored.",
 };
 
 const HOUSE_OPTIONS: { value: HouseSystem; label: string; hint: string }[] = [
@@ -259,7 +253,7 @@ export function CalculatorForm({ kind, initialValues, serverError, invalidLink =
             </Button>
             <p className="flex items-center justify-center gap-1.5 text-center text-xs text-[#6b6550]">
               <LockKeyhole aria-hidden className="size-3 shrink-0" />
-              {text(PRIVACY[kind])}
+              {text(BIRTH_DATA_NOTICE)}
             </p>
           </div>
         </form>

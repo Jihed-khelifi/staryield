@@ -11,6 +11,7 @@ npm run lint
 npm run typecheck
 npm run test:i18n        # dictionary parity, placeholders, no untranslated JSX text
 npm run test:calculators
+npm run gen:report-copy  # regenerate backend/internal/mail/reportcopy/report-copy.json (the e-mailed calculator report's copy; a test fails when it is stale)
 npm test                 # Vitest unit + component tests (jsdom / Testing Library)
 npm run build
 npm run build:vinext

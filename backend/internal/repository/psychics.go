@@ -349,7 +349,8 @@ func (r *GormCreditRepository) PurchasesByIDs(ctx context.Context, ids []uuid.UU
 
 // PurchaseReceipt reads the pack name and the card of a purchase: one query
 // joining the pack, the purchase's ledger transaction and the card it charged
-// (cards removed since still carry their brand and last four digits).
+// (cards removed since still carry their brand and last four digits; a card
+// that was not saved is the one the processor reported, revisions 6.0).
 func (r *GormCreditRepository) PurchaseReceipt(ctx context.Context, purchaseID uuid.UUID) (*PurchaseReceipt, error) {
 	var row struct {
 		PackName string
@@ -357,7 +358,8 @@ func (r *GormCreditRepository) PurchaseReceipt(ctx context.Context, purchaseID u
 		Last4    *string
 	}
 	res := database.Conn(ctx, r.db).Table("credit_purchases AS p").
-		Select("cp.name AS pack_name, pm.brand AS brand, pm.last4 AS last4").
+		Select("cp.name AS pack_name, COALESCE(NULLIF(pm.brand, ''), NULLIF(t.card_brand, '')) AS brand, "+
+			"COALESCE(NULLIF(pm.last4, ''), NULLIF(t.card_last4, '')) AS last4").
 		Joins("JOIN credit_packs cp ON cp.id = p.pack_id").
 		Joins("LEFT JOIN payment_transactions t ON t.credit_purchase_id = p.id AND t.kind = ?", domain.TxCreditPurchase).
 		Joins("LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id").

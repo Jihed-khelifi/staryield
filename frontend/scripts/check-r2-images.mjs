@@ -7,7 +7,7 @@ const images = JSON.parse(await readFile(new URL("../src/data/r2-images.json", i
 // 1. Every asset URL written literally in the app (TS/TSX/CSS/JSON) must be
 //    a registered R2 object, so nothing ships pointing at a missing image.
 const registered = new Set(images.map((image) => image.url));
-const ASSET_URL = /https:\/\/assets\.staryield\.net\/[^\s"'`)\\]+?\.(?:png|jpe?g|svg|webp|gif|avif|ico|m4a|mp3|wav|ogg)\b/gi;
+const ASSET_URL = /https:\/\/assets\.staryield\.net\/[^\s"'`)\\]+?\.(?:png|jpe?g|svg|webp|gif|avif|ico|m4a|mp3|wav|ogg|woff2)\b/gi;
 const SOURCE = new Set([".ts", ".tsx", ".css", ".json", ".mjs"]);
 const unregistered = [];
 async function scan(directory) {

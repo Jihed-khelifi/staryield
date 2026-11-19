@@ -106,6 +106,7 @@ LOAD_SCALE=2 LOAD_DURATION=1m LOAD_STRICT=1 go test -tags load ./tests/load/ -ru
 
 - **Scenarios:**
   - `TestLoadPublicCatalog`: advisor directory (first page, deep pages with filters), the featured home selection, horoscopes, the aztro-compatible endpoint, place search, credit packs, and the natal calculator (full chart, spread and numerology per request).
+  - `TestLoadDirectoryUnderStatusChurn` (revisions 6.0, §26.3): directory and home selection reads while an advisor flips between online, away and busy (every flip drops the cached order of the snapshot).
   - `TestLoadSignedInClient`: profile, settings, devices, waiting lists, wallet and ledger, conversations, notifications, the personal horoscope and chart, card transactions.
   - `TestLoadAdvisorNotes`: the notes panel (own and shared) plus note writes.
   - `TestLoadChatFanout`: real live chats. Synthetic advisors go online over WebSockets, synthetic clients with credits request sessions, both join, and each side sends messages; the objective is on the time from sending a message to its delivery to the other participant (p95 < 250 ms, p99 < 500 ms, no lost messages). It needs `LOAD_DATABASE_DSN` to pick advisors and clients without an open session.
@@ -175,3 +176,32 @@ go run ./cmd/seed -profile=large -extend "message replies and likes,client alias
 * Needs migration `0028` and, for volume, `go run ./cmd/seed -profile=large -extend "credit purchases,payment transactions"` (about 390k purchases and payments). The seeded payments are not linked to the purchases and no lots or allocations exist for them: to time the report on realistic data, link them (`payment_transactions.credit_purchase_id`), give succeeded purchases a `purchase` lot and every `chat_charge` entry an allocation, and add a few thousand `refund_requests` (the throw-away SQL used for the figures in the change report is not kept in the repository).
 * `TestLoadRevenueAndRefundQueue` (`refunds_test.go`): builds the application in process and times, `LOAD_REVENUE_RUNS` (default 10) times each, the revenue report (30, 90 and 366 days, and a 30-day window ending 20 days ago, which reconstructs the deferred figure from the allocations since), the console's refund list (open and all) and a client's transactions page with its refund info. Objective: p95 below 1 s for a 30-day report (3 s for 366 days). Needs `LOAD_DATABASE_DSN` and `LOAD_REDIS_URL` (default db 13).
 * `TestExplainHotQueries` adds `refunds: …` (the transactions page's newest-request-per-payment and pack lookups, payments by id, the open request of a payment, the client list and the console lists by status/user) and `revenue: …` (one statement per figure of the report over 30 days). Two revenue statements may hash-join with a sequential scan when the window covers a large share of a table; they are listed in `seqScanAllowed` with the reason.
+
+## Free-trial hold (revisions 6.0)
+
+* `TestLoadTrialHold` (`trial_hold_test.go`): needs `LOAD_DATABASE_DSN` (a private copy of the large dataset: the application applies pending migrations to it) and `LOAD_REDIS_URL` (a Redis index of your own; the test is skipped without it). It builds the application in process with a fake clock, because a hold lives minutes and the billing worker must run on demand, and drives `LOAD_HOLD_READINGS` (default 1000, at most the large seed's synthetic advisors without an open reading) trial readings through the whole life of a hold on `LOAD_HOLD_WORKERS` (default 16) concurrent workers: `BillDue` holds them all, every advisor writes two replies (stored held), a third of the clients top up and `ResumeHolds` converts them, the clock passes the deadline and `ExpireHolds` ends the rest, and a third of those clients reveal their replies (a fifth of them press twice at once). It reports the throughput and latency of each step and checks the counts of holds by status, the held messages, one minute charged per conversion, one charge and one earning per reveal and the credit-lot invariant of every wallet. It removes every row it wrote when it ends (the ledger and the allocations are append-only, so the cleanup runs with `session_replication_role = replica` and needs a PostgreSQL superuser) and restores the wallets it touched and the advisors' reading counters.
+* `TestExplainHotQueries` adds `holds: …` (the expiry claim, a client's held readings, a page of holds, the messages of a hold on the busiest reading, the pending-purchase probe and the 30-day statistics). They run on the dataset as it is, where the hold tables are empty. `TestExplainTrialHoldPopulated` gives them volume inside a transaction that is rolled back (20,000 holds, 2,000 of them open and overdue) and asserts the plans: the claim reads `chat_sessions_held_idx`, a page of holds the primary key, a hold's messages `chat_messages_session_idx`, a client's held readings an index scan, and the two writes (unlock a hold's messages, count a held message) are index updates. Locked-message reads are the ordinary timeline reads (the held flag is a column of the same rows), already covered by `chat: history before seq` and its neighbours.
+
+## Card payment operations (revisions 6.0, §26.5)
+
+Needs migration 0033. The seeder predates the webhook log, disputes and fraud
+warnings, so `TestExplainHotQueries` gives them volume itself when the dataset
+has fewer than 1,000 disputes: 300k `webhook_events` over the last days and a
+dispute for about one in eight successful credit purchases (a quarter of them
+open), written with plain `INSERT … SELECT` into those two tables only
+(`seedPaymentOps`, idempotent). The checks (`explain_payment_ops_test.go`) cover
+the purchase gate's "open dispute of a user" probe (partial index
+`payment_disputes_open_user_idx`), the webhook log pages (all, per provider, per
+status, the 24 h counts of the status page from the index alone), the dispute
+lists, the disputes of a page of 20 payments (one query), a saved card found by
+the hash of its provider reference, and the evidence usage log.
+
+The webhook burst (thousands of deliveries, duplicated, concurrent and out of
+order) runs in-process in `tests/e2e/payment_ops_burst_test.go` (it needs the
+signed events of the sandbox provider, not a running API).
+
+## Calculator e-mail report and its leads (revisions 6.0, §26.4)
+
+* Needs migration `0035`. `go run ./cmd/seed -profile=large -extend "email leads"` adds one lead for every second synthetic user (60% never subscribed, 30% subscribed, 10% unsubscribed) with placeholder sealed addresses; `TestExplainHotQueries` adds `report leads: …` (the address lookup, the admin list unfiltered, paged, by status, by calculator and by exact address, and a CSV export batch; see `explain_report_leads_test.go`). They are index scans on `email_leads_hash_idx` and `email_leads_recent_idx` (checked at 300k leads).
+* `TestLoadReportEmail` (`report_email_test.go`): a burst of `POST /calculators/report-email` (every request recalculates the chart, upserts a lead and queues a sealed e-mail). Default mode (API at `STARYIELD_RATE_LIMIT_SCALE=1000`, one address per request): p95 below 400 ms for the whole path, and the outbox and the lead table must hold exactly one row per accepted request. With `LOAD_REPORT_LIMITS=1` and the API at `STARYIELD_RATE_LIMIT_SCALE=1`: at most 5 requests are accepted (5 per hour per IP), the rest answer 429, and nothing is queued for them. The run deletes the leads and outbox rows it created.
+* The e2e suite has the same burst in process (`TestReportEmailBurstKeepsTheQueueBounded`: 40 concurrent requests from one IP, exactly 5 accepted, 5 rows queued).

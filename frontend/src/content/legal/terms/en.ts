@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-13",
-    "effective": "2026-11-13",
-    "lastUpdated": "2026-11-13",
+    "version": "2026-11-19",
+    "effective": "2026-11-19",
+    "lastUpdated": "2026-11-19",
     "badge": "STARYIELD SYSTEM AGREEMENT",
     "title": "Terms of Use"
   },
@@ -567,6 +567,14 @@ const content: LegalDocumentContent = {
           "text": "To top up your Balance, we charge the payment method you choose at checkout. You may save a card to your Account for future purchases: card details are entered in fields hosted by our payment processor and we keep only a token, the card brand, the last four digits and the expiry date. You authorise us to charge the applicable price to the payment method you select. You can remove a saved card at any time in your account settings. We notify you whenever your Balance is topped up."
         },
         {
+          "type": "p",
+          "text": "Card payments and Stripe. Card payments for Credits are processed by Stripe, our payment processor. You enter your card details (or use a card wallet such as Apple Pay or Google Pay) directly in fields provided by Stripe; Staryield never receives or stores your full card number or security code. Your bank may ask you to confirm a payment, for example with 3-D Secure or a code sent to your phone; if the confirmation fails or is not completed, the payment does not go through and no Credits are added."
+        },
+        {
+          "type": "p",
+          "text": "Invoices and credit notes. For every credit purchase we issue a Staryield invoice, and for every refund a credit note. Both are available in your account, and we normally attach the invoice to your receipt email."
+        },
+        {
           "type": "h4",
           "id": "limitations",
           "n": "6.1.3",
@@ -606,6 +614,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Promotional free access (“free mode”). From time to time we may make live chats free for everyone for a limited period. Free mode may start or stop at any time, with or without an announced end date. A chat you request while free mode is on stays free until that chat ends, even if free mode stops in the meantime. Advisors are still paid by Staryield for chats held during free mode. Free mode does not apply to custom requests or to the purchase of Credits, which are priced and charged as usual, and no free minutes or Credits are used up while your chat is free."
+        },
+        {
+          "type": "p",
+          "text": "Pause when your free minutes or Credits run out (the “hold”). If your free minutes run out during a live reading (or, where we enable it, your Credits run out), the reading does not end at once: it is put on hold for a short time, currently one minute, so that you can add Credits. The time on hold is not charged. While the reading is on hold the advisor may keep writing, but those replies are hidden from you until the hold ends. If you add Credits during the hold, the reading continues, the replies are shown and the next minute is charged at the advisor’s per-minute rate. If a purchase you have started is still being confirmed when the hold ends, we may extend it briefly. If you do not add Credits, the reading ends, nothing is charged, and you can later reveal the hidden replies for the price of one minute at that advisor’s rate. You are always told the price before you pay, and nothing is charged until you confirm. Free minutes never convert into a charge: you pay only if you add Credits to continue or choose to reveal the hidden replies. Staryield sets the length of the hold and may change it, or switch the hold off, at any time."
         },
         {
           "type": "h3",
@@ -653,6 +665,10 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
+          "text": "While a payment dispute is open. When a payment is disputed with your bank or card issuer, we may freeze the unused Credits bought with that payment and pause new purchases on your account until the dispute is resolved. Credits you have already used, and Credits from other purchases, are not affected. If the dispute is resolved in your favour, the frozen Credits are restored and purchases resume. If your card issuer warns us that a payment may be fraudulent, we may refund that payment and review your account."
+        },
+        {
+          "type": "p",
           "text": "As outlined in our [Privacy Policy](/privacy), your personally identifiable information may be shared with our payment processor to assist in responding to chargeback requests."
         },
         {
@@ -678,6 +694,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "This section applies to advisors. For each completed reading and delivered order, you earn your agreed share of the credits the client spent; earnings are recorded once and cannot be edited. You can request a withdrawal of your available earnings from the analytics page by bank transfer or PayPal once you reach the minimum amount shown there. Earned credits are converted at the payout rate displayed on that page at the time of the request. You can have one withdrawal in progress at a time and may cancel it while it is pending. We review every request and may ask for information to prevent fraud; a rejected request returns the credits to your available balance with an explanation. Your payout details are encrypted and are only revealed to authorised staff, with an audit record, to process your payment. You are responsible for any taxes due on your earnings."
+        },
+        {
+          "type": "p",
+          "text": "Readings on hold. When a client’s free minutes or Credits run out during a live reading and the reading is put on hold (see [Section 6.1.4](#free-trials-and-promotional-offers)), you earn nothing for the time on hold. If the client continues the reading, the next minute is billed normally and you earn your agreed share of it as usual. If the client later reveals your hidden replies, you earn your agreed share of one minute at your list rate for that reading. If the client does neither, you earn nothing for that time."
         }
       ]
     },

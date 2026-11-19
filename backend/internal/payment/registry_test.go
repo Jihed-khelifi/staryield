@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"testing"
 	"time"
 )
@@ -26,7 +27,7 @@ func TestCapabilitiesOfSandboxes(t *testing.T) {
 	r, _ := newTestRegistry()
 	a, _ := r.Get("sandbox_a")
 	b, _ := r.Get("sandbox_b")
-	all := CapCheckout | CapWebhooks | CapVault | CapAttach | CapStoredCharge | CapLookup | CapRefund | CapClientConfig | CapInspect
+	all := CapCheckout | CapWebhooks | CapVault | CapAttach | CapStoredCharge | CapLookup | CapRefund | CapClientConfig | CapInspect | CapRetrieve | CapDisputes | CapAccount
 	if got := CapabilitiesOf(a); got != all {
 		t.Fatalf("sandbox_a capabilities: %v", got.Names())
 	}
@@ -300,7 +301,7 @@ func TestTokenInspectorCapability(t *testing.T) {
 		t.Fatal("the legacy hosted sandbox cannot inspect tokens")
 	}
 	names := CapabilitiesOf(a).Names()
-	if names[len(names)-1] != "inspect" {
+	if !slices.Contains(names, "inspect") || names[len(names)-1] != "account" { // revisions 6.0: retrieve, disputes, account follow
 		t.Fatalf("capability names: %v", names)
 	}
 

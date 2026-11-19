@@ -80,6 +80,7 @@ export function MessageMenu({
   anchor,
   liked,
   saved,
+  locked = false,
   hasText,
   copyText,
   onReply,
@@ -91,6 +92,8 @@ export function MessageMenu({
   anchor: MenuAnchor;
   liked: boolean;
   saved: boolean;
+  /** revisions 6.0 (§26.1): a message hidden by a hold can only be answered (no like, bookmark or copy). */
+  locked?: boolean;
   hasText: boolean;
   copyText: string;
   onReply: () => void;
@@ -117,12 +120,14 @@ export function MessageMenu({
   };
 
   const icon = (Icon: typeof FiBookmark) => <Icon aria-hidden className="size-4" strokeWidth={1.5} />;
-  const items: MenuItem[] = [
-    { id: "reply", label: text("Reply"), icon: icon(FiCornerUpLeft), onSelect: onReply },
-    { id: "bookmark", label: text(saved ? "Remove bookmark" : "Bookmark"), icon: icon(FiBookmark), onSelect: onBookmark },
-    { id: "like", label: text(liked ? "Unlike" : "Like"), icon: icon(FiHeart), onSelect: onLike },
-  ];
-  if (hasText) items.push({ id: "copy", label: text("Copy text"), icon: icon(FiCopy), onSelect: copy });
+  const items: MenuItem[] = [{ id: "reply", label: text("Reply"), icon: icon(FiCornerUpLeft), onSelect: onReply }];
+  if (!locked) {
+    items.push(
+      { id: "bookmark", label: text(saved ? "Remove bookmark" : "Bookmark"), icon: icon(FiBookmark), onSelect: onBookmark },
+      { id: "like", label: text(liked ? "Unlike" : "Like"), icon: icon(FiHeart), onSelect: onLike },
+    );
+  }
+  if (hasText && !locked) items.push({ id: "copy", label: text("Copy text"), icon: icon(FiCopy), onSelect: copy });
 
   const place = React.useCallback(() => {
     const el = ref.current;

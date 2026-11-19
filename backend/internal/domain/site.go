@@ -19,6 +19,20 @@ const (
 	// SiteSettingOffSession is the kill switch and per-role daily caps of
 	// messages outside a live chat (revisions 3.3, §22.3).
 	SiteSettingOffSession = "off_session_messages"
+	// revisions 6.0 (§26.0, migration 0031).
+	SiteSettingTrialHold        = "trial_hold"
+	SiteSettingPaymentPolicies  = "payment_policies"
+	SiteSettingCalculatorReport = "calculator_report"
+)
+
+// Bounds of the revisions 6.0 settings (the CHECK constraints of 0031 say the same).
+const (
+	TrialHoldSecondsMin          = 30
+	TrialHoldSecondsMax          = 300
+	TrialHoldSecondsDefault      = 60
+	TrialHoldPaymentGraceMax     = 300
+	TrialHoldPaymentGraceDefault = 120
+	MaxPrecheckedCountries       = 60
 )
 
 // Site configuration bounds.

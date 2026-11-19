@@ -835,6 +835,97 @@ textarea.settings-textarea {
   display: grid;
 }
 
+.settings-transaction-documents {
+  gap: 4px 16px;
+}
+.settings-transaction-documents .settings-refund-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  text-decoration: underline;
+}
+
+/* Stripe Payment Element, secured-by-Stripe block (revisions 6.0, §26.5) ---- */
+.payment-stripe {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.payment-stripe-frame {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.payment-stripe-skeleton {
+  display: grid;
+  gap: 10px;
+}
+/* The element mounts while the skeleton shows (Stripe needs a laid-out box), then fades in. */
+.payment-stripe-frame[data-ready="false"] .payment-stripe-element {
+  position: absolute;
+  inset: 0 0 auto 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.payment-error {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--danger);
+}
+.payment-secured {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgb(151 143 110 / 0.16);
+}
+.payment-secured-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.payment-secured-copy svg {
+  margin-top: 2px;
+}
+.payment-secured-marks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.payment-stripe-mark {
+  display: inline-flex;
+  border-radius: 4px;
+}
+.payment-stripe-mark img {
+  display: block;
+  width: 100px;
+  height: auto;
+  aspect-ratio: 150 / 34;
+}
+.payment-stripe-mark:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.payment-test-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  background: var(--cream-light);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
 /* Refund requests in the billing history (revisions 5.0, §24.4) ---------- */
 .settings-transaction {
   flex-wrap: wrap;

@@ -206,6 +206,12 @@ func (e *AccountEraser) Erase(ctx context.Context, id uuid.UUID, req EraseReques
 }
 
 // eraseExtras removes the identity module's per-user rows.
+//
+// Invoices and credit notes (revisions 6.0, §26.6) are deliberately NOT erased:
+// they are accounting records the company must keep, whatever happens to the
+// account. They are immutable snapshots; the buyer's name, e-mail and country
+// stay sealed inside them, and the client's own view of them disappears with
+// the account (no one can sign in to read them; administrators still can).
 func (e *AccountEraser) eraseExtras(ctx context.Context, id uuid.UUID, now time.Time) error {
 	if e.d.Push != nil {
 		if _, err := e.d.Push.DeleteAllForUser(ctx, id); err != nil {

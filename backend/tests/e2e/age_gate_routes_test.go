@@ -55,6 +55,11 @@ var ageExempt = []ageExemption{
 	{"POST /api/v1/support/tickets", "support (never gated)"},
 	{"* /api/v1/support/tickets/", "support by private link (never gated)"},
 
+	// revisions 6.0 (§26.4): the calculators' e-mail report is public (no account needed).
+	{"GET /api/v1/calculators/report-email/config", "public: whether the report is on and whether its marketing box starts ticked"},
+	{"POST /api/v1/calculators/report-email", "public calculators' e-mail report (no account needed)"},
+	{"POST /api/v1/marketing/unsubscribe", "public unsubscribe link (never gated)"},
+
 	// The signed-in person's own data and rights.
 	{"* /api/v1/me", "profile, birth data, settings, notifications, support, devices, exports, deactivation, closure (never gated: privacy rights)"},
 	{"GET /api/v1/custom-requests", "reading requests (the profile overview lists them), already placed"},
@@ -67,6 +72,7 @@ var ageExempt = []ageExemption{
 	{"GET /api/v1/wallet", "balance and history are the person's own data"},
 	{"GET /api/v1/wallet/ledger", "balance and history are the person's own data"},
 	{"GET /api/v1/credits/purchases", "purchase history and receipts stay available (refunds)"},
+	{"GET /api/v1/credits/purchases/:id/stream", "read-only: the outcome of a payment already made (revisions 6.0, §26.5); owner only"},
 	{"* /api/v1/billing/refund-requests", "refund requests (§24.4) stay available to everyone: list, create, withdraw"},
 	{"GET /api/v1/billing/refund-quote", "what a payment can be refunded for (§24.4) stays available to everyone"},
 	{"GET /api/v1/billing/client-config", "read-only provider configuration"},
@@ -76,6 +82,7 @@ var ageExempt = []ageExemption{
 	{"GET /api/v1/billing/subscription", "read-only"},
 	{"POST /api/v1/billing/subscription/cancel", "stopping a charge must stay possible"},
 	{"GET /api/v1/billing/transactions", "read-only history"},
+	{"* /api/v1/billing/invoices/", "invoices and credit notes (§26.6): read-only receipts stay available to everyone"},
 
 	// Connection plumbing; the actions are gated where they happen.
 	{"POST /api/v1/realtime/ticket", "connection ticket (the WebSocket's client frames are gated in the gateway, TestWebSocketActionsAreGated)"},

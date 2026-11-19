@@ -43,6 +43,9 @@ type BillingSettings struct {
 	// descriptor sent with every charge (§25.3).
 	MembershipsEnabled  bool
 	StatementDescriptor string
+	// FrontendURL is the site origin (revisions 6.0, §26.5: the return URL of a
+	// redirect-based card authentication step).
+	FrontendURL string
 }
 
 // PurchaseSettler finishes credit purchases whose charge resolved
@@ -76,6 +79,13 @@ type BillingService struct {
 	// revisions 5.0: refund requests. Loads the refund info of a page of
 	// payments (RefundService.TransactionInfo); nil leaves the rows without it.
 	refundInfo RefundInfoLoader
+	// revisions 6.0 (§26.0): credit notes and the payment policies (settlement_hooks.go).
+	invoicer   Invoicer
+	policiesFn func(ctx context.Context) PaymentPolicies
+	// revisions 6.0 (§26.6): finds the invoice or credit note of payment rows.
+	invoiceLookup InvoiceLookup
+	// revisions 6.0 (§26.5): disputes, fraud warnings, the webhook log (payment_ops.go).
+	ops *paymentOps
 }
 
 // BillingDeps are the billing service's collaborators.
@@ -241,6 +251,10 @@ type TransactionView struct {
 	// Refund (revisions 5.0, §24.4) is set on the caller's own credit-purchase
 	// rows by GET /billing/transactions only.
 	Refund *TransactionRefundInfo `json:"refund,omitempty"`
+	// revisions 6.0 (§26.6): the invoice of a purchase and the credit note of a
+	// refund (GET /billing/transactions and the admin list).
+	Invoice    *InvoiceRef `json:"invoice,omitempty"`
+	CreditNote *InvoiceRef `json:"credit_note,omitempty"`
 }
 
 func transactionView(t *domain.PaymentTransaction, methods map[uuid.UUID]domain.PaymentMethod) TransactionView {

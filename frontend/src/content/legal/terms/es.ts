@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-13",
-    "effective": "2026-11-13",
-    "lastUpdated": "2026-11-13",
+    "version": "2026-11-19",
+    "effective": "2026-11-19",
+    "lastUpdated": "2026-11-19",
     "badge": "ACUERDO DEL SISTEMA STARYIELD",
     "title": "Términos de uso"
   },
@@ -567,6 +567,14 @@ const content: LegalDocumentContent = {
           "text": "Para recargar su Saldo, cobramos en el método de pago que elija al finalizar la compra. Puede guardar una tarjeta en su Cuenta para futuras compras: los datos de la tarjeta se introducen en campos alojados por nuestro procesador de pagos y solo conservamos un token, la marca de la tarjeta, los cuatro últimos dígitos y la fecha de caducidad. Usted nos autoriza a cobrar el precio aplicable en el método de pago que seleccione. Puede eliminar una tarjeta guardada en cualquier momento desde la configuración de su cuenta. Le avisamos cada vez que se recarga su Saldo."
         },
         {
+          "type": "p",
+          "text": "Pagos con tarjeta y Stripe. Los pagos con tarjeta de Créditos los procesa Stripe, nuestro procesador de pagos. Usted introduce los datos de su tarjeta (o usa una cartera de tarjetas como Apple Pay o Google Pay) directamente en campos proporcionados por Stripe; Staryield nunca recibe ni almacena el número completo de su tarjeta ni su código de seguridad. Su banco puede pedirle que confirme un pago, por ejemplo con 3-D Secure o con un código enviado a su teléfono; si la confirmación falla o no se completa, el pago no se realiza y no se añade ningún Crédito."
+        },
+        {
+          "type": "p",
+          "text": "Facturas y notas de crédito. Por cada compra de créditos emitimos una factura de Staryield y, por cada reembolso, una nota de crédito. Ambas están disponibles en su cuenta y normalmente adjuntamos la factura a su correo de recibo."
+        },
+        {
           "type": "h4",
           "id": "limitations",
           "n": "6.1.3",
@@ -606,6 +614,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Acceso gratuito promocional («modo gratuito»). De vez en cuando podemos hacer gratis los chats en vivo para todos durante un periodo limitado. El modo gratuito puede empezar o terminar en cualquier momento, con o sin fecha de fin anunciada. Un chat que solicites mientras el modo gratuito está activo sigue siendo gratis hasta que ese chat termine, aunque el modo gratuito acabe entretanto. Los asesores siguen cobrando de Staryield por los chats realizados durante el modo gratuito. El modo gratuito no se aplica a las solicitudes personalizadas ni a la compra de Créditos, que se tarifican y cobran como siempre, y no se consume ningún minuto gratuito ni Crédito mientras tu chat es gratis."
+        },
+        {
+          "type": "p",
+          "text": "Pausa cuando se agotan sus minutos gratuitos o sus Créditos (la «espera»). Si sus minutos gratuitos se agotan durante una consulta en vivo (o, cuando lo activamos, se agotan sus Créditos), la consulta no termina de inmediato: se pone en espera durante un breve tiempo, actualmente un minuto, para que pueda añadir Créditos. El tiempo en espera no se cobra. Mientras la consulta está en espera, el asesor puede seguir escribiendo, pero esas respuestas permanecen ocultas para usted hasta que termine la espera. Si añade Créditos durante la espera, la consulta continúa, se muestran las respuestas y el minuto siguiente se cobra a la tarifa por minuto del asesor. Si una compra que ha iniciado aún se está confirmando cuando termina la espera, podemos prolongarla brevemente. Si no añade Créditos, la consulta termina, no se cobra nada y más adelante puede revelar las respuestas ocultas por el precio de un minuto a la tarifa de ese asesor. Siempre se le indica el precio antes de pagar y no se cobra nada hasta que lo confirme. Los minutos gratuitos nunca se convierten en un cargo: solo paga si añade Créditos para continuar o decide revelar las respuestas ocultas. Staryield fija la duración de la espera y puede modificarla, o desactivarla, en cualquier momento."
         },
         {
           "type": "h3",
@@ -653,6 +665,10 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
+          "text": "Mientras hay una disputa de pago abierta. Cuando un pago se disputa ante su banco o el emisor de su tarjeta, podemos congelar los Créditos sin usar comprados con ese pago y pausar las nuevas compras en su cuenta hasta que se resuelva la disputa. Los Créditos que ya haya usado y los Créditos de otras compras no se ven afectados. Si la disputa se resuelve a su favor, los Créditos congelados se restablecen y las compras se reanudan. Si el emisor de su tarjeta nos avisa de que un pago podría ser fraudulento, podemos reembolsar ese pago y revisar su cuenta."
+        },
+        {
+          "type": "p",
           "text": "Como se describe en nuestra [Política de Privacidad](/privacy), su información de identificación personal puede compartirse con nuestro procesador de pagos para ayudar a responder a las solicitudes de devolución de cargo."
         },
         {
@@ -678,6 +694,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Esta sección se aplica a los asesores. Por cada consulta completada y cada pedido entregado, recibe la parte acordada de los créditos que gastó el cliente; las ganancias se registran una sola vez y no pueden modificarse. Puede solicitar el retiro de sus ganancias disponibles desde la página de analítica, mediante transferencia bancaria o PayPal, una vez que alcance el importe mínimo indicado en ella. Los créditos ganados se convierten al tipo de pago que se muestra en esa página en el momento de la solicitud. Solo puede tener un retiro en curso a la vez y puede cancelarlo mientras esté pendiente. Revisamos cada solicitud y podemos pedirle información para prevenir el fraude; una solicitud rechazada devuelve los créditos a su saldo disponible con una explicación. Sus datos de cobro se almacenan cifrados y solo se muestran al personal autorizado, con un registro de auditoría, para tramitar su pago. Usted es responsable de los impuestos que correspondan a sus ganancias."
+        },
+        {
+          "type": "p",
+          "text": "Consultas en espera. Cuando se agotan los minutos gratuitos o los Créditos de un cliente durante una consulta en vivo y la consulta se pone en espera (véase la [Sección 6.1.4](#free-trials-and-promotional-offers)), no gana nada por el tiempo en espera. Si el cliente continúa la consulta, el minuto siguiente se factura con normalidad y usted recibe su parte acordada como siempre. Si el cliente revela después sus respuestas ocultas, usted recibe su parte acordada de un minuto a su tarifa de lista para esa consulta. Si el cliente no hace ninguna de las dos cosas, no gana nada por ese tiempo."
         }
       ]
     },

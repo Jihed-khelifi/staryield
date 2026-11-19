@@ -10,6 +10,7 @@ import { unlockRingtone, useRingtoneState } from "@/lib/chat/ringtone";
 import { TopUpLink } from "@/components/billing/top-up/top-up-provider"; // revisions 5.0
 import { Button } from "@/components/ui/button";
 import { endReasonCopy, type RateView } from "@/components/chat/chat-model";
+import { HiddenMessagesPrompt } from "@/components/chat/hidden-messages-prompt"; // revisions 6.0 (§26.1)
 import { RatePrice } from "@/components/chat/rate-price";
 import { ReviewForm, ReviewThanks } from "@/components/reviews/review-form";
 import { TrustpilotReviewCollector } from "@/components/reviews/trustpilot-review-collector";
@@ -130,7 +131,8 @@ export function SessionPanel(p: Props) {
       </div>
     );
   }
-  if (s?.status === "active") return null;
+  // revisions 6.0 (§26.1): a held reading is shown by the hold banner above the composer.
+  if (s?.status === "active" || s?.status === "held") return null;
 
   if (p.summary) {
     const sum = p.summary;
@@ -166,6 +168,7 @@ export function SessionPanel(p: Props) {
         ) : null}
         {/* Every client sees this, whatever they rated (or did not): Trustpilot forbids selective invitations and incentives. */}
         {p.role === "client" ? <TrustpilotReviewCollector placement="chat-summary" className="mt-3" /> : null}
+        <HiddenMessagesPrompt className="mt-3" />
         <Button variant="outline" className="mt-3" onClick={p.onDismissSummary}>
           {text("Close summary")}
         </Button>
@@ -190,6 +193,7 @@ export function SessionPanel(p: Props) {
         {s && endReasonCopy[s.end_reason ?? ""] ? <p className="mb-2 text-xs">{text(endReasonCopy[s.end_reason!])}</p> : null}
         <p className="font-semibold">{text(unavailableCopy[p.counterpart.status!] ?? unavailableCopy.offline, { value0: name })}</p>
         <p className="text-xs">{text("Join the waiting list and we'll let you know when they're online.")}</p>
+        <HiddenMessagesPrompt className="mb-3" />
         <WaitlistButton slug={p.counterpart.slug} name={p.counterpart.name} onAvailable={p.onAdvisorAvailable} className="mt-3 w-full sm:w-auto sm:px-6" />
         {errorBlock}
       </div>
@@ -198,6 +202,7 @@ export function SessionPanel(p: Props) {
   return (
     <div className="chat-session-card">
       {s && endReasonCopy[s.end_reason ?? ""] ? <p className="mb-2 text-xs">{text(endReasonCopy[s.end_reason!])}</p> : null}
+      <HiddenMessagesPrompt className="mb-3" />
       <p className="font-semibold">{text("Start a private live chat with {value0}", { value0: name })}</p>
       <p className="text-xs" data-testid="start-note">
         {p.free

@@ -160,6 +160,20 @@ describe("FeaturedAdvisors", () => {
     expect(within(card("Solomon")).getByRole("link", { name: /Start 1-on-1 Chat/ })).toBeTruthy();
   });
 
+  it("re-sorts the cards by status tier on live changes and refreshes the selection", async () => {
+    featured.mockResolvedValue(three());
+    renderWithI18n(<FeaturedAdvisors />);
+    await screen.findByRole("heading", { name: "Ramone" });
+    const names = () => screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(names()).toEqual(["Ramone", "Theo", "Solomon"]);
+    act(() => statusHandler?.({ slug: "solomon", status: "away" }));
+    expect(names()).toEqual(["Ramone", "Solomon", "Theo"]); // online, away, busy
+    act(() => statusHandler?.({ slug: "ramone", status: "offline" }));
+    expect(names()).toEqual(["Solomon", "Theo", "Ramone"]);
+    // The change also refetches the selection (the server order may differ).
+    await waitFor(() => expect(featured.mock.calls.length).toBeGreaterThan(1));
+  });
+
   it("explains a failed load and retries", async () => {
     featured
       .mockRejectedValueOnce(new ApiError({ code: "network_error", message: "offline", status: 0 }))

@@ -1,0 +1,245 @@
+{
+  "description": "Shared fixtures of the calculators' e-mailed report (revisions 6.0, section 26.4), generated from the web implementation: the URL fragment that reopens a result (src/lib/astro/fragment.ts) and the 'How it adds up' lines of a life path (src/lib/astro/report-steps.ts). Go (internal/mail) and the web (src/lib/astro/report-parity.test.ts) both check them, so the two implementations cannot drift.",
+  "fragments": [
+    {
+      "kind": "natal-chart",
+      "input": {
+        "birth_date": "1990-03-14",
+        "birth_time": "08:45",
+        "place_id": "gn:2988507",
+        "house_system": "whole_sign"
+      },
+      "fragment": "#v=1&d=1990-03-14&t=08%3A45&p=gn%3A2988507&h=whole_sign"
+    },
+    {
+      "kind": "natal-chart",
+      "input": {
+        "birth_date": "1990-03-14",
+        "birth_time": "08:45",
+        "place_id": "gn:2988507",
+        "house_system": "placidus"
+      },
+      "fragment": "#v=1&d=1990-03-14&t=08%3A45&p=gn%3A2988507"
+    },
+    {
+      "kind": "natal-chart",
+      "input": {
+        "birth_date": "1990-03-14",
+        "birth_time": "08:45",
+        "place_id": "gn:2988507",
+        "house_system": "equal"
+      },
+      "fragment": "#v=1&d=1990-03-14&t=08%3A45&p=gn%3A2988507&h=equal"
+    },
+    {
+      "kind": "natal-chart",
+      "input": {
+        "birth_date": "1990-03-14",
+        "house_system": "placidus"
+      },
+      "fragment": "#v=1&d=1990-03-14"
+    },
+    {
+      "kind": "natal-chart",
+      "input": {
+        "birth_date": "1945-04-30",
+        "place_id": "gn:2643743",
+        "house_system": "whole_sign"
+      },
+      "fragment": "#v=1&d=1945-04-30&p=gn%3A2643743&h=whole_sign"
+    },
+    {
+      "kind": "natal-chart",
+      "input": {
+        "birth_date": "2000-02-29",
+        "birth_time": "23:59",
+        "place_id": "paris-fr"
+      },
+      "fragment": "#v=1&d=2000-02-29&t=23%3A59&p=paris-fr"
+    },
+    {
+      "kind": "astrology",
+      "input": {
+        "birth_date": "1990-03-14"
+      },
+      "fragment": "#v=1&d=1990-03-14"
+    },
+    {
+      "kind": "astrology",
+      "input": {
+        "birth_date": "1990-03-14",
+        "birth_time": "00:05",
+        "place_id": "gn:2988507"
+      },
+      "fragment": "#v=1&d=1990-03-14&t=00%3A05&p=gn%3A2988507"
+    },
+    {
+      "kind": "astrology",
+      "input": {
+        "birth_date": "1999-12-31",
+        "place_id": "gn:5128581"
+      },
+      "fragment": "#v=1&d=1999-12-31&p=gn%3A5128581"
+    },
+    {
+      "kind": "path-of-life",
+      "input": {
+        "birth_date": "1990-11-29"
+      },
+      "fragment": "#v=1&d=1990-11-29"
+    },
+    {
+      "kind": "path-of-life",
+      "input": {
+        "birth_date": "1900-01-01"
+      },
+      "fragment": "#v=1&d=1900-01-01"
+    }
+  ],
+  "life_path_steps": [
+    {
+      "birth_date": "1900-01-01",
+      "steps": [
+        "Month: 1",
+        "Day: 1",
+        "Year: 1900 → 10 → 1",
+        "Total: 3"
+      ]
+    },
+    {
+      "birth_date": "1933-03-03",
+      "steps": [
+        "Month: 3",
+        "Day: 3",
+        "Year: 1933 → 16 → 7",
+        "Total: 13 → 4"
+      ]
+    },
+    {
+      "birth_date": "1945-04-30",
+      "steps": [
+        "Month: 4",
+        "Day: 30 → 3",
+        "Year: 1945 → 19 → 10 → 1",
+        "Total: 8"
+      ]
+    },
+    {
+      "birth_date": "1955-05-05",
+      "steps": [
+        "Month: 5",
+        "Day: 5",
+        "Year: 1955 → 20 → 2",
+        "Total: 12 → 3"
+      ]
+    },
+    {
+      "birth_date": "1966-06-06",
+      "steps": [
+        "Month: 6",
+        "Day: 6",
+        "Year: 1966 → 22",
+        "Total: 34 → 7"
+      ]
+    },
+    {
+      "birth_date": "1975-07-04",
+      "steps": [
+        "Month: 7",
+        "Day: 4",
+        "Year: 1975 → 22",
+        "Total: 33"
+      ]
+    },
+    {
+      "birth_date": "1980-01-01",
+      "steps": [
+        "Month: 1",
+        "Day: 1",
+        "Year: 1980 → 18 → 9",
+        "Total: 11"
+      ]
+    },
+    {
+      "birth_date": "1987-11-29",
+      "steps": [
+        "Month: 11",
+        "Day: 29 → 11",
+        "Year: 1987 → 25 → 7",
+        "Total: 29 → 11"
+      ]
+    },
+    {
+      "birth_date": "1988-08-08",
+      "steps": [
+        "Month: 8",
+        "Day: 8",
+        "Year: 1988 → 26 → 8",
+        "Total: 24 → 6"
+      ]
+    },
+    {
+      "birth_date": "1990-11-29",
+      "steps": [
+        "Month: 11",
+        "Day: 29 → 11",
+        "Year: 1990 → 19 → 10 → 1",
+        "Total: 23 → 5"
+      ]
+    },
+    {
+      "birth_date": "1999-12-31",
+      "steps": [
+        "Month: 12 → 3",
+        "Day: 31 → 4",
+        "Year: 1999 → 28 → 10 → 1",
+        "Total: 8"
+      ]
+    },
+    {
+      "birth_date": "2000-02-29",
+      "steps": [
+        "Month: 2",
+        "Day: 29 → 11",
+        "Year: 2000 → 2",
+        "Total: 15 → 6"
+      ]
+    },
+    {
+      "birth_date": "2001-09-11",
+      "steps": [
+        "Month: 9",
+        "Day: 11",
+        "Year: 2001 → 3",
+        "Total: 23 → 5"
+      ]
+    },
+    {
+      "birth_date": "2008-11-22",
+      "steps": [
+        "Month: 11",
+        "Day: 22",
+        "Year: 2008 → 10 → 1",
+        "Total: 34 → 7"
+      ]
+    },
+    {
+      "birth_date": "2024-02-29",
+      "steps": [
+        "Month: 2",
+        "Day: 29 → 11",
+        "Year: 2024 → 8",
+        "Total: 21 → 3"
+      ]
+    },
+    {
+      "birth_date": "1956-09-20",
+      "steps": [
+        "Month: 9",
+        "Day: 20 → 2",
+        "Year: 1956 → 21 → 3",
+        "Total: 14 → 5"
+      ]
+    }
+  ]
+}

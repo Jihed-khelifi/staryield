@@ -67,7 +67,7 @@ describe("LegalDocument", () => {
     const container = renderDoc("privacy", "en");
     expect(screen.getAllByText("Last updated")).toHaveLength(2);
     expect(screen.getAllByText("Effective as of")).toHaveLength(2);
-    expect(container.querySelectorAll("time[datetime='2026-11-13']")).toHaveLength(4);
+    expect(container.querySelectorAll("time[datetime='2026-11-19']")).toHaveLength(4);
     expect(screen.getByRole("heading", { level: 1, name: "Privacy Policy" })).toBeTruthy();
     expect(container.querySelector("article[aria-labelledby='legal-title']")).not.toBeNull();
     expect(screen.getByRole("heading", { level: 2, name: /^11\. COOKIES/ })).toBeTruthy();
@@ -135,9 +135,9 @@ describe("LegalDocument policy layout (Refund Policy)", () => {
     expect(container.querySelector("[data-legal-layout='policy']")).not.toBeNull();
     expect(screen.getByRole("heading", { level: 1, name: "Refund & Cancellation Policy" })).toBeTruthy();
     expect(screen.getByText(/STARYIELD · POLICIES/)).toBeTruthy();
-    expect(container.querySelectorAll("time[datetime='2026-11-13']")).toHaveLength(2);
-    expect(container.textContent).toContain("Effective date: 13.11.2026");
-    expect(container.textContent).toContain("Last updated: 13.11.2026");
+    expect(container.querySelectorAll("time[datetime='2026-11-19']")).toHaveLength(2);
+    expect(container.textContent).toContain("Effective date: 19.11.2026");
+    expect(container.textContent).toContain("Last updated: 19.11.2026");
     expect(screen.getAllByRole("link", { name: "Contact Support" }).map((a) => a.getAttribute("href"))).toEqual(["/en/contact", "/en/contact"]);
     expect(screen.getByRole("link", { name: "Go to Pricing" }).getAttribute("href")).toBe("/en/pricing");
     const related = container.querySelector("nav[aria-labelledby='legal-related-title']")!;

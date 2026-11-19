@@ -180,3 +180,80 @@ describe("SessionPanel Trustpilot invitation", () => {
     expect(screen.queryByTestId("trustpilot-widget")).toBeNull();
   });
 });
+
+// --- revisions 6.0 (§26.1): free-trial hold ---------------------------------------------------------------------------
+import { ChatHoldProvider, type ChatHoldValue } from "@/components/chat/chat-hold-context";
+import type { ChatHold } from "@/lib/api/holds";
+import type { ChatSession, SessionSummary } from "@/lib/api/types";
+import { fireEvent } from "@testing-library/react";
+
+const holdOf = (over: Partial<ChatHold> = {}): ChatHold => ({
+  id: "h1",
+  session_id: "s1",
+  conversation_id: "c1",
+  reason: "trial_ended",
+  status: "expired",
+  started_at: "2026-11-19T10:00:00Z",
+  expires_at: "2026-11-19T10:01:00Z",
+  price_credits: 40,
+  held_messages: 3,
+  ...over,
+});
+const holdValue = (over: Partial<ChatHoldValue> = {}): ChatHoldValue => ({
+  role: "client",
+  hold: holdOf(),
+  counterpartName: "Theo",
+  clockOffsetMs: 0,
+  hidden: { holdId: "h1", count: 3 },
+  openLocked: vi.fn(),
+  openTopUp: vi.fn(),
+  busy: false,
+  continueOffered: false,
+  continuing: false,
+  continueReading: vi.fn(),
+  ...over,
+});
+const endedSession = { id: "s1", conversation_id: "c1", status: "ended", end_reason: "hold_expired", billed_minutes: 5, free_minutes_used: 5, credits_charged: 0, psychic_earnings: 0 } as unknown as ChatSession;
+const summary = { session: endedSession, duration_seconds: 300, messages: 8, can_review: false } as SessionSummary;
+const withHold = (v: ChatHoldValue, p: Partial<React.ComponentProps<typeof SessionPanel>>) => (
+  <I18nProvider locale="en" dictionary={dictionary}>
+    <ChatHoldProvider value={v}>
+      <SessionPanel {...base} {...p} />
+    </ChatHoldProvider>
+  </I18nProvider>
+);
+
+describe("SessionPanel with a hold (§26.1)", () => {
+  it("renders nothing for a held reading: the banner above the composer owns it", () => {
+    const held = { ...endedSession, status: "held", end_reason: undefined } as unknown as ChatSession;
+    const { container } = render(withHold(holdValue({ hold: holdOf({ status: "open" }) }), { session: held }));
+    expect(container.textContent).toBe("");
+  });
+
+  it("the ended summary says why and adds 'Top up to read {n} hidden messages'", () => {
+    const v = holdValue();
+    render(withHold(v, { session: endedSession, summary }));
+    expect(screen.getByTestId("chat-summary").textContent).toContain("The chat ended because no top-up arrived in time. No credits were used.");
+    const button = screen.getByTestId("hidden-messages-reveal");
+    expect(button.textContent).toBe("Top up to read 3 hidden messages");
+    fireEvent.click(button);
+    expect(v.openLocked).toHaveBeenCalledWith("h1");
+  });
+
+  it("the card after the summary was closed keeps the prompt", () => {
+    render(withHold(holdValue(), { session: endedSession, summary: null }));
+    expect(screen.getByTestId("hidden-messages-reveal")).toBeTruthy();
+    expect(screen.getByText(/Start a private live chat with Theo/)).toBeTruthy();
+  });
+
+  it("no prompt when nothing is hidden", () => {
+    render(withHold(holdValue({ hidden: null }), { session: endedSession, summary }));
+    expect(screen.queryByTestId("hidden-messages-prompt")).toBeNull();
+    expect(screen.getByTestId("chat-summary")).toBeTruthy();
+  });
+
+  it("advisors get the summary without the prompt", () => {
+    render(withHold(holdValue({ role: "psychic" }), { role: "psychic", session: endedSession, summary }));
+    expect(screen.queryByTestId("hidden-messages-prompt")).toBeNull();
+  });
+});

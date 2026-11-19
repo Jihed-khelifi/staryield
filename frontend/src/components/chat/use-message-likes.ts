@@ -5,7 +5,7 @@ import * as React from "react";
 import { chatApi } from "@/lib/api/endpoints";
 import { toApiError, type ApiError } from "@/lib/api/errors";
 import type { MessageLikes } from "@/lib/api/types";
-import { isActionable, type UiMessage } from "@/components/chat/chat-model";
+import { canLikeOrSave, type UiMessage } from "@/components/chat/chat-model";
 
 /** The messages with optimistic likes laid over them (`override`: message id → liked_by). */
 export function withLikeOverrides(messages: UiMessage[], override: Record<string, string[]>): UiMessage[] {
@@ -41,7 +41,8 @@ export function useMessageLikes({ meId, messages, applyLikes, onFailed }: Option
 
   const toggle = React.useCallback(
     function toggle(m: UiMessage) {
-      if (!meId || !isActionable(m) || busy.current.has(m.id)) return;
+      // A message hidden by a hold (§26.1) cannot be liked: the server refuses it with 409 `message_locked`.
+      if (!meId || !canLikeOrSave(m) || busy.current.has(m.id)) return;
       const { messages: known, override: pending } = latest.current;
       const current = pending[m.id] ?? known.find((x) => x.id === m.id)?.liked_by ?? m.liked_by ?? [];
       const liking = !current.includes(meId);

@@ -18,6 +18,7 @@ import (
 	"net"
 	netmail "net/mail"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 )
@@ -61,6 +62,8 @@ type Config struct {
 	Pricing PricingConfig `env:"pricing"`
 	// revisions 5.0: refund requests (§24.4)
 	Refunds RefundsConfig `env:"refunds"`
+	// revisions 6.0: Stripe card payments (§26.5)
+	Stripe StripeConfig `env:"stripe"`
 }
 
 // AppConfig holds process-wide identity settings.
@@ -601,6 +604,8 @@ func defaults() Config {
 		Pricing:       PricingConfig{OfferRequireCardCheck: true}, // revisions 5.0
 		// revisions 5.0: refund requests (§24.4)
 		Refunds: RefundsConfig{WindowDays: RefundWindowDefaultDays, RequestsEnabled: true},
+		// revisions 6.0: Stripe card payments (§26.5)
+		Stripe: StripeConfig{Timeout: 20 * time.Second},
 	}
 }
 
@@ -897,12 +902,19 @@ func (c *Config) Validate() error {
 		if c.IsProduction() && !c.Payments.AllowSandboxInProduction {
 			add("%s=sandbox is not allowed in production", e("payments.provider"))
 		}
+	case StripeProvider:
+		// revisions 6.0 (§26.5): the legacy hosted checkout stays off (a real
+		// processor charges tokens, not a free sandbox) while the saved-card
+		// registry runs; stripe must then be listed in payments.providers.
+		if !slices.Contains(c.Payments.Providers, StripeProvider) {
+			add("%s=stripe requires %s to list stripe", e("payments.provider"), e("payments.providers"))
+		}
 	default:
 		add("%s %q is not supported", e("payments.provider"), c.Payments.Provider)
 	}
 	// billing: saved-card providers (ignored while payments are disabled).
 	if c.Payments.Provider != "disabled" {
-		known := map[string]bool{"sandbox_a": true, "sandbox_b": true}
+		known := map[string]bool{"sandbox_a": true, "sandbox_b": true, StripeProvider: true} // revisions 6.0: stripe
 		listed := map[string]bool{}
 		for _, p := range c.Payments.Providers {
 			switch {
@@ -938,6 +950,7 @@ func (c *Config) Validate() error {
 	// revisions 5.0: refund requests
 	c.validateRefunds(add)
 	c.validateStatementDescriptor(add) // revisions 5.1
+	c.validateStripe(add)              // revisions 6.0 (§26.5)
 
 	if c.IsProduction() {
 		// revisions 5.0: 18+ age gate (§24.6): the legal floor is not configurable.

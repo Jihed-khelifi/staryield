@@ -431,3 +431,34 @@ func TestAdvisorRateRange(t *testing.T) {
 	}
 	admin.must(http.StatusOK, http.MethodPatch, "/api/v1/admin/psychics/"+ok.ID.String(), map[string]any{"rate_per_minute": 150}, nil)
 }
+
+// The reference pack cannot be deleted (savings badges are measured against
+// it), even without purchases: the console warns that the server refuses, and
+// it does. Once another pack is the reference, the former one is an ordinary
+// pack (revisions 6.0 integration fix).
+func TestAdminReferencePackCannotBeDeleted(t *testing.T) {
+	e := newEnv(t)
+	e.ensurePacks()
+	e.restoreCatalogFlags()
+	admin := e.createAdmin()
+	admin.stepUp()
+	var created service.AdminPack
+	admin.must(http.StatusCreated, http.MethodPost, "/api/v1/admin/credit-packs",
+		adminPackBody("ref_"+strings.ToLower(uniq(""))[:8], map[string]any{"reference": true}), &created)
+	if !created.Reference {
+		t.Fatalf("the new pack is not the reference: %+v", created)
+	}
+	r := admin.call(http.MethodDelete, "/api/v1/admin/credit-packs/"+created.ID.String(), nil)
+	if r.status != http.StatusConflict || !strings.Contains(string(r.body), "reference for savings badges") {
+		t.Fatalf("deleting the reference pack: %d %s", r.status, r.body)
+	}
+	if e.count(`SELECT count(*) FROM credit_packs WHERE id = ? AND reference`, created.ID) != 1 {
+		t.Fatal("the reference pack is gone")
+	}
+	// Moving the reference back makes the pack deletable (no purchases).
+	e.app.DB.Exec("UPDATE credit_packs SET reference = false WHERE id = ?", created.ID)
+	e.app.DB.Exec("UPDATE credit_packs SET reference = true WHERE code = 'quick_150' AND active")
+	if r := admin.call(http.MethodDelete, "/api/v1/admin/credit-packs/"+created.ID.String(), nil); r.status != http.StatusNoContent {
+		t.Fatalf("deleting an ordinary pack: %d %s", r.status, r.body)
+	}
+}

@@ -252,6 +252,11 @@ func (c *ChatService) Attachment(ctx context.Context, p reqctx.Principal, id uui
 	if err != nil || !conv.IsParticipant(p.UserID) {
 		return nil, "", ErrAttachmentHidden
 	}
+	// revisions 6.0 (§26.1): an image a hold hides is "not found" to the client
+	// (and the lookup failing hides it too: fail closed).
+	if m, err := c.chat.GetMessage(ctx, a.MessageID); err != nil || lockedFrom(m, viewer{ID: p.UserID}) {
+		return nil, "", ErrAttachmentHidden
+	}
 	body, ct, err := c.extras.Store.Get(ctx, a.ObjectKey, int64(a.Bytes)+1024)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {

@@ -39,6 +39,9 @@ func (c *ChatService) SetLike(ctx context.Context, p reqctx.Principal, messageID
 	if !canQuote(m.Kind) {
 		return nil, apperror.MessageNotLikeable()
 	}
+	if lockedFrom(m, viewer{ID: p.UserID, Admin: p.IsAdmin()}) { // revisions 6.0 (§26.1): a hidden message cannot be liked
+		return nil, apperror.MessageLocked()
+	}
 	var out MessageLikes
 	var changed bool
 	err = c.tx.WithinTx(ctx, func(ctx context.Context) error {

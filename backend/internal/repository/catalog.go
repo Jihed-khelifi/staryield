@@ -36,8 +36,9 @@ type AdvisorCardRow struct {
 
 // CatalogRepository reads the public advisor directory.
 type CatalogRepository interface {
-	// ListedCards returns every listed advisor of an active account in the
-	// curated directory order (featured, rank, sort order, name).
+	// ListedCards returns every listed advisor of an active account in a
+	// stable order (featured, rank, sort order, name); the service applies
+	// the public order (status, rating, ...) on top of it.
 	ListedCards(ctx context.Context) ([]AdvisorCardRow, error)
 }
 

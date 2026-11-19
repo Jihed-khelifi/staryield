@@ -49,6 +49,10 @@ type CustomerRequest struct {
 	UserID         uuid.UUID
 	ExistingRef    string
 	IdempotencyKey string
+	// Email and Name describe the account (revisions 6.0: Stripe uses them
+	// for fraud screening and dispute evidence; the sandboxes ignore them).
+	Email string
+	Name  string
 }
 
 // CustomerVault manages provider customers that own saved cards.
@@ -110,6 +114,10 @@ type StoredCharge struct {
 	// StatementDescriptor is what the customer's card statement shows
 	// (revisions 5.1, §25.3); the sandboxes ignore it.
 	StatementDescriptor string
+	// revisions 6.0 (§26.5): see CheckoutRequest.
+	ReturnURL    string
+	Metadata     map[string]string
+	ThreeDSecure string
 }
 
 // ChargeStatus is a charge outcome reported by a provider.
@@ -136,6 +144,10 @@ type ChargeResult struct {
 	ProviderRef   string
 	NetworkTxnRef string
 	NextAction    *NextAction
+	// revisions 6.0 (§26.5): see CheckoutResult.
+	Card    *CardMeta
+	Risk    *RiskInfo
+	ThreeDS string
 }
 
 // StoredCharger charges saved cards. Providers must de-duplicate on
@@ -183,6 +195,11 @@ type ClientConfigRequest struct {
 	AmountCents int64
 	Currency    string
 	Now         time.Time
+	// CustomerRef is the provider customer, set for PurposeMethod (saving a
+	// card needs one: Stripe creates its SetupIntent for it). revisions 6.0
+	CustomerRef string
+	// ThreeDSecure is the payment policy ("automatic" or "any"). revisions 6.0
+	ThreeDSecure string
 }
 
 // TestCard is a sandbox card the UI may offer (never real card data).
@@ -203,6 +220,16 @@ type ClientConfig struct {
 	TokenFormat     string     `json:"token_format,omitempty"`
 	TestCards       []TestCard `json:"test_cards,omitempty"`
 	ExpiresAt       *time.Time `json:"expires_at,omitempty"`
+	// revisions 6.0 (§26.5), Stripe Elements: "payment" (deferred intent:
+	// the browser creates a ConfirmationToken for AmountCents/Currency) or
+	// "setup" (ClientSecret is a SetupIntent's; the browser confirms it and
+	// posts the resulting payment method id). Livemode is false with test keys
+	// (the web shows a "Test mode" badge).
+	Mode               string   `json:"mode,omitempty"`
+	AmountCents        int64    `json:"amount_cents,omitempty"`
+	Currency           string   `json:"currency,omitempty"`
+	PaymentMethodTypes []string `json:"payment_method_types,omitempty"`
+	Livemode           *bool    `json:"livemode,omitempty"`
 }
 
 // TokenInspector reads the card behind a single-use client token without
@@ -274,6 +301,11 @@ const (
 	CapClientConfig
 	// CapInspect: the provider can read a token's card without charging it.
 	CapInspect
+	// revisions 6.0 (§26.5): retrieve a charge by its reference, manage
+	// disputes, report the processor account's status.
+	CapRetrieve
+	CapDisputes
+	CapAccount
 )
 
 var capabilityNames = []struct {
@@ -282,7 +314,7 @@ var capabilityNames = []struct {
 }{
 	{CapCheckout, "checkout"}, {CapWebhooks, "webhooks"}, {CapVault, "vault"}, {CapAttach, "attach"},
 	{CapStoredCharge, "stored_charge"}, {CapLookup, "lookup"}, {CapRefund, "refund"}, {CapClientConfig, "client_config"},
-	{CapInspect, "inspect"},
+	{CapInspect, "inspect"}, {CapRetrieve, "retrieve"}, {CapDisputes, "disputes"}, {CapAccount, "account"},
 }
 
 // Has reports whether c includes every capability in want.
@@ -329,6 +361,15 @@ func CapabilitiesOf(p Named) Capability {
 	if _, ok := p.(TokenInspector); ok {
 		c |= CapInspect
 	}
+	if _, ok := p.(ChargeRetriever); ok {
+		c |= CapRetrieve
+	}
+	if _, ok := p.(DisputeManager); ok {
+		c |= CapDisputes
+	}
+	if _, ok := p.(AccountInspector); ok {
+		c |= CapAccount
+	}
 	return c
 }
 
@@ -337,6 +378,9 @@ const (
 	PurposeAny          = "any"
 	PurposeCredits      = "credits"
 	PurposeSubscription = "subscription"
+	// PurposeMethod saves a card without paying (Settings → Add a card);
+	// routed like credits. revisions 6.0
+	PurposeMethod = "method"
 )
 
 // Rule is a routing rule (see domain.RoutingRule).

@@ -180,7 +180,7 @@ func (r *GormInsightsRepository) UserStats(ctx context.Context, userID uuid.UUID
 		(SELECT count(*) FROM credit_purchases WHERE user_id = ? AND status = 'succeeded') AS purchases,
 		(SELECT COALESCE(sum(price_cents), 0) FROM credit_purchases WHERE user_id = ? AND status = 'succeeded' AND currency = ?) AS revenue_cents,
 		(SELECT COALESCE(sum(credits), 0) FROM credit_purchases WHERE user_id = ? AND status = 'succeeded') AS credits_purchased,
-		(SELECT COALESCE(-sum(amount) FILTER (WHERE entry_type = 'chat_charge'), 0) + COALESCE(sum(-held_amount) FILTER (WHERE entry_type = 'hold_release'), 0)
+		(SELECT COALESCE(-sum(amount) FILTER (WHERE entry_type IN ('chat_charge', 'chat_reveal')), 0) + COALESCE(sum(-held_amount) FILTER (WHERE entry_type = 'hold_release'), 0)
 		   FROM credit_ledger WHERE user_id = ?) AS credits_spent,
 		(SELECT count(*) FROM chat_sessions WHERE (client_id = ? OR psychic_id = ?) AND started_at IS NOT NULL) AS sessions,
 		(SELECT COALESCE(sum(billed_minutes), 0) FROM chat_sessions WHERE client_id = ? OR psychic_id = ?) AS chat_minutes,

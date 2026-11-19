@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:calculators": "node scripts/check-calculators.mjs",
+    "gen:report-copy": "node scripts/gen-report-copy.mjs",
     "dev:vinext": "vite dev --port 3001",
     "build:vinext": "vite build",
     "start:vinext": "wrangler dev --config dist/server/wrangler.json",
@@ -28,6 +29,8 @@
   "dependencies": {
     "@formatjs/intl-localematcher": "^0.8.13",
     "@hookform/resolvers": "^5.9.1",
+    "@stripe/react-stripe-js": "7.1.0",
+    "@stripe/stripe-js": "10.3.0",
     "chart.js": "^4.5.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

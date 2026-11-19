@@ -26,17 +26,43 @@ type orderedPublisher interface {
 	FlushGaps(ctx context.Context, maxAge time.Duration) (int, error)
 }
 
+// perUserPublisher is implemented by publishers that can give each recipient
+// of one seq slot a payload of its own (realtime.Publisher; revisions 6.0).
+type perUserPublisher interface {
+	PublishOrderedPerUser(ctx context.Context, conversationID uuid.UUID, seq int64, eventType string, byUser map[uuid.UUID]any) error
+}
+
 // publishMessage delivers message.created to the participants in seq order.
+// A message a hold hides goes out once per seq slot with a payload per
+// recipient: the advisor gets it in full, the client the locked view.
 func (c *ChatService) publishMessage(ctx context.Context, v MessageView, userIDs ...uuid.UUID) {
+	c.deliverMessage(ctx, v, userIDs)
+	// revisions 3.0: chat unread (all callers pass client, then psychic).
+	if len(userIDs) == 2 {
+		c.onMessageStored(ctx, v, userIDs[0], userIDs[1])
+	}
+}
+
+func (c *ChatService) deliverMessage(ctx context.Context, v MessageView, userIDs []uuid.UUID) {
+	if v.Held {
+		byUser := make(map[uuid.UUID]any, len(userIDs))
+		for _, u := range userIDs {
+			byUser[u] = map[string]any{"message": viewFor(v, viewer{ID: u})}
+		}
+		if op, ok := c.events.(perUserPublisher); ok {
+			warnErr(ctx, "chat: publish message", op.PublishOrderedPerUser(ctx, v.ConversationID, v.Seq, realtime.EventMessageCreated, byUser))
+			return
+		}
+		for _, u := range userIDs {
+			warnErr(ctx, "chat: publish message", c.events.Publish(ctx, realtime.EventMessageCreated, byUser[u], u))
+		}
+		return
+	}
 	payload := map[string]any{"message": v}
 	if op, ok := c.events.(orderedPublisher); ok {
 		warnErr(ctx, "chat: publish message", op.PublishOrdered(ctx, v.ConversationID, v.Seq, realtime.EventMessageCreated, payload, userIDs...))
 	} else {
 		warnErr(ctx, "chat: publish message", c.events.Publish(ctx, realtime.EventMessageCreated, payload, userIDs...))
-	}
-	// revisions 3.0: chat unread (all callers pass client, then psychic).
-	if len(userIDs) == 2 {
-		c.onMessageStored(ctx, v, userIDs[0], userIDs[1])
 	}
 }
 
@@ -150,7 +176,7 @@ func (c *ChatService) Typing(ctx context.Context, p reqctx.Principal, sessionID 
 	if err != nil {
 		return err
 	}
-	if s.Status != domain.SessionActive {
+	if s.Status != domain.SessionActive && s.Status != domain.SessionHeld { // revisions 6.0: the composer stays enabled during a hold
 		return nil
 	}
 	if typing {
@@ -253,7 +279,8 @@ func (c *ChatService) Conversations(ctx context.Context, p reqctx.Principal, cur
 			if r.LastKind != nil {
 				kind = domain.MessageKind(*r.LastKind)
 			}
-			v.LastMessage = &MessageView{ID: *r.LastMessageID, ConversationID: r.ID, SenderID: r.LastSenderID, Kind: string(kind), Body: preview, replyToID: r.LastReplyToID}
+			v.LastMessage = &MessageView{ID: *r.LastMessageID, ConversationID: r.ID, SenderID: r.LastSenderID, Kind: string(kind), Body: preview, replyToID: r.LastReplyToID,
+				Held: r.LastHeld != nil && *r.LastHeld, HoldID: r.LastHoldID, bodyLen: derefInt(r.LastBodyLen)} // revisions 6.0
 			if r.LastMsgSeq != nil {
 				v.LastMessage.Seq = *r.LastMsgSeq
 			}
@@ -270,6 +297,7 @@ func (c *ChatService) Conversations(ctx context.Context, p reqctx.Principal, cur
 	if err := c.decorateLastMessages(ctx, page.Items); err != nil {
 		return InboxPage{}, apperror.Internal(err)
 	}
+	redactLastMessages(page.Items, viewer{ID: p.UserID}) // revisions 6.0 (§26.1)
 	if page.HasMore && len(rows) > 0 {
 		last := rows[len(rows)-1]
 		page.NextCursor = repository.EncodeCursor(last.LastActivityAt, last.ID.String())
@@ -360,7 +388,7 @@ func (c *ChatService) Messages(ctx context.Context, p reqctx.Principal, conversa
 			return MessagePage{}, err
 		}
 	}
-	return c.messagesBefore(ctx, p.UserID, conv.ID, before, q.Limit)
+	return c.messagesBefore(ctx, viewer{ID: p.UserID, Admin: p.IsAdmin()}, conv.ID, before, q.Limit)
 }
 
 // cursorSeq maps a legacy (created_at, id) cursor to the seq of the message
@@ -382,7 +410,7 @@ func (c *ChatService) cursorSeq(ctx context.Context, conversationID uuid.UUID, c
 	return m.Seq, nil
 }
 
-func (c *ChatService) messagesBefore(ctx context.Context, viewerID, conversationID uuid.UUID, beforeSeq int64, limit int) (MessagePage, error) {
+func (c *ChatService) messagesBefore(ctx context.Context, w viewer, conversationID uuid.UUID, beforeSeq int64, limit int) (MessagePage, error) {
 	limit = clampPage(limit, c.cfg.HistoryPageSize, 200)
 	rows, err := c.chat.ListMessagesBefore(ctx, conversationID, beforeSeq, limit+1)
 	if err != nil {
@@ -392,7 +420,7 @@ func (c *ChatService) messagesBefore(ctx context.Context, viewerID, conversation
 	if page.HasMore {
 		rows = rows[:limit]
 	}
-	items, err := c.messageViews(ctx, viewerID, rows, true)
+	items, err := c.messageViews(ctx, w, rows, true)
 	if err != nil {
 		return MessagePage{}, err
 	}
@@ -407,12 +435,14 @@ func (c *ChatService) messagesBefore(ctx context.Context, viewerID, conversation
 
 // messageViews renders rows with the viewer's bookmarks and attachments,
 // reversing newest-first rows into chronological order when reverse is set.
-func (c *ChatService) messageViews(ctx context.Context, viewerID uuid.UUID, rows []domain.Message, reverse bool) ([]MessageView, error) {
+// Messages a hold hides are locked for everyone but their sender and the
+// administrators (redactMessages).
+func (c *ChatService) messageViews(ctx context.Context, w viewer, rows []domain.Message, reverse bool) ([]MessageView, error) {
 	ids := make([]uuid.UUID, len(rows))
 	for i := range rows {
 		ids[i] = rows[i].ID
 	}
-	saved, err := c.chat.BookmarkedIDs(ctx, viewerID, ids)
+	saved, err := c.chat.BookmarkedIDs(ctx, w.ID, ids)
 	if err != nil {
 		return nil, apperror.Internal(err)
 	}
@@ -430,11 +460,12 @@ func (c *ChatService) messageViews(ctx context.Context, viewerID uuid.UUID, rows
 	if err := c.decorate(ctx, out, true); err != nil {
 		return nil, apperror.Internal(err)
 	}
+	redactMessages(out, w)
 	return out, nil
 }
 
 // messagesPage serves cursor-based history to administrators (transcripts).
-func (c *ChatService) messagesPage(ctx context.Context, viewerID, conversationID uuid.UUID, before string, limit int) (Page[MessageView], error) {
+func (c *ChatService) messagesPage(ctx context.Context, w viewer, conversationID uuid.UUID, before string, limit int) (Page[MessageView], error) {
 	var beforeSeq int64
 	if before != "" {
 		seq, err := c.cursorSeq(ctx, conversationID, before)
@@ -443,7 +474,7 @@ func (c *ChatService) messagesPage(ctx context.Context, viewerID, conversationID
 		}
 		beforeSeq = seq
 	}
-	mp, err := c.messagesBefore(ctx, viewerID, conversationID, beforeSeq, limit)
+	mp, err := c.messagesBefore(ctx, w, conversationID, beforeSeq, limit)
 	if err != nil {
 		return Page[MessageView]{}, err
 	}
@@ -492,7 +523,7 @@ func (c *ChatService) MessagesSince(ctx context.Context, p reqctx.Principal, con
 	if page.HasMore {
 		rows = rows[:limit]
 	}
-	if page.Items, err = c.messageViews(ctx, p.UserID, rows, false); err != nil {
+	if page.Items, err = c.messageViews(ctx, viewer{ID: p.UserID}, rows, false); err != nil {
 		return SincePage{}, err
 	}
 	if n := len(page.Items); n > 0 && page.Items[n-1].Seq > page.LastSeq {
@@ -543,6 +574,7 @@ func (c *ChatService) sessionsPage(ctx context.Context, f repository.SessionFilt
 		return Page[SessionView]{}, apperror.Internal(err)
 	}
 	ps := c.newParticipants()
+	ps.prefetchHolds(ctx, rows) // revisions 6.0: one query for the page
 	page := Page[SessionView]{Items: make([]SessionView, 0, len(rows))}
 	for i := range rows {
 		page.Items = append(page.Items, c.sessionView(ctx, ps, &rows[i], w))
@@ -572,6 +604,9 @@ func (c *ChatService) Bookmark(ctx context.Context, p reqctx.Principal, messageI
 	}
 	if m.Kind != domain.MessageText && m.Kind != domain.MessageImage {
 		return apperror.Validation(map[string]string{"message_id": "Only messages can be saved."})
+	}
+	if lockedFrom(m, viewer{ID: p.UserID, Admin: p.IsAdmin()}) { // revisions 6.0 (§26.1)
+		return apperror.MessageLocked()
 	}
 	if err := c.chat.SaveBookmark(ctx, &domain.SavedMessage{UserID: p.UserID, MessageID: messageID, CreatedAt: c.clock.Now()}); err != nil {
 		return apperror.Internal(err)
@@ -613,6 +648,7 @@ func (c *ChatService) Bookmarks(ctx context.Context, p reqctx.Principal, convers
 	if err := c.decorate(ctx, out, true); err != nil {
 		return Page[MessageView]{}, apperror.Internal(err)
 	}
+	redactMessages(out, viewer{ID: p.UserID, Admin: p.IsAdmin()}) // revisions 6.0 (§26.1)
 	page := Page[MessageView]{Items: out}
 	if more {
 		last := rows[len(rows)-1]

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { LockKeyhole } from "lucide-react";
+import { LockKeyhole, Mail } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import type { NatalResult, SunSignResult } from "@/lib/api/astrology";
@@ -10,19 +10,15 @@ import { useSession } from "@/lib/auth/session-provider";
 import { usePsychicsHref } from "@/lib/psychics-link";
 import { formatDateParts, romanNumeral } from "@/lib/calculators";
 import { LIFE_PATH_COPY, NUMBER_CARDS } from "@/lib/astro/life-path-copy";
+import { HOUSE_SYSTEM_NAMES } from "@/lib/astro/report-labels";
+import { lifePathSteps } from "@/lib/astro/report-steps";
 import { SIGN_FACTS, SIGN_INSIGHT, isSign } from "@/lib/astro/zodiac";
 import { birthDateOf, type CalculatorFormValues, type CalculatorKind } from "@/lib/schemas/calculator";
+import { BIRTH_DATA_NOTICE } from "@/components/calculators/birth-data-notice";
 import type { LifePathResult } from "@/components/calculators/calculate";
 import { SpreadCardList, TarotSpread } from "@/components/calculators/tarot-spread";
 import { ZodiacWheel } from "@/components/astrology/ZodiacWheel";
 import { cn } from "@/lib/utils";
-
-const HOUSE_SYSTEM_NAMES: Record<string, string> = {
-  placidus: "Placidus",
-  whole_sign: "Whole Sign",
-  equal: "Equal",
-  porphyry: "Porphyry",
-};
 
 const WALL_TIME_NOTES: Record<string, string> = {
   skipped: "That clock time did not exist there (the clocks went forward), so the time just before the change was used.",
@@ -36,11 +32,14 @@ export function ResultDate({
   details,
   onChange,
   sample = false,
+  onEmail,
 }: {
   values: CalculatorFormValues;
   details?: React.ReactNode;
   onChange: () => void;
   sample?: boolean;
+  /** "E-mail me this report" (revisions 6.0, §26.4); omitted when the report cannot be e-mailed (sample, switched off). */
+  onEmail?: () => void;
 }) {
   const { text } = useI18n();
   return (
@@ -53,6 +52,12 @@ export function ResultDate({
         <span className="sr-only">{text("Change birth date ({value0})", { value0: formatDateParts(birthDateOf(values.birth)) })}</span>
       </button>
       {details ? <div className="-mt-2 text-sm font-light">{details}</div> : null}
+      {onEmail ? (
+        <button type="button" className="calc-email-button" onClick={onEmail} data-testid="email-report-button">
+          <Mail aria-hidden className="size-4" />
+          {text("E-mail me this report")}
+        </button>
+      ) : null}
       {sample ? (
         <p className="text-xs text-[var(--muted-ink)]">{text("Sample date from the design. Change the birth date to calculate your own result.")}</p>
       ) : null}
@@ -124,7 +129,7 @@ export function NatalResultView({ result }: { result: NatalResult }) {
             {chart.fallback_reason ? ` ${text("Placidus is undefined this close to the poles, so Porphyry houses were used.")}` : ""}
           </p>
           {chart.wall_time_status && WALL_TIME_NOTES[chart.wall_time_status] ? <p>{text(WALL_TIME_NOTES[chart.wall_time_status])}</p> : null}
-          <Lock>{text("Your birth data is used only to draw this spread and is never stored.")}</Lock>
+          <Lock>{text(BIRTH_DATA_NOTICE)}</Lock>
           <p>{text(result.disclaimer)}</p>
           {result.attribution ? <p lang="en">{result.attribution}</p> : null}
         </div>
@@ -213,7 +218,7 @@ export function SunSignResultView({ result, onAddTime }: { result: SunSignResult
             </Link>
           )}
         </div>
-        <Lock>{text("Your data is processed securely & never stored.")}</Lock>
+        <Lock>{text(BIRTH_DATA_NOTICE)}</Lock>
       </section>
     </>
   );
@@ -229,17 +234,7 @@ export function LifePathResultView({ result }: { result: LifePathResult }) {
     personalMonth: result.cycles.personalMonth,
   };
   const copy = LIFE_PATH_COPY[result.lifePath.number] ?? LIFE_PATH_COPY[9];
-  const steps = [
-    ...result.lifePath.components.map((c) =>
-      text("{value0}: {value1}", {
-        value0: text(c.label === "month" ? "Month" : c.label === "day" ? "Day" : "Year"),
-        value1: [String(c.value), ...c.steps.map((s) => s.split("=").at(-1) ?? s)].join(" → "),
-      }),
-    ),
-    text("Total: {value0}", {
-      value0: [String(result.lifePath.total), ...result.lifePath.final.map((s) => s.split("=").at(-1) ?? s)].join(" → "),
-    }),
-  ];
+  const steps = lifePathSteps(result.lifePath, text);
   return (
     <>
       <section className="flex flex-col items-center gap-10 bg-cream px-5 pt-14 pb-16 text-center md:gap-12 md:px-20 md:pt-20 md:pb-[100px]" aria-labelledby="numbers-title">
@@ -294,7 +289,7 @@ export function LifePathResultView({ result }: { result: LifePathResult }) {
             {text("Click here!")}
           </Link>
         </div>
-        <Lock>{text("Your data is calculated locally & never stored.")}</Lock>
+        <Lock>{text(BIRTH_DATA_NOTICE)}</Lock>
       </section>
     </>
   );

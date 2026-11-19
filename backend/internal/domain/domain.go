@@ -372,6 +372,10 @@ const (
 	LedgerHoldRefund      LedgerEntryType = "hold_refund"
 	LedgerAdminAdjustment LedgerEntryType = "admin_adjustment"
 	LedgerRefund          LedgerEntryType = "refund"
+	// revisions 6.0 (§26.1, §26.5; migration 0031).
+	LedgerChatReveal      LedgerEntryType = "chat_reveal"
+	LedgerDisputeReversal LedgerEntryType = "dispute_reversal"
+	LedgerDisputeRestore  LedgerEntryType = "dispute_restore"
 )
 
 // LedgerEntry is an immutable credit movement (BR-10). Amount changes the
@@ -539,6 +543,12 @@ type Message struct {
 	ReplyToID *uuid.UUID `gorm:"type:uuid"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
+
+	// revisions 6.0 (§26.1): Held is true while the message is hidden from the
+	// client by a hold; HoldID names the hold it was written under (kept after
+	// the message is revealed).
+	Held   bool       `gorm:"not null"`
+	HoldID *uuid.UUID `gorm:"type:uuid"`
 }
 
 func (Message) TableName() string { return "chat_messages" }
@@ -562,8 +572,11 @@ type EarningSource string
 const (
 	EarningChatSession   EarningSource = "chat_session"
 	EarningCustomRequest EarningSource = "custom_request"
-	EarningKindEarning                 = "earning"
-	EarningKindReversal                = "reversal"
+	// EarningChatHoldReveal: a client paid to read replies hidden by an
+	// expired hold (revisions 6.0, §26.1); SourceID is the hold.
+	EarningChatHoldReveal EarningSource = "chat_hold_reveal"
+	EarningKindEarning                  = "earning"
+	EarningKindReversal                 = "reversal"
 )
 
 // Earning is an immutable psychic earning record (BR-08).

@@ -410,6 +410,9 @@ func (s *RefundService) Credit(ctx context.Context, adminID, id uuid.UUID, in Cr
 	if out.wallet != nil {
 		dctx := database.Detach(ctx)
 		warnErr(dctx, "refunds: publish wallet", s.d.Events.Publish(dctx, realtime.EventWalletUpdated, walletView(out.wallet), r.UserID))
+		if s.onCredits != nil {
+			s.onCredits(dctx, r.UserID) // revisions 6.0 (§26.1): a held reading may be payable now
+		}
 	}
 	s.record(ctx, "refund_request.credited", id.String(), map[string]any{"reference": r.Reference, "credits": in.Credits,
 		"transaction_id": r.TransactionID, "user_id": r.UserID})
@@ -453,6 +456,12 @@ func (s *RefundService) resolved(ctx context.Context, r *domain.RefundRequest, o
 		data["refunded_cents"] = *out.refundedCents
 		// revisions 5.1: the approval e-mail names the original purchase and the descriptor (§25.5).
 		data["pack_name"], data["credits"], data["purchased_at"] = r.Quote.PackName, r.Quote.CreditsPurchased, r.Quote.PurchasedAt
+		// revisions 6.0 (§26.6): the approval e-mail links and attaches the credit note (idempotent: bookRefund issued it).
+		if out.refundTxID != nil {
+			if ref := s.d.Billing.issueCreditNote(ctx, *out.refundTxID); ref != nil {
+				data["credit_note_id"], data["credit_note_number"] = ref.ID, ref.Number
+			}
+		}
 		if s.cfg.StatementDescriptor != "" {
 			data["statement_descriptor"] = s.cfg.StatementDescriptor
 		}

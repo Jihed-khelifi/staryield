@@ -596,6 +596,9 @@ func (s *AdminService) AdjustCredits(ctx context.Context, adminID, userID uuid.U
 		s.record(ctx, "wallet.adjusted", "user", userID.String(), map[string]any{"amount": amount, "reason": reason})
 		warnErr(ctx, "admin: publish wallet", s.events.Publish(ctx, realtime.EventWalletUpdated, wv, userID))
 		s.notify.Notify(ctx, NotificationSpec{Kind: NotifyCreditsAdjusted, Data: map[string]any{"amount": amount}, Link: "/profile"}, userID)
+		if amount > 0 && s.chat != nil {
+			s.chat.ResumeHolds(ctx, userID) // revisions 6.0 (§26.1): a held reading may be payable now
+		}
 	}
 	return &wv, nil
 }
@@ -1170,7 +1173,7 @@ func (s *AdminService) Transcript(ctx context.Context, sessionID uuid.UUID, reas
 	}
 	p, _ := reqctx.PrincipalFrom(ctx)
 	s.record(ctx, "chat.transcript_viewed", "chat_session", sessionID.String(), map[string]any{"reason": reason})
-	return s.chat.messagesPage(ctx, p.UserID, sess.ConversationID, cursor, limit)
+	return s.chat.messagesPage(ctx, viewer{ID: p.UserID, Admin: true}, sess.ConversationID, cursor, limit) // revisions 6.0: held messages are flagged, never locked
 }
 
 // TerminateSession ends a live session on behalf of the platform.

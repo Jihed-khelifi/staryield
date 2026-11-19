@@ -10,7 +10,10 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 import { expectNoA11yViolations } from "./a11y";
-import { API_URL, expectNoHorizontalScroll } from "./helpers";
+import { API_URL, expectNoHorizontalScroll, quietReportPrompt } from "./helpers";
+
+// revisions 6.0: the report dialog has its own spec (calculator-report.spec.ts).
+test.beforeEach(({ page }) => quietReportPrompt(page));
 
 const STATE = join(tmpdir(), "staryield-e2e", `calc-user-${process.pid}.json`);
 mkdirSync(join(tmpdir(), "staryield-e2e"), { recursive: true });
@@ -45,7 +48,7 @@ test.describe("natal chart calculator", { tag: "@responsive" }, () => {
     page.on("request", (r) => requests.push(`${r.method()} ${r.url()}`));
     await page.goto("/en/calculators/natal-chart");
     const form = page.getByTestId("calculator-form");
-    await expect(form.getByText("Your birth data is used only to draw this spread and is never stored.")).toBeVisible();
+    await expect(form.getByText("Your birth data is used only to calculate this report. We keep it only if you ask us to e-mail the report, and only until it is sent.")).toBeVisible();
     await expect(form.getByText("calculated locally")).toHaveCount(0);
 
     // Empty submit: visible errors, no request.
@@ -75,7 +78,7 @@ test.describe("natal chart calculator", { tag: "@responsive" }, () => {
     const result = page.getByTestId("calculator-result");
     await expect(result.getByTestId("tarot-spread")).toBeVisible();
     await expect(result.getByTestId("spread-cards").locator("li")).toHaveCount(12);
-    await expect(result.getByText("Your birth data is used only to draw this spread and is never stored.")).toBeVisible();
+    await expect(result.getByText("Your birth data is used only to calculate this report. We keep it only if you ask us to e-mail the report, and only until it is sent.")).toBeVisible();
     await expect(result.getByText("Place data © GeoNames")).toBeVisible();
     expect(page.url()).toContain("#v=1&d=1990-03-14&t=08%3A45&p=gn%3A2988507&h=whole_sign");
     expect(new URL(page.url()).search).toBe("");
@@ -165,7 +168,7 @@ test.describe("natal chart calculator", { tag: "@responsive" }, () => {
 test.describe("astrology calculator", { tag: "@responsive" }, () => {
   test("sun sign on the counter-clockwise wheel; cusp day offers both signs", async ({ page }) => {
     await page.goto("/en/calculators/astrology");
-    await expect(page.getByTestId("calculator-form").getByText("Your data is processed securely & never stored.")).toBeVisible();
+    await expect(page.getByTestId("calculator-form").getByText("Your birth data is used only to calculate this report. We keep it only if you ask us to e-mail the report, and only until it is sent.")).toBeVisible();
     await fillDate(page, "02", "05", "1990");
     const sun = page.waitForResponse((r) => r.url().endsWith("/api/v1/astrology/sun-sign"));
     await page.getByTestId("calculator-submit").click();
@@ -209,7 +212,7 @@ test.describe("path of life calculator", { tag: "@responsive" }, () => {
       if (r.url().startsWith(API_URL) && /astrology/.test(r.url())) calls.push(r.url());
     });
     await page.goto("/en/calculators/path-of-life");
-    await expect(page.getByTestId("calculator-form").getByText("Your data is calculated locally & never stored.")).toBeVisible();
+    await expect(page.getByTestId("calculator-form").getByText("Your birth data is used only to calculate this report. We keep it only if you ask us to e-mail the report, and only until it is sent.")).toBeVisible();
     await fillDate(page, "29", "11", "1990");
     await page.getByTestId("calculator-submit").click();
     await expect(page.getByTestId("number-lifePath")).toHaveText("5");

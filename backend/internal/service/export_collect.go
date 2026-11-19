@@ -191,6 +191,10 @@ func (s *ExportService) collect(ctx context.Context, userID uuid.UUID) (*ExportB
 	if err := s.collectSupport(ctx, b, u.ID, rows, capped); err != nil { // revisions 3.0: support desk
 		return nil, err
 	}
+	// revisions 6.0 (§26.4): e-mail leads of the calculators' report
+	if err := s.collectCalculatorReports(ctx, b, u.ID, rows); err != nil {
+		return nil, err
+	}
 	if p != nil && p.AvatarKey != "" && s.d.Avatars != nil {
 		if data, _, err := s.d.Avatars.Get(ctx, p.AvatarKey, 4<<20); err == nil {
 			b.Blobs = append(b.Blobs, ExportBlob{Path: "profile/avatar.jpg", Data: data})
@@ -266,7 +270,9 @@ func (s *ExportService) collectChat(ctx context.Context, b *ExportBundle, u *dom
 			from = "you"
 		}
 		msg = append(msg, map[string]any{"id": m.ID, "conversation_id": m.ConversationID, "session_id": m.SessionID, "off_session": m.SessionID == nil && m.Kind != domain.MessageSystem, "from": from,
-			"kind": m.Kind, "body": m.Body, "reply_to_id": m.ReplyToID, "at": m.CreatedAt})
+			"kind": m.Kind, "body": m.Body, "reply_to_id": m.ReplyToID, "at": m.CreatedAt,
+			// revisions 6.0 (§26.1, §26.8): replies a free-trial hold hid are exported in full, flagged.
+			"held": m.Held, "hold_id": m.HoldID})
 	}
 	var saved []domain.SavedMessage
 	if err := rows(&saved, "user_id"); err != nil {

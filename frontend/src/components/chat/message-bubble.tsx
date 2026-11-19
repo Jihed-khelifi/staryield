@@ -1,16 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { FiAlertCircle, FiBookmark, FiClock, FiCornerUpLeft, FiHeart, FiImage } from "react-icons/fi";
+import { FiAlertCircle, FiBookmark, FiClock, FiCornerUpLeft, FiEyeOff, FiHeart, FiImage } from "react-icons/fi";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { formatMessageTime } from "@/lib/format";
+import { heldMarker } from "@/lib/chat/hold";
 import { cn } from "@/lib/utils";
 import { useBubbleGestures } from "@/lib/chat/gestures";
 import { MessageMenu, MessageMenuTrigger, type MenuAnchor } from "@/components/chat/message-actions";
 import { useMessageActions } from "@/components/chat/message-actions-context";
 import { MessageText } from "@/components/chat/message-text";
 import { ChatImage } from "@/components/chat/chat-image";
+import { useChatHold } from "@/components/chat/chat-hold-context"; // revisions 6.0 (§26.1): free-trial hold
+import { HiddenMessageLabel, LockedMessageBody } from "@/components/chat/locked-message-bubble";
 import { endReasonCopy, isActionable, systemCopy, type UiMessage } from "@/components/chat/chat-model";
 
 /** Delivery state of one of the viewer's own messages. */
@@ -61,6 +64,7 @@ export function MessageBubble({
 }) {
   const { text, locale, t } = useI18n();
   const actions = useMessageActions();
+  const { hold } = useChatHold();
   // The open menu: at the finger (long-press) or under the three-dot button.
   const [menu, setMenu] = React.useState<MenuAnchor | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
@@ -74,6 +78,10 @@ export function MessageBubble({
     if (element) setMenu((current) => (current && "element" in current ? null : { element, align: mine ? "start" : "end" }));
   };
   const [pop, setPop] = React.useState(false);
+  // A message the hold hides from the viewer: it can be answered, never liked, saved or copied (§26.1).
+  const locked = message.locked === true;
+  const revealed = message.locked === false;
+  const marker = mine ? heldMarker(message, hold) : null;
   const likedBy = message.liked_by ?? [];
   const likedByMe = Boolean(actions.viewerId) && likedBy.includes(actions.viewerId);
   const actionable = actions.enabled && !delivery && isActionable(message);
@@ -91,7 +99,7 @@ export function MessageBubble({
   const { attach: attachGestures, handlers: gestureHandlers } = useBubbleGestures({
     enabled: actionable,
     onReply: () => actions.reply(message),
-    onLike: like,
+    onLike: locked ? () => undefined : like,
     onMenu: setMenu,
   });
 
@@ -110,7 +118,7 @@ export function MessageBubble({
 
   const image = message.kind === "image";
   const attachment = message.attachments?.[0];
-  const alt = message.body.trim() || (mine ? text("Image you sent") : text("Image from {value0}", { value0: authorName }));
+  const alt = (locked ? "" : message.body.trim()) || (mine ? text("Image you sent") : text("Image from {value0}", { value0: authorName }));
   const status =
     delivery === "sending"
       ? text(image ? "Uploading…" : "Sending…")
@@ -151,6 +159,7 @@ export function MessageBubble({
       data-kind={message.kind}
       data-delivery={delivery}
       data-actionable={actionable || undefined}
+      data-locked={locked || undefined}
       data-liked={likedBy.length > 0 || undefined}
     >
       {actionable ? (
@@ -170,17 +179,36 @@ export function MessageBubble({
         >
           <span className="message-quote-author">{quoteAuthor}</span>
           <span className="message-quote-excerpt">
-            {quote.kind === "image" ? <FiImage aria-hidden className="size-3 shrink-0" /> : null}
-            <span className="truncate">{quote.excerpt || text("Photo")}</span>
+            {quote.locked ? (
+              <HiddenMessageLabel className="truncate" />
+            ) : (
+              <>
+                {quote.kind === "image" ? <FiImage aria-hidden className="size-3 shrink-0" /> : null}
+                <span className="truncate">{quote.excerpt || text("Photo")}</span>
+              </>
+            )}
           </span>
           {/* The visible author and excerpt name the button; the instruction follows them (WCAG 2.5.3). */}
           <span className="sr-only"> {text("Go to the original message")}</span>
         </button>
       ) : null}
-      {image ? <ChatImage attachment={attachment} file={message.localFile} alt={alt} caption={message.body || undefined} /> : null}
-      {/* Rendered as text: React escapes it, so message content can never inject markup. */}
-      {message.body ? <MessageText body={message.body} className="w-full font-serif text-[13px] leading-[1.4]" /> : null}
+      {locked ? (
+        // Never `message.body`: the placeholder is made from `body_length` alone.
+        <LockedMessageBody message={message} authorName={authorName} />
+      ) : (
+        <>
+          {image ? <ChatImage attachment={attachment} file={message.localFile} alt={alt} caption={message.body || undefined} /> : null}
+          {/* Rendered as text: React escapes it, so message content can never inject markup. */}
+          {message.body ? <MessageText body={message.body} className={cn("w-full font-serif text-[13px] leading-[1.4]", revealed && "message-unblur")} /> : null}
+        </>
+      )}
       <span className="message-meta flex w-full items-center justify-end gap-2 font-ui text-[10px]">
+        {marker ? (
+          <span className="message-held-mark mr-auto" data-testid="message-held" data-state={marker}>
+            <FiEyeOff aria-hidden className="size-3" />
+            {text(marker === "hidden" ? "Hidden from client" : "Not revealed")}
+          </span>
+        ) : null}
         {message.off_session ? (
           <span className="message-off-session mr-auto" data-testid="message-off-session">
             {text("Outside a live chat")}
@@ -247,7 +275,8 @@ export function MessageBubble({
           anchor={menu}
           liked={likedByMe}
           saved={saved}
-          hasText={Boolean(message.body.trim())}
+          locked={locked}
+          hasText={!locked && Boolean(message.body.trim())}
           copyText={message.body}
           onReply={() => actions.reply(message)}
           onLike={like}

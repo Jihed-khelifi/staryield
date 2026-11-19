@@ -184,6 +184,13 @@ func (s *Scheduler) Tick(ctx context.Context) error {
 	if _, err := s.chat.BillDue(ctx, batch); err != nil {
 		errs = append(errs, fmt.Errorf("bill sessions: %w", err))
 	}
+	// revisions 6.0 (§26.1): held readings whose hold ran out end (or are
+	// extended while a payment the client started is still processing).
+	if n, err := s.chat.ExpireHolds(ctx, batch); err != nil {
+		errs = append(errs, fmt.Errorf("expire holds: %w", err))
+	} else if n > 0 {
+		logger.FromContext(ctx).Info("chat holds expired or extended", zap.Int("count", n))
+	}
 	if n, err := s.chat.EndExpiredGrace(ctx, batch); err != nil {
 		errs = append(errs, fmt.Errorf("end grace: %w", err))
 	} else if n > 0 {

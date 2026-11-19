@@ -106,3 +106,20 @@ describe("withLikeOverrides", () => {
     expect(withLikeOverrides(list, {})).toBe(list);
   });
 });
+
+describe("locked messages (§26.1)", () => {
+  it("are never liked: no request, no optimistic change", () => {
+    const { result } = setup([msg({ locked: true, body: "", hold_id: "h1" })]);
+    act(() => result.current.toggle(msg({ locked: true, body: "", hold_id: "h1" })));
+    expect(like).not.toHaveBeenCalled();
+    expect(unlike).not.toHaveBeenCalled();
+    expect(result.current.override).toEqual({});
+  });
+
+  it("a revealed message can be liked again", () => {
+    like.mockReturnValue(new Promise(() => undefined));
+    const { result } = setup([msg({ locked: false })]);
+    act(() => result.current.toggle(msg({ locked: false })));
+    expect(like).toHaveBeenCalledWith("m1");
+  });
+});

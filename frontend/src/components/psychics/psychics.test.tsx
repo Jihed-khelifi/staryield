@@ -127,13 +127,98 @@ describe("PsychicsBrowse", () => {
   });
 
   it("applies live status changes to the cards on screen", async () => {
-    browse.mockResolvedValue(page(1, [advisor("ada"), advisor("bea")], 2));
+    // The quiet refresh that follows a status change reads the server's state.
+    const server = new Map<string, PresenceStatus>([["ada", "offline"], ["bea", "offline"]]);
+    browse.mockImplementation(async () => page(1, [...server].map(([slug, st]) => advisor(slug, st)), 2));
     renderWithI18n(<PsychicsBrowse />);
     await screen.findByRole("heading", { name: /Ada/ });
     expect(screen.queryByText("● Online")).toBeNull();
+    server.set("bea", "online");
     act(() => statusHandler?.({ slug: "bea", status: "online" }));
     await waitFor(() => expect(screen.getAllByText("● Online")).toHaveLength(1));
     expect(screen.getAllByText("● Offline")).toHaveLength(1);
+  });
+
+  const names = () => screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent?.split(",")[0]);
+
+  it("re-sorts the cards by status tier when a status changes, keeping the server order inside a tier", async () => {
+    // A server that answers with its own state, ordered like the API
+    // (here: by tier, then by name, the advisors being otherwise equal).
+    const tier = { online: 0, away: 1, busy: 2, offline: 3 };
+    const server = new Map<string, PresenceStatus>([["ada", "online"], ["bea", "offline"], ["cyd", "offline"], ["dax", "offline"]]);
+    browse.mockImplementation(async () =>
+      page(1, [...server].sort((a, b) => tier[a[1]] - tier[b[1]] || a[0].localeCompare(b[0])).map(([slug, st]) => advisor(slug, st)), 4),
+    );
+    const change = (slug: string, status: PresenceStatus) => {
+      server.set(slug, status);
+      act(() => statusHandler?.({ slug, status }));
+    };
+    renderWithI18n(<PsychicsBrowse />);
+    await screen.findByRole("heading", { name: /Ada/ });
+    expect(names()).toEqual(["Ada", "Bea", "Cyd", "Dax"]);
+    change("dax", "online");
+    expect(names()).toEqual(["Ada", "Dax", "Bea", "Cyd"]); // at once, before any refetch answers
+    change("cyd", "busy");
+    change("bea", "away");
+    expect(names()).toEqual(["Ada", "Dax", "Bea", "Cyd"]);
+    change("ada", "offline");
+    expect(names()).toEqual(["Dax", "Bea", "Cyd", "Ada"]);
+  });
+
+  it("keeps the local order between status changes and the refetch (no server answer yet)", async () => {
+    browse.mockResolvedValueOnce(page(1, [advisor("ada", "online"), advisor("bea", "offline"), advisor("cyd", "offline")], 3));
+    let answer: (p: DirectoryPage) => void = () => {};
+    browse.mockImplementation(() => new Promise<DirectoryPage>((resolve) => (answer = resolve)));
+    renderWithI18n(<PsychicsBrowse />);
+    await screen.findByRole("heading", { name: /Ada/ });
+    act(() => statusHandler?.({ slug: "cyd", status: "online" }));
+    expect(names()).toEqual(["Ada", "Cyd", "Bea"]);
+    await waitFor(() => expect(browse).toHaveBeenCalledTimes(2));
+    expect(names()).toEqual(["Ada", "Cyd", "Bea"]);
+    await act(async () => answer(page(1, [advisor("cyd", "online"), advisor("ada", "online"), advisor("bea")], 3)));
+    expect(names()).toEqual(["Cyd", "Ada", "Bea"]); // the server's order wins once it answers
+  });
+
+  it("refreshes the page quietly after status changes, at most every 5 seconds", async () => {
+    browse.mockResolvedValue(page(1, [advisor("ada"), advisor("bea")], 2));
+    renderWithI18n(<PsychicsBrowse />);
+    await screen.findByRole("heading", { name: /Ada/ });
+    expect(browse).toHaveBeenCalledTimes(1);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      // The server now ranks bea first: the quiet refresh brings that order.
+      browse.mockResolvedValue(page(1, [advisor("bea", "online"), advisor("ada")], 2));
+      act(() => statusHandler?.({ slug: "bea", status: "online" }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(browse).toHaveBeenCalledTimes(2);
+      expect(browse.mock.calls[1][0]).toEqual({ page: 1, page_size: DIRECTORY_PAGE_SIZE });
+      for (let i = 0; i < 5; i++) act(() => statusHandler?.({ slug: "ada", status: i % 2 ? "online" : "busy" }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4_900);
+      });
+      expect(browse).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(browse).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+    // No loading state while refreshing.
+    expect(screen.queryByTestId("advisor-grid-skeleton")).toBeNull();
+  });
+
+  it("ignores a failed or empty quiet refresh and keeps the cards on screen", async () => {
+    browse.mockResolvedValueOnce(page(1, [advisor("ada"), advisor("bea")], 2));
+    renderWithI18n(<PsychicsBrowse />);
+    await screen.findByRole("heading", { name: /Ada/ });
+    browse.mockRejectedValueOnce(new ApiError({ code: "service_unavailable", message: "down", status: 503 }));
+    act(() => statusHandler?.({ slug: "bea", status: "online" }));
+    await waitFor(() => expect(browse).toHaveBeenCalledTimes(2));
+    expect(names()).toEqual(["Bea", "Ada"]);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
 

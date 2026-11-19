@@ -21,7 +21,8 @@ import { psychicsApi } from "@/lib/api/endpoints";
 import { errorMessage, toApiError, type ApiError } from "@/lib/api/errors";
 import type { AdvisorCard, PresenceStatus, Psychic, Service } from "@/lib/api/types";
 import { track } from "@/lib/analytics";
-import { useRealtimeEvent, useSession } from "@/lib/auth/session-provider";
+import { useSession } from "@/lib/auth/session-provider";
+import { applyStatusChange, useStatusChanges } from "@/lib/psychics-live";
 import { PsychicReviews } from "@/components/reviews/psychic-reviews";
 import { NumberedPager } from "@/components/ui/pagination";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
@@ -39,10 +40,14 @@ const statusCopy: Record<PresenceStatus, string> = {
   offline: "● Offline",
 };
 
-/** Keeps advisor statuses live (realtime for members, polling otherwise). */
-function useLiveStatuses(update: (slug: string, status: PresenceStatus) => void, refetch: () => void) {
+/**
+ * Keeps advisor statuses live (realtime for members, polling otherwise).
+ * `refetchOnChange` also reloads the list, at most every 5 s, after status
+ * changes (revisions 6.0, §26.3): the directory order depends on them.
+ */
+function useLiveStatuses(update: (slug: string, status: PresenceStatus) => void, refetch: () => void, refetchOnChange = false) {
   const { realtime } = useSession();
-  useRealtimeEvent<{ slug: string; status: PresenceStatus }>("psychic.status_changed", (d) => update(d.slug, d.status));
+  useStatusChanges(update, refetchOnChange ? refetch : undefined);
   useEffect(() => {
     if (realtime) return;
     const id = window.setInterval(refetch, 60_000);
@@ -127,7 +132,7 @@ function AdvisorCardView({ advisor }: { advisor: AdvisorCard }) {
             {text(statusCopy[advisor.status])}
           </span>
         </div>
-        <FreeChatBadge />
+        <FreeChatBadge className="advisor-free-badge" />
         {advisor.skills.length ? (
           <ul className="advisor-skills" aria-label={text("Specialties")}>
             {advisor.skills.slice(0, 4).map((skill) => (
@@ -166,6 +171,10 @@ function PsychicsDirectory() {
   // does not depend on the page, so hydration matches.
   const [page, setPage] = useState(() => (typeof window === "undefined" ? 1 : readDirectoryPage(window.location.search)));
   const top = useRef<HTMLDivElement>(null);
+  const pageRef = useRef(page);
+  useEffect(() => {
+    pageRef.current = page;
+  });
   const { data, error, loading, reload, setData } = useAsync(async (signal) => {
     const res = await psychicsApi.browse({ page, page_size: DIRECTORY_PAGE_SIZE }, signal);
     // A deep link past the end (advisors were hidden since): show the last page.
@@ -183,10 +192,22 @@ function PsychicsDirectory() {
     if (shown) writeDirectoryPage(shown);
   }, [shown]);
 
+  // Status changes re-sort the cards on screen at once (online, away, busy,
+  // offline; the server's order inside a tier) and refresh the page quietly:
+  // no loading state, and an answer for another page or an error is ignored.
+  const refresh = useCallback(() => {
+    const wanted = pageRef.current;
+    psychicsApi
+      .browse({ page: wanted, page_size: DIRECTORY_PAGE_SIZE })
+      .then((res) => {
+        if (pageRef.current === wanted && res.items.length > 0) setData(res);
+      })
+      .catch(() => {});
+  }, [setData]);
   useLiveStatuses(
-    (slug, status) =>
-      setData((d) => (d ? { ...d, items: d.items.map((a) => (a.slug === slug ? { ...a, status } : a)) } : d)),
-    reload,
+    (slug, status) => setData((d) => (d ? { ...d, items: applyStatusChange(d.items, slug, status) } : d)),
+    refresh,
+    true,
   );
 
   function goTo(next: number) {

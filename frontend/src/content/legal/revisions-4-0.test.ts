@@ -41,8 +41,10 @@ const OLD_GOOGLE_SENTENCE: Record<Locale, string> = {
 const ESSENTIAL: Record<Locale, string> = { en: "Essential", fr: "Essentiel", es: "Esencial" };
 
 describe("revisions 4.0 legal updates", () => {
-  it.each(locales.flatMap((l) => (["privacy", "terms"] as const).map((d) => [d, l] as const)))("%s/%s is dated 2026-11-13 (re-dated by revisions 5.1)", (d, l) => {
-    expect(legalDocuments[d][l].meta).toMatchObject({ version: "2026-11-13", effective: "2026-11-13", lastUpdated: "2026-11-13" });
+  it.each(locales.flatMap((l) => (["privacy", "terms"] as const).map((d) => [d, l] as const)))("%s/%s is dated 2026-11-13 or later (re-dated by revisions 5.1 and 6.0)", (d, l) => {
+    const { version, effective, lastUpdated } = legalDocuments[d][l].meta;
+    expect(version >= "2026-11-13").toBe(true);
+    expect({ effective, lastUpdated }).toEqual({ effective: version, lastUpdated: version });
   });
 
   it.each(locales)("%s: neither document links to an external website", (l) => {

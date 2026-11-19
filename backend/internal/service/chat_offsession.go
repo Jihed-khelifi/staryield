@@ -65,7 +65,7 @@ func (c *ChatService) freeMode(ctx context.Context) bool {
 }
 
 func isLiveStatus(s domain.SessionStatus) bool {
-	return s == domain.SessionActive || s == domain.SessionDisconnected
+	return s == domain.SessionActive || s == domain.SessionDisconnected || s == domain.SessionHeld // revisions 6.0: a held reading still takes messages
 }
 
 // liveSession returns the conversation's active or paused session, if any.
@@ -309,7 +309,7 @@ func (c *ChatService) storeOnce(ctx context.Context, p reqctx.Principal, convers
 		}
 		return false, nil
 	}
-	build := func(sessionID *uuid.UUID) (*domain.Message, error) {
+	build := func(sessionID *uuid.UUID, hold *domain.ChatHold) (*domain.Message, error) {
 		// The target is validated after the replay lookups (a replay returns the
 		// original unchanged) and before anything is stored.
 		if err := c.checkReplyTarget(ctx, conversationID, spec.replyTo); err != nil {
@@ -317,6 +317,9 @@ func (c *ChatService) storeOnce(ctx context.Context, p reqctx.Principal, convers
 		}
 		m := &domain.Message{ID: domain.NewID(), ConversationID: conversationID, SessionID: sessionID, SenderID: &sender,
 			Kind: spec.kind, Body: spec.body, ClientMsgID: spec.cmid, ReplyToID: spec.replyTo, CreatedAt: now, UpdatedAt: now}
+		if hold != nil { // revisions 6.0 (§26.1): an advisor's reply during a hold stays hidden from the client
+			m.Held, m.HoldID = true, &hold.ID
+		}
 		conv, err := c.chat.AppendMessage(ctx, m)
 		if err != nil {
 			return nil, err
@@ -330,6 +333,13 @@ func (c *ChatService) storeOnce(ctx context.Context, p reqctx.Principal, convers
 			out.att = att
 		}
 		out.msg = m
+		if hold != nil {
+			// In the same transaction, under the session lock: the count the
+			// hold's conversion and the admin see is exact.
+			if err := c.chat.IncrementHeldMessages(ctx, hold.ID); err != nil {
+				return nil, err
+			}
+		}
 		return m, nil
 	}
 
@@ -348,7 +358,11 @@ func (c *ChatService) storeOnce(ctx context.Context, p reqctx.Principal, convers
 			if done, err := replayed(); done || err != nil {
 				return err
 			}
-			if _, err := build(&s.ID); err != nil {
+			hold, err := c.holdForMessage(ctx, s, sender, spec.kind)
+			if err != nil {
+				return err
+			}
+			if _, err := build(&s.ID, hold); err != nil {
 				return err
 			}
 			out.session = s
@@ -383,7 +397,7 @@ func (c *ChatService) storeOnce(ctx context.Context, p reqctx.Principal, convers
 	if st.refusal != nil {
 		return st.refusal
 	}
-	if _, err := build(nil); err != nil {
+	if _, err := build(nil, nil); err != nil {
 		return err
 	}
 	a := st.allowance
@@ -406,7 +420,6 @@ func (c *ChatService) finishSend(ctx context.Context, p reqctx.Principal, in *st
 	vs := []MessageView{view}
 	c.decorateBestEffort(ctx, vs, in.replay)
 	view = vs[0]
-	res := &SendResult{Message: &view, Replayed: in.replay}
 	conv := in.conv
 	if !in.replay {
 		c.publishMessage(ctx, view, conv.ClientID, conv.PsychicID)
@@ -421,6 +434,8 @@ func (c *ChatService) finishSend(ctx context.Context, p reqctx.Principal, in *st
 			c.tracker.Track(ctx, "chat.off_session_message_sent", map[string]any{"conversation_id": conv.ID, "role": string(p.Role), "kind": kind, "length": length})
 		}
 	}
+	redactOne(&view, viewer{ID: p.UserID, Admin: p.IsAdmin()}) // revisions 6.0 (§26.1): the answer to the sender
+	res := &SendResult{Message: &view, Replayed: in.replay}
 	res.Allowance = in.allowance
 	if res.Allowance == nil && conv != nil {
 		// Live-routed sends and replays: best effort, never fails the send.
@@ -442,6 +457,7 @@ func (c *ChatService) replayResult(ctx context.Context, p reqctx.Principal, exis
 	vs := []MessageView{v}
 	c.decorateBestEffort(ctx, vs, true)
 	v = vs[0]
+	redactOne(&v, viewer{ID: p.UserID, Admin: p.IsAdmin()}) // revisions 6.0 (§26.1)
 	res := &SendResult{Message: &v, Replayed: true}
 	if conv, err := c.chat.GetConversation(ctx, existing.ConversationID); err == nil && conv.IsParticipant(p.UserID) {
 		if a, err := c.allowanceFor(ctx, p.UserID, conv); err == nil {

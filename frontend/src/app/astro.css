@@ -95,6 +95,40 @@
   filter: brightness(0.97);
 }
 
+/* revisions 6.0 (§26.4): "E-mail me this report" under the result's date. */
+.calc-email-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid var(--ink);
+  border-radius: 8px;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: var(--ink);
+}
+.calc-email-button:hover {
+  background: rgb(255 255 255 / 0.45);
+}
+.calc-email-button:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* The "Save your reading" honeypot: off-screen, never display:none (bots skip those). */
+.report-honeypot {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 /* Olive bands with the aged-paper texture (Figma sage + overlay). */
 .calc-olive {
   position: relative;

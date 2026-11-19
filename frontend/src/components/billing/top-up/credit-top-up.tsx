@@ -9,7 +9,7 @@ import { errorMessage } from "@/lib/api/errors";
 import { pricingApi, type PricingPack } from "@/lib/api/pricing";
 import { track } from "@/lib/analytics";
 import { useSession } from "@/lib/auth/session-provider";
-import { defaultPack, type TopUpAdvisor } from "@/lib/billing/top-up";
+import { defaultPack, type TopUpAdvisor, type TopUpHold } from "@/lib/billing/top-up";
 import { useAttemptKey } from "@/lib/billing/use-attempt-key";
 import { useAsync } from "@/lib/use-async";
 import { FreeModeCreditsNotice } from "@/components/billing/free-chat-badge";
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { DialogOverlay } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { HoldNotice } from "./hold-notice";
 import { PackPicker } from "./pack-picker";
 import { PaymentStep } from "./payment-step";
 import { SummaryDock } from "./summary-dock";
@@ -55,10 +56,13 @@ function CatalogSkeleton() {
  */
 export function CreditTopUp({
   context,
+  hold,
   onClose,
   restoresFocus = false,
 }: {
   context?: TopUpAdvisor;
+  /** revisions 6.0 (§26.1): the reading is held; the dialog says why, what continuing costs and counts down. */
+  hold?: TopUpHold;
   onClose: () => void;
   /** The caller gives the focus back itself on close (TopUpProvider), so the dialog must not. */
   restoresFocus?: boolean;
@@ -144,6 +148,8 @@ export function CreditTopUp({
               </button>
             </Dialog.Close>
           </header>
+
+          {hold ? <HoldNotice hold={hold} advisorName={context?.advisorName} /> : null}
 
           {loading ? <CatalogSkeleton /> : null}
 

@@ -424,24 +424,36 @@ func (s *Server) safeHandle(ctx context.Context, c *Client, f ClientFrame) (resu
 // SSE is the fallback when WebSockets are blocked; clients send intents over
 // REST and resume with Last-Event-ID.
 func (s *Server) ServeSSE(w http.ResponseWriter, r *http.Request, userID uuid.UUID, role string) {
+	s.serveSSE(w, r, userID, role, nil)
+}
+
+// serveSSE serves the full realtime stream (spec == nil) or a filtered stream
+// (revisions 6.0, stream.go). Both register in the hub, answer with the same
+// headers, write a keep-alive comment every PingInterval and end when the
+// client or the server closes.
+func (s *Server) serveSSE(w http.ResponseWriter, r *http.Request, userID uuid.UUID, role string, spec *StreamSpec) {
 	log := logger.FromContext(r.Context())
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		writeJSONError(w, r, http.StatusInternalServerError, apperror.Internal(errors.New("streaming unsupported")))
 		return
 	}
-	resume := r.Header.Get("Last-Event-ID")
-	if resume == "" {
-		resume = r.URL.Query().Get("resume")
-	}
-	if _, valid := ParseStreamID(resume); !valid {
-		resume = ""
+	resume := ""
+	if spec == nil {
+		resume = r.Header.Get("Last-Event-ID")
+		if resume == "" {
+			resume = r.URL.Query().Get("resume")
+		}
+		if _, valid := ParseStreamID(resume); !valid {
+			resume = ""
+		}
 	}
 	client := newClient(userID, role, "sse", s.cfg.SendBuffer, resume != "", log)
 	if p, ok := reqctx.PrincipalFrom(r.Context()); ok { // identity
 		client.Family = p.FamilyID
 	}
 	client.Locale = i18n.Normalize(reqctx.MetaFrom(r.Context()).Locale)
+	client.filtered = spec != nil
 	if err := s.hub.Register(client); err != nil {
 		status := http.StatusTooManyRequests
 		if errors.Is(err, ErrShuttingDown) {
@@ -450,10 +462,14 @@ func (s *Server) ServeSSE(w http.ResponseWriter, r *http.Request, userID uuid.UU
 		writeJSONError(w, r, status, apperror.New(apperror.CodeRateLimited, status, "Too many open connections."))
 		return
 	}
-	if err := s.admit(r.Context(), client); err != nil {
-		s.hub.Unregister(client)
-		writeJSONError(w, r, http.StatusTooManyRequests, apperror.New(apperror.CodeRateLimited, http.StatusTooManyRequests, "Too many open connections."))
-		return
+	// A filtered stream is not a presence connection: the user is not shown
+	// online (or counted against the connection cap) because a payment page is open.
+	if spec == nil {
+		if err := s.admit(r.Context(), client); err != nil {
+			s.hub.Unregister(client)
+			writeJSONError(w, r, http.StatusTooManyRequests, apperror.New(apperror.CodeRateLimited, http.StatusTooManyRequests, "Too many open connections."))
+			return
+		}
 	}
 	s.wg.Add(1)
 	defer s.wg.Done()
@@ -480,7 +496,13 @@ func (s *Server) ServeSSE(w http.ResponseWriter, r *http.Request, userID uuid.UU
 		return nil
 	}
 	if writeRaw("retry: 3000\n\n") != nil {
-		s.close(client)
+		s.closeSSE(client, spec != nil)
+		return
+	}
+	if spec != nil {
+		s.runStream(ctx, client, spec, writeRaw)
+		client.Close(CloseNormal, "")
+		s.closeSSE(client, true)
 		return
 	}
 
@@ -518,6 +540,16 @@ loop:
 	}
 	client.Close(CloseNormal, "")
 	s.close(client)
+}
+
+// closeSSE releases an SSE connection: the full stream also ends its presence
+// and tells the service layer, a filtered stream only leaves the hub.
+func (s *Server) closeSSE(c *Client, filtered bool) {
+	if filtered {
+		s.closeStream(c)
+		return
+	}
+	s.close(c)
 }
 
 func formatSSE(f outFrame) string {

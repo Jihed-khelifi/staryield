@@ -22,6 +22,10 @@ const (
 	SessionCancelled    SessionStatus = "cancelled"
 )
 
+// SessionHeld: the next minute could not be paid and the reading waits for a
+// top-up (revisions 6.0, §26.1). Not billed, not active time.
+const SessionHeld SessionStatus = "held"
+
 // EndReason explains how a session left the open states.
 type EndReason string
 
@@ -37,6 +41,8 @@ const (
 	EndRequestTimeout   EndReason = "request_timeout"
 	EndNotStarted       EndReason = "not_started"
 	EndCancelled        EndReason = "cancelled"
+	// EndHoldExpired: the hold ran out without a top-up (revisions 6.0, §26.1).
+	EndHoldExpired EndReason = "hold_expired"
 )
 
 // sessionTransitions encodes the state diagram. Extensions beyond the spec:
@@ -46,8 +52,9 @@ const (
 var sessionTransitions = map[SessionStatus][]SessionStatus{
 	SessionRequested:    {SessionAccepted, SessionDeclined, SessionExpired, SessionCancelled},
 	SessionAccepted:     {SessionActive, SessionExpired, SessionEnded},
-	SessionActive:       {SessionDisconnected, SessionEnded},
+	SessionActive:       {SessionDisconnected, SessionHeld, SessionEnded},
 	SessionDisconnected: {SessionActive, SessionEnded},
+	SessionHeld:         {SessionActive, SessionDisconnected, SessionEnded}, // revisions 6.0: a top-up, or the reading ends
 	SessionEnded:        {SessionSettled},
 }
 
@@ -64,7 +71,7 @@ func (s SessionStatus) CanTransition(to SessionStatus) bool {
 // IsOpen reports whether the session still blocks new sessions.
 func (s SessionStatus) IsOpen() bool {
 	switch s {
-	case SessionRequested, SessionAccepted, SessionActive, SessionDisconnected:
+	case SessionRequested, SessionAccepted, SessionActive, SessionDisconnected, SessionHeld:
 		return true
 	}
 	return false
@@ -72,14 +79,14 @@ func (s SessionStatus) IsOpen() bool {
 
 // IsLive reports whether the session has been accepted and not yet ended.
 func (s SessionStatus) IsLive() bool {
-	return s == SessionAccepted || s == SessionActive || s == SessionDisconnected
+	return s == SessionAccepted || s == SessionActive || s == SessionDisconnected || s == SessionHeld
 }
 
 // IsFinal reports whether no further transition is possible.
 func (s SessionStatus) IsFinal() bool { return len(sessionTransitions[s]) == 0 }
 
 // OpenSessionStatuses lists the open states (for SQL filters).
-var OpenSessionStatuses = []SessionStatus{SessionRequested, SessionAccepted, SessionActive, SessionDisconnected}
+var OpenSessionStatuses = []SessionStatus{SessionRequested, SessionAccepted, SessionActive, SessionDisconnected, SessionHeld}
 
 // Session is a live chat session between one client and one psychic.
 type Session struct {
@@ -126,6 +133,11 @@ type Session struct {
 	RevenueMillicents int64 `gorm:"not null"`
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+
+	// revisions 6.0 (§26.1): HoldExpiresAt is when the open hold runs out (set
+	// only while Held); LastHoldID is the reading's newest hold.
+	HoldExpiresAt *time.Time
+	LastHoldID    *uuid.UUID `gorm:"type:uuid"`
 }
 
 func (Session) TableName() string { return "chat_sessions" }

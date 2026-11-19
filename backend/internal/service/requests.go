@@ -619,7 +619,7 @@ func ParseSessionStatuses(raw string) ([]domain.SessionStatus, error) {
 		return nil, nil
 	}
 	valid := map[domain.SessionStatus]bool{}
-	for _, st := range []domain.SessionStatus{domain.SessionRequested, domain.SessionAccepted, domain.SessionActive, domain.SessionDisconnected,
+	for _, st := range []domain.SessionStatus{domain.SessionRequested, domain.SessionAccepted, domain.SessionActive, domain.SessionDisconnected, domain.SessionHeld,
 		domain.SessionEnded, domain.SessionSettled, domain.SessionDeclined, domain.SessionExpired, domain.SessionCancelled} {
 		valid[st] = true
 	}

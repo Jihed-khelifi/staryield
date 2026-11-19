@@ -259,3 +259,51 @@ describe("BillingCard with memberships switched off (§25.1)", () => {
   });
 });
 
+
+describe("BillingCard payments (revisions 6.0, §26.5–§26.6)", () => {
+  const tx = (over: Record<string, unknown> = {}) => ({
+    id: "t1", kind: "credit_purchase", status: "succeeded", amount_cents: 1000, refunded_amount_cents: 0, currency: "USD", description: "Welcome Pack", created_at: "2026-11-10T10:00:00Z", ...over,
+  });
+
+  it("'Add a card' asks for the method purpose and saves the token it gets", async () => {
+    const u = userEvent.setup();
+    m.billingApi.attachMethod.mockResolvedValue(card);
+    view(false);
+    await u.click(await screen.findByTestId("add-card"));
+    await u.type(await screen.findByLabelText("Cardholder name"), "Jane Doe");
+    await u.type(screen.getByLabelText("Card number"), "4242424242424242");
+    await u.type(screen.getByLabelText("Expiry date"), "1239");
+    await u.type(screen.getByLabelText("CVV"), "123");
+    await u.click(screen.getByTestId("add-card-save"));
+    await waitFor(() => expect(m.billingApi.attachMethod).toHaveBeenCalled());
+    expect(m.billingApi.clientConfig).toHaveBeenCalledWith("method", undefined, expect.anything());
+    expect(m.billingApi.clientConfig).not.toHaveBeenCalledWith("subscription", expect.anything(), expect.anything());
+    expect(m.billingApi.attachMethod.mock.calls[0][0]).toMatchObject({ provider: "sandbox_a", token: "sbx_a_visa_4242_12_2039" });
+  });
+
+  it("a paid purchase links to its invoice and a refund to its credit note", async () => {
+    m.billingApi.transactions.mockResolvedValue({
+      items: [
+        tx({ invoice: { id: "inv-1", number: "SY-2026-000001" } }),
+        tx({ id: "t2", kind: "refund", description: "Refund", credit_note: { id: "cn-1", number: "SYC-2026-000001" } }),
+      ],
+    });
+    view(false);
+    const invoice = await screen.findByTestId("transaction-invoice");
+    expect(invoice.textContent).toContain("Invoice");
+    expect(invoice.getAttribute("href")).toBe("/en/profile/invoices/inv-1");
+    expect(invoice.textContent).toContain("SY-2026-000001");
+    const note = screen.getByTestId("transaction-credit-note");
+    expect(note.textContent).toContain("Credit note");
+    expect(note.getAttribute("href")).toBe("/en/profile/invoices/cn-1");
+    expect(screen.getByRole("link", { name: /Invoice SY-2026-000001/ })).toBeTruthy();
+    expect(await axeViolations()).toEqual([]);
+  });
+
+  it("shows no document links while the invoice is not issued yet", async () => {
+    m.billingApi.transactions.mockResolvedValue({ items: [tx()] });
+    view(false);
+    expect(await screen.findByText("Welcome Pack")).toBeTruthy();
+    expect(screen.queryByTestId("transaction-documents")).toBeNull();
+  });
+});

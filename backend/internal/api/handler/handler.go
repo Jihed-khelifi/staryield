@@ -87,6 +87,11 @@ type Services struct {
 	// revisions 5.0: refund requests (§24.4) and the revenue report (§24.5).
 	Refunds *service.RefundService
 	Revenue *service.RevenueService
+
+	// revisions 6.0 (§26.6): invoices and credit notes.
+	Invoices *service.InvoiceService
+	// revisions 6.0 (§26.4): the calculators' e-mail report and its leads.
+	CalculatorReport *service.CalculatorReportService
 }
 
 // Limits bounds request bodies per upload type.

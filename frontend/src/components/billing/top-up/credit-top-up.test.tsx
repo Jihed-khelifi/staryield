@@ -18,10 +18,15 @@ const m = vi.hoisted(() => ({
   setWallet: vi.fn(),
   track: vi.fn(),
   free: { current: false },
+  wait: vi.fn(),
+  runNext: vi.fn(),
 }));
 vi.mock("@/lib/api/pricing", () => ({ pricingApi: { catalog: m.catalog } }));
 vi.mock("@/lib/api/billing", () => ({ billingApi: { paymentMethods: m.paymentMethods, clientConfig: m.clientConfig }, purchaseCredits: m.purchase }));
 vi.mock("@/lib/analytics", () => ({ track: m.track }));
+// revisions 6.0 (§26.5): the purchase stream and the 3-D Secure helper are covered by their own tests.
+vi.mock("@/lib/api/purchase-stream", () => ({ waitForPurchase: m.wait }));
+vi.mock("@/lib/payments/next-action", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/payments/next-action")>()), runNextAction: m.runNext }));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
     <a href={href} {...rest}>
@@ -81,6 +86,7 @@ beforeEach(() => {
   m.paymentMethods.mockResolvedValue([]);
   m.clientConfig.mockResolvedValue(config);
   m.free.current = false;
+  m.runNext.mockResolvedValue({ ok: true });
 });
 afterEach(() => {
   cleanup();
@@ -533,9 +539,10 @@ describe("step 2: pay", () => {
     await waitFor(() => expect(radio(/Quick Insight/).getAttribute("aria-checked")).toBe("true"));
   });
 
-  it("tells a payment that is still processing and closes", async () => {
+  it("tells a payment that is still processing (the stream times out) and closes", async () => {
     const u = userEvent.setup();
     m.purchase.mockResolvedValue({ ...bought(), status: "pending", wallet: undefined });
+    m.wait.mockResolvedValue({ kind: "timeout" });
     view();
     await toPayment(u);
     await fillCard(u);
@@ -591,5 +598,154 @@ describe("step 2: pay", () => {
     view();
     await toPayment(u);
     await waitFor(() => expect(document.activeElement?.textContent).toBe("Complete your purchase"));
+  });
+});
+
+describe("step 2: confirming the payment (§26.5)", () => {
+  const pending = (over: Record<string, unknown> = {}) => ({ ...bought(), status: "pending", wallet: undefined, ...over });
+  const final = (over: Record<string, unknown> = {}) => ({ kind: "final", purchase: { ...bought(), ...over } });
+  async function payNewCard(u: ReturnType<typeof userEvent.setup>) {
+    view();
+    await toPayment(u);
+    await fillCard(u);
+    await agree(u);
+    await u.click(screen.getByTestId("checkout-pay"));
+  }
+
+  it("waits on the stream with a visible processing state, cannot be submitted twice, then adds the credits", async () => {
+    const u = userEvent.setup();
+    let settle: (outcome: unknown) => void = () => undefined;
+    m.purchase.mockResolvedValue(pending());
+    m.wait.mockReturnValue(new Promise((resolve) => (settle = resolve)));
+    await payNewCard(u);
+    const status = await screen.findByTestId("top-up-confirming");
+    expect(status.textContent).toContain("Confirming your payment…");
+    expect(status.getAttribute("role")).toBe("status");
+    const pay = screen.getByTestId("checkout-pay") as HTMLButtonElement;
+    expect(pay.disabled).toBe(true);
+    expect(pay.textContent).toBe("Confirming your payment…");
+    expect(pay.getAttribute("aria-busy")).toBe("true");
+    await u.click(pay);
+    expect(m.purchase).toHaveBeenCalledTimes(1);
+    expect(m.wait).toHaveBeenCalledWith("pu1", expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(onClose).not.toHaveBeenCalled();
+    settle(final());
+    expect(await screen.findByText("600 credits added to your balance.")).toBeTruthy();
+    expect(m.setWallet).toHaveBeenCalledWith({ balance: 720, held: 0, free_minutes: 0 });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("runs a next action first (new card), then waits on the stream", async () => {
+    const u = userEvent.setup();
+    const action = { type: "sandbox_3ds" };
+    m.purchase.mockResolvedValue(pending({ next_action: action }));
+    m.wait.mockResolvedValue(final());
+    await payNewCard(u);
+    expect(await screen.findByText("600 credits added to your balance.")).toBeTruthy();
+    expect(m.runNext).toHaveBeenCalledWith(action);
+    expect(m.runNext).toHaveBeenCalledBefore(m.wait);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("runs a next action for a saved card too (nothing mounted), then waits", async () => {
+    const u = userEvent.setup();
+    const saved = { id: "m1", provider: "stripe", brand: "visa", last4: "4242", exp_month: 12, exp_year: 2039, is_default: true, status: "active", expired: false, created_at: "2026-01-01T00:00:00Z" };
+    const action = { type: "use_stripe_sdk", client_secret: "pi_1_secret_2" };
+    m.paymentMethods.mockResolvedValue([saved]);
+    m.purchase.mockResolvedValue(pending({ next_action: action }));
+    m.wait.mockResolvedValue(final());
+    view();
+    await toPayment(u);
+    await agree(u);
+    await u.click(screen.getByTestId("checkout-pay"));
+    expect(await screen.findByText("600 credits added to your balance.")).toBeTruthy();
+    expect(m.purchase.mock.calls[0][0]).toMatchObject({ payment_method_id: "m1" });
+    expect(m.runNext).toHaveBeenCalledWith(action);
+  });
+
+  it("a bank that cannot confirm (stream failed) shows the 3-D Secure message, stays open and starts a new attempt", async () => {
+    const u = userEvent.setup();
+    m.purchase.mockResolvedValueOnce(pending({ next_action: { type: "sandbox_3ds" } })).mockResolvedValueOnce(bought());
+    m.wait.mockResolvedValue(final({ status: "failed", failure_reason: "authentication_failed", wallet: undefined }));
+    await payNewCard(u);
+    expect(await screen.findByText("Your bank couldn't confirm this payment. Try again or use another card.")).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(m.setWallet).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("top-up-confirming")).toBeNull();
+    expect((screen.getByTestId("checkout-pay") as HTMLButtonElement).disabled).toBe(false);
+    await agree(u);
+    await u.click(screen.getByTestId("checkout-pay"));
+    await waitFor(() => expect(m.purchase).toHaveBeenCalledTimes(2));
+    expect(m.purchase.mock.calls[1][0].idempotency_key).not.toBe(m.purchase.mock.calls[0][0].idempotency_key);
+  });
+
+  it("a decline reported by the stream uses the decline's own message", async () => {
+    const u = userEvent.setup();
+    m.purchase.mockResolvedValue(pending());
+    m.wait.mockResolvedValue(final({ status: "failed", failure_reason: "insufficient_funds", wallet: undefined }));
+    await payNewCard(u);
+    expect(await screen.findByText("Your card was declined for insufficient funds. Try another card.")).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("a payer who does not complete 3-D Secure sees why and never reaches the stream", async () => {
+    const u = userEvent.setup();
+    m.purchase.mockResolvedValue(pending({ next_action: { type: "use_stripe_sdk", client_secret: "s" } }));
+    m.runNext.mockResolvedValue({ ok: false });
+    await payNewCard(u);
+    expect(await screen.findByText("Your bank couldn't confirm this payment. Try again or use another card.")).toBeTruthy();
+    expect(m.wait).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("shows Stripe's own message when it gives one", async () => {
+    const u = userEvent.setup();
+    m.purchase.mockResolvedValue(pending({ next_action: { type: "use_stripe_sdk", client_secret: "s" } }));
+    m.runNext.mockResolvedValue({ ok: false, message: "We are unable to authenticate your payment method." });
+    await payNewCard(u);
+    expect(await screen.findByText("We are unable to authenticate your payment method.")).toBeTruthy();
+  });
+
+  it("a stream that is unreadable is not a failure: the processing message, then closes", async () => {
+    const u = userEvent.setup();
+    m.purchase.mockResolvedValue(pending());
+    m.wait.mockResolvedValue({ kind: "error" });
+    await payNewCard(u);
+    expect(await screen.findByText("Your payment is processing. Credits appear as soon as it is confirmed.")).toBeTruthy();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("a purchase that comes back already failed shows the decline without a stream", async () => {
+    const u = userEvent.setup();
+    m.purchase.mockResolvedValue(pending({ status: "failed", failure_reason: "expired_card" }));
+    await payNewCard(u);
+    expect(await screen.findByText("This card has expired. Use another card.")).toBeTruthy();
+    expect(m.wait).not.toHaveBeenCalled();
+  });
+
+  it("stops listening when the dialog is closed while confirming", async () => {
+    const u = userEvent.setup();
+    m.purchase.mockResolvedValue(pending());
+    m.wait.mockReturnValue(new Promise(() => undefined));
+    view();
+    await toPayment(u);
+    await fillCard(u);
+    await agree(u);
+    await u.click(screen.getByTestId("checkout-pay"));
+    await screen.findByTestId("top-up-confirming");
+    const signal: AbortSignal = m.wait.mock.calls[0][1].signal;
+    expect(signal.aborted).toBe(false);
+    cleanup();
+    expect(signal.aborted).toBe(true);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("the confirming state is accessible", async () => {
+    const u = userEvent.setup();
+    m.purchase.mockResolvedValue(pending());
+    m.wait.mockReturnValue(new Promise(() => undefined));
+    await payNewCard(u);
+    await screen.findByTestId("top-up-confirming");
+    expect(await axeViolations()).toEqual([]);
   });
 });

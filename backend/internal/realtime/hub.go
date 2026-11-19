@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/Jihed-khelifi/staryield/backend/internal/i18n"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -72,7 +73,14 @@ type Client struct {
 	// subscribed records that the connection holds a broker subscription
 	// reference that must be released when it closes.
 	subscribed bool
+	// filtered marks a filtered stream (revisions 6.0): not a presence
+	// connection, counted apart from the user's realtime connections.
+	filtered bool
 }
+
+// maxStreamsPerUser bounds a user's simultaneous filtered streams (two tabs
+// waiting on a payment, a retry or two).
+const maxStreamsPerUser = 8
 
 func newClient(userID uuid.UUID, role, transport string, buffer int, replaying bool, log *zap.Logger) *Client {
 	id := "c_" + uuid.NewString()
@@ -230,7 +238,20 @@ func (h *Hub) Register(c *Client) error {
 		return ErrShuttingDown
 	}
 	set := h.byUser[c.UserID]
-	if h.maxPerUser > 0 && len(set) >= h.maxPerUser {
+	// Filtered streams (revisions 6.0, stream.go) are short-lived and have a cap
+	// of their own, so a payment page never uses up a user's realtime connections.
+	live, streams := 0, 0
+	for other := range set {
+		if other.filtered {
+			streams++
+		} else {
+			live++
+		}
+	}
+	switch {
+	case c.filtered && streams >= maxStreamsPerUser:
+		return ErrTooManyConnections
+	case !c.filtered && h.maxPerUser > 0 && live >= h.maxPerUser:
 		return ErrTooManyConnections
 	}
 	if set == nil {
@@ -415,6 +436,35 @@ func (p *Publisher) PublishOrdered(ctx context.Context, conversationID uuid.UUID
 	if _, err := p.broker.PublishOrdered(ctx, OrderedPublish{ConversationID: conversationID, Seq: seq, UserIDs: users,
 		Payload: payload, Now: p.now()}); err != nil {
 		logger.FromContext(ctx).Error("realtime: ordered publish failed", zap.Error(err), zap.String("type", eventType),
+			zap.String("conversation_id", conversationID.String()), zap.Int64("seq", seq))
+		return err
+	}
+	return nil
+}
+
+// PublishOrderedPerUser is PublishOrdered with a payload of its own per
+// recipient in the same seq slot (revisions 6.0, §26.1: an advisor's reply
+// written during a hold reaches the advisor in full and the client locked).
+// The slot's ordering is shared: one gate, one seq, every recipient.
+func (p *Publisher) PublishOrderedPerUser(ctx context.Context, conversationID uuid.UUID, seq int64, eventType string, byUser map[uuid.UUID]any) error {
+	users := make([]uuid.UUID, 0, len(byUser))
+	for u := range byUser {
+		if u != uuid.Nil {
+			users = append(users, u)
+		}
+	}
+	sort.Slice(users, func(i, j int) bool { return users[i].String() < users[j].String() })
+	now := p.now()
+	per := make(map[uuid.UUID][]byte, len(users))
+	for _, u := range users {
+		payload, err := encode(eventType, byUser[u], now)
+		if err != nil {
+			return err
+		}
+		per[u] = payload
+	}
+	if _, err := p.broker.PublishOrdered(ctx, OrderedPublish{ConversationID: conversationID, Seq: seq, UserIDs: users, PerUser: per, Now: now}); err != nil {
+		logger.FromContext(ctx).Error("realtime: ordered per-user publish failed", zap.Error(err), zap.String("type", eventType),
 			zap.String("conversation_id", conversationID.String()), zap.Int64("seq", seq))
 		return err
 	}

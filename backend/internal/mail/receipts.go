@@ -123,7 +123,29 @@ func purchaseReceipt(t func(string) string, data map[string]any, link string) Co
 	if link != "" {
 		c.Action = &Action{Label: t("View your balance"), URL: link}
 	}
+	// revisions 6.0 (§26.6): the invoice is attached and linked (the copy for a
+	// receipt_email has no link: the account's own invoice page needs sign-in,
+	// and the buyer's details are not for someone else).
+	documentLinks(t, &c, data, link != "", "Invoice", "View invoice", "invoice_id", "invoice_number",
+		"Your invoice is attached to this e-mail as a PDF.")
 	return c
+}
+
+// documentLinks adds what an e-mail carrying an invoice or a credit note shows:
+// the number, a sentence saying the PDF is attached and, for the account's own
+// e-mail, a link to the document's page in the account (/profile/invoices/:id).
+func documentLinks(t func(string) string, c *Content, data map[string]any, withLink bool, label, linkLabel, idKey, numberKey, attached string) {
+	id := truncateRunes(oneLine(textOf(data[idKey])), 40)
+	if id == "" {
+		return
+	}
+	if n := truncateRunes(oneLine(str(data[numberKey])), 30); n != "" {
+		c.Details = append(c.Details, Detail{Label: t(label), Value: n})
+	}
+	if withLink {
+		c.Paragraphs = append(c.Paragraphs, t(attached))
+		c.Links = append([]Action{{Label: t(linkLabel), URL: "/profile/invoices/" + id}}, c.Links...)
+	}
 }
 
 // refundDetails are the facts of a refund e-mail: the amount refunded and the
@@ -173,6 +195,8 @@ func refundIssued(t func(string) string, data map[string]any, link string) Conte
 	if link != "" {
 		c.Action = &Action{Label: t("View your billing"), URL: link}
 	}
+	documentLinks(t, &c, data, link != "", "Credit note", "View credit note", "credit_note_id", "credit_note_number",
+		"Your credit note is attached to this e-mail as a PDF.") // revisions 6.0 (§26.6)
 	return c
 }
 

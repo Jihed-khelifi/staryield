@@ -1,0 +1,195 @@
+/* ---------------------------------------------------------------------------
+   Free-trial hold, revisions 6.0 (docs/platform-extensions.md §26.1): the
+   banner above the composer, locked (blurred) bubbles, the advisor's marker,
+   the prompt on the session card and the hold notice of the top-up dialog.
+   Colours are opaque tones that keep AA contrast on the cream bubbles.
+   --------------------------------------------------------------------------- */
+
+/* Banner above the composer ------------------------------------------------------ */
+.hold-banner {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--amber);
+  background: var(--cream-light);
+  padding: 8px 16px;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.hold-banner-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: #6b4f12;
+}
+.hold-banner-copy {
+  min-width: 0;
+  flex: 1;
+}
+.hold-banner-title {
+  font-weight: 700;
+}
+.hold-banner-note {
+  color: #4e473f;
+}
+.hold-banner-timer {
+  display: inline-block;
+  min-width: 3ch;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.hold-banner-actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+@media (max-width: 767px) {
+  .hold-banner {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+  .hold-banner-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .hold-banner-actions > button {
+    flex: 1;
+    min-height: 40px;
+  }
+}
+
+/* Locked bubble -------------------------------------------------------------------- */
+.chat-workspace .locked-message {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+.chat-workspace .locked-message:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+}
+.chat-workspace .locked-message-text {
+  display: block;
+  font-family: var(--font-serif, serif);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  filter: blur(5px);
+  user-select: none;
+}
+.chat-workspace .locked-message-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgb(151 143 110 / 0.55), rgb(194 154 61 / 0.45));
+  filter: blur(6px);
+}
+.chat-workspace .locked-message-text + .locked-message-hint,
+.chat-workspace .locked-message-image + .locked-message-hint {
+  margin-top: 6px;
+}
+.chat-workspace .locked-message-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  color: #4e3b0d;
+}
+.chat-workspace .locked-message:hover .locked-message-hint {
+  text-decoration: underline;
+}
+.chat-workspace .message-bubble[data-locked] {
+  background: var(--cream);
+}
+
+/* Un-blur when the text is revealed (none with reduced motion) ----------------------- */
+@media (prefers-reduced-motion: no-preference) {
+  .chat-workspace .message-unblur {
+    animation: message-unblur 450ms ease-out;
+  }
+}
+@keyframes message-unblur {
+  from {
+    filter: blur(5px);
+    opacity: 0.6;
+  }
+  to {
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+
+/* The advisor's marker on a message the client cannot read ----------------------------- */
+.chat-workspace .message-held-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  color: #5e5a4b;
+}
+.chat-workspace .message-held-mark[data-state="not_revealed"] {
+  color: #7a2e1d;
+}
+
+/* "Top up to read N hidden messages" on the session card ---------------------------------- */
+.hidden-messages-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+
+/* Hold notice at the top of the top-up dialog ----------------------------------------------- */
+.top-up-hold {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 24px 8px;
+  padding: 12px 16px;
+  border: 1px solid var(--tu-gold);
+  border-radius: 8px;
+  background: var(--tu-selected);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.top-up-hold-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.top-up-hold-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.top-up-hold-reason {
+  font-weight: 700;
+}
+.top-up-hold-timer {
+  display: inline-block;
+  min-width: 3ch;
+  margin-inline-start: 4px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 767px) {
+  .top-up-hold {
+    margin: 0 12px 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+}

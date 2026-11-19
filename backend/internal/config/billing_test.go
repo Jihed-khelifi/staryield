@@ -15,11 +15,11 @@ func TestBillingProviderSettingsAreValidated(t *testing.T) {
 	if cfg.Payments.DefaultProvider != "sandbox_a" || len(cfg.Payments.Providers) != 2 || cfg.Payments.RenewalLease != 5*time.Minute {
 		t.Fatalf("billing defaults: %+v", cfg.Payments)
 	}
-	cfg.Payments.Providers = []string{"sandbox_b", "stripe"}
+	cfg.Payments.Providers = []string{"sandbox_b", "paykings"} // revisions 6.0: stripe is supported now
 	cfg.Payments.RenewalLease = 30 * time.Second
 	cfg.Payments.MaxPaymentMethods = 0
 	err = cfg.Validate()
-	for _, want := range []string{`STARYIELD_PAYMENTS_PROVIDERS "stripe" is not supported`, "STARYIELD_PAYMENTS_DEFAULT_PROVIDER must be one of",
+	for _, want := range []string{`STARYIELD_PAYMENTS_PROVIDERS "paykings" is not supported`, "STARYIELD_PAYMENTS_DEFAULT_PROVIDER must be one of",
 		"STARYIELD_PAYMENTS_RENEWAL_LEASE", "STARYIELD_PAYMENTS_MAX_PAYMENT_METHODS"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("expected %q in %v", want, err)

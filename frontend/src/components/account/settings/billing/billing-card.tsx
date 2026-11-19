@@ -31,6 +31,7 @@ import { SettingsCard } from "../settings-ui";
 import { AddCardDialog, ChangeCardDialog, SubscribeDialog } from "./billing-dialogs";
 import { RefundRequestDialog, WithdrawRefundDialog } from "./refund-dialogs";
 import { RefundStatusLine } from "./refund-status";
+import { TransactionDocuments } from "./transaction-documents";
 import { TRANSACTION_KIND, TRANSACTION_STATUS, cardLabel, expiryLabel, planPrice, transactionAmount, usable } from "./billing-format";
 
 type BillingData = { plans: Plan[]; subscription: Subscription | null; methods: PaymentMethod[] };
@@ -398,6 +399,7 @@ function Transactions({ refreshKey, timeZone }: { refreshKey: number; timeZone?:
                 ) : null}
               </span>
               <RefundStatusLine transaction={t} timeZone={timeZone} onRequest={setRefunding} onWithdraw={setWithdrawing} />
+              <TransactionDocuments transaction={t} />
             </li>
           ))}
         </ul>

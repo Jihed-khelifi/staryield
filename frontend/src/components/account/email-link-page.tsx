@@ -71,7 +71,7 @@ const EXPIRED: Record<EmailLinkAction, string> = {
 };
 
 /** Read the one-time token and strip it from the address bar (history, referrers, analytics). */
-function takeToken(): string | null {
+export function takeToken(): string | null {
   const raw = new URLSearchParams(window.location.search).get("token");
   if (raw !== null) window.history.replaceState(window.history.state, "", window.location.pathname + window.location.hash);
   return raw && raw.length <= 128 ? raw : null;

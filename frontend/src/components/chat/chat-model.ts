@@ -63,9 +63,15 @@ export function mergeMessages(current: UiMessage[], incoming: UiMessage[]): UiMe
     const prev = out[idx];
     // A late optimistic update never downgrades a confirmed message.
     if (m.pending && !prev.pending) continue;
+    // revisions 6.0 (§26.1): a stale locked copy (a page fetched before the reveal) never hides a revealed message again.
+    if (!m.pending && m.locked && prev.locked === false) continue;
     out[idx] = {
       ...prev,
       ...m,
+      // The hold flags are the server's current word (absent = not held, not locked); only a local optimistic copy keeps them.
+      ...(m.pending
+        ? {}
+        : { held: m.held, locked: m.locked ?? (prev.locked === false ? false : undefined), hold_id: m.hold_id, body_length: m.body_length }),
       // Events and acks omit the viewer's bookmark flag; keep the known one.
       saved: m.saved ?? prev.saved,
       // An event that omits the quote or the likes never erases what is known
@@ -179,14 +185,38 @@ export function isActionable(m: UiMessage): boolean {
   return !m.pending && (m.kind === "text" || m.kind === "image");
 }
 
+/** Like, bookmark and copy are for messages the viewer can read: a message locked by a hold can only be answered (§26.1). */
+export function canLikeOrSave(m: UiMessage): boolean {
+  return isActionable(m) && m.locked !== true;
+}
+
+/**
+ * revisions 6.0 (§26.1): `messages.revealed` (client). The full messages replace the locked ones and are marked
+ * `locked: false`, so a stale locked copy that arrives later is ignored by `mergeMessages`.
+ */
+export function asRevealed(messages: ChatMessage[]): ChatMessage[] {
+  return messages.map((m) => ({ ...m, locked: false, held: undefined }));
+}
+
+/** revisions 6.0 (§26.1): `messages.revealed` (advisor): these messages are no longer hidden from the client. */
+export function withHeldCleared(t: Timeline, ids: string[]): Timeline {
+  if (ids.length === 0) return t;
+  const gone = new Set(ids);
+  if (!t.messages.some((m) => gone.has(m.id) && m.held)) return t;
+  return { ...t, messages: t.messages.map((m) => (gone.has(m.id) && m.held ? { ...m, held: false } : m)) };
+}
+
 /** The quote shown for a reply to this message (§23.2): the first 140 characters of its text or caption. */
 export function replyPreviewOf(m: ChatMessage): ReplyPreview {
+  const kind = m.kind === "image" ? "image" : "text";
+  // A locked message has no content to quote (§26.1): the quote stays locked.
+  if (m.locked) return { id: m.id, seq: m.seq ?? 0, sender_id: m.sender_id, kind, excerpt: "", locked: true };
   const body = m.body.trim();
   return {
     id: m.id,
     seq: m.seq ?? 0,
     sender_id: m.sender_id,
-    kind: m.kind === "image" ? "image" : "text",
+    kind,
     excerpt: [...body].slice(0, 140).join(""),
   };
 }
@@ -331,7 +361,8 @@ export function secondsUntil(iso: string | undefined, s: SessionSnapshot | null,
   return Math.max(0, Math.ceil((new Date(iso).getTime() - (now + clockOffset(s))) / 1000));
 }
 
-export const OPEN_STATUSES = new Set(["requested", "accepted", "active", "disconnected"]);
+// revisions 6.0 (§26.1): `held` is open and live (messages go into the session), but never billed and never timed.
+export const OPEN_STATUSES = new Set(["requested", "accepted", "active", "disconnected", "held"]);
 
 export function isOpen(session: ChatSession | null | undefined): boolean {
   return Boolean(session && OPEN_STATUSES.has(session.status));
@@ -397,6 +428,8 @@ export const endReasonCopy: Record<string, string> = {
   request_timeout: "The advisor did not answer in time. No credits were used.",
   not_started: "The chat could not start in time. No credits were used.",
   cancelled: "The request was cancelled.",
+  // revisions 6.0 (§26.1)
+  hold_expired: "The chat ended because no top-up arrived in time. No credits were used.",
 };
 
 /** English copy for a system message body ("session.started", "session.ended:<reason>"). */

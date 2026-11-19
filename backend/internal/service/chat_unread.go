@@ -297,6 +297,11 @@ func (c *ChatService) pushMessage(ctx context.Context, v MessageView, recipient 
 		}
 	}
 	name, slug := c.pushSenderIdentity(ctx, asPsychic, clientID, psychicID)
+	if v.Held && (v.SenderID == nil || *v.SenderID != recipient) {
+		// revisions 6.0 (§26.1): a reply a hold hides says that, never what it says.
+		u.push.QueueChatMessage(recipient, HeldMessagePush(u.frontendURL, contacts[0].Locale, name, slug, v.ConversationID))
+		return
+	}
 	u.push.QueueChatMessage(recipient, ChatMessagePush(u.frontendURL, contacts[0].Locale, name, slug, asPsychic, v.ConversationID))
 }
 
@@ -335,4 +340,17 @@ func ChatMessagePush(frontendURL, locale, senderName, advisorSlug string, recipi
 	}
 	return PushPayload{Kind: PushKindChatMessage, Title: title, Body: i18n.T(locale, "Open the chatroom to read it."),
 		URL: mail.AppURL(frontendURL, locale, path), Tag: "chat:" + conversationID.String()}
+}
+
+// HeldMessagePush builds the Web Push for a reply the client cannot read yet
+// (revisions 6.0, §26.1): "{name} sent you a message. Top up to read it."
+func HeldMessagePush(frontendURL, locale, senderName, advisorSlug string, conversationID uuid.UUID) PushPayload {
+	p := ChatMessagePush(frontendURL, locale, senderName, advisorSlug, false, conversationID)
+	locale = i18n.Normalize(locale)
+	if senderName = truncateString(CleanLine(senderName), 80); senderName != "" {
+		p.Body = i18n.T(locale, fmt.Sprintf("%s sent you a message. Top up to read it.", senderName))
+	} else {
+		p.Body = i18n.T(locale, "Someone sent you a message. Top up to read it.")
+	}
+	return p
 }

@@ -89,7 +89,8 @@ func isChatUpload(c echo.Context) bool {
 
 func isStreaming(c echo.Context) bool {
 	p := c.Path()
-	return p == "/api/v1/realtime/ws" || p == "/api/v1/realtime/stream"
+	return p == "/api/v1/realtime/ws" || p == "/api/v1/realtime/stream" ||
+		p == "/api/v1/credits/purchases/:id/stream" // revisions 6.0 (§26.5): the purchase stream
 }
 
 // NewRouter builds the Echo instance.
@@ -246,6 +247,17 @@ func NewRouter(d Deps) *echo.Echo {
 	v1.GET("/astrology/events", h.CosmicEvents, aztroRL)
 	v1.GET("/aztro", h.Aztro, aztroRL)
 	v1.POST("/aztro", h.Aztro, aztroRL)
+	// revisions 6.0 (§26.4): the calculators' e-mail report. The config answers
+	// per country (never cached); the report is limited to 5 per hour per IP
+	// (fails closed: it sends e-mail) and, in the service, 3 per day per
+	// address. Unsubscribing is idempotent and limited per IP.
+	reportEmailRL := mw.RateLimit(limiter, rule("report_email", config.Rule{Rate: 5, Period: time.Hour, Burst: 5}, scale), mw.ByIP, false)
+	unsubscribeRL := mw.RateLimit(limiter, rule("marketing_unsubscribe", config.Rule{Rate: 30, Period: time.Hour, Burst: 10}, scale), mw.ByIP, false)
+	siteConfigRL := mw.RateLimit(limiter, rule("report_email_config", config.Rule{Rate: 3000, Period: time.Minute, Burst: 600}, scale), mw.ByIP, true)
+	v1.GET("/calculators/report-email/config", h.CalculatorReportConfig, siteConfigRL)
+	v1.POST("/calculators/report-email", h.RequestReportEmail, optional, reportEmailRL)
+	v1.POST("/marketing/unsubscribe", h.MarketingUnsubscribe, unsubscribeRL)
+	// end revisions 6.0 (§26.4)
 	v1.POST("/analytics/events", h.IngestEvents, optional, ingestRL)
 	v1.POST("/client-logs", h.ClientLog, optional, ingestRL)
 	// Contact form: public (optionally signed in), 5 per hour per IP and per user.
@@ -347,6 +359,11 @@ func NewRouter(d Deps) *echo.Echo {
 	cc.POST("/purchases", h.Purchase, writeRL)
 	cc.GET("/catalog", h.CreditCatalog) // revisions 5.0: top-up catalog (§24.1), adults only (§24.6)
 	v1.GET("/credits/purchases", h.Purchases, authed, client)
+	// revisions 6.0 (§26.5): purchase stream. Owner only (404 otherwise), never
+	// age-gated (the buyer of a payment already started must see its outcome);
+	// 30 per minute per user, fails closed like the other money routes.
+	purchaseStreamRL := mw.RateLimit(limiter, rule("purchase_stream", config.Rule{Rate: 30, Period: time.Minute, Burst: 30}, scale), mw.ByUserOrIP, false)
+	v1.GET("/credits/purchases/:id/stream", h.PurchaseStream, authed, client, purchaseStreamRL)
 
 	// billing: Premium Membership, saved cards and payment history. Card
 	// data never reaches these routes (provider tokens only); attaching
@@ -366,6 +383,10 @@ func NewRouter(d Deps) *echo.Echo {
 	bl.POST("/subscription/cancel", h.CancelSubscription, writeRL)
 	bl.POST("/subscription/resume", h.ResumeSubscription, ageGate, writeRL) // revisions 5.0: ageGate
 	bl.GET("/transactions", h.Transactions)
+	// revisions 6.0 (§26.6): invoices and credit notes (owner only). Never
+	// age-gated: receipts stay available to everyone.
+	bl.GET("/invoices/:id", h.Invoice)
+	bl.GET("/invoices/:id/pdf", h.InvoicePDF, writeRL)
 	// revisions 5.0: refund requests (§24.4). Never age-gated: asking for money
 	// back must stay possible for everyone (tests/e2e/age_gate_routes_test.go).
 	// Fails closed when the limiter is down, like the other money routes.
@@ -409,6 +430,10 @@ func NewRouter(d Deps) *echo.Echo {
 	ch.POST("/conversations/:id/attachments", h.SendConversationImage, chatImageRL)
 	ch.GET("/conversations/:id/allowance", h.OffSessionAllowance)
 	ch.POST("/sessions/:id/review", h.SubmitReview, client, writeRL)
+	// revisions 6.0 (§26.1): free-trial hold. Continuing and revealing charge credits.
+	ch.GET("/holds/:id", h.GetHold)
+	ch.POST("/sessions/:id/hold/continue", h.ContinueHold, client, writeRL)
+	ch.POST("/holds/:id/reveal", h.RevealHold, client, writeRL)
 	ch.GET("/attachments/:id", h.Attachment)
 	ch.GET("/saved", h.SavedMessages)
 	ch.PUT("/saved/:messageId", h.SaveMessage)
@@ -599,6 +624,16 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.PUT("/site/signup-offer", h.AdminUpdateSignupOffer, stepUp, adminRL)
 	ad.GET("/site/off-session-messages", h.AdminOffSessionMessages)                        // revisions 3.3
 	ad.PUT("/site/off-session-messages", h.AdminUpdateOffSessionMessages, stepUp, adminRL) // revisions 3.3
+	// revisions 6.0 (§26.1): free-trial hold
+	ad.GET("/site/trial-hold", h.AdminTrialHold)
+	ad.PUT("/site/trial-hold", h.AdminUpdateTrialHold, stepUp, adminRL)
+	// revisions 6.0 (§26.4): e-mail report setting, leads (list, CSV export, erasure).
+	ad.GET("/site/calculator-report", h.AdminCalculatorReport)
+	ad.PUT("/site/calculator-report", h.AdminUpdateCalculatorReport, stepUp, adminRL)
+	ad.GET("/marketing/leads", h.AdminMarketingLeads)
+	ad.GET("/marketing/leads/export.csv", h.AdminExportMarketingLeads, stepUp, adminRL)
+	ad.DELETE("/marketing/leads/:id", h.AdminDeleteMarketingLead, stepUp, adminRL)
+	// end revisions 6.0 (§26.4)
 	ad.GET("/site/free-mode", h.AdminFreeMode)
 	ad.PUT("/site/free-mode", h.AdminUpdateFreeMode, stepUp, adminRL)
 	// --- end site settings ---
@@ -619,6 +654,11 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.POST("/billing/subscriptions/:id/cancel", h.AdminCancelBillingSubscription, stepUp, adminRL)
 	ad.GET("/billing/transactions", h.AdminBillingTransactions)
 	ad.POST("/billing/transactions/:id/refund", h.AdminRefundTransaction, stepUp, adminRL)
+	// revisions 6.0 (§26.6): invoices and credit notes; the accounting export needs step-up.
+	ad.GET("/billing/invoices", h.AdminInvoices)
+	ad.GET("/billing/invoices/export.csv", h.AdminExportInvoices, stepUp, adminRL)
+	ad.GET("/billing/invoices/:id", h.AdminInvoice)
+	ad.GET("/billing/invoices/:id/pdf", h.AdminInvoicePDF)
 	// revisions 5.0: refund requests (§24.4) and the revenue report (§24.5)
 	ad.GET("/billing/refund-requests", h.AdminRefundRequests)
 	ad.POST("/billing/refund-requests", h.AdminCreateRefundRequest, stepUp, adminRL)
@@ -626,6 +666,20 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.POST("/billing/refund-requests/:id/approve", h.AdminApproveRefundRequest, stepUp, adminRL)
 	ad.POST("/billing/refund-requests/:id/deny", h.AdminDenyRefundRequest, stepUp, adminRL)
 	ad.POST("/billing/refund-requests/:id/credit", h.AdminCreditRefundRequest, stepUp, adminRL)
+	// revisions 6.0 (§26.5): card-payment operations. Reads are open to every
+	// admin session, writes need step-up and are audited.
+	ad.GET("/billing/stripe/status", h.AdminProviderStatus)
+	ad.GET("/billing/webhook-events", h.AdminWebhookEvents)
+	ad.POST("/billing/webhook-events/:id/replay", h.AdminReplayWebhook, stepUp, adminRL)
+	ad.GET("/billing/disputes", h.AdminDisputes)
+	ad.GET("/billing/disputes/:id", h.AdminDispute)
+	ad.POST("/billing/disputes/:id/evidence", h.AdminDisputeEvidence, stepUp, adminRL)
+	ad.POST("/billing/disputes/:id/accept", h.AdminDisputeAccept, stepUp, adminRL)
+	ad.GET("/billing/fraud-warnings", h.AdminFraudWarnings)
+	ad.POST("/billing/fraud-warnings/:id/refund", h.AdminFraudWarningRefund, stepUp, adminRL)
+	ad.POST("/billing/fraud-warnings/:id/dismiss", h.AdminFraudWarningDismiss, stepUp, adminRL)
+	ad.GET("/billing/policies", h.AdminPaymentPolicies)
+	ad.PUT("/billing/policies", h.AdminUpdatePaymentPolicies, stepUp, adminRL)
 	ad.GET("/reports/revenue", h.AdminRevenue)
 	// end revisions 5.0: refund requests
 

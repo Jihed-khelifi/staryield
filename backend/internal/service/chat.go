@@ -70,6 +70,8 @@ type ChatService struct {
 	offSession func(ctx context.Context) OffSessionSettings
 	// aliases is the optional private client nickname store (revisions 4.0, §23.4).
 	aliases *aliasStore
+	// holds is the free-trial hold's wiring (revisions 6.0, §26.1; chat_holds.go).
+	holds holdWiring
 }
 
 // SetDiscounts installs the member discount lookup (billing.DiscountFor).
@@ -533,18 +535,44 @@ func (c *ChatService) accrueActive(s *domain.Session, now time.Time) {
 // ---------------------------------------------------------------------------
 
 // billMinuteLocked charges the next started minute for s (locked, Active)
-// at time due, saving s. When the client cannot pay, the session ends
-// immediately (BR-03). Free promotional minutes are used first.
+// at time due, saving s. When the client cannot pay, the reading is held for a
+// top-up (revisions 6.0, §26.1) or ends immediately (BR-03). Free promotional
+// minutes are used first.
 func (c *ChatService) billMinuteLocked(ctx context.Context, s *domain.Session, due, now time.Time, post *afterCommit) error {
 	if s.Sponsored { // revisions 3.0: site settings (free mode), see chat_sponsored.go
 		return c.billSponsoredMinuteLocked(ctx, s, due, post)
 	}
-	minute := s.BilledMinutes + 1
-	w, free, err := c.wallet.UseFreeMinute(ctx, s.ClientID)
+	mc, err := c.chargeMinuteLocked(ctx, s)
+	if errors.Is(err, ErrInsufficientFunds) {
+		return c.holdOrEndLocked(ctx, s, now, post)
+	}
 	if err != nil {
 		return err
 	}
-	charged := int64(0)
+	next := due.Add(c.cfg.BillingInterval)
+	return c.finishMinuteLocked(ctx, s, mc, &next, post)
+}
+
+// minuteCharge is what billing one started minute took from the wallet.
+type minuteCharge struct {
+	minute  int
+	free    bool
+	charged int64
+	wallet  *domain.Wallet
+}
+
+// chargeMinuteLocked takes the next started minute of s from the client: a
+// free promotional minute first, else the per-minute rate (idempotency key
+// chat:<session>:<minute>). It updates the session's counters (not saved) and
+// returns ErrInsufficientFunds, changing nothing, when the client cannot pay.
+// The hold's conversion bills its minute through the same call (§26.1).
+func (c *ChatService) chargeMinuteLocked(ctx context.Context, s *domain.Session) (minuteCharge, error) {
+	minute := s.BilledMinutes + 1
+	w, free, err := c.wallet.UseFreeMinute(ctx, s.ClientID)
+	if err != nil {
+		return minuteCharge{}, err
+	}
+	mc := minuteCharge{minute: minute, free: free, wallet: w}
 	if !free {
 		res, err := c.wallet.Execute(ctx, Movement{
 			UserID: s.ClientID, Type: domain.LedgerChatCharge, Amount: -s.RatePerMinute, Locked: w, // UseFreeMinute locked it
@@ -552,15 +580,12 @@ func (c *ChatService) billMinuteLocked(ctx context.Context, s *domain.Session, d
 			IdempotencyKey: fmt.Sprintf("chat:%s:%d", s.ID, minute),
 			Description:    fmt.Sprintf("Live chat minute %d", minute),
 		})
-		w = res.Wallet
-		if errors.Is(err, ErrInsufficientFunds) {
-			return c.endLocked(ctx, s, domain.EndCreditsExhausted, now, post)
-		}
+		mc.wallet = res.Wallet
 		if err != nil {
-			return err
+			return mc, err
 		}
-		charged = s.RatePerMinute
-		s.CreditsCharged += charged
+		mc.charged = s.RatePerMinute
+		s.CreditsCharged += mc.charged
 		// revisions 5.0: credit lots. The revenue basis of the paid credits this
 		// minute consumed is saved with the session below (no extra round trip).
 		s.RevenueMillicents += res.ValueMillicents
@@ -568,13 +593,20 @@ func (c *ChatService) billMinuteLocked(ctx context.Context, s *domain.Session, d
 		s.FreeMinutesUsed++
 	}
 	s.BilledMinutes = minute
-	next := due.Add(c.cfg.BillingInterval)
-	s.NextBillingAt = &next
+	return mc, nil
+}
+
+// finishMinuteLocked saves a session whose minute was just charged and queues
+// the billing events (session.billed, wallet.updated, low balance). next is
+// when the following minute is due (nil when the session is not running).
+func (c *ChatService) finishMinuteLocked(ctx context.Context, s *domain.Session, mc minuteCharge, next *time.Time, post *afterCommit) error {
+	s.NextBillingAt = next
 	if err := c.chat.SaveSession(ctx, s); err != nil {
 		return err
 	}
 	snapshot := *s
-	wallet := walletView(w)
+	wallet := walletView(mc.wallet)
+	minute, free, charged := mc.minute, mc.free, mc.charged
 	post.add(func(ctx context.Context) {
 		remaining := int64(wallet.FreeMinutes) + wallet.Balance/max(snapshot.RatePerMinute, 1)
 		billed := map[string]any{"session_id": snapshot.ID, "minute": minute, "free": free, "charged": charged, "sponsored": false,
@@ -654,11 +686,18 @@ func (c *ChatService) BillDue(ctx context.Context, batch int) (int, error) {
 
 // endLocked transitions a locked live session to Ended.
 func (c *ChatService) endLocked(ctx context.Context, s *domain.Session, reason domain.EndReason, now time.Time, post *afterCommit) error {
+	wasHeld := s.Status == domain.SessionHeld // revisions 6.0 (§26.1)
 	c.accrueActive(s, now)
 	s.Status, s.EndReason, s.EndedAt = domain.SessionEnded, reason, &now
-	s.NextBillingAt, s.GraceExpiresAt, s.LastResumedAt = nil, nil, nil
+	s.NextBillingAt, s.GraceExpiresAt, s.LastResumedAt, s.HoldExpiresAt = nil, nil, nil, nil
 	if err := c.chat.SaveSession(ctx, s); err != nil {
 		return err
+	}
+	if wasHeld {
+		// Ending a reading during a hold, however it ends, expires the hold.
+		if err := c.expireHoldLocked(ctx, s, now, post); err != nil {
+			return err
+		}
 	}
 	if s.StartedAt != nil {
 		if err := c.addSystemMessage(ctx, s, sysSessionEnded+":"+string(reason), now, post); err != nil {

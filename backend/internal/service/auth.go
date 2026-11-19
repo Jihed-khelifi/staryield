@@ -84,6 +84,9 @@ type AuthService struct {
 	// free minutes (SiteService.SignupFreeMinutes); nil falls back to
 	// cfg.SignupFreeMinutes.
 	signupMinutes func(ctx context.Context) int
+	// onRegistered runs after a client account is created (committed); see
+	// SetRegistrationHook. revisions 6.0 (§26.4).
+	onRegistered func(ctx context.Context, user *domain.User)
 	// revisions 4.0: Sign in with Google (set by NewGoogleAuth); nil when absent.
 	google *GoogleAuth
 	// push removes browser push subscriptions when sessions end (auth_push.go).
@@ -92,6 +95,14 @@ type AuthService struct {
 
 // SetSignupOffer installs the sign-up offer lookup (revisions 3.0).
 func (s *AuthService) SetSignupOffer(fn func(ctx context.Context) int) { s.signupMinutes = fn }
+
+// SetRegistrationHook installs a callback run after every client account is
+// created, once its transaction committed (revisions 6.0, §26.4: the e-mail
+// lead of the address is linked to the new account). The hook never fails the
+// registration.
+func (s *AuthService) SetRegistrationHook(fn func(ctx context.Context, user *domain.User)) {
+	s.onRegistered = fn
+}
 
 // NewAuthService wires the auth service. E-mail (password resets) goes
 // through the outbox (EmailQueue).
@@ -287,6 +298,9 @@ func (s *AuthService) createAccount(ctx context.Context, in newAccount) (*create
 	}
 	s.tracker.Track(ctx, "user.registered", props)
 	logger.FromContext(ctx).Info("user registered", zap.String("user_id", user.ID.String()))
+	if s.onRegistered != nil {
+		s.onRegistered(ctx, user)
+	}
 	return &createdAccount{User: user, Result: result}, nil
 }
 

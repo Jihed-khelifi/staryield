@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -34,5 +35,12 @@ func TestCompanyFactsEqualTheWebConfig(t *testing.T) {
 	}
 	if got, want := DefaultSupportEmail, field("supportEmail"); got != want {
 		t.Errorf("support e-mail: e-mails default to %q, the web prints %q", got, want)
+	}
+}
+
+// revisions 6.0 (§26.6): invoices print the address in lines.
+func TestCompanyAddressLinesJoinToTheAddress(t *testing.T) {
+	if got := strings.Join(CompanyAddressLines, ", "); got != CompanyAddress {
+		t.Fatalf("invoice address lines %q do not join to %q", got, CompanyAddress)
 	}
 }

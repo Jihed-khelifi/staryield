@@ -232,6 +232,14 @@ func TestExplainHotQueries(t *testing.T) {
 	checks = append(checks, creditLotChecks(live, ids)...)
 	// revisions 5.0: refund requests and the revenue report
 	checks = append(checks, refundChecks(live, ids)...)
+	// revisions 6.0 (§26.6): invoices and credit notes
+	checks = append(checks, invoiceChecks(live)...)
+	// revisions 6.0: free-trial hold
+	checks = append(checks, trialHoldChecks(live, ids)...)
+	// revisions 6.0: card payment operations (webhook log, disputes, fraud warnings)
+	checks = append(checks, paymentOpsChecks(live, ids)...)
+	// revisions 6.0 (§26.4): e-mail leads of the calculators' report
+	checks = append(checks, reportLeadChecks(live)...)
 
 	var lines []string
 	for _, qc := range checks {

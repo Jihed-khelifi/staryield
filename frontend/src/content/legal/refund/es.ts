@@ -6,9 +6,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-13",
-    "effective": "2026-11-13",
-    "lastUpdated": "2026-11-13",
+    "version": "2026-11-19",
+    "effective": "2026-11-19",
+    "lastUpdated": "2026-11-19",
     "badge": "STARYIELD · POLÍTICAS",
     "title": "Política de reembolso y cancelación"
   },
@@ -48,6 +48,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Los nuevos usuarios elegibles reciben cuatro minutos de lectura gratuitos sin necesidad de facilitar un método de pago. La prueba no requiere ninguna compra, no se convierte en una suscripción y no genera ningún cargo. Los minutos de prueba gratuitos no tienen valor en efectivo ni valor reembolsable."
+        },
+        {
+          "type": "p",
+          "text": "Si sus minutos gratuitos se agotan durante una consulta en vivo, la consulta se pone en espera durante un breve tiempo en lugar de terminar (véanse los [Términos de uso](/terms#free-trials-and-promotional-offers)). La espera no se cobra: solo paga si añade Créditos para continuar o si más tarde decide revelar las respuestas ocultas durante la espera, y se le muestra antes el precio."
         }
       ]
     },
@@ -215,6 +219,10 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
+          "text": "Reembolsos con tarjeta. El reembolso de un pago con tarjeta se devuelve a la tarjeta original a través de Stripe. Lo enviamos a Stripe en un plazo de 5 días hábiles tras su aprobación y, después, su banco puede tardar entre 5 y 10 días hábiles más en mostrarlo en su extracto. Por cada reembolso emitimos una nota de crédito, que encontrará en su cuenta junto a la factura original."
+        },
+        {
+          "type": "p",
           "text": "Los reembolsos se realizan, por lo general, en la moneda de la compra original. Las entidades financieras externas controlan sus propios plazos de contabilización y la conversión de divisas."
         }
       ]
@@ -231,6 +239,14 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Su extracto puede mostrar las compras como STARYIELD MEDIA LLC."
+        },
+        {
+          "type": "p",
+          "text": "Mientras haya una disputa de pago abierta, los Créditos sin usar comprados con el pago disputado pueden congelarse y las nuevas compras pausarse, tal como se indica en nuestros [Términos de uso](/terms#chargebacks-and-payment-disputes). Un pago en disputa no puede reembolsarse además: respondemos a la disputa."
+        },
+        {
+          "type": "p",
+          "text": "Si el emisor de su tarjeta o Stripe nos avisa de que un pago podría ser fraudulento, podemos reembolsarlo de inmediato a la tarjeta original y revisar su cuenta. También se emite una nota de crédito por ese reembolso."
         }
       ]
     },

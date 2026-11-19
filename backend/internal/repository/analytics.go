@@ -309,7 +309,7 @@ func (r *GormReportRepository) Overview(ctx context.Context, from, to time.Time)
 		Refunded int64
 	}
 	if err := conn.Raw(`SELECT
-		COALESCE(-sum(amount) FILTER (WHERE entry_type = 'chat_charge'), 0) AS chat,
+		COALESCE(-sum(amount) FILTER (WHERE entry_type IN ('chat_charge', 'chat_reveal')), 0) AS chat,
 		COALESCE(sum(-held_amount) FILTER (WHERE entry_type = 'hold_release'), 0) AS requests,
 		COALESCE(sum(amount) FILTER (WHERE entry_type IN ('hold_refund', 'refund')), 0) AS refunded
 		FROM credit_ledger WHERE created_at >= ? AND created_at < ?`, from, to).Scan(&ledger).Error; err != nil {
@@ -389,7 +389,7 @@ func (r *GormReportRepository) Daily(ctx context.Context, from, to time.Time) ([
 		  (SELECT COALESCE(sum(price_cents),0) FROM credit_purchases p WHERE p.status = 'succeeded' AND p.completed_at >= d.day AND p.completed_at < d.day + interval '1 day') AS revenue_cents,
 		  (SELECT count(*) FROM chat_sessions s WHERE s.started_at >= d.day AND s.started_at < d.day + interval '1 day') AS sessions,
 		  (SELECT COALESCE(sum(billed_minutes),0) FROM chat_sessions s WHERE s.started_at >= d.day AND s.started_at < d.day + interval '1 day') AS chat_minutes,
-		  (SELECT COALESCE(-sum(amount),0) FROM credit_ledger l WHERE l.entry_type = 'chat_charge' AND l.created_at >= d.day AND l.created_at < d.day + interval '1 day') AS credits_spent
+		  (SELECT COALESCE(-sum(amount),0) FROM credit_ledger l WHERE l.entry_type IN ('chat_charge', 'chat_reveal') AND l.created_at >= d.day AND l.created_at < d.day + interval '1 day') AS credits_spent
 		FROM days d ORDER BY d.day`, from, to).Scan(&out).Error
 	return out, err
 }

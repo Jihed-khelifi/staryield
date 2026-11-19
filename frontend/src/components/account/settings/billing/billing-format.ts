@@ -72,6 +72,8 @@ const DECLINES: Record<string, string> = {
   insufficient_funds: "Your card was declined for insufficient funds. Try another card.",
   processing_error: "The payment could not be processed. Please try again.",
   payment_method_required: "Add a card to continue.",
+  // revisions 6.0 (§26.5): 3-D Secure was not completed or the issuer refused it.
+  authentication_failed: "Your bank couldn't confirm this payment. Try again or use another card.",
 };
 
 /** Copy for a `payment_failed` decline reason. */

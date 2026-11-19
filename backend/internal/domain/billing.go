@@ -174,9 +174,12 @@ type PaymentCustomer struct {
 	UserID                 uuid.UUID `gorm:"type:uuid;not null"`
 	Provider               string    `gorm:"not null"`
 	ProviderCustomerRefEnc string    `gorm:"not null"`
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
-	DeletedAt              gorm.DeletedAt
+	// ProviderCustomerRefHash finds the sealed row of a provider reference
+	// (revisions 6.0, §26.5: customer.deleted webhooks).
+	ProviderCustomerRefHash string `gorm:"not null"`
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
+	DeletedAt               gorm.DeletedAt
 }
 
 func (PaymentCustomer) TableName() string { return "payment_customers" }
@@ -195,24 +198,27 @@ const (
 // PaymentMethod is a saved card: a sealed provider reference plus display
 // metadata. The card number never reaches Staryield.
 type PaymentMethod struct {
-	ID                   uuid.UUID           `gorm:"type:uuid;primaryKey"`
-	UserID               uuid.UUID           `gorm:"type:uuid;not null"`
-	CustomerID           uuid.UUID           `gorm:"type:uuid;not null"`
-	Provider             string              `gorm:"not null"`
-	ProviderMethodRefEnc string              `gorm:"not null"`
-	FingerprintHash      string              `gorm:"not null"`
-	Brand                string              `gorm:"not null"`
-	Last4                string              `gorm:"column:last4;not null"`
-	ExpMonth             int                 `gorm:"not null"`
-	ExpYear              int                 `gorm:"not null"`
-	Country              string              `gorm:"not null"`
-	IsDefault            bool                `gorm:"not null"`
-	Status               PaymentMethodStatus `gorm:"not null"`
-	NetworkTxnRefEnc     string              `gorm:"not null"`
-	IdempotencyKey       *string
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
-	DeletedAt            gorm.DeletedAt
+	ID                   uuid.UUID `gorm:"type:uuid;primaryKey"`
+	UserID               uuid.UUID `gorm:"type:uuid;not null"`
+	CustomerID           uuid.UUID `gorm:"type:uuid;not null"`
+	Provider             string    `gorm:"not null"`
+	ProviderMethodRefEnc string    `gorm:"not null"`
+	// ProviderMethodRefHash finds the sealed row of a provider reference
+	// (revisions 6.0, §26.5: payment_method.detached webhooks).
+	ProviderMethodRefHash string              `gorm:"not null"`
+	FingerprintHash       string              `gorm:"not null"`
+	Brand                 string              `gorm:"not null"`
+	Last4                 string              `gorm:"column:last4;not null"`
+	ExpMonth              int                 `gorm:"not null"`
+	ExpYear               int                 `gorm:"not null"`
+	Country               string              `gorm:"not null"`
+	IsDefault             bool                `gorm:"not null"`
+	Status                PaymentMethodStatus `gorm:"not null"`
+	NetworkTxnRefEnc      string              `gorm:"not null"`
+	IdempotencyKey        *string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+	DeletedAt             gorm.DeletedAt
 }
 
 func (PaymentMethod) TableName() string { return "payment_methods" }
@@ -391,6 +397,16 @@ type PaymentTransaction struct {
 	// LockedUntil is the lease of the charge attempt in flight: after it
 	// expires the outcome is reconciled with the provider (Lookup).
 	LockedUntil *time.Time
+	// revisions 6.0 (§26.5, migration 0033): what the processor reported about
+	// the card, the risk of the charge, the 3-D Secure result and whether a
+	// manual fraud review is open.
+	CardCountry string `gorm:"not null"`
+	CardBrand   string `gorm:"not null"`
+	CardLast4   string `gorm:"column:card_last4;not null"`
+	RiskLevel   string `gorm:"not null"`
+	RiskScore   *int
+	ThreeDS     string `gorm:"column:three_ds;not null"`
+	InReview    bool   `gorm:"not null"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -443,8 +459,15 @@ type ProviderWebhookEvent struct {
 	EventType     string    `gorm:"not null"`
 	PayloadSHA256 string    `gorm:"column:payload_sha256;not null"`
 	ProcessedAt   *time.Time
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	// revisions 6.0 (§26.5, migration 0033): the webhook log.
+	Status       WebhookStatus `gorm:"not null"`
+	Error        string        `gorm:"not null"`
+	Attempts     int           `gorm:"not null"`
+	Livemode     bool          `gorm:"not null"`
+	ProviderType string        `gorm:"not null"`
+	ObjectRef    string        `gorm:"not null"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 func (ProviderWebhookEvent) TableName() string { return "webhook_events" }

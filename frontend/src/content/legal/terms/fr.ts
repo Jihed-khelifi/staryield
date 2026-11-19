@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-13",
-    "effective": "2026-11-13",
-    "lastUpdated": "2026-11-13",
+    "version": "2026-11-19",
+    "effective": "2026-11-19",
+    "lastUpdated": "2026-11-19",
     "badge": "ACCORD DU SYSTÈME STARYIELD",
     "title": "Conditions d'utilisation"
   },
@@ -567,6 +567,14 @@ const content: LegalDocumentContent = {
           "text": "Pour recharger votre Solde, nous débitons le moyen de paiement que vous choisissez lors du paiement. Vous pouvez enregistrer une carte dans votre compte pour vos prochains achats : les données de la carte sont saisies dans des champs hébergés par notre prestataire de paiement et nous ne conservons qu’un jeton, la marque de la carte, les quatre derniers chiffres et la date d’expiration. Vous nous autorisez à débiter le prix applicable sur le moyen de paiement que vous sélectionnez. Vous pouvez supprimer une carte enregistrée à tout moment dans les paramètres de votre compte. Nous vous prévenons à chaque rechargement de votre Solde."
         },
         {
+          "type": "p",
+          "text": "Paiements par carte et Stripe. Les paiements par carte des Crédits sont traités par Stripe, notre prestataire de paiement. Vous saisissez les données de votre carte (ou utilisez un portefeuille de cartes tel qu’Apple Pay ou Google Pay) directement dans des champs fournis par Stripe ; Staryield ne reçoit ni ne conserve jamais le numéro complet de votre carte ni son code de sécurité. Votre banque peut vous demander de confirmer un paiement, par exemple avec 3-D Secure ou un code envoyé sur votre téléphone ; si la confirmation échoue ou n’est pas menée à terme, le paiement n’aboutit pas et aucun Crédit n’est ajouté."
+        },
+        {
+          "type": "p",
+          "text": "Factures et avoirs. Pour chaque achat de crédits, nous émettons une facture Staryield, et pour chaque remboursement un avoir. Les deux sont disponibles dans votre compte, et nous joignons normalement la facture à votre e-mail de reçu."
+        },
+        {
           "type": "h4",
           "id": "limitations",
           "n": "6.1.3",
@@ -606,6 +614,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Accès gratuit promotionnel (« mode gratuit »). Il peut nous arriver de rendre les chats en direct gratuits pour tous pendant une période limitée. Le mode gratuit peut commencer ou s’arrêter à tout moment, avec ou sans date de fin annoncée. Un chat que vous demandez pendant le mode gratuit reste gratuit jusqu’à sa fin, même si le mode gratuit s’arrête entre-temps. Les conseillers restent rémunérés par Staryield pour les chats tenus pendant le mode gratuit. Le mode gratuit ne s’applique ni aux demandes personnalisées ni à l’achat de Crédits, qui sont tarifés et facturés comme d’habitude, et aucune minute offerte ni aucun Crédit n’est consommé tant que votre chat est gratuit."
+        },
+        {
+          "type": "p",
+          "text": "Pause lorsque vos minutes offertes ou vos Crédits sont épuisés (la « mise en attente »). Si vos minutes offertes sont épuisées pendant une consultation en direct (ou, lorsque nous l’activons, si vos Crédits sont épuisés), la consultation ne s’arrête pas aussitôt : elle est mise en attente pour une courte durée, actuellement une minute, afin que vous puissiez ajouter des Crédits. Le temps d’attente n’est pas facturé. Pendant la mise en attente, le conseiller peut continuer à écrire, mais ces réponses vous restent masquées jusqu’à la fin de l’attente. Si vous ajoutez des Crédits pendant la mise en attente, la consultation reprend, les réponses s’affichent et la minute suivante est facturée au tarif par minute du conseiller. Si un achat que vous avez lancé est encore en cours de confirmation à la fin de la mise en attente, nous pouvons la prolonger brièvement. Si vous n’ajoutez pas de Crédits, la consultation prend fin, rien n’est facturé, et vous pouvez ensuite révéler les réponses masquées pour le prix d’une minute au tarif de ce conseiller. Le prix vous est toujours indiqué avant que vous payiez, et rien n’est facturé tant que vous n’avez pas confirmé. Les minutes offertes ne se transforment jamais en prélèvement : vous ne payez que si vous ajoutez des Crédits pour continuer ou si vous choisissez de révéler les réponses masquées. Staryield fixe la durée de la mise en attente et peut la modifier, ou la désactiver, à tout moment."
         },
         {
           "type": "h3",
@@ -653,6 +665,10 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
+          "text": "Pendant un litige de paiement. Lorsqu’un paiement est contesté auprès de votre banque ou de l’émetteur de votre carte, nous pouvons geler les Crédits non utilisés achetés avec ce paiement et suspendre les nouveaux achats sur votre compte jusqu’à la résolution du litige. Les Crédits que vous avez déjà utilisés, ainsi que les Crédits issus d’autres achats, ne sont pas concernés. Si le litige est résolu en votre faveur, les Crédits gelés sont rétablis et les achats reprennent. Si l’émetteur de votre carte nous signale qu’un paiement pourrait être frauduleux, nous pouvons rembourser ce paiement et examiner votre compte."
+        },
+        {
+          "type": "p",
           "text": "Comme indiqué dans notre [politique de confidentialité](/privacy), vos informations personnelles identifiables peuvent être partagées avec notre processeur de paiement pour nous aider à répondre aux demandes de rétrofacturation."
         },
         {
@@ -678,6 +694,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Cette section s'applique aux conseillers. Pour chaque consultation terminée et chaque commande livrée, vous percevez la part convenue des crédits dépensés par le client ; les gains sont enregistrés une seule fois et ne peuvent pas être modifiés. Vous pouvez demander le retrait de vos gains disponibles depuis la page d'analyses, par virement bancaire ou PayPal, dès que vous atteignez le montant minimum qui y est indiqué. Les crédits gagnés sont convertis au taux de paiement affiché sur cette page au moment de la demande. Vous pouvez avoir un seul retrait en cours à la fois et l'annuler tant qu'il est en attente. Nous examinons chaque demande et pouvons vous demander des informations pour prévenir la fraude ; une demande refusée restitue les crédits à votre solde disponible, avec une explication. Vos coordonnées de paiement sont chiffrées et ne sont révélées qu'au personnel autorisé, avec une trace d'audit, pour traiter votre paiement. Vous êtes responsable des impôts dus sur vos gains."
+        },
+        {
+          "type": "p",
+          "text": "Consultations en attente. Lorsque les minutes offertes ou les Crédits d’un client sont épuisés pendant une consultation en direct et que la consultation est mise en attente (voir la [section 6.1.4](#free-trials-and-promotional-offers)), vous ne gagnez rien pour le temps d’attente. Si le client poursuit la consultation, la minute suivante est facturée normalement et vous en percevez la part convenue comme d’habitude. Si le client révèle ensuite vos réponses masquées, vous percevez la part convenue d’une minute à votre tarif de référence pour cette consultation. Si le client ne fait ni l’un ni l’autre, vous ne gagnez rien pour ce temps."
         }
       ]
     },

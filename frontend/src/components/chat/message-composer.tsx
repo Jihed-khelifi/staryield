@@ -17,6 +17,7 @@ import { composerKeyAction } from "@/components/chat/composer-keys";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { ChatImage } from "@/components/chat/chat-image";
 import { useMessageActions } from "@/components/chat/message-actions-context";
+import { HiddenMessageLabel } from "@/components/chat/locked-message-bubble"; // revisions 6.0 (§26.1)
 import { Button } from "@/components/ui/button";
 
 /** Typing indicators: announce at most every 2s, stop after 3s idle. */
@@ -407,7 +408,11 @@ export function MessageComposer({
                 ? text("Replying to yourself")
                 : text("Replying to {value0}", { value0: nameOf(replyTarget.sender_id) })}
             </p>
-            <p className="composer-reply-excerpt truncate">{replyTarget.excerpt || text("Photo")}</p>
+            {replyTarget.locked ? (
+              <HiddenMessageLabel className="composer-reply-excerpt block truncate" />
+            ) : (
+              <p className="composer-reply-excerpt truncate">{replyTarget.excerpt || text("Photo")}</p>
+            )}
           </div>
           <button type="button" className="composer-tool" onClick={() => { cancelReply(); textareaRef.current?.focus(); }} aria-label={text("Cancel reply")} data-testid="composer-reply-cancel">
             <FiX className="size-4" aria-hidden />

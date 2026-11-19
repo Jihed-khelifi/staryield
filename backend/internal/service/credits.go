@@ -50,6 +50,10 @@ type PurchaseView struct {
 	Wallet        *WalletView `json:"wallet,omitempty"`
 	// NextAction asks the client to complete a provider step (3-D Secure).
 	NextAction *payment.NextAction `json:"next_action,omitempty"`
+	// Invoice is the invoice of a paid purchase (revisions 6.0, §26.6).
+	Invoice *InvoiceRef `json:"invoice,omitempty"`
+	// Card is the card that paid, when known (revisions 6.0, §26.5).
+	Card *CardSummary `json:"card,omitempty"`
 }
 
 // PurchaseInput starts a purchase. Without a payment method or token the
@@ -87,6 +91,13 @@ type CreditService struct {
 	settings CreditSettings
 	contacts repository.ContactRepository
 	mailer   EmailQueue
+	// revisions 6.0 (§26.0): settlement hooks (settlement_hooks.go).
+	invoicer  Invoicer
+	observers []PurchaseObserver
+	gate      PurchaseGate
+	// revisions 6.0 (§26.6): finds the invoice of purchases for their views.
+	invoiceLookup InvoiceLookup
+	stream        PurchaseStreamSettings // revisions 6.0 (§26.5): credits_stream.go
 }
 
 // CreditSettings are the credit service's configuration values (revisions 5.1).
@@ -143,7 +154,9 @@ func (s *CreditService) CompletePurchase(ctx context.Context, purchaseID uuid.UU
 
 // FailPurchase marks a pending purchase failed. Implements PurchaseSettler.
 func (s *CreditService) FailPurchase(ctx context.Context, purchaseID uuid.UUID, code string) error {
-	return mapRepoErr(s.tx.WithinTx(ctx, func(ctx context.Context) error {
+	var failed *domain.CreditPurchase // revisions 6.0: told to the observers after commit
+	err := mapRepoErr(s.tx.WithinTx(ctx, func(ctx context.Context) error {
+		failed = nil
 		p, err := s.credits.GetPurchaseForUpdate(ctx, purchaseID)
 		if err != nil {
 			return err
@@ -155,8 +168,17 @@ func (s *CreditService) FailPurchase(ctx context.Context, purchaseID uuid.UUID, 
 		if err := s.offers.Release(ctx, p.ID); err != nil {
 			return err
 		}
-		return s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": truncateString(code, 64)})
+		if err := s.credits.UpdatePurchase(ctx, p.ID, map[string]any{"status": domain.PurchaseFailed, "failure_reason": truncateString(code, 64)}); err != nil {
+			return err
+		}
+		p.Status, p.FailureReason = domain.PurchaseFailed, truncateString(code, 64)
+		failed = p
+		return nil
 	}), "Purchase")
+	if err == nil {
+		s.purchaseSettled(ctx, failed)
+	}
+	return err
 }
 
 // NewCreditService wires the credit service.
@@ -215,6 +237,12 @@ func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in Purch
 		return s.withWallet(ctx, existing)
 	} else if !errors.Is(err, repository.ErrNotFound) {
 		return nil, apperror.Internal(err)
+	}
+	// revisions 6.0 (§26.5): new purchases may be refused (payment disputes); replays above are not.
+	if s.gate != nil {
+		if err := s.gate(ctx, userID); err != nil {
+			return nil, err
+		}
 	}
 	// revisions 5.1: a new purchase needs the buyer's consent (§25.2); replays above do not.
 	consent, err := s.validatePurchaseConsent(ctx, in.Consent, s.clock.Now())
@@ -312,6 +340,8 @@ func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in Purch
 		s.releaseOffer(ctx, p.ID) // revisions 5.0
 		s.settle(ctx, p.ID, domain.TxFailed, res.ProviderRef, res.FailureCode)
 		s.tracker.Track(ctx, "credits.purchase_failed", map[string]any{"reason": res.FailureCode})
+		p.Status, p.FailureReason = domain.PurchaseFailed, truncateString(res.FailureCode, 64) // revisions 6.0
+		s.purchaseSettled(ctx, p)
 		return nil, (&apperror.Error{Code: apperror.CodePaymentFailed, Status: http.StatusPaymentRequired,
 			Message: "Your payment was declined. No credits were added."}).WithDetails(map[string]any{"purchase_id": p.ID, "reason": res.FailureCode})
 	case payment.CheckoutPending:
@@ -331,11 +361,14 @@ func (s *CreditService) Purchase(ctx context.Context, userID uuid.UUID, in Purch
 }
 
 func (s *CreditService) withWallet(ctx context.Context, p *domain.CreditPurchase) (*PurchaseView, error) {
-	v := purchaseView(p)
+	one := []PurchaseView{purchaseView(p)}
+	s.attachInvoices(ctx, one) // revisions 6.0 (§26.6)
+	v := one[0]
 	if w, err := s.wallets.Get(ctx, p.UserID); err == nil {
 		wv := walletView(w)
 		v.Wallet = &wv
 	}
+	v.Card = s.purchaseCard(ctx, p) // revisions 6.0 (§26.5)
 	return &v, nil
 }
 
@@ -387,8 +420,13 @@ func (s *CreditService) complete(ctx context.Context, purchaseID uuid.UUID, prov
 		})
 		// revisions 5.1: the receipt (§25.5): pack, amount, time, card and descriptor.
 		data := s.receiptData(ctx, purchase)
+		// revisions 6.0 (§26.6): the invoice is issued first so the receipt can attach it.
+		if ref := s.issueInvoice(ctx, purchase.ID); ref != nil {
+			data["invoice_id"], data["invoice_number"] = ref.ID, ref.Number
+		}
 		s.notify.Notify(ctx, NotificationSpec{Kind: NotifyPurchase, Data: data, Link: "/profile"}, purchase.UserID)
 		s.mailReceiptCopy(ctx, purchase, data)
+		s.purchaseSettled(ctx, purchase) // revisions 6.0 (§26.1, §26.5)
 		return true, nil
 	}
 	return false, nil
@@ -428,6 +466,8 @@ func (s *CreditService) HandleWebhook(ctx context.Context, signature string, bod
 			}
 			s.releaseOffer(ctx, p.ID) // revisions 5.0
 			s.settle(ctx, p.ID, domain.TxFailed, evt.ProviderRef, evt.FailureCode)
+			p.Status, p.FailureReason = domain.PurchaseFailed, evt.FailureCode // revisions 6.0
+			s.purchaseSettled(ctx, p)
 		}
 		return nil
 	case "payment.refunded":
@@ -483,7 +523,9 @@ func (s *CreditService) refund(ctx context.Context, purchaseID uuid.UUID) error 
 	}), "Purchase")
 	if err == nil && refunded {
 		s.settle(ctx, purchaseID, domain.TxRefunded, "", "")
-		s.notifyRefunded(ctx, bought) // revisions 5.1 (§25.5)
+		s.notifyRefunded(ctx, bought)           // revisions 5.1 (§25.5)
+		bought.Status = domain.PurchaseRefunded // revisions 6.0
+		s.purchaseSettled(ctx, bought)
 	}
 	return err
 }
@@ -502,6 +544,7 @@ func (s *CreditService) Purchases(ctx context.Context, userID uuid.UUID, cursor 
 	for i := range rows {
 		page.Items = append(page.Items, purchaseView(&rows[i]))
 	}
+	s.attachInvoices(ctx, page.Items) // revisions 6.0 (§26.6)
 	if len(rows) > 0 && len(rows) == clampPage(limit, 20, 100) {
 		last := rows[len(rows)-1]
 		page.NextCursor = repository.EncodeCursor(last.CreatedAt, last.ID.String())

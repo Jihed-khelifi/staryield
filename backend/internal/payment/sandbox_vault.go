@@ -27,6 +27,23 @@ import (
 // decline, .14 soft decline, .15 timeout — the charge is made but the
 // response is lost, so the caller must reconcile (Lookup) or retry with the
 // same idempotency key.
+//
+// revisions 6.0 (§26.5), test support for card payment operations:
+//
+//   - Card last4 3220 asks for a 3-D Secure step: the charge answers pending with
+//     next_action {type: "sandbox_3ds"} (a saved card answers requires_action) and
+//     completes as succeeded (3-D Secure "authenticated", the card, a normal risk
+//     level) on the first RetrieveCharge made at least 2 s after the charge. Last4
+//     3221 completes as a decline, authentication_failed. Lookup and replays keep
+//     answering "needs the customer" until then.
+//   - Every sandbox provider implements ChargeRetriever. SandboxA also implements
+//     DisputeManager (evidence and accept are recorded on the processor, see
+//     SandboxProcessor.DisputeEvidence), AccountInspector (a fake account the test
+//     configures with SetAccount and SetWebhookEndpoints) and EventFetcher (the
+//     events RecordEvent stored, and the refunds the processor made).
+//   - Signed generic webhook events (payment.WebhookEvent as JSON) already carry
+//     every revisions 6.0 field: dispute, fraud warning, refund, card, risk and
+//     3-D Secure.
 
 // SandboxProcessor is the simulated processor state. Several provider
 // instances (API replicas) may share one processor.
@@ -43,6 +60,9 @@ type SandboxProcessor struct {
 	// descriptors records the statement descriptor of each charge request by
 	// idempotency key (revisions 5.1): the sandboxes do not use it, tests read it.
 	descriptors map[string]string
+	// revisions 6.0 (§26.5): see sandbox_ops.go.
+	ops                        sandboxOps
+	customerOrder, methodOrder []string // creation order, for tests that craft provider events
 }
 
 type sbxMethod struct {
@@ -57,6 +77,15 @@ type sbxCharge struct {
 	currency         string
 	decline          *DeclineError
 	networkRef       string
+	// revisions 6.0: a 3-D Secure challenge (last4 3220 / 3221) waits for the
+	// first RetrieveCharge at least sandboxChallengeDelay after created.
+	challenge bool
+	done      bool
+	created   time.Time
+	card      CardMeta
+	// disputed: the cardholder disputed the charge (SandboxProcessor.DisputeCharge);
+	// refunding it is refused, like a real processor does.
+	disputed bool
 }
 
 type sbxAttach struct {
@@ -92,7 +121,7 @@ func (p *SandboxProcessor) Charged(key string) (int64, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	c, ok := p.charges[key]
-	if !ok || c.decline != nil {
+	if !ok || c.decline != nil || c.waiting() {
 		return 0, false
 	}
 	return c.amount, true
@@ -104,7 +133,7 @@ func (p *SandboxProcessor) SuccessfulCharges() int {
 	defer p.mu.Unlock()
 	n := 0
 	for _, c := range p.charges {
-		if c.decline == nil {
+		if c.decline == nil && !c.waiting() {
 			n++
 		}
 	}
@@ -180,6 +209,7 @@ func (s *sandboxCore) ensureCustomer(ctx context.Context, req CustomerRequest) (
 	}
 	ref := p.next("cus_sbx_" + s.letter)
 	p.customers[ref] = true
+	p.customerOrder = append(p.customerOrder, ref)
 	return ref, nil
 }
 
@@ -224,6 +254,7 @@ func (s *sandboxCore) attach(ctx context.Context, req AttachRequest) (string, Ca
 	}
 	ref := p.next("pm_sbx_" + s.letter)
 	p.methods[ref] = &sbxMethod{ref: ref, customer: req.CustomerRef, meta: meta}
+	p.methodOrder = append(p.methodOrder, ref)
 	if req.IdempotencyKey != "" {
 		p.attaches[req.IdempotencyKey] = sbxAttach{ref: ref, meta: meta}
 	}
@@ -264,10 +295,11 @@ func (s *sandboxCore) chargeStored(ctx context.Context, req StoredCharge) (Charg
 	p.calls[req.IdempotencyKey]++
 	p.descriptors[req.IdempotencyKey] = req.StatementDescriptor
 	if c, ok := p.charges[req.IdempotencyKey]; ok { // idempotent replay
-		if c.decline != nil {
-			return ChargeResult{}, c.decline
+		res, decline := c.current()
+		if decline != nil {
+			return ChargeResult{}, decline
 		}
-		return ChargeResult{Status: ChargeSucceeded, ProviderRef: c.ref, NetworkTxnRef: c.networkRef}, nil
+		return res, nil
 	}
 	m, ok := p.methods[req.MethodRef]
 	if !ok || m.detached || m.customer != req.CustomerRef {
@@ -275,19 +307,21 @@ func (s *sandboxCore) chargeStored(ctx context.Context, req StoredCharge) (Charg
 	}
 	decline, timeout := outcomeFor(m.meta.Last4, req.AmountCents)
 	c := &sbxCharge{key: req.IdempotencyKey, ref: p.next("ch_sbx_" + s.letter), method: m.ref, amount: req.AmountCents,
-		currency: req.Currency, decline: decline}
+		currency: req.Currency, decline: decline, created: time.Now(), card: m.meta}
 	if decline == nil {
 		c.networkRef = p.next("ntx")
+		c.challenge = isChallengeCard(m.meta.Last4)
 	}
 	p.charges[req.IdempotencyKey] = c
 	p.byRef[c.ref] = c
 	if timeout {
 		return ChargeResult{}, ErrUnknownOutcome
 	}
+	res, decline := c.current()
 	if decline != nil {
 		return ChargeResult{}, decline
 	}
-	return ChargeResult{Status: ChargeSucceeded, ProviderRef: c.ref, NetworkTxnRef: c.networkRef}, nil
+	return res, nil
 }
 
 func (s *sandboxCore) lookup(_ context.Context, key string) (LookupResult, error) {
@@ -298,10 +332,11 @@ func (s *sandboxCore) lookup(_ context.Context, key string) (LookupResult, error
 	if !ok {
 		return LookupResult{}, nil
 	}
-	if c.decline != nil {
-		return LookupResult{Found: true, Decline: c.decline}, nil
+	res, decline := c.current()
+	if decline != nil {
+		return LookupResult{Found: true, Decline: decline}, nil
 	}
-	return LookupResult{Found: true, Result: ChargeResult{Status: ChargeSucceeded, ProviderRef: c.ref, NetworkTxnRef: c.networkRef}}, nil
+	return LookupResult{Found: true, Result: res}, nil
 }
 
 func (s *sandboxCore) refund(_ context.Context, req RefundRequest) (RefundResult, error) {
@@ -312,8 +347,11 @@ func (s *sandboxCore) refund(_ context.Context, req RefundRequest) (RefundResult
 		return r, nil
 	}
 	c, ok := p.byRef[req.ProviderRef]
-	if !ok || c.decline != nil {
+	if !ok || c.decline != nil || c.waiting() {
 		return RefundResult{}, ErrNotFound
+	}
+	if c.disputed {
+		return RefundResult{}, ErrChargeDisputed
 	}
 	if req.AmountCents <= 0 || req.AmountCents > c.amount-c.refunded {
 		return RefundResult{}, ErrRefundTooLarge
@@ -323,6 +361,7 @@ func (s *sandboxCore) refund(_ context.Context, req RefundRequest) (RefundResult
 	if req.IdempotencyKey != "" {
 		p.refunds[req.IdempotencyKey] = r
 	}
+	p.ops.recordRefund(r.ProviderRef, c.ref, req.AmountCents, req.Currency) // revisions 6.0: the event an admin replay can fetch
 	return r, nil
 }
 
@@ -335,6 +374,8 @@ func (s *sandboxCore) clientConfig(_ context.Context, _ ClientConfigRequest) (Cl
 			{Brand: "mastercard", Last4: "4444", Behaviour: "approved"},
 			{Brand: "visa", Last4: "9995", Behaviour: "soft_decline"},
 			{Brand: "visa", Last4: "0002", Behaviour: "hard_decline"},
+			{Brand: "visa", Last4: "3220", Behaviour: "3ds_success"}, // revisions 6.0
+			{Brand: "visa", Last4: "3221", Behaviour: "3ds_failure"},
 		},
 	}, nil
 }
@@ -344,6 +385,7 @@ func (s *sandboxCore) checkout(ctx context.Context, req CheckoutRequest) (Checko
 		return CheckoutResult{}, err
 	}
 	last4 := ""
+	var card CardMeta
 	if req.PaymentToken != "" {
 		meta, err := parseSandboxToken(s.letter, req.PaymentToken, time.Now())
 		if err != nil {
@@ -352,7 +394,7 @@ func (s *sandboxCore) checkout(ctx context.Context, req CheckoutRequest) (Checko
 			}
 			return CheckoutResult{}, err
 		}
-		last4 = meta.Last4
+		last4, card = meta.Last4, meta
 	}
 	key := req.IdempotencyKey
 	if key == "" {
@@ -364,22 +406,18 @@ func (s *sandboxCore) checkout(ctx context.Context, req CheckoutRequest) (Checko
 	p.calls[key]++
 	p.descriptors[key] = req.StatementDescriptor
 	if c, ok := p.charges[key]; ok {
-		if c.decline != nil {
-			return CheckoutResult{Status: CheckoutFailed, ProviderRef: c.ref, FailureCode: c.decline.Code}, nil
-		}
-		return CheckoutResult{Status: CheckoutSucceeded, ProviderRef: c.ref}, nil
+		return c.checkoutResult(), nil
 	}
 	decline, timeout := outcomeFor(last4, req.AmountCents)
-	c := &sbxCharge{key: key, ref: p.next("ch_sbx_" + s.letter), amount: req.AmountCents, currency: req.Currency, decline: decline}
+	c := &sbxCharge{key: key, ref: p.next("ch_sbx_" + s.letter), amount: req.AmountCents, currency: req.Currency, decline: decline,
+		created: time.Now(), card: card}
+	c.challenge = decline == nil && req.PaymentToken != "" && isChallengeCard(last4)
 	p.charges[key] = c
 	p.byRef[c.ref] = c
 	if timeout {
 		return CheckoutResult{}, ErrUnknownOutcome
 	}
-	if decline != nil {
-		return CheckoutResult{Status: CheckoutFailed, ProviderRef: c.ref, FailureCode: decline.Code}, nil
-	}
-	return CheckoutResult{Status: CheckoutSucceeded, ProviderRef: c.ref}, nil
+	return c.checkoutResult(), nil
 }
 
 // SandboxA is a full-featured sandbox (hosted checkout, vault, stored
@@ -501,6 +539,16 @@ func (s *SandboxB) ClientConfig(ctx context.Context, req ClientConfigRequest) (C
 // InspectToken implements TokenInspector.
 func (s *SandboxB) InspectToken(ctx context.Context, token string) (CardMeta, error) {
 	return s.core.inspectToken(ctx, token)
+}
+
+// RetrieveCharge implements ChargeRetriever (revisions 6.0).
+func (s *SandboxA) RetrieveCharge(ctx context.Context, ref string) (ChargeResult, *DeclineError, error) {
+	return s.core.retrieveCharge(ctx, ref)
+}
+
+// RetrieveCharge implements ChargeRetriever (revisions 6.0).
+func (s *SandboxB) RetrieveCharge(ctx context.Context, ref string) (ChargeResult, *DeclineError, error) {
+	return s.core.retrieveCharge(ctx, ref)
 }
 
 // KnownProviders are the provider names configuration accepts.

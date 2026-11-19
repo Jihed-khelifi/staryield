@@ -32,6 +32,8 @@ describe("assets pipeline helpers", () => {
     expect(TYPES[".wav"]).toBe("audio/wav");
     expect(TYPES[".mp3"]).toBe("audio/mpeg");
     expect(TYPES[".ogg"]).toBe("audio/ogg");
+    // revisions 6.0: the serif loaded inside Stripe's card fields.
+    expect(TYPES[".woff2"]).toBe("font/woff2");
     expect(assetKey({ prefix: "assets/sounds", path: "incoming-request.m4a", sha256: "0123456789abcdef", hashed: true })).toBe(
       "assets/sounds/incoming-request-0123456789.m4a",
     );

@@ -532,3 +532,134 @@ func mustEncode(t *testing.T, typ string) []byte {
 	}
 	return b
 }
+
+// revisions 6.0 (§26.1): one seq slot, one payload per recipient.
+
+// userPayload is a message.created frame whose body depends on who gets it.
+func userPayload(seq int64, who string) []byte {
+	b, _ := encode(EventMessageCreated, map[string]any{"seq": seq, "who": who}, time.Unix(0, 0))
+	return b
+}
+
+// streamWho returns "<seq>:<who>" of every event in the user's stream.
+func streamWho(t *testing.T, b Broker, user uuid.UUID) []string {
+	t.Helper()
+	frames, _, err := b.Replay(context.Background(), user, "0-0", 10000)
+	if err != nil {
+		t.Fatalf("replay: %v", err)
+	}
+	out := make([]string, 0, len(frames))
+	for _, f := range frames {
+		var env struct {
+			Data struct {
+				Seq int64  `json:"seq"`
+				Who string `json:"who"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(f.Frame, &env); err != nil {
+			t.Fatalf("frame %s: %v", f.Frame, err)
+		}
+		out = append(out, fmt.Sprintf("%d:%s", env.Data.Seq, env.Data.Who))
+	}
+	return out
+}
+
+func TestOrderedPerUserPayloadsKeepOneSharedOrder(t *testing.T) {
+	for name, b := range brokers(t) {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			conv, advisor, client, extra := uuid.New(), uuid.New(), uuid.New(), uuid.New()
+			now := time.Now()
+			pub := func(seq int64, perUser bool) int {
+				t.Helper()
+				op := OrderedPublish{ConversationID: conv, Seq: seq, UserIDs: []uuid.UUID{client, advisor, extra}, Now: now,
+					Payload: userPayload(seq, "all")}
+				if perUser {
+					op.PerUser = map[uuid.UUID][]byte{advisor: userPayload(seq, "advisor"), client: userPayload(seq, "client")}
+				}
+				n, err := b.PublishOrdered(ctx, op)
+				if err != nil {
+					t.Fatalf("publish %d: %v", seq, err)
+				}
+				return n
+			}
+			if n := pub(1, false); n != 1 {
+				t.Fatalf("first event: %d", n)
+			}
+			// 3 (per user) and 4 (plain) wait behind the missing 2, then are released in order,
+			// each recipient getting its own payload; a user without an entry gets the default.
+			if n := pub(3, true); n != 0 {
+				t.Fatalf("held: %d", n)
+			}
+			if n := pub(4, false); n != 0 {
+				t.Fatalf("held: %d", n)
+			}
+			if n := pub(2, true); n != 3 {
+				t.Fatalf("closing the gap releases 2, 3 and 4: %d", n)
+			}
+			if n := pub(2, true); n != 0 {
+				t.Fatalf("duplicate published %d", n)
+			}
+			// 6 never gets its predecessor 5: the flush publishes it with its payloads.
+			if n := pub(6, true); n != 0 {
+				t.Fatalf("held: %d", n)
+			}
+			if n, err := b.FlushGaps(ctx, now.Add(GapFlushAge)); err != nil || n != 1 {
+				t.Fatalf("flush: %d %v", n, err)
+			}
+			want := map[uuid.UUID]string{
+				client:  "[1:all 2:client 3:client 4:all 6:client]",
+				advisor: "[1:all 2:advisor 3:advisor 4:all 6:advisor]",
+				extra:   "[1:all 2:all 3:all 4:all 6:all]",
+			}
+			for u, w := range want {
+				if got := fmt.Sprint(streamWho(t, b, u)); got != w {
+					t.Fatalf("stream of %s: %s, want %s", u, got, w)
+				}
+			}
+		})
+	}
+}
+
+func TestOrderedPublishNeedsAPayloadForEveryRecipient(t *testing.T) {
+	for name, b := range brokers(t) {
+		t.Run(name, func(t *testing.T) {
+			a, c := uuid.New(), uuid.New()
+			op := OrderedPublish{ConversationID: uuid.New(), Seq: 1, UserIDs: []uuid.UUID{a, c}, Now: time.Now(),
+				PerUser: map[uuid.UUID][]byte{a: userPayload(1, "a")}}
+			if _, err := b.PublishOrdered(context.Background(), op); err == nil {
+				t.Fatal("a recipient without any payload was accepted")
+			}
+			op.PerUser[c] = userPayload(1, "c")
+			if n, err := b.PublishOrdered(context.Background(), op); err != nil || n != 1 {
+				t.Fatalf("complete per-user slot: %d %v", n, err)
+			}
+		})
+	}
+}
+
+func TestPublisherPublishOrderedPerUser(t *testing.T) {
+	b := NewMemoryBroker(100)
+	p := NewPublisher(b, nil)
+	conv, advisor, client := uuid.New(), uuid.New(), uuid.New()
+	ctx := context.Background()
+	send := func(seq int64) {
+		t.Helper()
+		err := p.PublishOrderedPerUser(ctx, conv, seq, EventMessageCreated, map[uuid.UUID]any{
+			advisor: map[string]any{"seq": seq, "who": "advisor"}, client: map[string]any{"seq": seq, "who": "client"}, uuid.Nil: map[string]any{"who": "nobody"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	send(2)
+	send(4) // held behind 3
+	if n, err := p.FlushGaps(ctx, -time.Second); err != nil || n != 1 {
+		t.Fatalf("flush: %d %v", n, err)
+	}
+	if got := fmt.Sprint(streamWho(t, b, advisor)); got != "[2:advisor 4:advisor]" {
+		t.Fatalf("advisor stream: %s", got)
+	}
+	if got := fmt.Sprint(streamWho(t, b, client)); got != "[2:client 4:client]" {
+		t.Fatalf("client stream: %s", got)
+	}
+}

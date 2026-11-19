@@ -22,6 +22,11 @@ type ReplyView struct {
 	// Excerpt is the first 140 characters of the body (or image caption) with
 	// runs of whitespace collapsed to one space; "" for a bare image.
 	Excerpt string `json:"excerpt"`
+	// Locked is true (and Excerpt "") when the quoted message is hidden from
+	// the viewer by a hold (revisions 6.0, §26.1).
+	Locked bool `json:"locked,omitempty"`
+	// held is the quoted message's hold flag; redactMessages turns it into Locked.
+	held bool
 }
 
 // ReplyExcerpt builds the quoted text: whitespace (including line breaks)
@@ -85,7 +90,7 @@ func (c *ChatService) decorate(ctx context.Context, views []MessageView, likes b
 		}
 		byID := make(map[uuid.UUID]*ReplyView, len(rows))
 		for _, r := range rows {
-			byID[r.ID] = &ReplyView{ID: r.ID, Seq: r.Seq, SenderID: r.SenderID, Kind: r.Kind, Excerpt: ReplyExcerpt(r.Body)}
+			byID[r.ID] = &ReplyView{ID: r.ID, Seq: r.Seq, SenderID: r.SenderID, Kind: r.Kind, Excerpt: ReplyExcerpt(r.Body), held: r.Held}
 		}
 		for i := range views {
 			if id := views[i].replyToID; id != nil {

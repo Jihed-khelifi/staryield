@@ -19,12 +19,16 @@ import {
 import { CalculatorArticle } from "@/components/content/article/calculator-article";
 import { Account, type AccountView } from "@/components/account/account";
 import { CreditsRoute } from "@/components/billing/top-up/credits-route"; // revisions 5.0: top-up replaces the old checkout
+// revisions 6.0 (§26.5, §26.6): the payment redirect return page and the invoice page.
+import { CreditsReturn } from "@/components/billing/top-up/credits-return";
+import { InvoicePage } from "@/components/billing/invoice-page";
 // revisions 5.0: 18+ age gate (§24.6).
 import { AgeRestricted } from "@/components/account/age-restricted";
 import { AgeGuard } from "@/lib/auth/age-gate";
 // account settings: one-time e-mail link pages (tokens are read client-side, then stripped).
 import { EmailLinkPage, type EmailLinkAction } from "@/components/account/email-link-page";
 import { LinkTicketPage, MyTicketPage, SupportRequestsPage } from "@/components/support/support-pages";
+import { UnsubscribePage } from "@/components/marketing/unsubscribe-page"; // revisions 6.0 (§26.4)
 // revisions 5.0: public pricing page and the Refund Policy (docs/platform-extensions.md §24.8).
 import RefundPolicy from "@/components/content/refund-policy";
 import { PricingScreen } from "@/components/pricing/pricing-screen";
@@ -72,6 +76,11 @@ const calculatorKinds: CalculatorKind[] = [
 type RouteProps = { params: Promise<{ lang: string; screen: string[] }> };
 
 const supportReference = /^SY-[A-Za-z0-9]{4,16}$/;
+/** revisions 6.0 (§26.6): `/profile/invoices/<id>` (ids are UUIDs). */
+const invoiceId = /^[A-Za-z0-9-]{8,64}$/;
+function invoiceRoute(screen: string[]): string | null {
+  return screen.length === 3 && screen[0] === "profile" && screen[1] === "invoices" && invoiceId.test(screen[2]) ? screen[2] : null;
+}
 
 /** The support desk routes: list, signed-in thread and the anonymous private link. */
 function supportRoute(screen: string[]): { kind: "list" } | { kind: "mine" | "link"; reference: string } | null {
@@ -107,6 +116,7 @@ export async function generateMetadata({
     "profile/settings": "Settings",
     "profile/analytics": "Analytics",
     credits: "Credits",
+    "credits/return": "Payment", // revisions 6.0
     signup: "Sign up",
     "signup/password": "Create password",
     "signup/birth": "Date of birth",
@@ -121,6 +131,7 @@ export async function generateMetadata({
     "confirm-email": "Confirm your email",
     "cancel-email-change": "Email change",
     "keep-account": "Keep your account",
+    unsubscribe: "Unsubscribe", // revisions 6.0 (§26.4)
     "support/requests": "Support requests",
     "age-restricted": "Account restricted", // revisions 5.0
   };
@@ -130,9 +141,12 @@ export async function generateMetadata({
       : undefined;
   const title =
     advisor?.name ?? text(titles[route.replace(/\/results$/, "")] ?? "Home");
+  // revisions 6.0: the invoice and the payment return page are private.
+  if (invoiceRoute(screen)) return { title: text("Invoice"), robots: { index: false, follow: false }, referrer: "no-referrer" };
+  if (route === "credits/return") return { title, robots: { index: false, follow: false }, referrer: "no-referrer" };
   // One-time links: never indexed, and the URL (with its token) is never
   // sent as a referrer.
-  if (route in emailLinks || route === "auth/google" || route === "age-restricted")
+  if (route in emailLinks || route === "auth/google" || route === "age-restricted" || route === "unsubscribe")
     return { title, referrer: "no-referrer", robots: { index: false, follow: false } };
   // Support desk (requester side): signed-in pages and the private link are never indexed;
   // the private link also never leaks its URL as a referrer.
@@ -192,6 +206,8 @@ export default async function ScreenPage({ params }: RouteProps) {
   if (route in emailLinks) return <EmailLinkPage key={route} action={emailLinks[route]} />;
   // Google sign-in: where the API sends the browser back (result in the query, read client-side).
   if (route === "auth/google") return <GoogleReturn key={route} />;
+  // revisions 6.0 (§26.4): the unsubscribe link of the report e-mail (token read client-side, then stripped).
+  if (route === "unsubscribe") return <UnsubscribePage key={route} />;
   // revisions 5.0: the screen of an account restricted to adults (§24.6).
   if (route === "age-restricted") return <AgeRestricted key={route} />;
   if (route === "contact") return <ContactForm />;
@@ -209,6 +225,9 @@ export default async function ScreenPage({ params }: RouteProps) {
     screen[1].length <= 64
   )
     return <PsychicProfile key={route} slug={screen[1]} />;
+  const invoice = invoiceRoute(screen);
+  if (invoice) return <InvoicePage key={invoice} id={invoice} />;
+  if (route === "credits/return") return <CreditsReturn key={route} />;
   if (route === "credits")
     return (
       // revisions 5.0: top-ups are for adults (§24.6): no date of birth sends the person to the birth step.

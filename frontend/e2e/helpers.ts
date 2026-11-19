@@ -34,6 +34,23 @@ export async function signedInPage(browser: Browser, email: string, password: st
   return { context, page };
 }
 
+/**
+ * The calculators' "Save your reading" dialog opens by itself 6 s after a result
+ * is on screen (revisions 6.0, §26.4). Specs that stay on results for other
+ * reasons keep it quiet: the page remembers it was shown just now.
+ */
+export async function quietReportPrompt(page: Page) {
+  await page.addInitScript(() => {
+    for (const kind of ["natal-chart", "path-of-life", "astrology"]) {
+      try {
+        window.localStorage.setItem(`staryield.report-email.${kind}`, String(Date.now()));
+      } catch {
+        // blocked storage: nothing to remember
+      }
+    }
+  });
+}
+
 /** The page never scrolls horizontally. */
 export async function expectNoHorizontalScroll(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

@@ -81,14 +81,25 @@ type FeaturedList struct {
 	GeneratedAt time.Time         `json:"generated_at"`
 }
 
+// orderKey holds what the public order needs beyond the card itself
+// (revisions 6.0, §26.3): the admin's tie-breakers, the last time the advisor
+// was online and the review-weighted rating, computed once per snapshot.
+type orderKey struct {
+	weighted     float64
+	featuredRank int
+	sortOrder    int
+	lastOnline   *time.Time
+}
+
 type catalogSnap struct {
-	cards      []AdvisorCard // curated directory order
-	lastOnline []*time.Time  // parallel to cards
-	pos        map[uuid.UUID]int
-	mean       float64 // mean rating of reviewed advisors
-	builtAt    time.Time
-	// rank is the featured order, computed once per snapshot on first use
-	// (every status patch makes a new snapshot with a fresh cache).
+	cards   []AdvisorCard // as read; the public order is rank
+	keys    []orderKey    // parallel to cards
+	pos     map[uuid.UUID]int
+	mean    float64 // mean rating of reviewed advisors
+	builtAt time.Time
+	// rank is the public order (directory and home), computed once per
+	// snapshot on first use (every status patch makes a new snapshot with a
+	// fresh cache).
 	rank *rankCache
 }
 
@@ -142,11 +153,11 @@ func (c *AdvisorCatalog) SetStatus(psychicID uuid.UUID, st domain.PresenceStatus
 		}
 		next := *cur
 		next.cards = slices.Clone(cur.cards)
-		next.lastOnline = slices.Clone(cur.lastOnline)
+		next.keys = slices.Clone(cur.keys)
 		// Same rule as the presence history: last online is the latest
 		// moment the advisor was online or busy.
 		if countsAsOnline(domain.PresenceStatus(cur.cards[i].Status)) || countsAsOnline(st) {
-			next.lastOnline[i] = &now
+			next.keys[i].lastOnline = &now
 		}
 		next.cards[i].Status = string(st)
 		next.rank = &rankCache{}
@@ -196,7 +207,7 @@ func (c *AdvisorCatalog) build(ctx context.Context) (*catalogSnap, error) {
 		c.stale.Store(true)
 		return nil, err
 	}
-	snap := &catalogSnap{cards: make([]AdvisorCard, len(rows)), lastOnline: make([]*time.Time, len(rows)),
+	snap := &catalogSnap{cards: make([]AdvisorCard, len(rows)), keys: make([]orderKey, len(rows)),
 		pos: make(map[uuid.UUID]int, len(rows)), builtAt: c.clock.Now(), rank: &rankCache{}}
 	var sum float64
 	var reviewed int
@@ -212,7 +223,7 @@ func (c *AdvisorCatalog) build(ctx context.Context) (*catalogSnap, error) {
 		snap.cards[i] = AdvisorCard{Slug: r.Slug, Name: r.Name, Headline: r.Headline, ImageURL: r.ImageURL, Zodiac: r.Zodiac,
 			Skills: skills, Rating: r.Rating, ReviewsCount: r.ReviewsCount, ReadingsCount: r.ReadingsCount,
 			YearsExperience: r.YearsExperience, RatePerMinute: r.RatePerMinute, Status: string(status), Featured: r.Featured}
-		snap.lastOnline[i] = r.LastOnlineAt
+		snap.keys[i] = orderKey{featuredRank: r.FeaturedRank, sortOrder: r.SortOrder, lastOnline: r.LastOnlineAt}
 		snap.pos[r.UserID] = i
 		if r.ReviewsCount > 0 {
 			sum += r.Rating
@@ -222,6 +233,9 @@ func (c *AdvisorCatalog) build(ctx context.Context) (*catalogSnap, error) {
 	snap.mean = 4.5
 	if reviewed > 0 {
 		snap.mean = sum / float64(reviewed)
+	}
+	for i := range snap.cards {
+		snap.keys[i].weighted = weightedRating(snap.cards[i].Rating, snap.cards[i].ReviewsCount, snap.mean)
 	}
 	c.snap.Store(snap)
 	if c.gen.Load() != gen {
@@ -273,7 +287,8 @@ func (c *AdvisorCatalog) Browse(ctx context.Context, q BrowseQuery) (*BrowsePage
 	}
 	search, skill := fold(q.Search), fold(q.Skill)
 	matched := make([]AdvisorCard, 0, len(snap.cards))
-	for _, card := range snap.cards {
+	for _, i := range snap.ranked() {
+		card := snap.cards[i]
 		if q.Status != "" && card.Status != q.Status {
 			continue
 		}
@@ -302,14 +317,15 @@ func hasSkill(skills []string, want string) bool {
 	return false
 }
 
-// statusTier orders advisors by how soon a client can talk to them.
+// statusTier orders advisors by how soon a client can talk to them: online,
+// away, busy, offline (revisions 6.0, §26.3).
 func statusTier(status string) int {
 	switch status {
 	case string(domain.PresenceOnline):
 		return 0
-	case string(domain.PresenceBusy):
-		return 1
 	case string(domain.PresenceAway):
+		return 1
+	case string(domain.PresenceBusy):
 		return 2
 	}
 	return 3
@@ -321,8 +337,41 @@ func weightedRating(rating float64, reviews int, mean float64) float64 {
 	return (v*rating + ratingPrior*mean) / (v + ratingPrior)
 }
 
-// ranked returns the snapshot's advisors in featured order: available now
-// first, then the best rated by many reviews, then the most recently online.
+// publicOrderLess is the one order of the directory and the home selection
+// (§26.3): status tier, review-weighted rating, review count, the admin's
+// featured flag, featured rank, last time online, sort order and name. The
+// admin's fields only break ties.
+func publicOrderLess(x, y AdvisorCard, kx, ky orderKey) bool {
+	if tx, ty := statusTier(x.Status), statusTier(y.Status); tx != ty {
+		return tx < ty
+	}
+	if kx.weighted != ky.weighted {
+		return kx.weighted > ky.weighted
+	}
+	if x.ReviewsCount != y.ReviewsCount {
+		return x.ReviewsCount > y.ReviewsCount
+	}
+	if x.Featured != y.Featured {
+		return x.Featured
+	}
+	if kx.featuredRank != ky.featuredRank {
+		return kx.featuredRank < ky.featuredRank
+	}
+	switch lx, ly := kx.lastOnline, ky.lastOnline; {
+	case lx != nil && ly == nil:
+		return true
+	case lx == nil && ly != nil:
+		return false
+	case lx != nil && ly != nil && !lx.Equal(*ly):
+		return lx.After(*ly)
+	}
+	if kx.sortOrder != ky.sortOrder {
+		return kx.sortOrder < ky.sortOrder
+	}
+	return x.Name < y.Name
+}
+
+// ranked returns the snapshot's advisors in the public order.
 func (snap *catalogSnap) ranked() []int {
 	snap.rank.once.Do(func() {
 		idx := make([]int, len(snap.cards))
@@ -330,34 +379,15 @@ func (snap *catalogSnap) ranked() []int {
 			idx[i] = i
 		}
 		sort.SliceStable(idx, func(a, b int) bool {
-			x, y := snap.cards[idx[a]], snap.cards[idx[b]]
-			if tx, ty := statusTier(x.Status), statusTier(y.Status); tx != ty {
-				return tx < ty
-			}
-			if wx, wy := weightedRating(x.Rating, x.ReviewsCount, snap.mean), weightedRating(y.Rating, y.ReviewsCount, snap.mean); wx != wy {
-				return wx > wy
-			}
-			if x.ReviewsCount != y.ReviewsCount {
-				return x.ReviewsCount > y.ReviewsCount
-			}
-			lx, ly := snap.lastOnline[idx[a]], snap.lastOnline[idx[b]]
-			switch {
-			case lx != nil && ly == nil:
-				return true
-			case lx == nil && ly != nil:
-				return false
-			case lx != nil && ly != nil && !lx.Equal(*ly):
-				return lx.After(*ly)
-			}
-			return x.Name < y.Name
+			return publicOrderLess(snap.cards[idx[a]], snap.cards[idx[b]], snap.keys[idx[a]], snap.keys[idx[b]])
 		})
 		snap.rank.idx = idx
 	})
 	return snap.rank.idx
 }
 
-// Featured returns the home page selection: advisors available now first,
-// then the best rated by many reviews, then the most recently online.
+// Featured returns the home page selection: the first cards of the public
+// order (see publicOrderLess).
 func (c *AdvisorCatalog) Featured(ctx context.Context, limit int) (*FeaturedList, error) {
 	if limit == 0 {
 		limit = featuredDefault

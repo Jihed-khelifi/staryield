@@ -6,9 +6,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-13",
-    "effective": "2026-11-13",
-    "lastUpdated": "2026-11-13",
+    "version": "2026-11-19",
+    "effective": "2026-11-19",
+    "lastUpdated": "2026-11-19",
     "badge": "STARYIELD · POLICIES",
     "title": "Refund & Cancellation Policy"
   },
@@ -48,6 +48,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Eligible new users receive four free reading minutes without providing a payment method. The trial requires no purchase, does not convert into a subscription, and does not result in a charge. Free trial minutes have no cash or refund value."
+        },
+        {
+          "type": "p",
+          "text": "If your free minutes run out during a live reading, the reading is put on hold for a short time instead of ending (see [Terms of Use](/terms#free-trials-and-promotional-offers)). Nothing is charged for the hold: you pay only if you add Credits to continue, or later choose to reveal the replies hidden during the hold, and you are shown the price first."
         }
       ]
     },
@@ -215,6 +219,10 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
+          "text": "Card refunds. A refund of a card payment goes back to the original card through Stripe. We submit it to Stripe within 5 business days after approval, and your bank may then take another 5–10 business days to show it on your statement. For every refund we issue a credit note, which you can find in your account next to the original invoice."
+        },
+        {
+          "type": "p",
           "text": "Refunds generally use the original purchase currency. External financial institutions control their own posting times and currency conversion."
         }
       ]
@@ -231,6 +239,14 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Your statement may display purchases as STARYIELD MEDIA LLC."
+        },
+        {
+          "type": "p",
+          "text": "While a payment dispute is open, the unused Credits bought with the disputed payment may be frozen and new purchases paused, as set out in our [Terms of Use](/terms#chargebacks-and-payment-disputes). A payment that is under dispute cannot also be refunded: we answer the dispute instead."
+        },
+        {
+          "type": "p",
+          "text": "If your card issuer or Stripe warns us that a payment may be fraudulent, we may refund it to the original card straight away and review your account. A credit note is issued for that refund too."
         }
       ]
     },

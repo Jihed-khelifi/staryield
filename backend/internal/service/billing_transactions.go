@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -46,10 +45,15 @@ func (s *BillingService) Transactions(ctx context.Context, userID uuid.UUID, cur
 			return Page[TransactionView]{}, apperror.Internal(err)
 		}
 	}
+	docs, err := s.invoiceRefsOf(ctx, rows) // revisions 6.0 (§26.6): one batched query for the page
+	if err != nil {
+		return Page[TransactionView]{}, apperror.Internal(err)
+	}
 	page := Page[TransactionView]{Items: make([]TransactionView, 0, len(rows))}
 	for i := range rows {
 		v := transactionView(&rows[i], methods)
 		v.Refund = refunds[rows[i].ID]
+		v.Invoice, v.CreditNote = docs[rows[i].ID].Invoice, docs[rows[i].ID].CreditNote
 		page.Items = append(page.Items, v)
 	}
 	if len(rows) > 0 && len(rows) == clampPage(limit, 20, 100) {
@@ -192,8 +196,12 @@ func (s *BillingService) ChargePurchase(ctx context.Context, p *domain.CreditPur
 		case out.decline != nil:
 			return PurchaseCharge{Status: payment.CheckoutFailed, FailureCode: out.decline.Code}, nil
 		case out.unknown:
+			s.persistChargeDetails(ctx, t.ID, chargeDetails{Card: out.result.Card, Risk: out.result.Risk, ThreeDS: out.result.ThreeDS}) // revisions 6.0
+			s.recordPendingRef(ctx, t, out.result.ProviderRef)
 			return PurchaseCharge{Status: payment.CheckoutPending, ProviderRef: out.result.ProviderRef, NextAction: out.result.NextAction}, nil
 		}
+		s.persistChargeDetails(ctx, t.ID, chargeDetails{Card: out.result.Card, Risk: out.result.Risk, ThreeDS: out.result.ThreeDS}) // revisions 6.0
+		s.recordPendingRef(ctx, t, out.result.ProviderRef)
 		return PurchaseCharge{Status: payment.CheckoutSucceeded, ProviderRef: out.result.ProviderRef}, nil
 	}
 	prov, ok := s.registry.Get(src.Provider)
@@ -204,16 +212,34 @@ func (s *BillingService) ChargePurchase(ctx context.Context, p *domain.CreditPur
 	if !ok {
 		return PurchaseCharge{}, apperror.FeatureUnavailable("Card payments are not available for your account yet.")
 	}
+	// revisions 6.0 (§26.5): the charge belongs to the user's customer at the provider
+	// (fraud screening, dispute evidence) and carries our ids, the 3-D Secure policy and
+	// the return URL of a redirect-based authentication step.
+	customerRef, err := s.customerRefFor(ctx, p.UserID, prov)
+	if err != nil {
+		return PurchaseCharge{}, err
+	}
 	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	res, err := co.Checkout(cctx, payment.CheckoutRequest{PurchaseID: p.ID, UserID: p.UserID, AmountCents: p.PriceCents, Currency: p.Currency,
 		Description: t.Description, PaymentToken: src.token, IdempotencyKey: t.IdempotencyKey,
-		StatementDescriptor: s.cfg.StatementDescriptor}) // revisions 5.1
+		StatementDescriptor: s.cfg.StatementDescriptor, // revisions 5.1
+		CustomerRef:         customerRef, ReturnURL: s.returnURL(ctx, p.UserID, p.ID), Metadata: chargeMetadata(t),
+		ThreeDSecure: s.policies(ctx).ThreeDSecure})
 	cancel()
-	if err != nil {
+	switch {
+	case errors.Is(err, payment.ErrInvalidToken):
+		return PurchaseCharge{}, apperror.Validation(map[string]string{"payment_token": "The card details could not be verified. Please enter them again."})
+	case errors.Is(err, payment.ErrConfiguration):
+		return PurchaseCharge{}, s.providerError(ctx, "checkout", err)
+	case err != nil:
 		logger.FromContext(ctx).Warn("billing: token checkout outcome unknown; will reconcile", zap.Error(err))
 		return PurchaseCharge{Status: payment.CheckoutPending}, nil
 	}
-	return PurchaseCharge{Status: res.Status, ProviderRef: res.ProviderRef, FailureCode: res.FailureCode}, nil
+	s.persistChargeDetails(ctx, t.ID, chargeDetails{Card: res.Card, Risk: res.Risk, ThreeDS: res.ThreeDS}) // revisions 6.0 (§26.5)
+	if res.Status != payment.CheckoutFailed {
+		s.recordPendingRef(ctx, t, res.ProviderRef)
+	}
+	return PurchaseCharge{Status: res.Status, ProviderRef: res.ProviderRef, FailureCode: res.FailureCode, NextAction: res.NextAction}, nil
 }
 
 // SettlePurchaseTransaction mirrors a credit purchase's final state in the
@@ -297,6 +323,15 @@ type AdminTransactionRow struct {
 	// Consent is what the buyer accepted before paying a credit purchase
 	// (revisions 5.1, §25.2); absent for older purchases and other rows.
 	Consent *PurchaseConsentView `json:"consent,omitempty"`
+	// revisions 6.0 (§26.5): what the processor reported, the dispute and the
+	// provider's own page of the payment (decorateRows).
+	CardCountry string              `json:"card_country,omitempty"`
+	RiskLevel   string              `json:"risk_level,omitempty"`
+	RiskScore   *int                `json:"risk_score,omitempty"`
+	ThreeDS     string              `json:"three_ds,omitempty"`
+	InReview    bool                `json:"in_review"`
+	Dispute     *TransactionDispute `json:"dispute,omitempty"`
+	ProviderURL string              `json:"provider_url,omitempty"`
 }
 
 func adminTransactionRow(t *domain.PaymentTransaction, methods map[uuid.UUID]domain.PaymentMethod) AdminTransactionRow {
@@ -330,22 +365,11 @@ func (s *BillingService) AdminTransactions(ctx context.Context, userID *uuid.UUI
 	if err != nil {
 		return Page[AdminTransactionRow]{}, apperror.Internal(err)
 	}
-	methods, err := s.methodsOf(ctx, rows)
+	items, err := s.adminRows(ctx, rows) // revisions 5.1/6.0: cards, consent, risk, disputes in batched queries
 	if err != nil {
 		return Page[AdminTransactionRow]{}, apperror.Internal(err)
 	}
-	consents, err := s.consentsOf(ctx, rows) // revisions 5.1: one batched query for the page
-	if err != nil {
-		return Page[AdminTransactionRow]{}, apperror.Internal(err)
-	}
-	page := Page[AdminTransactionRow]{Items: make([]AdminTransactionRow, 0, len(rows))}
-	for i := range rows {
-		row := adminTransactionRow(&rows[i], methods)
-		if rows[i].CreditPurchaseID != nil {
-			row.Consent = consents[*rows[i].CreditPurchaseID]
-		}
-		page.Items = append(page.Items, row)
-	}
+	page := Page[AdminTransactionRow]{Items: items}
 	if len(rows) > 0 && len(rows) == clampPage(limit, 20, 100) {
 		last := rows[len(rows)-1]
 		page.NextCursor = repository.EncodeCursor(last.CreatedAt, last.ID.String())
@@ -437,6 +461,9 @@ func (s *BillingService) refundTransaction(ctx context.Context, id uuid.UUID, in
 	if err != nil {
 		return nil, uuid.Nil, mapRepoErr(err, "Payment")
 	}
+	if parent.Status == domain.TxDisputed { // revisions 6.0: the dispute must be answered instead
+		return nil, uuid.Nil, apperror.RefundDisputed()
+	}
 	if parent.ProviderRef == nil || *parent.ProviderRef == "" {
 		return nil, uuid.Nil, apperror.InvalidState("This payment has no provider reference and must be refunded with the provider.")
 	}
@@ -477,13 +504,17 @@ func (s *BillingService) refundTransaction(ctx context.Context, id uuid.UUID, in
 	if err != nil {
 		logger.FromContext(ctx).Error("billing: refund failed", zap.Error(err), zap.String("transaction_id", parent.ID.String()))
 		var decline *payment.DeclineError
-		definitive := errors.Is(err, payment.ErrRefundTooLarge) || errors.Is(err, payment.ErrNotFound) || errors.As(err, &decline)
+		disputed := errors.Is(err, payment.ErrChargeDisputed) // revisions 6.0: the dispute must be answered instead
+		definitive := disputed || errors.Is(err, payment.ErrRefundTooLarge) || errors.Is(err, payment.ErrNotFound) || errors.As(err, &decline)
 		if !definitive {
 			// Unknown outcome: the row stays pending so a retry reuses its
 			// idempotency key instead of refunding twice.
 			return nil, uuid.Nil, apperror.Unavailable(err)
 		}
 		_ = s.repo.UpdateTransaction(ctx, child.ID, map[string]any{"status": domain.TxFailed, "failure_code": "refund_failed", "updated_at": s.clock.Now()})
+		if disputed {
+			return nil, uuid.Nil, apperror.RefundDisputed()
+		}
 		if errors.Is(err, payment.ErrRefundTooLarge) {
 			return nil, uuid.Nil, apperror.Validation(map[string]string{"amount_cents": "The amount exceeds what can still be refunded."})
 		}
@@ -498,9 +529,11 @@ func (s *BillingService) refundTransaction(ctx context.Context, id uuid.UUID, in
 	if err != nil {
 		return nil, uuid.Nil, apperror.Internal(err)
 	}
-	methods, _ := s.methodsOf(ctx, []domain.PaymentTransaction{*updated})
-	row := adminTransactionRow(updated, methods)
-	return &row, child.ID, nil
+	rows, err := s.adminRows(ctx, []domain.PaymentTransaction{*updated})
+	if err != nil || len(rows) != 1 {
+		return nil, uuid.Nil, apperror.Internal(err)
+	}
+	return &rows[0], child.ID, nil
 }
 
 // bookRefund records a refund (issued by us, or reported by the provider)
@@ -597,6 +630,12 @@ func (s *BillingService) bookRefund(ctx context.Context, parentID, childID uuid.
 		dctx := database.Detach(ctx)
 		warnErr(dctx, "billing: publish wallet", s.events.Publish(dctx, realtime.EventWalletUpdated, walletView(wallet), owner))
 	}
+	// revisions 6.0 (§26.6): the credit note is issued before the notice so it can link it.
+	if notice != nil {
+		if ref := s.issueCreditNote(ctx, childID); ref != nil {
+			notice["credit_note_id"], notice["credit_note_number"] = ref.ID, ref.Number
+		}
+	}
 	// revisions 5.1: every booked refund tells the customer (in-app and e-mail,
 	// §25.5) unless the caller sends its own notice (a refund request approval).
 	if notice != nil && !quietRefund(ctx) {
@@ -640,21 +679,8 @@ func quietRefund(ctx context.Context) bool { v, _ := ctx.Value(quietRefundKey{})
 // transaction; the wallet is locked first so the lot cannot change before
 // Apply. Returns the updated wallet, or nil when nothing was taken.
 func (s *BillingService) clawBackPurchase(ctx context.Context, parent *domain.PaymentTransaction, amount int64, refundID uuid.UUID) (*domain.Wallet, error) {
-	if parent.CreditPurchaseID == nil {
-		return nil, nil
-	}
-	w, err := s.wallets.GetForUpdate(ctx, parent.UserID)
-	if err != nil {
-		return nil, err
-	}
-	lot, err := s.wallet.PurchaseLot(ctx, *parent.CreditPurchaseID)
-	if errors.Is(err, repository.ErrNotFound) {
-		// A purchase from before lots existed whose credits were all spent.
-		logger.FromContext(ctx).Warn("billing: refunded purchase has no credit lot; nothing to claw back",
-			zap.String("purchase_id", parent.CreditPurchaseID.String()))
-		return nil, nil
-	}
-	if err != nil {
+	w, lot, err := s.lockedPurchaseLot(ctx, parent)
+	if err != nil || lot == nil {
 		return nil, err
 	}
 	credits := domain.ClawbackCredits(lot.CreditsTotal, lot.CreditsRemaining, lot.PaidCents, amount)
@@ -668,6 +694,32 @@ func (s *BillingService) clawBackPurchase(ctx context.Context, parent *domain.Pa
 		ReferenceType: "credit_purchase", ReferenceID: parent.CreditPurchaseID, IdempotencyKey: "refund:" + refundID.String(),
 		Description: "Payment refunded", ConsumeLot: &lot.ID})
 	return w, err
+}
+
+// lockedPurchaseLot locks the buyer's wallet and returns it with the credit lot
+// of the payment's purchase (a nil lot when the payment is no credit purchase or
+// the lot does not exist: a purchase from before lots existed whose credits were
+// all spent). The wallet is locked first so the lot cannot change before the
+// caller's movement; refunds and disputes take credits back through it, from
+// that lot and nowhere else. Runs inside a transaction.
+func (s *BillingService) lockedPurchaseLot(ctx context.Context, parent *domain.PaymentTransaction) (*domain.Wallet, *domain.CreditLot, error) {
+	if parent.CreditPurchaseID == nil {
+		return nil, nil, nil
+	}
+	w, err := s.wallets.GetForUpdate(ctx, parent.UserID)
+	if err != nil {
+		return nil, nil, err
+	}
+	lot, err := s.wallet.PurchaseLot(ctx, *parent.CreditPurchaseID)
+	if errors.Is(err, repository.ErrNotFound) {
+		logger.FromContext(ctx).Warn("billing: purchase has no credit lot; nothing to take back",
+			zap.String("purchase_id", parent.CreditPurchaseID.String()))
+		return w, nil, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	return w, lot, nil
 }
 
 // reverseGrant takes back up to reverse credits of a membership grant from
@@ -716,162 +768,7 @@ func periodFromKey(key string) int {
 	return 0
 }
 
-// ------------------------------------------------------------- webhooks
-
-// HandleProviderWebhook processes a signed notification from a saved-card
-// provider. Redeliveries are acknowledged without being applied twice; the
-// raw payload is never stored.
-func (s *BillingService) HandleProviderWebhook(ctx context.Context, provider string, header http.Header, body []byte) error {
-	invalid := apperror.New(apperror.CodeBadRequest, http.StatusBadRequest, "Invalid webhook signature.")
-	p, ok := s.registry.Get(provider)
-	if !ok {
-		return invalid
-	}
-	verifier, ok := p.(payment.WebhookVerifier)
-	if !ok {
-		return invalid
-	}
-	evt, err := verifier.VerifyWebhookRequest(payment.WebhookRequest{Header: header, Body: body, Now: s.clock.Now()})
-	if err != nil {
-		logger.FromContext(ctx).Warn("billing: webhook rejected", zap.Error(err), zap.String("provider", provider))
-		return invalid
-	}
-	digest := sha256Hex(body)
-	eventID := evt.ID
-	if eventID == "" {
-		eventID = "sha256:" + digest
-	}
-	now := s.clock.Now()
-	rec := &domain.ProviderWebhookEvent{ID: domain.NewID(), Provider: provider, EventID: truncateString(eventID, 200),
-		EventType: truncateString(evt.Type, 64), PayloadSHA256: digest, CreatedAt: now, UpdatedAt: now}
-	fresh, err := s.repo.RecordWebhook(ctx, rec)
-	if err != nil {
-		return apperror.Internal(err)
-	}
-	if !fresh {
-		// A redelivery: acknowledge it unless the first delivery failed
-		// before being applied (handlers are idempotent, so at-least-once
-		// processing never applies an event twice).
-		existing, err := s.repo.GetWebhook(ctx, provider, rec.EventID)
-		if err != nil {
-			return apperror.Internal(err)
-		}
-		if existing.ProcessedAt != nil {
-			return nil
-		}
-		rec = existing
-	}
-	if err := s.applyWebhook(ctx, provider, rec.EventID, evt); err != nil {
-		return err
-	}
-	warnErr(ctx, "billing: mark webhook processed", s.repo.MarkWebhookProcessed(ctx, rec.ID, s.clock.Now()))
-	return nil
-}
-
-func (s *BillingService) applyWebhook(ctx context.Context, provider, eventID string, evt *payment.WebhookEvent) error {
-	t, err := s.repo.GetTransactionByProviderRef(ctx, provider, evt.ProviderRef)
-	if errors.Is(err, repository.ErrNotFound) && evt.IdempotencyKey != "" {
-		t, err = s.repo.GetTransactionByKey(ctx, provider, evt.IdempotencyKey)
-	}
-	if errors.Is(err, repository.ErrNotFound) {
-		logger.FromContext(ctx).Warn("billing: webhook for unknown payment", zap.String("provider", provider), zap.String("type", evt.Type))
-		return nil // acknowledge so the provider stops retrying
-	}
-	if err != nil {
-		return apperror.Internal(err)
-	}
-	switch evt.Type {
-	case "charge.succeeded", "charge.failed":
-		if t.Status != domain.TxPending {
-			return nil
-		}
-		out := chargeOutcome{result: payment.ChargeResult{Status: payment.ChargeSucceeded, ProviderRef: evt.ProviderRef}}
-		if evt.Type == "charge.failed" {
-			out = chargeOutcome{decline: &payment.DeclineError{Code: firstNonBlank(evt.FailureCode, "card_declined"), Soft: true}}
-		}
-		switch t.Kind {
-		case domain.TxCreditPurchase:
-			return s.applyPurchaseOutcome(ctx, t, out)
-		case domain.TxSubscriptionInitial, domain.TxSubscriptionRenewal:
-			_, err := s.applySubscriptionOutcome(ctx, s.attemptFor(ctx, t), out)
-			return err
-		}
-	case "charge.refunded":
-		if evt.RefundRef != "" {
-			// A refund the platform issued: already booked, or issued and
-			// awaiting its booking (same amount) — never booked twice.
-			if child, err := s.repo.GetTransactionByProviderRef(ctx, t.Provider, evt.RefundRef); err == nil {
-				if child.Status != domain.TxPending {
-					return nil
-				}
-				return s.bookRefund(ctx, t.ID, child.ID, child.AmountCents, evt.RefundRef)
-			} else if !errors.Is(err, repository.ErrNotFound) {
-				return apperror.Internal(err)
-			}
-			pending, err := s.repo.PendingRefund(ctx, t.ID)
-			if err == nil && (evt.AmountCents <= 0 || pending.AmountCents == evt.AmountCents) {
-				return s.bookRefund(ctx, t.ID, pending.ID, pending.AmountCents, evt.RefundRef)
-			} else if err != nil && !errors.Is(err, repository.ErrNotFound) {
-				return apperror.Internal(err)
-			}
-		}
-		// One refund row per provider event, keyed by the event, so a
-		// re-processed delivery books it at most once.
-		key := truncateString("webhook:"+eventID, 128)
-		if child, err := s.repo.GetTransactionByKey(ctx, t.Provider, key); err == nil {
-			if child.Status != domain.TxPending {
-				return nil
-			}
-			return s.bookRefund(ctx, t.ID, child.ID, child.AmountCents, evt.RefundRef)
-		} else if !errors.Is(err, repository.ErrNotFound) {
-			return apperror.Internal(err)
-		}
-		amount := evt.AmountCents
-		if amount <= 0 {
-			amount = t.Refundable()
-		}
-		amount = min(amount, t.Refundable())
-		if amount <= 0 {
-			return nil
-		}
-		now := s.clock.Now()
-		child := &domain.PaymentTransaction{ID: domain.NewID(), UserID: t.UserID, Kind: domain.TxRefund, Status: domain.TxPending,
-			AmountCents: amount, Currency: t.Currency, Provider: t.Provider, PaymentMethodID: t.PaymentMethodID,
-			SubscriptionID: t.SubscriptionID, InvoiceID: t.InvoiceID, CreditPurchaseID: t.CreditPurchaseID, ParentTransactionID: &t.ID,
-			Description: truncateString("Refund: "+t.Description, 200), IdempotencyKey: key, AttemptNo: 1, CreatedAt: now, UpdatedAt: now}
-		if err := s.repo.CreateTransaction(ctx, child); err != nil {
-			return apperror.Internal(err)
-		}
-		return s.bookRefund(ctx, t.ID, child.ID, child.AmountCents, evt.RefundRef)
-	case "charge.disputed":
-		now := s.clock.Now()
-		var sub *domain.Subscription
-		err := s.tx.WithinTx(ctx, func(ctx context.Context) error {
-			if err := s.repo.UpdateTransaction(ctx, t.ID, map[string]any{"status": domain.TxDisputed, "updated_at": now}); err != nil {
-				return err
-			}
-			if t.SubscriptionID == nil {
-				return nil
-			}
-			locked, err := s.repo.GetSubscriptionForUpdate(ctx, *t.SubscriptionID)
-			if err != nil || !locked.Status.Open() {
-				return err
-			}
-			sub = locked
-			return s.endSubscription(ctx, locked, domain.SubCanceled, "dispute", now, now)
-		})
-		if err != nil {
-			return mapRepoErr(err, "Payment")
-		}
-		if sub != nil {
-			s.notify.Notify(ctx, NotificationSpec{Kind: NotifySubscriptionCanceled, Data: map[string]any{"subscription_id": sub.ID,
-				"reason": "dispute"}, Link: "/profile/settings"}, sub.UserID)
-		}
-	default:
-		logger.FromContext(ctx).Info("billing: webhook type ignored", zap.String("type", evt.Type))
-	}
-	return nil
-}
+// Provider webhooks are handled in billing_webhooks.go (revisions 6.0, §26.5).
 
 func firstNonBlank(values ...string) string {
 	for _, v := range values {

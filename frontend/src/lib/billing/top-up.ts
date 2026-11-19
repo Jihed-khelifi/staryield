@@ -9,11 +9,27 @@ import { errorMessage, type ApiError } from "@/lib/api/errors";
 import type { OfferUnavailableReason, PackBadge, PricingPack, RateRange, TopUpCatalog } from "@/lib/api/pricing";
 import { formatMinutes, packMinutes } from "@/lib/pricing";
 
+/**
+ * revisions 6.0 (§26.1): the hold of the reading on screen. The dialog states why it opened, what continuing
+ * costs and counts down to the server's deadline.
+ */
+export type TopUpHold = {
+  reason: "trial_ended" | "credits_exhausted";
+  /** The server's deadline (ISO); the countdown never starts from a local number. */
+  expiresAt: string;
+  /** Credits one minute (to continue) or one reveal costs. */
+  priceCredits: number;
+  /** Server clock minus local clock in ms, so the countdown matches the server. */
+  clockOffsetMs: number;
+};
+
 /** Who the top-up is for when it opens from a live chat (their rate shapes the estimate). */
 export type TopUpAdvisor = {
   advisorName?: string;
   /** Credits per minute the client pays this advisor. */
   ratePerMinute?: number;
+  /** revisions 6.0: the reading is held (§26.1). Replaced by the live hold of a mounted `TopUpHoldScope`. */
+  hold?: TopUpHold;
 };
 
 export function isIntroPack(pack: PricingPack): boolean {

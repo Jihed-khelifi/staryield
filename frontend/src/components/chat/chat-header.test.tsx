@@ -153,3 +153,12 @@ describe("ChatroomTopBar (no conversation on screen)", () => {
     expect(await axeViolations()).toEqual([]);
   });
 });
+
+describe("held reading (§26.1)", () => {
+  it("says the reading is on hold, keeps the timer frozen at the server's value and the End chat button", () => {
+    header({ viewerRole: "client", counterpart: advisor, session: session({ status: "held", active_seconds: 300 }), elapsedSeconds: 300 });
+    expect(screen.getByTestId("chat-header-status").textContent).toContain("Reading on hold");
+    expect(screen.getByRole("timer").textContent).toBe("00:05:00");
+    expect(screen.getByRole("button", { name: /End the chat with/ })).toBeTruthy();
+  });
+});

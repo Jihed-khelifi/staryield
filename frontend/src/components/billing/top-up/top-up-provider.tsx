@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { useSession } from "@/lib/auth/session-provider";
-import type { TopUpAdvisor } from "@/lib/billing/top-up";
+import type { TopUpAdvisor, TopUpHold } from "@/lib/billing/top-up";
 import { loginUrl } from "@/lib/navigation";
 
 import { CreditTopUp } from "./credit-top-up";
@@ -27,11 +27,25 @@ type TopUpContextValue = {
    * always follows the reading in progress (§24.7).
    */
   setScopeAdvisor: (advisor: TopUpAdvisor | undefined) => void;
+  /**
+   * revisions 6.0 (§26.1): the hold of the conversation on screen (set by `TopUpHoldScope`). `undefined`: no
+   * chatroom is mounted; `null`: mounted and the reading is not held. While a scope is mounted the dialog shows
+   * its hold live (the deadline can move, the hold can end) instead of the one it was opened with.
+   */
+  setScopeHold: (hold: TopUpHold | null | undefined) => void;
 };
 
 /** A context that can produce the "At {advisor}'s rate…" estimate. */
 function hasAdvisor(context: TopUpAdvisor | undefined): context is TopUpAdvisor {
   return Boolean(context?.advisorName?.trim() && context.ratePerMinute && context.ratePerMinute > 0);
+}
+
+/** The context a top-up opens with: the given advisor (else the one on screen), and the hold it was opened for. */
+function resolveContext(context: TopUpAdvisor | undefined, scope: TopUpAdvisor | undefined): TopUpAdvisor | undefined {
+  const advisor = hasAdvisor(context) ? context : scope;
+  const hold = context?.hold;
+  if (!hold) return advisor;
+  return { ...advisor, hold };
 }
 
 const TopUpContext = React.createContext<TopUpContextValue | null>(null);
@@ -50,6 +64,7 @@ export function TopUpProvider({ children }: { children: React.ReactNode }) {
   const nextId = React.useRef(0);
   // A ref, not state: changing the advisor on screen must not re-render every consumer.
   const scopeAdvisor = React.useRef<TopUpAdvisor | undefined>(undefined);
+  const [scopeHold, setScopeHold] = React.useState<TopUpHold | null | undefined>(undefined);
   // What had the focus when the dialog opened (the balance pill, a "Top up" link…): it gets the
   // focus back on close. Kept here rather than left to the dialog's focus scope, which loses it
   // when the dialog mounts twice (React's development double effects) or is opened programmatically.
@@ -74,7 +89,7 @@ export function TopUpProvider({ children }: { children: React.ReactNode }) {
       }
       const active = document.activeElement;
       opener.current = active instanceof HTMLElement && active !== document.body ? active : null;
-      setRequest({ id: ++nextId.current, context: hasAdvisor(context) ? context : scopeAdvisor.current });
+      setRequest({ id: ++nextId.current, context: resolveContext(context, scopeAdvisor.current) });
     },
     [status, locale, router],
   );
@@ -83,11 +98,19 @@ export function TopUpProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const isOpen = request !== null && status === "authenticated";
-  const value = React.useMemo(() => ({ open, close, isOpen, setScopeAdvisor }), [open, close, isOpen, setScopeAdvisor]);
+  const value = React.useMemo(() => ({ open, close, isOpen, setScopeAdvisor, setScopeHold }), [open, close, isOpen, setScopeAdvisor]);
   return (
     <TopUpContext.Provider value={value}>
       {children}
-      {isOpen ? <CreditTopUp key={request.id} context={request.context} onClose={close} restoresFocus /> : null}
+      {isOpen ? (
+        <CreditTopUp
+          key={request.id}
+          context={request.context}
+          hold={scopeHold === undefined ? request.context?.hold : (scopeHold ?? undefined)}
+          onClose={close}
+          restoresFocus
+        />
+      ) : null}
     </TopUpContext.Provider>
   );
 }
@@ -137,5 +160,25 @@ export function TopUpAdvisorScope({ advisor }: { advisor: TopUpAdvisor | undefin
     setScopeAdvisor(name && rate ? { advisorName: name, ratePerMinute: rate } : undefined);
     return () => setScopeAdvisor(undefined);
   }, [setScopeAdvisor, name, rate]);
+  return null;
+}
+
+/**
+ * revisions 6.0 (§26.1): declares the hold of the conversation on screen while
+ * it is mounted (the chatroom renders it; it renders nothing). The dialog shows
+ * this hold with a live countdown, and drops the notice the moment it ends.
+ */
+export function TopUpHoldScope({ hold }: { hold: TopUpHold | undefined }) {
+  const ctx = React.useContext(TopUpContext);
+  const setScopeHold = ctx?.setScopeHold;
+  const reason = hold?.reason;
+  const expiresAt = hold?.expiresAt;
+  const priceCredits = hold?.priceCredits;
+  const clockOffsetMs = hold?.clockOffsetMs ?? 0;
+  React.useEffect(() => {
+    if (!setScopeHold) return;
+    setScopeHold(reason && expiresAt && priceCredits ? { reason, expiresAt, priceCredits, clockOffsetMs } : null);
+    return () => setScopeHold(undefined);
+  }, [setScopeHold, reason, expiresAt, priceCredits, clockOffsetMs]);
   return null;
 }

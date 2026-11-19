@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-13",
-    "effective": "2026-11-13",
-    "lastUpdated": "2026-11-13",
+    "version": "2026-11-19",
+    "effective": "2026-11-19",
+    "lastUpdated": "2026-11-19",
     "badge": "STARYIELD PRIVACY AGREEMENT",
     "title": "Privacy Policy"
   },
@@ -97,7 +97,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Birth data and calculations. We use your date, time and place of birth to calculate your natal chart, horoscope and other readings with our own astronomical software; we do not send them to third-party astrology services. When you use our free calculators without an account, the birth details you enter are used only to produce the result and are not stored. The Path of Life calculator runs entirely in your browser. Place names come from the GeoNames geographical database (geonames.org, licensed under CC BY 4.0), which we host ourselves."
+          "text": "Birth data and calculations. We use your date, time and place of birth to calculate your natal chart, horoscope and other readings with our own astronomical software; we do not send them to third-party astrology services. When you use our free calculators without an account, the birth details you enter are used only to produce the result and are not stored, unless you ask us to email you the report: in that case they are kept, encrypted, only until the email has been sent (see [Section 2.14](#calculator-report-emails)). The Path of Life calculator runs in your browser, and we receive your birth details only if you ask for its report by email. Place names come from the GeoNames geographical database (geonames.org, licensed under CC BY 4.0), which we host ourselves."
         },
         {
           "type": "p",
@@ -110,6 +110,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Billing records and credit lots. For every credit purchase we keep a record of the transaction, the pack bought, the amount paid and its currency. We also keep a record of each batch (“lot”) of Credits in your Balance, marked as purchased or bonus Credits and showing how many are still unused, so that Credits are used in the order described in our Terms and refunds are calculated correctly. These records are part of our billing records."
+        },
+        {
+          "type": "p",
+          "text": "Invoices and credit notes. For every credit purchase we issue an invoice, and for every refund a credit note, each with its own sequential number. They show your name, email address and country (if known), the pack and the amount, the card brand and last four digits, the payment processor’s reference and our company details. You can view and download them in your account, and we normally attach the invoice to your receipt email."
         },
         {
           "type": "p",
@@ -144,6 +148,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "We do not currently offer sign-in with Apple, Facebook or other third-party accounts, and we do not receive data from app marketplaces. We may receive limited information about you from our payment processors (for example the result of a payment, fraud-screening signals, refunds and chargebacks) and from our email provider (for example whether a message to you could not be delivered)."
+        },
+        {
+          "type": "p",
+          "text": "Payment disputes, fraud warnings and risk signals. When a card payment is disputed, or Stripe or the card issuer warns us that it may be fraudulent, we receive the details of the dispute or warning (amount, reason, status and deadlines) and record them with the purchase, together with the evidence we submit. With each card payment we also receive risk indicators from Stripe (a risk level and score, the country of the card and the result of any 3-D Secure authentication) and keep them with the transaction to prevent fraud."
         },
         {
           "type": "h3",
@@ -330,6 +338,38 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "We store and protect these messages like the other messages described in [Section 2.5](#live-readings-ratings-and-notifications): they are visible only to the two participants of the conversation, they are kept for as long as the conversation exists (see [Section 8](#data-retention)), and authorised staff may review text only to handle a dispute, a safety report or a legal obligation, with a stated reason and an entry in the audit log. The other participant receives an in-app notification and an unread counter and, if enabled, a push notification, none of which contains the text of the message (see [Section 2.11](#chat-notifications-and-drafts)). To keep the feature fair, we count the messages each participant sends per conversation over a rolling period of 24 hours, and we record that a message was refused when the limit is reached. Messages written while a live reading is paused belong to that reading. The rules for using this feature are in our [Terms of Use](/terms#messages-outside-live-readings)."
+        },
+        {
+          "type": "p",
+          "text": "Replies hidden during a hold. If a live reading is put on hold because your free minutes or Credits ran out (see [Terms of Use](/terms#free-trials-and-promotional-offers)), the advisor’s replies written in the meantime are stored like any other message but are hidden from you until you continue the reading or choose to reveal them; we record the hold, how many replies it hid and, if you reveal them, the charge. Hidden replies are included in your data export (see [Section 5](#your-privacy-rights))."
+        },
+        {
+          "type": "h3",
+          "id": "calculator-report-emails",
+          "n": "2.14",
+          "title": "Calculator report emails"
+        },
+        {
+          "type": "p",
+          "text": "On our natal chart, astrology and Path of Life calculators you can ask us to email you the report you see on screen. For this we collect your email address, the language of the page and an approximate country derived from your IP address (see [Section 2.3](#data-we-collect-automatically)). Your birth details are used to calculate the report and send it, and are kept, encrypted, only until the email has been sent; the content of the message, which contains the report, is deleted from our sending queue once it has been sent (see [Section 8](#data-retention))."
+        },
+        {
+          "type": "p",
+          "text": "What we keep. For each address we keep one record: the address (stored encrypted, together with a keyed hash used to recognise it), your language and country, which calculators you used, how many reports we have sent you, whether you chose to receive marketing emails and, if you did, a consent record (the time, whether the box was already ticked when you saw it, the version of the consent text, a one-way hash of your IP address and your browser’s user agent) and, if you later unsubscribe, the time you did so. We do not keep your birth details in this record. If you have an account with the same email address, the record is linked to it."
+        },
+        {
+          "type": "p",
+          "text": "Why we use it, and for how long. We use the record to send you the report you ask for (performance of a contract with you), and to keep your marketing choice (your consent) so that we honour an unsubscribe. Asking for a report does not subscribe you to marketing. We keep the record until you ask us to erase it or, if it is linked to your account, until your account is erased; after you unsubscribe we use it only to remember your choice. You can ask us to access or erase it through this [request form](/contact?topic=privacy) (see [Section 5](#your-privacy-rights))."
+        },
+        {
+          "type": "h3",
+          "id": "marketing-emails",
+          "n": "2.15",
+          "title": "Marketing emails"
+        },
+        {
+          "type": "p",
+          "text": "If you ask for a report, you can choose to receive horoscopes, offers and news from Staryield by email. We send these emails only with your consent. Where the law allows it, for example in the United States, the box may already be ticked when you see it; you can untick it before you submit, and we record whether it was pre-ticked. In other countries the box starts unticked and we send you nothing unless you tick it. Every marketing email contains an unsubscribe link, and you can also switch marketing updates off in your [account settings](/profile/settings). We never sell your email address or give it to anyone for their own marketing. Marketing emails are sent for us by an email service provider that acts on our instructions and receives your email address, language and country."
         }
       ]
     },
@@ -441,6 +481,21 @@ const content: LegalDocumentContent = {
               "Legitimate interest (keeping the Services for adults, as our Terms require); Legal obligation where applicable"
             ],
             [
+              "To email you the calculator report you request and to keep a record of your email choices",
+              "Identifiers (email address, language, country); Calculator report emails; Birth data (only until the report is sent)",
+              "Performance of a contract with you (the report you ask for); Your consent (marketing emails); Legitimate interest (remembering that you unsubscribed)"
+            ],
+            [
+              "To issue invoices and credit notes and keep them for accounting and tax purposes",
+              "Identifiers (name, email address, country); Payment data; Billing records and credit lots; Invoices and credit notes",
+              "Performance of a contract with you; Legal obligation (accounting and tax records)"
+            ],
+            [
+              "To prevent payment fraud and to send evidence to Stripe and the card networks when a payment is disputed",
+              "Identifiers; Payment data; Purchase consent record; Billing records and credit lots; Payment disputes, fraud warnings and risk signals; Online activity data (log of readings used after the purchase)",
+              "Legitimate interest (check the description); Legal obligation where applicable"
+            ],
+            [
               "To keep proof of the terms accepted with each purchase and to respond to payment disputes and chargebacks",
               "Purchase consent record; Billing records and credit lots; Payment-method data and card-network rules",
               "Legitimate interest (check the description)"
@@ -462,7 +517,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "When processing payments, refunds, and chargebacks: to protect our business from fraudulent claims; to make informed and efficient decisions regarding refund requests; to keep evidence of the terms you accepted with each purchase, so that we can respond to payment disputes and meet card-network rules."
+          "text": "When processing payments, refunds, and chargebacks: to protect our business from fraudulent claims; to make informed and efficient decisions regarding refund requests; to keep evidence of the terms you accepted with each purchase, so that we can respond to payment disputes and meet card-network rules; to prevent payment fraud and to send evidence to our payment processor and the card networks when a payment is disputed."
         },
         {
           "type": "p",
@@ -471,6 +526,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "When sending marketing communications: in jurisdictions where consent is not required, our legitimate interest is to encourage you to use Services, for example, to notify you that the advisor (psychic) is online; to promote the Services, for example, if you didn’t purchased the Services, we may send you reminders emails inviting you to complete a purchase."
+        },
+        {
+          "type": "p",
+          "text": "When remembering your email choices: to keep a record that you unsubscribed from marketing emails, or that an address could not be reached, so that we never write to you against your wish."
         },
         {
           "type": "p",
@@ -516,9 +575,10 @@ const content: LegalDocumentContent = {
           "type": "ul",
           "items": [
             "Hosting, storage and delivery: We use Cloudflare to host our website, to store uploaded images and data exports in Cloudflare R2 object storage, to deliver content and to protect the Services from malicious attacks. Our application servers and databases run on Railway.",
-            "Email delivery: We use Cloudflare Email Service to send transactional emails, such as account security messages, receipts and data-export notifications. We do not use it to send marketing emails.",
+            "Email delivery: We use Cloudflare Email Service to send transactional emails, such as account security messages, receipts with their invoices, the calculator reports you ask for and data-export notifications. We do not use it to send marketing emails.",
+            "Marketing email delivery: If you choose to receive marketing emails (see [Section 2.15](#marketing-emails)), your email address, language and country are given to the email service provider that sends them for us.",
             "Push notifications: If you enable push notifications, they are delivered through your browser’s push service (for example Google, Mozilla, Apple or Microsoft). The content of each notification is encrypted so that the push service cannot read it.",
-            "Payment processing: Card payments for credits are processed by third-party payment processors. Depending on your country, currency, account and the product purchased, a payment may be handled by Stripe or by another card processor; you enter your card details directly with the processor, which shares with us only a payment token and limited card information. Advisor withdrawals are paid by bank transfer or PayPal.",
+            "Payment processing: Card payments for credits are processed by Stripe (Stripe, Inc. and its affiliates). You enter your card details directly with Stripe, including when you use Apple Pay or Google Pay, so we never see your full card number or security code. We send Stripe your email address, your name, the amount and currency, and a reference to your purchase. While you pay, Stripe.js, which loads in your browser from js.stripe.com, also collects device and network data (such as your IP address, browser and device details and how you interact with the payment form) for fraud prevention. Stripe processes this data as our service provider and, for fraud prevention and to meet its own legal obligations, as an independent controller; see Stripe’s privacy policy at https://stripe.com/privacy. If we route a payment to another card processor instead, that processor receives the same kinds of data under its own privacy policy. Advisor withdrawals are paid by bank transfer or PayPal.",
             "Place data: We use the GeoNames geographical database (CC BY 4.0) to suggest birthplaces. We host a copy of this database ourselves, so your searches are not sent to GeoNames.",
             "Analytics: Our analytics and error reporting are first-party and run on our own systems. We do not use third-party analytics, session-recording or advertising tools. The Trustpilot review widget described below is the only third-party content we embed in our pages.",
             "Google (sign-in): If you choose to sign up or sign in with your Google account, Google acts as an identity provider. It gives us your Google account identifier, your email address and whether it has verified that address; we send Google nothing about your readings, purchases or messages. Google learns that you used your Google account to sign in to Staryield and processes that information under its own privacy policy. Google is not involved if you sign in with your email address and password.",
@@ -527,6 +587,10 @@ const content: LegalDocumentContent = {
             "Advisors, consultants, and independent contractors. From time to time, we may share limited personal information with our independent contractors, consultants, third-party specialists, partners, and advisors. They process this information on our behalf to operate, maintain, secure, and improve the Services, and ensure legal and regulatory compliance. We require them to use the information only for these purposes, protect it appropriately, and keep it confidential.",
             "Advisors (psychics): The advisors you chat with receive your messages (including messages sent outside live readings, see [Section 2.13](#messages-outside-live-readings)) and the client card described in [Section 2.5](#live-readings-ratings-and-notifications); the card always includes your date of birth and shows your birth city only if you choose to share it. A note an advisor writes about you is shared with other advisors only if its author chooses to share it, and only with advisors who have also had a session with you (see [Section 2.7](#advisor-notes))."
           ]
+        },
+        {
+          "type": "p",
+          "text": "Payment disputes. If you or your bank dispute a payment, we send our payment processor Stripe, which passes it to the card networks and your bank, the evidence needed to answer the dispute: your name and email address, the purchase and its date, the record of the terms you accepted with the purchase (see [Section 2.1](#data-you-directly-provide-to-us)), a log of the readings you used after the purchase (date, advisor, minutes and Credits) and the invoice. We never send the content of your messages."
         },
         {
           "type": "p",
@@ -630,7 +694,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "You can download a copy of your personal data at any time in your [account settings](/profile/settings), under Data & privacy. We prepare a ZIP file containing your account and profile, preferences and consents, signed-in devices, sign-in methods (such as the email address of a connected Google account), purchases and transactions, credit history, conversations (including replies and likes) and the images you uploaded, saved messages, notifications and ratings. When it is ready, we notify you in the app and by email; the download link can be used once and the file is deleted after 7 days. Notes that advisors wrote about you are not part of this export because they contain the advisors’ own observations; you can request them through this [request form](/contact?topic=privacy), and our staff will provide them after reviewing your request."
+          "text": "You can download a copy of your personal data at any time in your [account settings](/profile/settings), under Data & privacy. We prepare a ZIP file containing your account and profile, preferences and consents, signed-in devices, sign-in methods (such as the email address of a connected Google account), purchases and transactions, credit history, conversations (including replies and likes, and the advisor’s replies that were hidden from you while a reading was on hold) and the images you uploaded, saved messages, notifications and ratings. When it is ready, we notify you in the app and by email; the download link can be used once and the file is deleted after 7 days. Notes that advisors wrote about you are not part of this export because they contain the advisors’ own observations; you can request them through this [request form](/contact?topic=privacy), and our staff will provide them after reviewing your request."
         },
         {
           "type": "h4",
@@ -694,7 +758,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "In particular, if we transfer personal data originating from the European Economic Area or the United Kingdom to countries with an adequate level of data protection, we rely on the adequacy decisions of the European Commission; for example, we may transfer personal data to service providers in the United States that participate in the EU-U.S. Data Privacy Framework. If we transfer personal data originating from the European Economic Area or the United Kingdom to countries without an adequate level of data protection, we rely on the Standard Contractual Clauses approved by the European Commission (with the UK addendum where applicable). Our service providers, including Cloudflare and our payment processors, may process personal data in the United States and other countries. Google (in the United States) receives data when you choose to sign in with your Google account, and Trustpilot A/S (in Denmark) receives data when its review widget loads in your browser; each handles that data under its own privacy policy."
+          "text": "In particular, if we transfer personal data originating from the European Economic Area or the United Kingdom to countries with an adequate level of data protection, we rely on the adequacy decisions of the European Commission; for example, we may transfer personal data to service providers in the United States that participate in the EU-U.S. Data Privacy Framework. If we transfer personal data originating from the European Economic Area or the United Kingdom to countries without an adequate level of data protection, we rely on the Standard Contractual Clauses approved by the European Commission (with the UK addendum where applicable). Our service providers, including Cloudflare, Stripe and our other payment processors, may process personal data in the United States and other countries. Google (in the United States) receives data when you choose to sign in with your Google account, and Trustpilot A/S (in Denmark) receives data when its review widget loads in your browser; each handles that data under its own privacy policy."
         }
       ]
     },
@@ -731,6 +795,14 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Billing and refund records. Records of credit purchases, credit lots and refund requests (the transaction, the pack, the Credits used and remaining, the reason, details, status and resolution) are kept as financial records for as long as accounting, tax and dispute-limitation rules require, and are not deleted when you close your account. When your account is erased, the details you wrote in a refund request and our notes on how it was resolved are deleted; the amounts, Credits, status and dates remain. The one-way card hash used for the Welcome Pack is kept with the record of the offer for as long as the offer limit has to be enforced, which is as long as that billing record. The age flag is kept for as long as your account exists. The purchase consent record is kept with the billing record of the purchase, for as long as that record is kept."
+        },
+        {
+          "type": "p",
+          "text": "Invoices and credit notes. Invoices and credit notes are accounting records. We keep them for as long as accounting and tax laws require, even after you close or erase your account, on the basis of our legal obligations. When your account is erased, the name, email address and country shown on them stay sealed (encrypted) and are used only for accounting, tax and legal purposes. Payment dispute and fraud-warning records are kept with the billing record of the purchase."
+        },
+        {
+          "type": "p",
+          "text": "Calculator report email records are kept until you ask us to erase them or until the account they are linked to is erased (see [Section 2.14](#calculator-report-emails)). The birth details used for a report are kept only until its email has been sent."
         },
         {
           "type": "p",
@@ -831,7 +903,7 @@ const content: LegalDocumentContent = {
             ],
             [
               "Internet or other electronic network activity information (your interaction with our website)",
-              "Hosting, storage and delivery providers; Trustpilot (review widget, browser details and page address)"
+              "Hosting, storage and delivery providers; Trustpilot (review widget, browser details and page address); Payment processors (device and network data collected while you pay, for fraud prevention)"
             ],
             [
               "Geolocation data (approximate location only)",

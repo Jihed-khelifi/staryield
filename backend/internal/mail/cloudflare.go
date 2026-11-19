@@ -3,6 +3,7 @@ package mail
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -101,7 +102,21 @@ type cfRequest struct {
 	Text    string            `json:"text,omitempty"`
 	HTML    string            `json:"html,omitempty"`
 	Headers map[string]string `json:"headers,omitempty"`
+	// revisions 6.0 (§26.6): invoices and credit notes travel as attachments.
+	Attachments []cfAttachment `json:"attachments,omitempty"`
 }
+
+// cfAttachment is one file of the send request (content is base64).
+type cfAttachment struct {
+	Content     string `json:"content"`
+	Filename    string `json:"filename"`
+	Type        string `json:"type"`
+	Disposition string `json:"disposition"`
+}
+
+// MaxMessageBytes is Cloudflare Email Service's message size limit (25 MiB).
+// Attachments are sent base64-encoded, so their share of the limit is 3/4.
+const MaxMessageBytes = 25 << 20
 
 type cfResponse struct {
 	Success bool `json:"success"`
@@ -128,6 +143,14 @@ func (a address) wire() any {
 // Send implements Mailer.
 func (c *Cloudflare) Send(ctx context.Context, m Message) (Result, error) {
 	body := cfRequest{To: m.To, From: c.from.wire(), Subject: m.Subject, Text: m.Text, HTML: m.HTML, Headers: m.Headers}
+	if len(m.Attachments) > 0 {
+		atts, ok := encodeAttachments(m)
+		if !ok {
+			// Retrying cannot make the message smaller.
+			return Result{}, &SendError{Reason: "message_too_large", Retryable: false}
+		}
+		body.Attachments = atts
+	}
 	if c.replyTo != nil {
 		body.ReplyTo = c.replyTo.wire()
 	}
@@ -184,6 +207,26 @@ func (c *Cloudflare) Send(ctx context.Context, m Message) (Result, error) {
 		se.Retryable = true
 	}
 	return Result{}, se
+}
+
+// encodeAttachments base64-encodes the attachments; false when the whole
+// message would exceed MaxMessageBytes.
+func encodeAttachments(m Message) ([]cfAttachment, bool) {
+	size := len(m.Subject) + len(m.Text) + len(m.HTML)
+	out := make([]cfAttachment, 0, len(m.Attachments))
+	for _, a := range m.Attachments {
+		size += base64.StdEncoding.EncodedLen(len(a.Content))
+		if size > MaxMessageBytes {
+			return nil, false
+		}
+		typ := a.ContentType
+		if typ == "" {
+			typ = "application/octet-stream"
+		}
+		out = append(out, cfAttachment{Content: base64.StdEncoding.EncodeToString(a.Content), Filename: a.Filename, Type: typ,
+			Disposition: "attachment"})
+	}
+	return out, true
 }
 
 // shortReason keeps provider error identifiers (e.g.

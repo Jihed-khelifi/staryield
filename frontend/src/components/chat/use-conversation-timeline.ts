@@ -14,6 +14,7 @@ import {
   oldestSeq,
   withLikes,
   withMessages,
+  withHeldCleared,
   withNewestPage,
   withOlderPage,
   type Timeline,
@@ -48,6 +49,8 @@ export type ConversationTimeline = {
   applyLikes: (likes: Pick<MessageLikes, "message_id" | "conversation_id" | "liked_by">) => void;
   /** Fetch the newest page again and merge it (likes included) without dropping older pages or the scroll position. */
   refreshNewest: () => void;
+  /** revisions 6.0 (§26.1): these messages are no longer hidden from the client (advisor view). */
+  clearHeld: (ids: string[]) => void;
 };
 
 type State = {
@@ -216,6 +219,14 @@ export function useConversationTimeline(
     [update],
   );
 
+  const clearHeld = React.useCallback(
+    (ids: string[]) => {
+      const key = convRef.current;
+      if (key) update(key, (t) => withHeldCleared(t, ids));
+    },
+    [update],
+  );
+
   const refreshNewest = React.useCallback(() => {
     const key = convRef.current;
     if (!key || !timelineRef.current.loaded) return;
@@ -262,5 +273,6 @@ export function useConversationTimeline(
     reload,
     applyLikes,
     refreshNewest,
+    clearHeld,
   };
 }

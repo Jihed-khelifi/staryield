@@ -6,6 +6,11 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 
+import { quietReportPrompt } from "./helpers";
+
+// revisions 6.0: the report dialog has its own spec (calculator-report.spec.ts).
+test.beforeEach(({ page }) => quietReportPrompt(page));
+
 type Ev = { name: string; path: string; anonymous_id: string; properties?: Record<string, unknown> };
 
 /** Collects every analytics event the page sends (the tracker batches for up to 5 s). */

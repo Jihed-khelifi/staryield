@@ -355,6 +355,39 @@
   line-height: 1.4;
   color: var(--tu-muted);
 }
+/* The payment is confirming: 3-D Secure, then the purchase stream (revisions 6.0, §26.5). */
+.top-up-confirming {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  background: var(--cream-light);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.top-up-confirming p {
+  font-weight: 600;
+}
+.top-up-confirming span {
+  display: block;
+  font-weight: 400;
+  color: var(--tu-muted);
+}
+.top-up-confirming-icon {
+  margin-top: 2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .top-up-confirming-icon {
+    animation: top-up-spin 1s linear infinite;
+  }
+}
+@keyframes top-up-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .top-up-receipt {
   display: flex;
   align-items: flex-start;

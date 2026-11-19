@@ -28,6 +28,41 @@ type Message struct {
 	// Category is the delivery category ("security", "billing", …); some
 	// providers tag messages with it.
 	Category string
+	// Attachments are files sent with the message (revisions 6.0, §26.6: the
+	// PDF of an invoice or credit note).
+	Attachments []Attachment
+}
+
+// Attachment is a file sent with a message.
+type Attachment struct {
+	Filename    string
+	ContentType string
+	Content     []byte
+}
+
+// AttachmentRef names an attachment without carrying it: the e-mail outbox
+// stores references (so nothing binary is queued) and the sending service
+// resolves them to files when the message is delivered.
+type AttachmentRef struct {
+	// Kind selects the resolver ("invoice").
+	Kind string `json:"kind"`
+	// ID identifies the document for that resolver.
+	ID string `json:"id"`
+}
+
+// attachmentSummary is how drivers that do not deliver (log, no-op) describe
+// attachments: names and sizes, never contents.
+func attachmentSummary(atts []Attachment) []zap.Field {
+	if len(atts) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(atts))
+	sizes := make([]int, 0, len(atts))
+	for _, a := range atts {
+		names = append(names, a.Filename)
+		sizes = append(sizes, len(a.Content))
+	}
+	return []zap.Field{zap.Strings("attachments", names), zap.Ints("attachment_bytes", sizes)}
 }
 
 // Result is a provider's per-message outcome.
@@ -99,8 +134,9 @@ func (LogMailer) Name() string { return "log" }
 
 // Send implements Mailer.
 func (l LogMailer) Send(ctx context.Context, m Message) (Result, error) {
-	logger.FromContext(ctx).Info("mail (log driver)", zap.String("from", l.From), zap.String("to", m.To),
-		zap.String("subject", m.Subject), zap.String("category", m.Category), zap.String("body", m.Text))
+	fields := append([]zap.Field{zap.String("from", l.From), zap.String("to", m.To),
+		zap.String("subject", m.Subject), zap.String("category", m.Category), zap.String("body", m.Text)}, attachmentSummary(m.Attachments)...)
+	logger.FromContext(ctx).Info("mail (log driver)", fields...)
 	return Result{}, nil
 }
 
@@ -112,7 +148,8 @@ func (NoopMailer) Name() string { return "noop" }
 
 // Send implements Mailer.
 func (NoopMailer) Send(ctx context.Context, m Message) (Result, error) {
-	logger.FromContext(ctx).Warn("mail: no provider configured; message discarded", zap.String("category", m.Category))
+	logger.FromContext(ctx).Warn("mail: no provider configured; message discarded",
+		append([]zap.Field{zap.String("category", m.Category)}, attachmentSummary(m.Attachments)...)...)
 	return Result{}, nil
 }
 

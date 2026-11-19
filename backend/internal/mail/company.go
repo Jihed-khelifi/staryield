@@ -20,3 +20,7 @@ const (
 	// (translated in the footer).
 	SupportHours = "Support is available 24/7. We reply within 1–2 days."
 )
+
+// revisions 6.0 (§26.6): the postal address as printed on invoices, one line
+// per row; joined with ", " it equals CompanyAddress (company_test.go checks).
+var CompanyAddressLines = []string{"30 N Gould St, Ste N", "Sheridan, WY 82801", "United States"}

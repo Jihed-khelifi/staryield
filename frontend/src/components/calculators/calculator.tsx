@@ -21,6 +21,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CalculatorForm } from "@/components/calculators/calculator-form";
 import { cachedResult, calculate, rememberResult, type CalculatorResult } from "@/components/calculators/calculate";
 import { LifePathResultView, NatalResultView, ResultDate, SunSignResultView } from "@/components/calculators/results";
+// revisions 6.0 (§26.4): the e-mailed report.
+import { ReportEmailDialog } from "@/components/calculators/report-email-dialog";
+import { useReportEmailPrompt } from "@/components/calculators/use-report-email-prompt";
 
 export type { CalculatorKind };
 
@@ -144,6 +147,8 @@ function ResultView({
   );
   const result = cached ?? state.data;
   const error = cached ? null : state.error;
+  // revisions 6.0 (§26.4): "Save your reading" opens once a computed result has been on screen (never on the sample).
+  const report = useReportEmailPrompt(kind, Boolean(result) && !error && !sample);
 
   React.useEffect(() => {
     if (!focusOnMountRef.current) return;
@@ -161,7 +166,13 @@ function ResultView({
   const details = result ? resultDetails(result, values, text) : null;
   return (
     <div data-testid="calculator-result" data-kind={kind} aria-busy={!result && !error}>
-      <ResultDate values={values} details={details} onChange={() => onEdit(false)} sample={sample} />
+      <ResultDate
+        values={values}
+        details={details}
+        onChange={() => onEdit(false)}
+        sample={sample}
+        onEmail={result && !sample && report.available ? report.openManually : undefined}
+      />
       {error ? (
         <section className="bg-cream px-5 py-16">
           <ErrorState error={error} onRetry={state.reload} className="mx-auto max-w-xl" title={text("We could not calculate this result")} />
@@ -181,6 +192,17 @@ function ResultView({
       ) : (
         <LifePathResultView result={result.numbers} />
       )}
+      {result && !sample ? (
+        <ReportEmailDialog
+          kind={kind}
+          values={values}
+          open={report.open}
+          onOpenChange={report.setOpen}
+          manual={report.manual}
+          prechecked={report.prechecked}
+          onSent={report.markSent}
+        />
+      ) : null}
     </div>
   );
 }

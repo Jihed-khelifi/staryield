@@ -155,3 +155,30 @@ describe("useConversationTimeline", () => {
   });
 });
 
+
+describe("revisions 6.0 (§26.1): held messages", () => {
+  it("clearHeld removes the advisor's marker from the revealed messages only", async () => {
+    history.mockResolvedValue({
+      items: [{ ...msg(1, "me"), held: true, hold_id: "h1" }, { ...msg(2, "me"), held: true, hold_id: "h1" }, msg(3)],
+      has_more: false,
+    });
+    const { result } = renderHook(() => useConversationTimeline("conv"));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    act(() => result.current.clearHeld(["m1"]));
+    expect(result.current.timeline.messages.map((m) => m.held)).toEqual([false, true, undefined]);
+    act(() => result.current.clearHeld(["m2"]));
+    expect(result.current.timeline.messages.map((m) => m.held)).toEqual([false, false, undefined]);
+  });
+
+  it("revealed messages replace the locked ones, and an older locked page cannot lock them again", async () => {
+    history.mockResolvedValue({ items: [{ ...msg(1), body: "", locked: true, hold_id: "h1", body_length: 9 }, msg(2)], has_more: false });
+    const { result } = renderHook(() => useConversationTimeline("conv"));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current.timeline.messages[0].locked).toBe(true);
+    act(() => result.current.receive([{ ...msg(1), locked: false }]));
+    expect(result.current.timeline.messages[0]).toMatchObject({ body: "Message 1", locked: false });
+    // A gap fill that read the page before the reveal.
+    act(() => result.current.receive([{ ...msg(1), body: "", locked: true, hold_id: "h1", body_length: 9 }]));
+    expect(result.current.timeline.messages[0]).toMatchObject({ body: "Message 1", locked: false });
+  });
+});

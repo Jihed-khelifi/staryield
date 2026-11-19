@@ -10,7 +10,8 @@ import { psychicsApi, waitlistApi } from "@/lib/api/endpoints";
 import { toApiError } from "@/lib/api/errors";
 import type { FeaturedAdvisor, FeaturedList, PresenceStatus } from "@/lib/api/types";
 import { useRequireAdult } from "@/lib/auth/age-gate"; // revisions 5.0: 18+ age gate (§24.6)
-import { useRealtimeEvent, useSession } from "@/lib/auth/session-provider";
+import { useSession } from "@/lib/auth/session-provider";
+import { applyStatusChange, useStatusChanges } from "@/lib/psychics-live"; // revisions 6.0: live re-sort (§26.3)
 import { useAsync } from "@/lib/use-async";
 import { formatRating } from "@/lib/format";
 import { loginUrl } from "@/lib/navigation";
@@ -44,12 +45,9 @@ export function reviewCountLabel(count: number, locale: Locale): string {
 
 /** Statuses can change between refreshes: the call to action follows them. */
 function withStatus(list: FeaturedList, slug: string, status: PresenceStatus): FeaturedList {
-  return {
-    ...list,
-    items: list.items.map((a) =>
-      a.slug === slug ? { ...a, status, cta: status === "online" ? "chat" : "waitlist" } : a,
-    ),
-  };
+  const cta = status === "online" ? ("chat" as const) : ("waitlist" as const);
+  const items = applyStatusChange(list.items, slug, status, (a) => ({ ...a, cta }));
+  return items === list.items ? list : { ...list, items };
 }
 
 function CardSkeleton() {
@@ -112,15 +110,15 @@ function FeaturedCard({ advisor, joined, pending, onJoin, onLeave }: CardProps) 
       </div>
       <img alt="" aria-hidden className="block h-px w-full" src={imgDivider} />
       <dl className="flex w-full flex-col gap-2 font-serif text-[13px] text-black">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
           <dt className="font-light">{text("Consultation Rate ")}</dt>
-          <dd className="font-semibold">
+          <dd className="min-w-0 font-semibold">
             {text("{value0} credits / min", { value0: advisor.rate_per_minute.toLocaleString(locale) })}
           </dd>
         </div>
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
           <dt className="font-light">{text("Rating ")}</dt>
-          <dd className="flex items-center gap-1 font-semibold">
+          <dd className="flex min-w-0 items-center gap-1 font-semibold">
             <img alt="" aria-hidden className="size-3" src={imgStar} />
             {advisor.reviews_count > 0
               ? text("{value0} ({value1} reviews)", {
@@ -205,9 +203,9 @@ export function FeaturedAdvisors() {
     };
   }, [reload]);
 
-  useRealtimeEvent<{ slug: string; status: PresenceStatus }>("psychic.status_changed", (d) =>
-    setData((list) => (list ? withStatus(list, d.slug, d.status) : list)),
-  );
+  // A status change re-sorts the cards and refreshes the selection (at most
+  // every 5 s): another advisor may now belong among the first cards.
+  useStatusChanges((slug, status) => setData((list) => (list ? withStatus(list, slug, status) : list)), reload);
 
   const joined = useMemo(() => {
     const out = new Set((mine.data?.items ?? []).map((e) => e.slug));

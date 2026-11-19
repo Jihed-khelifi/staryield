@@ -461,7 +461,7 @@ yet) are left out and the remaining weights are renormalised.
 ```ts
 type StatsRatio = { pct: number | null; numerator: number; denominator: number }; // pct null = nobody qualified
 type StatsKPIs = {
-  free_to_paid: StatsRatio;       // clients whose FIRST started session with the advisor fell in the window and was free → share who later paid
+  free_to_paid: StatsRatio;       // clients whose FIRST started session with the advisor fell in the window and started free (free minutes, free mode or nothing charged) → share who paid, later in that session (revisions 6.0: a trial continued after its hold) or in a later one
   paid_to_retained: StatsRatio;   // clients whose first PAID session fell in the window → share with a later paid session
   paid_minutes: number;           // Σ(billed_minutes − free_minutes_used) over sessions started in the window
   retained_repeat_days: { median_days: number | null; sample: number }; // median gap between consecutive paid sessions (later one in the window)
@@ -3136,3 +3136,732 @@ Implementation notes (revisions 5.1):
   (`assets/payments/`).
 * Billing e-mails (receipt, refund, membership started/renewed) are always
   sent, whatever the notification settings or the memberships switch.
+
+---
+
+## 26. Revisions 6.0: free-trial hold, advisor cards and order, calculator e-mail report, Stripe, invoices
+
+Requested on 2026-11-19 (phone screenshots of `/en/psychics`). Five parts:
+the one-minute **hold** when a client's free trial runs out (§26.1), the
+**advisor card** layout (§26.2), the **directory order** (§26.3), the
+calculators' **e-mail report** (§26.4), **Stripe** card payments with
+disputes, fraud warnings and admin controls (§26.5) and Staryield
+**invoices** (§26.6). Admin console: §26.7. Legal: §26.8. Codes and
+configuration: §26.9. Tests: §26.10.
+
+### 26.0 Migrations, settings and deploy order
+
+| Migration | Owner | Contents |
+| --- | --- | --- |
+| `0031_revisions_6_settings` | shared (written first) | `site_settings` keys `trial_hold`, `payment_policies`, `calculator_report` (validated, seeded); `credit_ledger.entry_type` gains `chat_reveal`, `dispute_reversal`, `dispute_restore`; `psychic_earnings.source_type` gains `chat_hold_reveal`. **Frozen**: later changes go in new migrations. |
+| `0032_trial_hold` | §26.1 | `chat_sessions.status` gains `held`; `chat_sessions.hold_expires_at`; table `chat_session_holds`; `chat_messages.held`, `chat_messages.hold_id`; `chat_sessions.end_reason` gains `hold_expired` (when constrained). |
+| `0033_payment_operations` | §26.5 | `webhook_events` log columns; tables `payment_disputes`, `payment_fraud_warnings`; risk columns on `payment_transactions`. |
+| `0034_invoices` | §26.6 | tables `invoices`, `invoice_sequences`. |
+| `0035_calculator_reports` | §26.4 | table `email_leads`. |
+
+Settings (all three are read through the cached site snapshot,
+`service/site_revisions6.go`, at most 10 s stale, and fail closed):
+
+```ts
+type TrialHoldSettings = { after_trial: boolean; after_paid: boolean; hold_seconds: number /* 30–300 */;
+  payment_grace_seconds: number /* 0–300 */ };                    // seeded true / false / 60 / 120; unreadable ⇒ no hold
+type PaymentPolicies = { block_purchases_on_dispute: boolean; dispute_clawback: boolean; efw_auto_refund: boolean;
+  three_d_secure: "automatic" | "any" };                          // seeded true / true / false / "automatic"; unreadable ⇒ the seeded values
+type CalculatorReportSettings = { enabled: boolean; marketing_prechecked_countries: string[] /* ISO alpha-2, ≤ 60 */ };
+                                                                  // seeded true / ["US"]; unreadable ⇒ disabled
+```
+
+Every admin write follows the off-session pattern (§22.3): `PUT` with the
+`version` read, `409 conflict` when stale, step-up, audit, cache drop and
+Pub/Sub invalidation. **Deploy the API before the web and admin apps** (new
+session status, new message fields, new client-config fields).
+
+### 26.1 Free-trial hold (sensitive)
+
+When a reading's next minute cannot be paid, the reading no longer ends at
+once. It is **held** for `hold_seconds` (60 s): the advisor can keep writing,
+the client sees those replies blurred and the top-up dialog opens. A top-up
+in time continues the reading and reveals the replies; otherwise the reading
+ends, nothing is charged, and the replies stay hidden until the client pays
+one minute to reveal them.
+
+**When a reading is held.** In the billing step (`billMinuteLocked`), when the
+client has no free minute left and the wallet cannot pay `rate_per_minute`
+(`ErrInsufficientFunds`), and the session is not sponsored (free mode):
+
+* `trialEnded := free_minutes_used > 0 && credits_charged == 0` (this reading
+  has only used free minutes so far). `reason` is `trial_ended` when
+  `trialEnded`, else `credits_exhausted`.
+* `TrialHold(ctx).Applies(trialEnded)` decides. When false (or the settings
+  are unreadable) the session ends with `credits_exhausted`, exactly as before.
+* Otherwise, in the same transaction: active time is accrued up to now; the
+  session becomes `held` with `hold_expires_at = now + hold_seconds`,
+  `next_billing_at = NULL`, `last_resumed_at = NULL`; a `chat_session_holds`
+  row is created (`status = open`, `price_credits = rate_per_minute`,
+  `list_rate_credits = list_rate_per_minute`). After commit: `session.held` to
+  both participants, analytics `chat.hold_started`.
+* **Hold time is never billed and never counts as active time** (like a pause).
+
+**State machine.** New status `held` (open and live: `IsOpen`, `IsLive`).
+Transitions: `active → held`, `held → active`, `held → disconnected`,
+`held → ended`. The session view shows `held`; the client timer stops.
+
+**During the hold.**
+
+* Every message the **advisor** sends in the session (text or image; never
+  system notices) is stored with `held = true, hold_id = <hold>`, and the
+  hold's `held_messages` is incremented in the same transaction. Client
+  messages are unaffected. The composer stays enabled for both.
+* **The client never receives a held message's content** until it is
+  revealed. Every path that returns message content to the client applies the
+  lock: timeline pages (`before`, `since`, `around`), realtime
+  `message.created`, the inbox `last_message`, reply quotes (`reply_to`), the
+  saved list, image attachments (`GET /chat/attachments/:id` answers 404 to
+  the client for a held message), Web Push and e-mail notifications ("{name}
+  sent you a message. Top up to read it."). The advisor and the admin console
+  see everything, flagged `held`. The personal-data export includes held
+  messages (legal obligation, §26.8).
+* `message.created` keeps its seq-ordered delivery with **per-recipient
+  payloads** (the advisor gets the full view, the client the locked view, in
+  the same seq slot): extend the ordered publisher with a per-user payload map
+  instead of publishing the seq twice.
+* The client cannot like (`409 message_locked`) or save (`409 message_locked`)
+  a locked message; replying to it is allowed (the quote stays locked).
+* Presence is unchanged (BR-05): leaving the conversation sends the
+  participant event ("lost connection") but neither changes the `held` state
+  nor stops the hold timer.
+
+**Conversion (top-up in time).** After a credit purchase completes (and after
+an admin credit grant), post-commit, `ChatService.ResumeHolds(ctx, clientID)`
+tries every `held` session of that client. `POST
+/chat/sessions/:id/hold/continue` does the same for one session on demand.
+Under the session lock:
+
+1. Charge one minute exactly like a billed minute (idempotency key
+   `chat:<session>:<minute>`, `credits_charged`, `revenue_millicents`,
+   `billed_minutes` updated). Not enough credits: nothing changes.
+2. Hold → `converted` (`resolved_at`); `UPDATE chat_messages SET held = false
+   WHERE hold_id = $1 AND held`.
+3. Both parties present → `active` (`last_resumed_at = now`,
+   `next_billing_at = now + interval`). Otherwise → `disconnected` with the
+   grace period starting now (the paid minute's coverage is kept for the
+   resume, as today).
+4. After commit: `session.hold_ended` (converted) to both, `messages.revealed`
+   (client: full messages; advisor: ids), `session.billed`, `wallet.updated`,
+   `session.resumed` when active; analytics `chat.hold_converted`.
+
+**Expiry** (worker job `chat-holds`, every second, claims with `SKIP LOCKED`
+sessions `held` with `hold_expires_at <= now`):
+
+* If the client has a credit purchase `pending` created at or after the hold
+  started, and `now < started_at + hold_seconds + payment_grace_seconds`, the
+  hold is **extended** to `min(now + 15 s, started_at + hold_seconds +
+  payment_grace_seconds)` (`session.hold_extended` to both).
+* Otherwise the session ends with the new end reason **`hold_expired`**
+  (system notice `session.ended:hold_expired`, settlement and summary as for
+  any end); the hold becomes `expired`. Analytics `chat.hold_expired`.
+* Ending the reading during a hold (client, advisor, admin, account disabled)
+  also makes the hold `expired`; the session keeps that end reason.
+
+**Reveal (after expiry).** `POST /chat/holds/:id/reveal` (the hold's client,
+`{idempotency_key}`), only for `expired` holds:
+
+1. Charge `price_credits` once: ledger type `chat_reveal`, reference
+   `chat_hold`, key `chat-hold-reveal:<hold>`; lots are consumed like a chat
+   minute and the revenue basis is stored on the hold
+   (`reveal_revenue_millicents`). `402 insufficient_credits {required,
+   balance}` when short.
+2. Hold → `revealed` (`revealed_at`, `reveal_credits`); messages unlocked.
+3. Advisor earning: `psychic_earnings` row `source_type =
+   chat_hold_reveal`, `source_id = hold`, `gross = list_rate_credits`, split by
+   the advisor share (the unique key prevents doubles).
+4. Response `{hold, messages: ChatMessage[], wallet}`; `messages.revealed` to
+   both; `wallet.updated`; analytics `chat.hold_revealed`.
+
+A replay with the same key, or a hold already `revealed`, returns `200` with
+the current state; `open` → `409 invalid_state` (top up instead);
+`converted` → `200` (nothing hidden). The revenue report (§24.5) and the
+advisor's earnings and stats count reveals with chat revenue.
+
+```ts
+type HoldReason = "trial_ended" | "credits_exhausted";
+type HoldStatus = "open" | "converted" | "expired" | "revealed";
+type ChatHold = { id: string; session_id: string; conversation_id: string; reason: HoldReason; status: HoldStatus;
+  started_at: string; expires_at: string; resolved_at?: string; revealed_at?: string;
+  price_credits: number;      // what continuing or revealing costs (the reading's per-minute rate)
+  held_messages: number };
+// ChatSession: status gains "held"; hold?: ChatHold — the open hold while held, else the reading's latest
+//   expired or revealed hold (the client's reveal UI after a reload). end_reason gains "hold_expired".
+// ChatMessage gains:
+//   held?: boolean;           // advisor and admin views: hidden from the client right now
+//   locked?: boolean;         // client view: hidden. body is "", attachments, reply_to and liked_by are left out
+//   hold_id?: string;         // on held or locked messages
+//   body_length?: number;     // client view of a locked message: characters of the hidden text (≤ 2000)
+// ReplyPreview gains locked?: boolean (excerpt "" while the quoted message is locked for the viewer).
+```
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /chat/holds/:id` | Participant of the hold → `ChatHold`. |
+| `POST /chat/sessions/:id/hold/continue` | Client, `{idempotency_key}` → `{session, hold, wallet}`. `402 insufficient_credits`; `409 invalid_state` unless `held`. Chat rate-limit bucket. |
+| `POST /chat/holds/:id/reveal` | Client, `{idempotency_key}` → `{hold, messages, wallet}` (above). Chat rate-limit bucket. Not age-gated beyond the chat routes' existing gate. |
+| `GET /admin/site/trial-hold` | `TrialHoldSetting` |
+| `PUT /admin/site/trial-hold` 🔐 | `{after_trial, after_paid, hold_seconds, payment_grace_seconds, version}` → `TrialHoldSetting`; audit `site.trial_hold.updated`. |
+
+```ts
+type TrialHoldSetting = TrialHoldSettings & { version: number; updated_at: string; updated_by?: { id: string; name: string };
+  stats: { window_days: 30; started: number; converted: number; expired: number; revealed: number;
+    conversion_rate: number; reveal_rate: number;                    // 0..1 of started; 0 when none
+    credits_from_conversions: number; credits_from_reveals: number } }; // cached 60 s
+```
+
+Realtime (durable): `session.held {session, hold}`, `session.hold_extended
+{session_id, hold_id, expires_at}`, `session.hold_ended {session_id, hold}`
+(status `converted` or `expired`), `messages.revealed` (client
+`{conversation_id, session_id, hold_id, messages}`, advisor
+`{conversation_id, session_id, hold_id, message_ids}`). Admin session views
+carry `hold?` and the transcript flags `held` messages.
+
+**Web (client).**
+
+* On `session.held` the top-up dialog opens once, in place, with the advisor
+  context and a **hold banner** in the dialog: countdown, "Top up now to keep
+  chatting with {name} and read their replies. Continuing costs {price}
+  credits per minute." A sticky banner above the composer keeps the countdown
+  and a "Top up" button after the dialog is closed. Copy differs for
+  `trial_ended` ("Your free minutes are over.") and `credits_exhausted` ("Your
+  credits ran out.").
+* Locked messages render as the advisor's bubble with **placeholder text**
+  (generated locally, `body_length` characters) behind a CSS blur, a lock icon
+  and "Hidden · Top up to read". Never real text. Clicking one: hold `open` →
+  top-up dialog; hold `expired` → balance ≥ price: confirm "Reveal {n} hidden
+  messages from {name} for {price} credits?" → reveal; balance < price →
+  top-up dialog, then the same confirm. The reveal shows a short un-blur
+  transition (no motion when `prefers-reduced-motion`).
+* Converted: toast "Your reading with {name} continues.", messages un-blur.
+  Expired: the existing ended summary plus "Top up to read {n} hidden
+  messages" when any.
+
+**Web (advisor).** Banner "{client}'s free minutes are over (or credits ran
+out). Your replies are hidden from them until they top up — {0:59}." Their
+held messages carry an eye-off marker "Hidden from client"; after expiry
+"Not revealed"; the marker disappears on reveal or conversion. The advisor
+earns nothing for the hold time unless the client converts (the minute then
+bills normally) or reveals (one minute at the list rate).
+
+### 26.2 Advisor cards (mobile)
+
+Bug: on phones the card's text column overflows (status pill, skills, price
+and headline cut off at the right edge; screenshot 2026-11-19), worse with
+Android's larger text setting. Cause: the grid's `1fr` text column has a
+min-content width set by the one-line (`nowrap`) skills list.
+
+* Grid `33% minmax(0, 1fr)`, `min-width: 0` on the copy column; the name
+  ellipsizes on one line; the status pill never shrinks or clips; the skills
+  line ellipsizes inside the column; the rating and the price stay on one row
+  and wrap to two rows when they do not fit; the headline is clamped to two
+  lines; the "Free live chat" badge (free mode) is sized for the card.
+* Proportions follow Figma `867:16529` (390 px frame): name 23 px serif, pill
+  10 px uppercase, skills 10 px sage, meta 10–11 px, headline 11 px, the
+  "View full profile" bar; offline cards dimmed as in the design.
+* No overflow at 320, 360, 390 and 412 px, nor with text scaled to 130 % and
+  200 % (Chrome's accessibility text scaling): nothing is clipped, every card
+  keeps its image column.
+
+### 26.3 Directory order
+
+`GET /psychics` (directory) and `GET /psychics/featured` (home `#psychics`)
+use one order: **online › away › busy › offline**, then the review-weighted
+rating `(v·R + 20·C)/(v + 20)` (`C` the platform mean), then review count,
+then the admin's `featured` flag and `featured_rank`, then last time online,
+then `sort_order`, then name. `status`, `q` and `skill` filters keep that
+order. The admin's featured flag, featured rank and sort order now only break
+ties (the admin profile tab says so). Live status changes re-sort the visible
+cards locally (stable, by tier) and refetch at most every 5 s.
+
+### 26.4 Calculator e-mail report
+
+On the three calculators (natal chart, astrology, path of life) a visitor can
+have **the same report they see on screen** sent by e-mail. The report stays
+fully visible without it.
+
+**Prompt.** A dialog "Save your reading" opens once per calculator per
+browser (localStorage, 30 days after a dismissal) when a computed result has
+been on screen for 6 s or scrolled 60 %, whichever comes first; never on the
+sample `/results` route. An "E-mail me this report" button in the result
+header opens it any time. Fields: e-mail (prefilled for signed-in users),
+the marketing checkbox ("Send me horoscopes, offers and news from Staryield
+by e-mail. You can unsubscribe at any time."), a hidden honeypot field, and
+"Send my report". The box starts **ticked only for visitors from a country in
+`marketing_prechecked_countries`** (default `["US"]`); everywhere else it
+starts unticked (a pre-ticked box is not valid consent in the EU/EEA, UK,
+Switzerland, Canada or Brazil). Success: "Your report is on its way to
+{email}." Errors: invalid e-mail, too many requests (try again later),
+network (retry).
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /calculators/report-email/config` | Public → `{enabled, marketing_prechecked}` for the request's trusted country (`CF-IPCountry`). `Cache-Control: private, no-store`. |
+| `POST /calculators/report-email` | Public (optional session), rate limited (5/h per IP, 3/day per address, bucket `report_email`). `{kind, input, email, locale, marketing_opt_in, marketing_prechecked, website}` → `202 {status: "queued"}`. `input` has the calculator's own request shape. `website` must be empty (honeypot: a filled one gets `202` and nothing is sent). `422` invalid e-mail or input; `429 rate_limited`; `503 feature_unavailable` when switched off. Suppressed addresses (bounces, complaints) also get `202`. |
+| `POST /marketing/unsubscribe` | Public `{token}` → `200 {status: "unsubscribed"}` (idempotent; `404` for an unknown token). The token is an HMAC of the lead id. |
+
+* The server **recalculates the report** from `input` (nothing computed by
+  the browser is trusted) and renders the e-mail itself in the request
+  locale: the result's headline, every section of the on-screen report, the
+  tarot card images from R2, a link that reopens the result (the URL fragment
+  carries the input, as the page does), the disclaimer, the company footer
+  and, when subscribed, an unsubscribe link.
+* Report copy shared with the web page (sign insights and facts, life-path
+  copy, tarot names and house keywords, and their FR/ES translations) is
+  generated from the frontend sources into one JSON embedded by the API
+  (`npm run gen:report-copy`); a frontend test fails when the generated file is
+  stale (the pattern of `company.ts`/`company.go`).
+* **Storage.** `email_leads` (one row per address, keyed by its HMAC):
+  sealed address, locale, country, first and latest calculator, reports sent,
+  `marketing_status` (`none` | `subscribed` | `unsubscribed`), consent
+  evidence when subscribed (time, whether the box started ticked, consent text
+  version, IP hash, user agent), `unsubscribed_at`, linked `user_id` when an
+  account uses the address, timestamps. **Birth details are never stored**:
+  the report e-mail is enqueued with its rendered content sealed in the
+  outbox and the payload is wiped once sent. Account erasure deletes the
+  user's lead row.
+* The report e-mail is transactional (sent through the outbox's normal
+  provider). Marketing e-mails are never sent by this feature: the admin
+  exports the subscribed list for the marketing provider.
+* Copy on the result pages: "Your birth data is used only to calculate this
+  report. We keep it only if you ask us to e-mail the report, and only until
+  it is sent." (replaces the three "never stored" lines).
+
+```ts
+type ReportEmailKind = "natal-chart" | "path-of-life" | "astrology";
+type ReportEmailRequest = { kind: ReportEmailKind; input: Record<string, unknown>; email: string; locale: "en" | "fr" | "es";
+  marketing_opt_in: boolean; marketing_prechecked: boolean; website?: string };
+type EmailLead = { id: string; email: string; locale: string; country: string; source: string; kinds: ReportEmailKind[];
+  reports_sent: number; marketing_status: "none" | "subscribed" | "unsubscribed"; subscribed_at?: string;
+  prechecked?: boolean; unsubscribed_at?: string; user_id?: string; created_at: string; updated_at: string };
+type CalculatorReportSetting = CalculatorReportSettings & { version: number; updated_at: string; updated_by?: { id: string; name: string } };
+```
+
+| Admin (`/api/v1/admin`) | Notes |
+| --- | --- |
+| `GET /marketing/leads?status&kind&q&cursor&limit` | `Page<EmailLead>` (25/100), newest first; `q` matches the address exactly (its HMAC). |
+| `GET /marketing/leads/export.csv?status=subscribed` 🔐 | CSV (address, locale, country, subscribed at, source); audit `marketing.leads.exported` with the row count. |
+| `DELETE /marketing/leads/:id` 🔐 | Erasure request: deletes the row; audit. |
+| `GET /site/calculator-report` · `PUT` 🔐 | `CalculatorReportSetting`; `{enabled, marketing_prechecked_countries, version}`; audit `site.calculator_report.updated`. |
+
+### 26.5 Stripe card payments
+
+Stripe joins the payment providers (`internal/payment/stripepay`, name
+`stripe`) behind the existing capability interfaces (§12). Card details are
+entered in **Stripe's Payment Element** (styled with the site's tokens through
+the Appearance API) and never reach Staryield (PCI SAQ-A). Stripe.js always
+loads from `js.stripe.com` (a card-network rule: it is the one script not
+served from R2). Only cards are offered, including Apple Pay and Google Pay
+(card wallets), so every payment confirms immediately.
+
+**Configuration.** `STARYIELD_STRIPE_SECRET_KEY` (secret or restricted key),
+`STARYIELD_STRIPE_PUBLISHABLE_KEY`, `STARYIELD_STRIPE_WEBHOOK_SECRET`,
+`STARYIELD_STRIPE_API_BASE` (tests only), `STARYIELD_STRIPE_TIMEOUT` (20 s).
+The provider is registered when `STARYIELD_PAYMENTS_PROVIDERS` lists
+`stripe` and the three keys are set; keys must be of the same mode (`_live_`
+or `_test_`), and production refuses test keys unless
+`STARYIELD_STRIPE_ALLOW_TEST_IN_PRODUCTION=true`. Routing rules (§12.2)
+choose it like any provider. SDK `github.com/stripe/stripe-go/v87`; web
+`@stripe/stripe-js` 10.3.0 and `@stripe/react-stripe-js` 7.1.0.
+
+**Adapter capabilities** (all calls carry an `Idempotency-Key` = our key;
+PaymentIntents carry metadata `sy_purchase_id`, `sy_tx_id`, `sy_user_id`,
+`sy_key`):
+
+| Capability | Stripe |
+| --- | --- |
+| `ClientConfig` | `credits`/`subscription`: `{type: "stripe_elements", publishable_key, mode: "payment", amount_cents, currency, payment_method_types: ["card"], livemode}` (deferred intent). `method`: a SetupIntent for the user's customer (`usage: on_session`, card only, 3-D Secure policy) → `{mode: "setup", client_secret, …}`. |
+| `Checkout` (token) | Token = ConfirmationToken (`ctoken_…`). PaymentIntent `{amount, currency, confirm: true, confirmation_token, payment_method_types: ["card"], customer?, description, return_url, metadata, payment_method_options.card.request_three_d_secure, expand: ["latest_charge"]}`. `succeeded` → succeeded; `requires_action` → pending + `next_action {type: "use_stripe_sdk", client_secret}`; `processing` → pending; card errors → failed with the decline code. |
+| `InspectToken` | ConfirmationToken `payment_method_preview.card` → brand, last4, expiry, country, **fingerprint** (welcome offer, §24.2). |
+| `EnsureCustomer` / `DeleteCustomer` | Customer with metadata `sy_user_id`, the account e-mail and display name (fraud screening, dispute evidence); deleted at account closure. |
+| `Attach` / `Detach` | Token = PaymentMethod id (`pm_…`) from a SetupIntent the browser confirmed; it must already belong to the user's customer, else `ErrInvalidToken`. Detach on removal. |
+| `ChargeStored` | PaymentIntent with `customer`, `payment_method`, `confirm: true`; customer-initiated (`off_session: false`), memberships off-session. Same outcome mapping. |
+| `Lookup` | Search `metadata['sy_key']:'<key>'` (eventually consistent: up to ~1 min). |
+| `RetrieveCharge` | PaymentIntent by id with `latest_charge` → current outcome (after 3-D Secure). |
+| `Refund` | Refund `{payment_intent, amount, reason, metadata}` (`requested_by_customer`; `fraudulent` for fraud warnings). A disputed charge → `ErrChargeDisputed`. |
+| `VerifyWebhookRequest` | `Stripe-Signature` verified with the endpoint secret (5 min tolerance); the object is decoded leniently (API-version mismatches are logged, not fatal). |
+| `DisputeManager` | Evidence (text fields; the invoice PDF uploaded as `receipt`), `submit`; accept = close. |
+| `AccountInspector` | Account (charges/payouts enabled, requirements due, statement descriptor, country) and webhook endpoints (URL, status, enabled events). |
+
+Outcome mapping: card errors with a decline code are declines (soft:
+`insufficient_funds`, `processing_error`, `try_again_later`,
+`issuer_not_available`, `reenter_transaction`, `approve_with_id`; hard:
+everything else); an expired or used ConfirmationToken is `ErrInvalidToken`;
+timeouts, connection errors, 5xx and 429 are `ErrUnknownOutcome` (retried
+with the same idempotency key, reconciled by `Lookup`); authentication errors
+are logged as configuration errors and refused. Card details, risk
+(`outcome.risk_level`, `risk_score`) and the 3-D Secure result come from the
+expanded charge. Stripe ignores our per-charge descriptor: the account's
+descriptor must equal `STARYIELD_PAYMENTS_STATEMENT_DESCRIPTOR` (the admin
+status page checks it).
+
+**Webhooks** (`POST /webhooks/payments/stripe`). Subscribe the endpoint to:
+
+| Stripe event | Normalised (`payment.Event*`) | Effect |
+| --- | --- | --- |
+| `payment_intent.succeeded` | `charge.succeeded` | Purchase completes (wallet credited once), card, risk and 3-D Secure stored. |
+| `payment_intent.payment_failed`, `payment_intent.canceled` | `charge.failed` | Purchase fails (welcome offer released). |
+| `payment_intent.processing` | `charge.processing` | Logged. |
+| `refund.created`, `refund.updated` (pending or succeeded) | `charge.refunded` | Refund booked once by its refund id (lot clawback, credit note, e-mail); refunds made in the Stripe Dashboard are booked too. |
+| `refund.failed`, `refund.updated` (failed or canceled) | `refund.failed` | Refund transaction `failed`; admins alerted; credits already removed are **not** restored automatically (the console offers "Restore credits"). |
+| `charge.dispute.created` | `charge.disputed` | Dispute opened (below). |
+| `charge.dispute.updated` | `charge.dispute_updated` | Status, evidence due date. |
+| `charge.dispute.closed` | `charge.dispute_closed` | Won / lost (below). |
+| `charge.dispute.funds_withdrawn` / `funds_reinstated` | same | Recorded on the dispute. |
+| `radar.early_fraud_warning.created` / `updated` | `fraud.early_warning` | Fraud warning (below). |
+| `payment_method.detached` | `method.detached` | The saved card is removed here too. |
+| `customer.deleted` | `customer.deleted` | The customer and its cards are forgotten here. |
+| `review.opened` / `review.closed` | `review.opened` / `review.closed` | Transaction flagged `in_review` while Radar reviews it. |
+| anything else | `ignored` | Logged. |
+
+Every delivery is recorded in `webhook_events` (de-duplicated by event id,
+payload hash only) with `status` (`received` | `processed` | `failed` |
+`ignored`), `error`, `attempts`, `livemode`, `provider_type`, `object_ref`.
+A failure answers 500 so Stripe retries; a processed redelivery answers 200.
+
+**Disputes** (`payment_disputes`). On `charge.disputed`, in one transaction:
+the transaction becomes `disputed`; a dispute row is created (amount, reason,
+status, evidence due date); with `dispute_clawback` the **unused credits of
+that purchase's lot** are taken back (ledger `dispute_reversal`, never other
+purchases or bonus credits, never below zero) and recorded as
+`credits_frozen`. While a user has an open dispute and
+`block_purchases_on_dispute` is on, purchases answer `403
+purchases_blocked` ("Your account has a payment dispute in progress. Contact
+support."). Admins are alerted (support inbox e-mail, audit `dispute.opened`).
+On `charge.dispute_closed`: **won** → frozen credits restored (ledger
+`dispute_restore`, the lot gets them back), transaction back to its earlier
+status; **lost** → nothing restored, transaction stays `disputed`. Inquiries
+(`warning_*`) freeze nothing until they become disputes.
+
+**Fraud warnings** (`payment_fraud_warnings`). On `fraud.early_warning`:
+recorded (fraud type, actionable). With `efw_auto_refund` and an actionable
+warning on an undisputed payment, the refundable amount is refunded at once
+(`reason: fraudulent`, system actor, lot clawback, credit note) and the
+warning is marked `refunded`; otherwise admins decide (refund or dismiss).
+
+**3-D Secure.** `three_d_secure: "any"` requests authentication on every card
+payment (more friction, issuer liability); `automatic` lets Stripe decide.
+
+**Purchases.** Unchanged API (`POST /credits/purchases`); with Stripe the
+token is a ConfirmationToken. The response may carry `next_action
+{type: "use_stripe_sdk", client_secret}`: the browser runs
+`stripe.handleNextAction` (3-D Secure in a modal, no redirect) and then waits
+on the purchase stream. `PurchaseView` gains `card?: {brand, last4}` and
+`invoice?: {id, number}`. The server sets the PaymentIntent's `return_url` to
+`{frontend}/{locale}/credits/return?purchase=<id>` for the rare redirect, a
+page that waits on the same stream.
+
+**Purchase stream (SSE).** `GET /credits/purchases/:id/stream` (owner;
+`404` otherwise; bucket `purchase_stream` 30/min per user):
+
+* `text/event-stream`, envelopes like the realtime stream: `data:
+  {"type":"purchase.updated","data":PurchaseView}`; `retry: 3000`; keep-alive
+  comments every 15 s.
+* The current state is sent at once. While the purchase is `pending` and its
+  provider can `RetrieveCharge`, the server checks the provider immediately
+  and then every 3 s (at most 20 times) and settles a final outcome itself;
+  webhooks settle it too, and every settlement publishes the durable realtime
+  event `purchase.updated` to the user, which the stream relays.
+* A final state (`succeeded` with the new wallet, `failed` with
+  `failure_reason`, `refunded`) is sent and the stream closes. After 120 s:
+  `{"type":"purchase.timeout"}` and close. The client closes its EventSource on
+  either (EventSource would otherwise reconnect).
+
+**Web.**
+
+* `stripe_elements` adapter for `PaymentFields`: `<Elements>` with `mode`,
+  `amount`, `currency`, `allowedPaymentMethodTypes: ["card"]` (payment) or the
+  SetupIntent `clientSecret` (setup), the **Appearance API** mapped from the
+  design tokens (ink, cream, gold, Source Serif 4 from R2 via `fonts`, 8 px
+  radius, gold focus ring, danger colour), `layout: "tabs"`.
+  `tokenize()`: payment → `elements.submit()` then
+  `stripe.createConfirmationToken({elements})`; setup →
+  `stripe.confirmSetup({elements, redirect: "if_required"})` → the payment
+  method id. `PaymentFieldsHandle` gains `handleNextAction(next)`.
+* Under the fields, always: a lock icon, **"Payments are processed securely
+  by Stripe. Your card details are encrypted and sent directly to Stripe —
+  Staryield never sees or stores them."**, and the "Powered by Stripe" mark
+  (R2 `assets/payments/`). With test keys: a "Test mode" badge.
+* Pay flow: `succeeded` → toast and wallet; `next_action` → handle it, then
+  the stream; `pending` → the stream; stream `failed` → the decline message
+  (3-D Secure failures: "Your bank couldn't confirm this payment. Try again or
+  use another card."); `timeout` → "Your payment is processing. Credits
+  appear as soon as it is confirmed." The dialog never navigates (a live chat
+  keeps running) and the pay button cannot double-submit.
+* A saved card that needs 3-D Secure loads Stripe.js with the publishable key
+  from `client-config` to run the next action.
+* Settings → "Add a card" uses `purpose=method`.
+* Apple Pay: the production domain must be registered with Stripe
+  (`payment_method_domains`); Google Pay needs nothing.
+
+**Admin** (`/api/v1/admin/billing`):
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /stripe/status` | `{configured, livemode, account?: AccountStatus, descriptor: {expected, actual, matches}, webhook: {expected_url, endpoints, missing_events[], last_event_at?, received_24h, failed_24h}, warnings: string[]}`; Stripe calls cached 60 s. |
+| `GET /webhook-events?provider&status&type&cursor&limit` | `Page<WebhookEventRow>` (`{id, provider, event_id, event_type, provider_type, object_ref, livemode, status, error, attempts, created_at, processed_at?}`), newest first. |
+| `POST /webhook-events/:id/replay` 🔐 | Re-fetches the event from the provider (`GET /v1/events/:id`) and re-applies it (handlers are idempotent) → the row. Audit. |
+| `GET /disputes?status&user_id&cursor&limit` · `GET /disputes/:id` | `Page<Dispute>` / `Dispute & {transaction, user, evidence_draft}`. |
+| `POST /disputes/:id/evidence` 🔐 | `{fields: DisputeEvidenceFields, submit: boolean}` → `Dispute`. `submit` is final. Audit. |
+| `POST /disputes/:id/accept` 🔐 | `{note}` → `Dispute` (lost). Audit. |
+| `GET /fraud-warnings?status&cursor&limit` | `Page<FraudWarning>`. |
+| `POST /fraud-warnings/:id/refund` 🔐 · `POST /fraud-warnings/:id/dismiss` 🔐 | `{note}` → `FraudWarning`. Audit. |
+| `GET /policies` · `PUT /policies` 🔐 | `PaymentPolicies & {version, updated_at, updated_by?}`. Audit `billing.policies.updated`. |
+
+```ts
+type DisputeStatus = "warning_needs_response" | "warning_under_review" | "warning_closed" | "needs_response" |
+  "under_review" | "won" | "lost" | "prevented";
+type Dispute = { id: string; provider: string; dispute_ref: string; transaction_id: string; user_id: string;
+  amount_cents: number; currency: string; reason: string; status: DisputeStatus; evidence_due_by?: string;
+  evidence_submitted_at?: string; credits_frozen: number; credits_restored: number; funds_withdrawn: boolean;
+  closed_at?: string; created_at: string; updated_at: string };
+type DisputeEvidenceFields = { product_description: string; customer_name: string; customer_email: string;
+  billing_country: string; service_date: string; access_activity_log: string; refund_policy_disclosure: string;
+  cancellation_rebuttal: string; uncategorized_text: string; attach_invoice: boolean };
+type FraudWarning = { id: string; provider: string; warning_ref: string; transaction_id: string; user_id: string;
+  fraud_type: string; actionable: boolean; action: "none" | "refunded" | "dismissed"; actioned_at?: string;
+  note?: string; created_at: string };
+```
+
+The **evidence draft** is composed from data already kept: the pack and
+"digital credits for live psychic chat, for entertainment purposes only",
+the account's name and e-mail, the purchase time, the consent record (Terms,
+Privacy Policy and Refund Policy versions and time, §25.2), the **usage log**
+(readings after the purchase: date, advisor, minutes, credits — never message
+text), the refund-policy disclosure (accepted at checkout with a link) and the
+invoice PDF.
+
+Admin transaction rows gain `card_country`, `risk_level`, `risk_score`,
+`three_ds`, `in_review`, `dispute?: {id, status}`, `invoice?: {id, number}`
+and `provider_url` (the Stripe Dashboard link, test or live). The refund
+dialog offers **"Refund to card"** (provider refund, as today) or **"Add
+credits instead"** (the existing credit adjustment, with the transaction as
+reason).
+
+### 26.6 Invoices and credit notes
+
+Every paid credit purchase gets a Staryield **invoice**; every refund a
+**credit note**, whichever processor took the payment.
+
+* Numbers: `SY-2026-000001` (invoices) and `SYC-2026-000001` (credit notes),
+  gapless per kind and calendar year (UTC): `invoice_sequences(scope, next)`
+  is locked and incremented in the same transaction as the insert.
+* `invoices`: `id, number (unique), kind (invoice | credit_note), user_id,
+  payment_transaction_id (unique with kind), credit_purchase_id,
+  original_invoice_id (credit notes), currency, subtotal_cents, tax_cents (0),
+  total_cents, lines (jsonb: description, quantity, unit_amount_cents,
+  amount_cents, credits), buyer_sealed (name, e-mail, country), seller (jsonb
+  snapshot of company.go), payment (jsonb: provider, card brand and last4,
+  provider reference, paid or refunded at, statement descriptor), locale,
+  issued_at, created_at, updated_at`. Immutable once issued.
+* Issued after the purchase completes (or the refund is booked), outside the
+  money transaction; a job (`invoices-backfill`, every 5 min, bounded)
+  issues any missing one. The receipt e-mail waits for the invoice so it can
+  attach it (on failure it is sent without and the invoice still appears in
+  the history).
+* **PDF** rendered on demand (deterministic, A4, Helvetica, cp1252 for
+  EN/FR/ES, the invoice's locale): seller block (Staryield Media LLC, address,
+  support e-mail), title and number, issue date, buyer, lines, totals (tax
+  line "Not applicable" while no tax is collected), payment details and
+  descriptor, footer (credits have no cash value; Refund Policy URL). Library
+  `codeberg.org/go-pdf/fpdf` v0.12.0.
+* **E-mail attachments.** `mail.Message` gains `Attachments []Attachment{Filename,
+  ContentType, Content}`; the Cloudflare driver sends them base64-encoded
+  (25 MiB message limit). Outbox rows store attachment *references*
+  (`{kind: "invoice", id}`), resolved when the message is delivered; nothing
+  binary is stored.
+* Retention: invoices are kept when an account is erased (accounting
+  obligation); the buyer snapshot stays sealed.
+
+| Method & path | Notes |
+| --- | --- |
+| `GET /billing/invoices/:id` | Owner → `Invoice`. |
+| `GET /billing/invoices/:id/pdf` | Owner → `application/pdf`, `Content-Disposition: attachment; filename="SY-2026-000001.pdf"`, `Cache-Control: private, no-store`. |
+| `GET /billing/transactions` | Rows gain `invoice?: {id, number}` (purchases) and `credit_note?: {id, number}` (refunds), loaded in one batched query per page. |
+| `GET /admin/billing/invoices?user_id&kind&q&from&to&cursor&limit` | `Page<Invoice & {user: {id, email, display_name}}>`; `q` = number. |
+| `GET /admin/billing/invoices/:id` · `GET /admin/billing/invoices/:id/pdf` | As above, any invoice. |
+| `GET /admin/billing/invoices/export.csv?from&to` 🔐 | Accounting export (number, kind, date, buyer country, currency, totals, provider reference). Audit. |
+
+```ts
+type InvoiceLine = { description: string; quantity: number; unit_amount_cents: number; amount_cents: number; credits?: number };
+type Invoice = { id: string; number: string; kind: "invoice" | "credit_note"; transaction_id: string; original_invoice?: { id: string; number: string };
+  currency: string; subtotal_cents: number; tax_cents: number; total_cents: number; lines: InvoiceLine[];
+  buyer: { name: string; email: string; country?: string };
+  seller: { legal_name: string; address: string[]; email: string; website: string };
+  payment: { provider: string; card?: { brand: string; last4: string }; reference?: string; paid_at?: string; refunded_at?: string; statement_descriptor?: string };
+  locale: string; issued_at: string };
+```
+
+Web: transaction history rows gain "Invoice" (credit notes on refunds): a
+page `/{locale}/profile/invoices/:id` rendering the invoice with print styles
+and a "Download PDF" button; the receipt e-mail links there too.
+
+### 26.7 Admin console
+
+* **Offers / site settings**: "Free-trial hold" card (switches, durations,
+  30-day stats).
+* **Payments**: Stripe status page (account, descriptor check, webhook
+  endpoints and missing events, test/live), webhook event log with replay,
+  disputes (list, detail with evidence form prefilled from the draft, submit,
+  accept), fraud warnings (refund, dismiss), payment policies card,
+  transactions (risk, 3-D Secure, card country, Stripe link, invoice, "Refund
+  to card" or "Add credits instead"), invoices (list, view, PDF, CSV export).
+* **Marketing**: e-mail leads (filters, CSV export, delete) and the
+  calculator-report settings (switch, pre-ticked countries).
+* **Chat sessions**: hold details on the session and `held` messages flagged
+  in the transcript.
+* **Psychics**: the profile tab explains that featured, featured rank and sort
+  order only break ties in the public order.
+
+### 26.8 Legal (Terms, Privacy Policy, Refund Policy dated 2026-11-19)
+
+* **Terms** §6.1.4: the hold (when it applies, that the advisor's replies are
+  hidden, that continuing or revealing costs one minute at the advisor's
+  rate, that nothing is charged otherwise and free minutes never convert into
+  a charge). §6 payments: card payments processed by Stripe; invoices and
+  credit notes; §6.3.2 disputes: credits of a disputed purchase are frozen and
+  purchases paused until the dispute is resolved; fraud warnings may lead to a
+  refund and account review. Advisor terms (§6.4): no earnings for hold time
+  unless converted or revealed.
+* **Privacy Policy**: calculator e-mail reports (what is kept: address,
+  locale, country, consent record; birth details only until the e-mail is
+  sent), marketing consent (pre-ticked only where lawful, unsubscribe), Stripe
+  (data shared: e-mail, name, amount, device and network data collected by
+  Stripe.js for fraud prevention; Stripe's privacy policy; transfers),
+  invoices (kept for accounting, legal basis), dispute evidence shared with
+  Stripe and the card networks (consent record, usage log, invoice).
+* **Refund Policy**: card refunds go back to the original card through
+  Stripe (5–10 business days after submission); a credit note is issued for
+  every refund; fraud-warning refunds.
+* `LEGAL_VERSIONS` → 2026-11-19 for all three (deploy on or after
+  2026-11-19 UTC). Checklist rows 86 and up in `docs/legal-review-checklist.md`
+  (VAT/sales tax on digital services to EU/UK consumers, pre-ticked box
+  countries, export of held messages, dispute-evidence data, invoice
+  retention period, Stripe as processor).
+
+### 26.9 Error codes and configuration
+
+| code | HTTP | meaning |
+| --- | --- | --- |
+| `message_locked` | 409 | The message is hidden by a hold (like, save). |
+| `insufficient_credits` | 402 | `details: {required, balance}` (continue, reveal). |
+| `purchases_blocked` | 403 | A payment dispute is in progress (`details.reason: "dispute"`). |
+| `refund_disputed` | 409 | The payment is disputed; answer the dispute instead of refunding. |
+| `provider_unavailable` | 503 | The processor did not answer; retry. |
+
+New environment variables (listed in `backend/.env.example`, enforced by its
+test): `STARYIELD_STRIPE_*` above; nothing else is environment-only (holds,
+policies and the report are admin settings).
+
+### 26.10 Tests and load
+
+* Backend: unit tests per package; e2e (`backend/tests/e2e`): hold →
+  convert (purchase hook and `continue`), hold → expire → reveal (charge,
+  earning, unlock, idempotent replay), extension while a purchase is pending,
+  locked content on every path (timeline, realtime, inbox, reply, attachment,
+  push, like, save), concurrency (reveal twice at once charges once; top-up
+  racing expiry: exactly one outcome); Stripe adapter against a fake Stripe
+  server (`stripepay/stripetest`): token checkout, 3-D Secure, declines,
+  timeouts and `Lookup`, refunds, webhook signature and every mapped event;
+  disputes and fraud warnings (clawback, block, restore, auto-refund);
+  purchase stream (initial state, sync, webhook relay, timeout); invoices
+  (gapless numbers under concurrency, credit notes, PDF bytes, attachment);
+  report e-mail (recalculation, honeypot, rate limits, suppression, consent
+  evidence, unsubscribe); directory order.
+* Web (vitest + Playwright, desktop and mobile): hold banner, locked bubbles,
+  reveal confirm, top-up during a hold; Stripe adapter with Stripe.js mocked
+  (a Playwright spec against Stripe test mode runs only when
+  `E2E_STRIPE_PUBLISHABLE_KEY` is set); purchase stream states; invoice page;
+  report dialog (timing, once-only, consent defaults by country, errors);
+  card layout at 320–412 px and 130 %/200 % text; directory order and live
+  re-sort.
+* Admin (vitest + Playwright): every page and dialog above.
+* Load (`backend/tests/load`, dataset `staryield_load`): thousands of
+  concurrent readings entering, converting and expiring holds; the directory
+  under status churn; report e-mail bursts; webhook bursts (duplicates and
+  out of order). `EXPLAIN` checks for the new hot queries (held sessions due,
+  locked-message reads, open disputes per user, invoices per transaction).
+
+### Implementation notes (revisions 6.0)
+
+What the build settled that §26 above left open or stated differently:
+
+* **Settings writes.** `PUT /admin/site/trial-hold` and `PUT
+  /admin/site/calculator-report` take `version`; `PUT /admin/billing/policies`
+  takes `expected_version` or `version`. A stale version answers `409
+  version_conflict` (the existing code), not `conflict`.
+* **Hold (§26.1).** The expiry runs inside the scheduler tick next to the
+  billing worker (no separate job). `chat_session_holds.max_expires_at` fixes
+  the payment-grace cap when the hold starts, so a later settings change never
+  stretches it; `chat_sessions.last_hold_id` gives session views a key lookup;
+  `converted_credits` feeds the statistics. No index was added on
+  `chat_messages` (building one blocks writes on a large table): a hold's
+  messages are read through `chat_messages_session_idx`. The three "one open
+  session" partial indexes include `held`, so a held reading keeps the
+  advisor busy. Typing is allowed while held; `hold/continue` on a converted
+  reading answers `409 invalid_state`; membership credit grants do not resume
+  holds (purchases, admin grants and refund-request credits do). Held messages
+  get no e-mail (chat messages never had one); the push text is used.
+* **E-mail report (§26.4).** The e-mail category is `account` (the outbox has
+  no "transactional" category); the outbox already wipes the sealed payload
+  and address on every final status, so no per-template scrub was needed. A
+  box shown ticked counts as consent only when the trusted country is in the
+  list; an unsubscribed address is re-subscribed only by a box the visitor
+  ticked. A signed-in request links the lead only when the address is the
+  account's own. The unsubscribe page asks for a click before posting (link
+  scanners). `List-Unsubscribe` is set only for an https frontend. The
+  personal-data export gains `calculator-reports.json` (no IP hash, no birth
+  data). Lead CSV columns: `email,locale,country,subscribed_at,source`.
+* **Stripe (§26.5).**
+  * Production runs `STARYIELD_PAYMENTS_PROVIDER=stripe` (new value: no hosted
+    checkout, card providers on) with `STARYIELD_PAYMENTS_PROVIDERS=stripe`
+    and `STARYIELD_PAYMENTS_DEFAULT_PROVIDER=stripe`; the routing rule
+    "Default" seeded by 0009 sends payments to `sandbox_a` and must be edited
+    (`docs/stripe-setup.md`).
+  * API version `2026-10-28.endive` (stripe-go v87.1.0) has no
+    `payment_method_types` on intents: the adapter sends
+    `allowed_payment_method_types: ["card"]` (the web keeps
+    `allowedPaymentMethodTypes: ["card"]`).
+  * Refund events carry `RefundRef`/`ObjectRef` and no `IdempotencyKey`.
+    Decline codes: `generic_decline` and a bare `card_declined` become
+    `card_declined`; 3-D Secure failures `authentication_failed`.
+    `Risk.Score` is -1 when Stripe gives none. `provider_unavailable` (503)
+    covers refused keys and processor outages.
+  * `GET /admin/billing/stripe/status` takes `?provider=` (default `stripe`);
+    the expected webhook URL is derived from the request's origin.
+  * `payment_transactions` also gains `card_brand`, `card_last4`;
+    `payment_methods` and `payment_customers` gain hashes of the provider
+    references (`method.detached`, `customer.deleted` find rows by them; rows
+    created before 0033 cannot be matched).
+  * Filtered SSE streams (the purchase stream) have their own per-user cap (8)
+    and do not use the realtime connection slots.
+  * **Sandbox (§12):** every sandbox provider implements `ChargeRetriever`;
+    card last4 `3220` answers `pending` with `next_action {type: "sandbox_3ds"}`
+    (saved cards `requires_action`) and completes as succeeded on the first
+    retrieval at least 2 s later; `3221` completes as declined
+    `authentication_failed`. `sandbox_a` also implements `DisputeManager`,
+    `AccountInspector` and `EventFetcher`.
+  * Admin alert e-mails link the console at `/payments/disputes/<id>`,
+    `/payments/fraud-warnings` and `/transactions`.
+* **Invoices (§26.6).** `invoices.original_invoice_number` is stored with
+  credit notes. Credit notes are issued for credit-purchase refunds only
+  (memberships have no invoices) and not for the legacy hosted-checkout
+  refund webhook. The buyer's country is the card's (saved card, else the
+  payment's `card_country`). The backfill covers the last 45 days (older
+  purchases without an invoice are not backfilled automatically). The receipt
+  copy sent to a purchase's `receipt_email` carries the number but no link or
+  attachment. Accounting CSV columns: `number,kind,issued_at,original_number,
+  buyer_country,currency,subtotal,tax,total,provider,provider_reference`
+  (credit notes negative; formula injection neutralised).
+* **Order (§26.3).** Featured rank is compared for every advisor (as the old
+  SQL order did), not only featured ones.
+* **Integration fixes.** The reference credit pack can no longer be deleted
+  (`409 conflict`, "This pack is the reference for savings badges…"; the console
+  already said the server refuses). A hold with no hidden message cannot be
+  revealed (`409 invalid_state`, nothing charged). The advisor KPI
+  `free_to_paid` counts a trial that goes on paying in the same reading (§8.1).

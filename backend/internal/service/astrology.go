@@ -319,6 +319,17 @@ func requesterZone(name string) (*time.Location, bool) {
 // Natal computes the anonymous natal chart, Twelve Houses spread and
 // numerology (FR-01). Nothing is stored.
 func (s *AstrologyService) Natal(ctx context.Context, in BirthInput) (*NatalView, error) {
+	out, b, err := s.natal(in)
+	if err != nil {
+		return nil, err
+	}
+	s.tracker.Track(ctx, "astro.natal_computed", map[string]any{"has_time": out.Chart.TimeKnown, "has_place": b.place != nil, "house_system": string(b.houseSystem)})
+	return out, nil
+}
+
+// natal is Natal without the analytics event (the e-mailed report
+// recalculates a result the visitor already counted, revisions 6.0).
+func (s *AstrologyService) natal(in BirthInput) (*NatalView, *birth, error) {
 	b, fields := s.parseBirth(in.BirthDate, in.BirthTime, in.PlaceID, in.HouseSystem, true)
 	includes, msg := parseIncludes(in.Include)
 	if msg != "" {
@@ -329,11 +340,11 @@ func (s *AstrologyService) Natal(ctx context.Context, in BirthInput) (*NatalView
 		fields["tz"] = "Choose a valid time zone."
 	}
 	if len(fields) > 0 {
-		return nil, apperror.Validation(fields)
+		return nil, nil, apperror.Validation(fields)
 	}
 	chart, req, err := s.chartView(b)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	out := &NatalView{Engine: chart.Engine, Disclaimer: chartDisclaimer, Attribution: chart.Attribution}
 	if includes[includeTarot] {
@@ -358,9 +369,7 @@ func (s *AstrologyService) Natal(ctx context.Context, in BirthInput) (*NatalView
 		chart.Aspects = []astro.Aspect{}
 	}
 	out.Chart = *chart
-	system := string(b.houseSystem)
-	s.tracker.Track(ctx, "astro.natal_computed", map[string]any{"has_time": chart.TimeKnown, "has_place": b.place != nil, "house_system": system})
-	return out, nil
+	return out, b, nil
 }
 
 // Chart computes a natal chart (the original calculator endpoint, kept for
@@ -398,6 +407,16 @@ func numerologyFor(birthDate, asOf time.Time) NumerologyView {
 // Numerology computes the life path and personal cycles (the path-of-life
 // calculator). "Today" is the calendar date in the requester's time zone.
 func (s *AstrologyService) Numerology(ctx context.Context, in NumerologyInput) (*NumerologyView, error) {
+	n, err := s.numerology(in)
+	if err != nil {
+		return nil, err
+	}
+	s.tracker.Track(ctx, "astro.numerology_computed", map[string]any{"life_path_master": n.LifePathMaster})
+	return n, nil
+}
+
+// numerology is Numerology without the analytics event (revisions 6.0).
+func (s *AstrologyService) numerology(in NumerologyInput) (*NumerologyView, error) {
 	fields := map[string]string{}
 	d, msg := ParseBirthDate(in.BirthDate, s.clock.Now(), 0)
 	if msg != "" || d == nil {
@@ -423,15 +442,24 @@ func (s *AstrologyService) Numerology(ctx context.Context, in NumerologyInput) (
 		return nil, apperror.Validation(fields)
 	}
 	n := numerologyFor(*d, asOf)
-	s.tracker.Track(ctx, "astro.numerology_computed", map[string]any{"life_path_master": n.LifePathMaster})
 	return &n, nil
 }
 
 // SunSign answers the canonical sun sign for a birth.
 func (s *AstrologyService) SunSign(ctx context.Context, in BirthInput) (*SunSignView, error) {
+	out, b, err := s.sunSign(in)
+	if err != nil {
+		return nil, err
+	}
+	s.tracker.Track(ctx, "astro.sun_sign_computed", map[string]any{"has_time": b.clock != "", "has_place": b.place != nil, "uncertain": out.Uncertain})
+	return out, nil
+}
+
+// sunSign is SunSign without the analytics event (revisions 6.0).
+func (s *AstrologyService) sunSign(in BirthInput) (*SunSignView, *birth, error) {
 	b, fields := s.parseBirth(in.BirthDate, in.BirthTime, in.PlaceID, "", true)
 	if len(fields) > 0 {
-		return nil, apperror.Validation(fields)
+		return nil, nil, apperror.Validation(fields)
 	}
 	at, start, end := astro.BirthWindow(b.date, b.hour, b.min, b.clock != "", b.loc)
 	if b.clock != "" && b.place != nil {
@@ -439,9 +467,8 @@ func (s *AstrologyService) SunSign(ctx context.Context, in BirthInput) (*SunSign
 		start, end = at, at
 	}
 	sun := astro.SunSignForBirth(at, start, end)
-	s.tracker.Track(ctx, "astro.sun_sign_computed", map[string]any{"has_time": b.clock != "", "has_place": b.place != nil, "uncertain": sun.Uncertain})
 	return &SunSignView{SunSign: sun.Sign, Uncertain: sun.Uncertain, Alternatives: sun.Alternatives,
-		Element: astro.ElementOf(sun.Sign), Modality: astro.ModalityOf(sun.Sign)}, nil
+		Element: astro.ElementOf(sun.Sign), Modality: astro.ModalityOf(sun.Sign)}, b, nil
 }
 
 // --- signed-in client ----------------------------------------------------------

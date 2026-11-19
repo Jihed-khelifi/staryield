@@ -56,6 +56,20 @@ const (
 
 	EventWalletUpdated = "wallet.updated"
 
+	// revisions 6.0 (§26.1), all durable: a reading was held for a top-up, the
+	// hold was extended while a payment processes, the hold ended (converted or
+	// expired) and the replies it hid were revealed.
+	EventSessionHeld         = "session.held"
+	EventSessionHoldExtended = "session.hold_extended"
+	EventSessionHoldEnded    = "session.hold_ended"
+	EventMessagesRevealed    = "messages.revealed"
+	// revisions 6.0 (§26.5), durable: a credit purchase reached a new state
+	// (data: {"purchase": PurchaseView}); the purchase stream relays it.
+	EventPurchaseUpdated = "purchase.updated"
+	// EventPurchaseTimeout ends a purchase stream that outlived its limit
+	// (stream frame only, never published).
+	EventPurchaseTimeout = "purchase.timeout"
+
 	// revisions 3.0: chat unread (ephemeral)
 	EventChatUnread = "chat.unread"
 

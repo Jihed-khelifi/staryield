@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useClientNames } from "@/lib/chat/client-alias-provider";
 import { ReaderAvatar } from "@/components/chat/reader-avatar";
 import { systemCopy } from "@/components/chat/chat-model";
+import { HiddenMessageLabel } from "@/components/chat/locked-message-bubble"; // revisions 6.0 (§26.1)
 import { ErrorState } from "@/components/feedback/error-state";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -148,7 +149,7 @@ export function ConversationList({
                     {online !== null ? <span className="sr-only">{` · ${text(online ? "Online" : "Offline")}`}</span> : null}
                   </span>
                   <span className="conversation-preview block w-full truncate font-ui text-xs opacity-70">
-                    {live === "requested" ? text("New chat request") : live === "active" ? text("Live now") : preview}
+                    {live === "requested" ? text("New chat request") : live === "active" ? text("Live now") : last?.locked ? <HiddenMessageLabel /> : preview}
                   </span>
                 </span>
                 {conversation.unread > 0 ? (

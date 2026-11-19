@@ -41,7 +41,7 @@ import { ChatFeed, type Announcement, type ChatFeedHandle } from "@/components/c
 import { MessageActionsProvider, type MessageActions } from "@/components/chat/message-actions-context";
 import { ChatHeader, ChatroomTopBar, useEarningsLabel } from "@/components/chat/chat-header";
 import { SessionTools, SwitcherAccount, SwitcherHeader, SwitcherQuickLinks } from "@/components/chat/chat-mobile";
-import { TopUpAdvisorScope, TopUpLink } from "@/components/billing/top-up/top-up-provider"; // revisions 5.0
+import { TopUpAdvisorScope, TopUpHoldScope, TopUpLink, useTopUp } from "@/components/billing/top-up/top-up-provider"; // revisions 5.0, 6.0 (hold scope)
 import type { ReportIssueTarget } from "@/components/chat/report-issue";
 import { ComposerNote } from "@/components/chat/composer-note";
 import { ChatPushPrompt } from "@/components/chat/push-prompt";
@@ -53,6 +53,15 @@ import { ReaderPanel } from "@/components/chat/reader-panel";
 import { ClientPanel } from "@/components/chat/client-panel";
 import { SAVED_PAGE_SIZE } from "@/components/chat/saved-list";
 import { ReviewDialog } from "@/components/reviews/review-form";
+// revisions 6.0 (§26.1): free-trial hold
+import { ChatHoldProvider, type ChatHoldValue } from "@/components/chat/chat-hold-context";
+import { HoldBanner } from "@/components/chat/hold-banner";
+import { HoldRevealDialog } from "@/components/chat/hold-reveal-dialog";
+import { useChatHoldState } from "@/components/chat/use-chat-hold";
+import { useHoldActions } from "@/components/chat/use-hold-actions";
+import { useHoldEvents } from "@/components/chat/use-hold-events";
+import { lockedSummary, revealInbox, toTopUpHold } from "@/lib/chat/hold";
+import type { ChatHold } from "@/lib/api/holds";
 import { SessionPanel } from "@/components/chat/session-panel";
 import { useConversationTimeline } from "@/components/chat/use-conversation-timeline";
 import { useInbox, withMessage } from "@/components/chat/use-inbox";
@@ -60,6 +69,9 @@ import { useJumpToMessage } from "@/components/chat/use-jump-to-message";
 import { useMessageLikes, withLikeOverrides } from "@/components/chat/use-message-likes";
 import { useOutbox } from "@/components/chat/use-outbox";
 import {
+  asRevealed,
+  canLikeOrSave,
+  clockOffset,
   elapsedSeconds,
   isActionable,
   isOpen,
@@ -87,7 +99,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
-type SessionEvent = { session: ChatSession; summary?: SessionSummary };
+type SessionEvent = { session: ChatSession; summary?: SessionSummary; /** `session.held` (§26.1) */ hold?: ChatHold };
 
 const SESSION_EVENTS = [
   "session.requested",
@@ -99,6 +111,7 @@ const SESSION_EVENTS = [
   "session.expired",
   "session.cancelled",
   "session.ended",
+  "session.held", // revisions 6.0 (§26.1)
 ] as const;
 
 /** Read receipts wait this long, so a burst of messages costs one request. */
@@ -110,7 +123,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const { text, t, locale } = useI18n();
   const router = useRouter();
   const toast = useToast();
-  const { status, user, wallet, realtime, connection } = useSession();
+  const { status, user, wallet, realtime, connection, setWallet } = useSession();
+  const topUpApi = useTopUp(); // revisions 6.0 (§26.1): the dialog opens by itself when a reading is held
   const role = user?.role === "psychic" ? "psychic" : "client";
   const meId = user?.id ?? "";
   const freeMode = useFreeMode();
@@ -156,8 +170,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const session = snap?.session ?? null;
   // The open session of the conversation on screen (messages go to it).
   const liveSession = session && isOpen(session) && (!activeConvId || session.conversation_id === activeConvId) ? session : null;
-  // Messages go into the session while it is active or paused; otherwise they are written outside a live chat (§22.3).
-  const inLiveChat = liveSession?.status === "active" || liveSession?.status === "disconnected";
+  // Messages go into the session while it is active, held or paused; otherwise they are written outside a live chat (§22.3, §26.1).
+  const inLiveChat = liveSession?.status === "active" || liveSession?.status === "disconnected" || liveSession?.status === "held";
   const requestPending = liveSession?.status === "requested" || liveSession?.status === "accepted";
   const composerRef = React.useRef<ComposerHandle>(null);
   const feedRef = React.useRef<ChatFeedHandle>(null);
@@ -241,6 +255,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const { receive, fillGaps, refreshNewest } = thread;
 
   function describeIncoming(m: ChatMessage): string {
+    // A message locked by a hold has no text to read out (§26.1).
+    if (m.locked) return text("Hidden message from {value0}", { value0: counterpartName });
     const body = m.kind === "image" ? m.body.trim() || text("Photo") : m.body;
     return text("{value0}: {value1}", { value0: counterpartName, value1: body.length > 280 ? `${body.slice(0, 280)}…` : body });
   }
@@ -383,7 +399,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   };
 
   const onSession = (type: string, data: SessionEvent) => {
-    const s = data.session;
+    // `session.held` carries the hold next to the session view (§26.1): keep it on the view.
+    const s = data.hold ? { ...data.session, hold: data.hold } : data.session;
     upsertConversationSession(s);
     if (role === "psychic" && type === "session.requested" && (!session || !isOpen(session))) {
       // The client's nickname (§23.4) when the advisor has one; the toast waits for it briefly.
@@ -696,7 +713,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     }
   }
   function toggleBookmark(m: UiMessage) {
-    if (m.pending || (m.kind !== "text" && m.kind !== "image")) return;
+    if (!canLikeOrSave(m) || (m.kind !== "text" && m.kind !== "image")) return;
     void setBookmark(m.id, !isSaved(m));
   }
 
@@ -773,6 +790,77 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const rateView = sessionRate(session, psychic?.rate_per_minute ?? 0);
   const earnings = role === "psychic" ? sessionEarnings(session) : null;
   const earned = useEarningsLabel(earnings && session && session.status !== "requested" ? earnings : null);
+  // revisions 5.0: the top-up opens in place (the chat keeps running) and knows this advisor's rate (§24.7).
+  const topUp = role === "client" && counterpart && rateView.rate > 0 ? { advisorName: counterpart.name, ratePerMinute: rateView.rate } : undefined;
+
+  // --- revisions 6.0 (§26.1): free-trial hold ---------------------------------------
+  const holdState = useChatHoldState(session);
+  const { hold } = holdState;
+  const clockOffsetMs = snap ? clockOffset(snap) : 0;
+  const lockedInfo = React.useMemo(() => lockedSummary(timeline.messages), [timeline.messages]);
+  const openHoldTopUp = () => topUpApi.open(topUp ? { ...topUp, hold: toTopUpHold(hold, clockOffsetMs) } : undefined);
+  // Revealed messages (a conversion, a reveal): they replace the locked ones on the timeline and in the inbox preview.
+  const applyRevealed = (conversationId: string, revealed: ChatMessage[]) => {
+    const messages = asRevealed(revealed);
+    if (conversationId === activeConvRef.current) receive(messages);
+    inbox.patch((list) => revealInbox(list, messages));
+  };
+  // The reading may not be what we think (409 `invalid_state`): read it and the newest messages again.
+  const refreshHeldReading = (sessionId: string | undefined) => {
+    refreshNewest();
+    if (!sessionId) return;
+    chatApi.session(sessionId).then(
+      (view) => setSnap((cur) => (cur && cur.session.id === view.id ? snapshot(view) : cur)),
+      (err) => logger.debug("hold refresh failed", { code: String(toApiError(err).code) }),
+    );
+  };
+  const holdActions = useHoldActions({
+    role,
+    hold,
+    sessionId: session?.status === "held" ? session.id : undefined,
+    wallet,
+    holdById: holdState.holdById,
+    applyHold: holdState.apply,
+    setWallet,
+    openTopUp: openHoldTopUp,
+    topUpOpen: topUpApi.isOpen,
+    onRevealed: ({ hold: revealedHold, messages }) => {
+      applyRevealed(revealedHold.conversation_id, messages);
+      toast.show({ tone: "success", message: text("The hidden messages from {value0} are now readable.", { value0: counterpartName }) });
+      pushLog([{ id: `revealed-${revealedHold.id}`, text: text("The hidden messages from {value0} are now readable.", { value0: counterpartName }) }]);
+    },
+    onContinued: ({ session: continued }) => {
+      setSnap(snapshot(continued));
+      toast.show({ tone: "success", message: text("Your reading with {value0} continues.", { value0: counterpartName }) });
+    },
+    onStale: refreshHeldReading,
+  });
+  useHoldEvents({
+    role,
+    counterpartName,
+    isOnScreen: (conversationId) => conversationId === activeConvRef.current,
+    apply: holdState.apply,
+    extend: holdState.extend,
+    openTopUp: openHoldTopUp,
+    announce: pushLog,
+    onRevealed: (event) => applyRevealed(event.conversation_id, event.messages),
+    onAdvisorRevealed: (event) => {
+      if (event.conversation_id === activeConvRef.current) thread.clearHeld(event.message_ids);
+    },
+  });
+  const holdValue: ChatHoldValue = {
+    role,
+    hold,
+    counterpartName,
+    clockOffsetMs,
+    hidden: role === "client" && lockedInfo ? { holdId: lockedInfo.holdId, count: lockedInfo.loaded } : null,
+    openLocked: holdActions.openLocked,
+    openTopUp: openHoldTopUp,
+    busy: holdActions.loading || holdActions.revealing,
+    continueOffered: holdActions.continueOffered,
+    continuing: holdActions.continuing,
+    continueReading: holdActions.continueReading,
+  };
 
   if (status !== "authenticated" || !user) {
     return (
@@ -788,8 +876,6 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
   const secondsLeft = secondsUntil(deadline, snap);
   const elapsed = elapsedSeconds(snap);
   const returnPath = `/${locale}/chatroom${slug ? `?reader=${slug}` : ""}`;
-  // revisions 5.0: the top-up opens in place (the chat keeps running) and knows this advisor's rate (§24.7).
-  const topUp = role === "client" && counterpart && rateView.rate > 0 ? { advisorName: counterpart.name, ratePerMinute: rateView.rate } : undefined;
   const shownSession = session ?? summary?.session ?? null;
   const report: ReportIssueTarget | null =
     role === "client" && activeConvId && counterpart
@@ -882,6 +968,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
     ) : null;
 
   return (
+    <ChatHoldProvider value={holdValue}>
     <MessageActionsProvider value={messageActions}>
     <main
       aria-label={text("Chatroom")}
@@ -923,6 +1010,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
             />
             {/* revisions 5.0: every top-up opened while this conversation is on screen uses this advisor's rate (§24.7). */}
             <TopUpAdvisorScope advisor={topUp} />
+            {/* revisions 6.0 (§26.1): the dialog shows this reading's hold with a live countdown. */}
+            <TopUpHoldScope hold={role === "client" ? toTopUpHold(hold, clockOffsetMs) : undefined} />
             <SessionTools role={role} wallet={wallet} free={freeChat} earned={earned} returnPath={returnPath} onOpenDetails={() => setDetailsOpen(true)} report={report} topUp={topUp} />
             {otherSession && role === "client" ? (
               <p className="chat-connection-banner" role="status">
@@ -960,7 +1049,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                 messages={messages}
                 meId={meId}
                 authorName={counterpartDisplay}
-                typing={typing && session?.status === "active"}
+                typing={typing && (session?.status === "active" || session?.status === "held")}
                 savedIds={savedIds}
                 peerReadSeq={peerRead}
                 status={thread.status}
@@ -1002,6 +1091,8 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
                 />
               </ChatFeed>
             )}
+            {/* revisions 6.0 (§26.1): the countdown and "Top up" while the reading is held. */}
+            <HoldBanner />
             <ChatPushPrompt userId={meId} hasSent={hasSent} role={role} />
             <MessageComposer
               ref={composerRef}
@@ -1100,6 +1191,13 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <HoldRevealDialog
+        confirm={holdActions.confirm}
+        name={counterpartName}
+        busy={holdActions.revealing}
+        onConfirm={holdActions.confirmReveal}
+        onCancel={holdActions.cancelReveal}
+      />
       {initialReview && role === "client" ? (
         <ReviewDialog
           key={initialReview}
@@ -1114,6 +1212,7 @@ export function ChatroomShell({ initialReader, initialReview }: { initialReader?
       ) : null}
     </main>
     </MessageActionsProvider>
+    </ChatHoldProvider>
   );
 }
 

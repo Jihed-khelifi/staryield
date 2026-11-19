@@ -42,6 +42,9 @@ export const TYPES = {
   ".mp3": "audio/mpeg",
   ".wav": "audio/wav",
   ".ogg": "audio/ogg",
+  // Fonts loaded by third-party frames (revisions 6.0: Stripe's card fields
+  // use the site's serif; the bucket's CORS must allow https://js.stripe.com).
+  ".woff2": "font/woff2",
 };
 
 /** Registry key for a file (pure, unit-tested). */

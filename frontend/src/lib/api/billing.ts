@@ -41,6 +41,13 @@ export type ClientConfig = {
   token_format?: string;
   test_cards?: { brand: string; last4: string; behaviour: string }[];
   expires_at?: string;
+  /** revisions 6.0 (§26.5): Stripe's Payment Element mode (deferred payment, or a SetupIntent for "method"). */
+  mode?: "payment" | "setup";
+  amount_cents?: number;
+  currency?: string;
+  payment_method_types?: string[];
+  /** False with test keys: the form says "Test mode". */
+  livemode?: boolean;
 };
 
 export type PaymentMethod = {
@@ -90,15 +97,26 @@ export type Transaction = {
   failure_code?: string;
   /** revisions 5.0 (§24.4): credit purchases only. */
   refund?: TransactionRefundInfo;
+  /** revisions 6.0 (§26.6): the invoice of a paid purchase and the credit note of a refund. */
+  invoice?: InvoiceRef;
+  credit_note?: InvoiceRef;
+  card?: { brand: string; last4: string };
   created_at: string;
 };
 
-/** E.g. 3-D Secure: the provider needs the payer on its page. */
-export type NextAction = { type: string; url?: string; client_secret?: string };
+/** A link to an invoice or credit note: its id and number ("SY-2026-000001"). */
+export type InvoiceRef = { id: string; number: string };
+
+/**
+ * What the payer must still do: `use_stripe_sdk` (3-D Secure in Stripe's modal, §26.5),
+ * `sandbox_3ds` (development), or `redirect` (the provider's page, `url`).
+ */
+export type NextAction = { type: "use_stripe_sdk" | "sandbox_3ds" | "redirect" | (string & {}); url?: string; client_secret?: string };
 
 export type SubscriptionResult = { subscription: Subscription; transaction?: Transaction; next_action?: NextAction };
 
-export type PaymentPurpose = "credits" | "subscription";
+/** `method` (revisions 6.0): save a card without paying (Stripe confirms a SetupIntent). */
+export type PaymentPurpose = "credits" | "subscription" | "method";
 
 export const billingApi = {
   plans: (signal?: AbortSignal) => api<{ items: Plan[] }>("/api/v1/billing/plans", { signal }).then((r) => r.items),

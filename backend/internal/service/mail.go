@@ -37,7 +37,24 @@ type EmailRequest struct {
 	Content  mail.Content
 	// DedupeKey makes the enqueue idempotent (e.g. "notification:<id>").
 	DedupeKey string
+	// Attachments are stored as references and resolved to files when the
+	// message is delivered (revisions 6.0, §26.6: invoice PDFs); nothing binary
+	// is queued.
+	Attachments []mail.AttachmentRef
 }
+
+// AttachmentResolver turns the attachment references of one kind into files at
+// delivery time.
+type AttachmentResolver interface {
+	// ResolveAttachment returns the file of ref, ErrAttachmentGone when the
+	// document no longer exists (the message is then sent without it) or any
+	// other error for a transient failure (the delivery is retried).
+	ResolveAttachment(ctx context.Context, ref mail.AttachmentRef) (*mail.Attachment, error)
+}
+
+// ErrAttachmentGone is returned by a resolver when the referenced document is
+// gone for good.
+var ErrAttachmentGone = errors.New("mail: attachment no longer exists")
 
 // EmailQueue enqueues transactional e-mail (implemented by MailService).
 type EmailQueue interface {
@@ -119,6 +136,9 @@ type MailService struct {
 	cfg      MailSettings
 	wake     chan struct{}
 	jitter   func() float64
+	// resolvers turn attachment references into files, by kind (registered at
+	// start-up with RegisterAttachments, before delivery starts).
+	resolvers map[string]AttachmentResolver
 }
 
 // NewMailService wires the outbox.
@@ -144,6 +164,42 @@ type emailPayload struct {
 	Text    string            `json:"t"`
 	HTML    string            `json:"h"`
 	Headers map[string]string `json:"x,omitempty"`
+	// Attachments are references, resolved when the message is delivered.
+	Attachments []mail.AttachmentRef `json:"a,omitempty"`
+}
+
+// maxAttachmentRefs bounds the attachments of one message.
+const maxAttachmentRefs = 5
+
+// RegisterAttachments installs the resolver of one attachment kind.
+func (s *MailService) RegisterAttachments(kind string, r AttachmentResolver) {
+	if s.resolvers == nil {
+		s.resolvers = map[string]AttachmentResolver{}
+	}
+	s.resolvers[kind] = r
+}
+
+// attachments resolves the references of a row. Missing documents are skipped
+// (logged); a transient resolver failure is returned so the delivery is retried.
+func (s *MailService) attachments(ctx context.Context, refs []mail.AttachmentRef) ([]mail.Attachment, error) {
+	var out []mail.Attachment
+	for _, ref := range refs {
+		r, ok := s.resolvers[ref.Kind]
+		if !ok {
+			logger.FromContext(ctx).Warn("mail: no resolver for attachment; sent without it", zap.String("kind", ref.Kind))
+			continue
+		}
+		att, err := r.ResolveAttachment(ctx, ref)
+		switch {
+		case errors.Is(err, ErrAttachmentGone) || (err == nil && att == nil):
+			logger.FromContext(ctx).Warn("mail: attachment no longer exists; sent without it", zap.String("kind", ref.Kind), zap.String("id", ref.ID))
+		case err != nil:
+			return nil, err
+		default:
+			out = append(out, *att)
+		}
+	}
+	return out, nil
 }
 
 func outboxAD(id uuid.UUID) string { return "email_outbox:" + id.String() }
@@ -212,7 +268,12 @@ func (s *MailService) Enqueue(ctx context.Context, reqs ...EmailRequest) error {
 			if err != nil {
 				return err
 			}
-			body, _ := json.Marshal(emailPayload{Subject: rendered.Subject, Text: rendered.Text, HTML: rendered.HTML, Headers: rendered.Headers})
+			refs := r.Attachments
+			if len(refs) > maxAttachmentRefs {
+				refs = refs[:maxAttachmentRefs]
+			}
+			body, _ := json.Marshal(emailPayload{Subject: rendered.Subject, Text: rendered.Text, HTML: rendered.HTML, Headers: rendered.Headers,
+				Attachments: refs})
 			if row.ToSealed, err = s.sealer.Seal(p.to, outboxAD(row.ID)); err != nil {
 				return err
 			}
@@ -292,10 +353,22 @@ func (s *MailService) deliver(ctx context.Context, row *domain.EmailOutbox) {
 		final(domain.EmailFailed, reasonInvalidRecipient, "")
 		return
 	}
-	sendCtx, cancel := context.WithTimeout(ctx, s.cfg.SendTimeout)
-	res, err := s.provider.Send(sendCtx, mail.Message{To: to, Subject: payload.Subject, Text: payload.Text, HTML: payload.HTML,
-		Headers: payload.Headers, Category: string(row.Category)})
-	cancel()
+	var res mail.Result
+	var err error
+	// revisions 6.0 (§26.6): attachments are resolved now. A transient failure
+	// retries the delivery; on the last attempt the message goes without them.
+	atts, aerr := s.attachments(ctx, payload.Attachments)
+	if aerr != nil {
+		log.Warn("mail: attachment unavailable", zap.Error(aerr), zap.Int("attempt", row.Attempts))
+	}
+	if aerr != nil && row.Attempts < s.cfg.MaxAttempts {
+		err = &mail.SendError{Reason: "attachment_unavailable", Retryable: true}
+	} else {
+		sendCtx, cancel := context.WithTimeout(ctx, s.cfg.SendTimeout)
+		res, err = s.provider.Send(sendCtx, mail.Message{To: to, Subject: payload.Subject, Text: payload.Text, HTML: payload.HTML,
+			Headers: payload.Headers, Category: string(row.Category), Attachments: atts})
+		cancel()
+	}
 	now := s.clock.Now()
 	switch {
 	case err == nil && bounced(res, to):

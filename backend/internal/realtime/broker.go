@@ -2,6 +2,7 @@ package realtime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sort"
 	"strconv"
@@ -27,12 +28,41 @@ type Delivery struct {
 // sequence. The broker delivers a conversation's events in Seq order: an
 // event whose predecessor has not been published yet is held back until the
 // predecessor arrives or the gap is flushed (see FlushGaps).
+//
+// revisions 6.0 (§26.1): PerUser lets one seq slot carry a different payload
+// per recipient (the advisor gets a message in full, the client a locked
+// view). A user without an entry gets Payload; Payload may only be empty when
+// every user has an entry. The slot's ordering is the same for everyone.
 type OrderedPublish struct {
 	ConversationID uuid.UUID
 	Seq            int64
 	UserIDs        []uuid.UUID
 	Payload        []byte
+	PerUser        map[uuid.UUID][]byte
 	Now            time.Time
+}
+
+// validate checks the invariants every broker relies on.
+func (op OrderedPublish) validate() error {
+	if op.Seq <= 0 {
+		return errors.New("realtime: ordered publish needs a positive seq")
+	}
+	if len(op.Payload) == 0 {
+		for _, u := range op.UserIDs {
+			if len(op.PerUser[u]) == 0 {
+				return errors.New("realtime: ordered publish has no payload for a recipient")
+			}
+		}
+	}
+	return nil
+}
+
+// payloadFor is what user u receives in the slot.
+func (op OrderedPublish) payloadFor(u uuid.UUID) []byte {
+	if p, ok := op.PerUser[u]; ok && len(p) > 0 {
+		return p
+	}
+	return op.Payload
 }
 
 // Ordered-delivery and subscription tuning.
@@ -102,23 +132,37 @@ return id
 
 // gateEmit is shared by the ordered scripts: it appends payload to each
 // recipient stream and publishes it. keys alternates stream and channel.
+//
+// revisions 6.0: ov (optional) maps a recipient's stream key to the payload
+// that recipient gets instead of the slot's default payload.
 const gateEmit = `
-local function emit(payload, keys, maxlen, ttl)
+local function emit(payload, keys, maxlen, ttl, ov)
   for i = 1, #keys, 2 do
-    local id = redis.call('XADD', keys[i], 'MAXLEN', '~', maxlen, '*', 'p', payload)
+    local p = payload
+    if ov then
+      local o = ov[keys[i]]
+      if o then p = o end
+    end
+    local id = redis.call('XADD', keys[i], 'MAXLEN', '~', maxlen, '*', 'p', p)
     redis.call('PEXPIRE', keys[i], ttl)
-    redis.call('PUBLISH', keys[i + 1], 'E' .. id .. '|' .. payload)
+    redis.call('PUBLISH', keys[i + 1], 'E' .. id .. '|' .. p)
   end
+end
+local function decode(raw)
+  if raw and raw ~= '' then return cjson.decode(raw) end
+  return nil
 end
 `
 
 // orderedScript is the per-conversation ordering gate.
 //
 //	KEYS[1] gate hash: last (last published seq), n (held-back count),
-//	        keys (recipient keys), b<seq> (held-back payloads)
+//	        keys (recipient keys), b<seq> (held-back payloads), o<seq> (the
+//	        held-back slot's per-recipient payloads, JSON, when it has any)
 //	KEYS[2] gaps zset: conversation id scored by when its gap began
 //	KEYS[3..] recipient stream/channel key pairs
-//	ARGV: seq, payload, stream maxlen, stream ttl ms, now ms, gate ttl ms, conversation id
+//	ARGV: seq, payload, stream maxlen, stream ttl ms, now ms, gate ttl ms, conversation id,
+//	      per-recipient payloads (JSON object stream key -> payload, or empty)
 //
 // An unknown gate (new conversation, or state expired/lost) accepts the
 // event as the next one. Events at or below the last published seq are
@@ -138,20 +182,22 @@ end
 if seq > last + 1 then
   if redis.call('HSETNX', KEYS[1], 'b' .. seq, ARGV[2]) == 1 then
     redis.call('HINCRBY', KEYS[1], 'n', 1)
+    if ARGV[8] ~= '' then redis.call('HSET', KEYS[1], 'o' .. seq, ARGV[8]) end
   end
   redis.call('HSET', KEYS[1], 'last', last)
   redis.call('ZADD', KEYS[2], 'NX', ARGV[5], ARGV[7])
   return 0
 end
-emit(ARGV[2], keys, ARGV[3], ARGV[4])
+emit(ARGV[2], keys, ARGV[3], ARGV[4], decode(ARGV[8]))
 local published = 1
 last = seq
 while true do
   local field = 'b' .. (last + 1)
   local held = redis.call('HGET', KEYS[1], field)
   if not held then break end
-  emit(held, keys, ARGV[3], ARGV[4])
-  redis.call('HDEL', KEYS[1], field)
+  local ofield = 'o' .. (last + 1)
+  emit(held, keys, ARGV[3], ARGV[4], decode(redis.call('HGET', KEYS[1], ofield)))
+  redis.call('HDEL', KEYS[1], field, ofield)
   redis.call('HINCRBY', KEYS[1], 'n', -1)
   last = last + 1
   published = published + 1
@@ -179,13 +225,15 @@ local score = redis.call('ZSCORE', KEYS[2], ARGV[1])
 if not score or tonumber(score) > tonumber(ARGV[2]) then return 0 end
 local keyList = redis.call('HGET', KEYS[1], 'keys')
 local all = redis.call('HGETALL', KEYS[1])
-local seqs, held = {}, {}
+local seqs, held, over = {}, {}, {}
 for i = 1, #all, 2 do
   local f = all[i]
   if string.sub(f, 1, 1) == 'b' then
     local s = tonumber(string.sub(f, 2))
     seqs[#seqs + 1] = s
     held[s] = all[i + 1]
+  elseif string.sub(f, 1, 1) == 'o' then
+    over[tonumber(string.sub(f, 2))] = all[i + 1]
   end
 end
 table.sort(seqs)
@@ -197,11 +245,11 @@ local last = tonumber(redis.call('HGET', KEYS[1], 'last') or '0')
 local published = 0
 for _, s in ipairs(seqs) do
   if s > last then
-    emit(held[s], keys, ARGV[3], ARGV[4])
+    emit(held[s], keys, ARGV[3], ARGV[4], decode(over[s]))
     last = s
     published = published + 1
   end
-  redis.call('HDEL', KEYS[1], 'b' .. s)
+  redis.call('HDEL', KEYS[1], 'b' .. s, 'o' .. s)
 end
 redis.call('HSET', KEYS[1], 'last', last, 'n', 0)
 redis.call('PEXPIRE', KEYS[1], ARGV[5])
@@ -253,16 +301,34 @@ func (b *RedisBroker) Publish(ctx context.Context, userID uuid.UUID, payload []b
 
 // PublishOrdered implements Broker.
 func (b *RedisBroker) PublishOrdered(ctx context.Context, op OrderedPublish) (int, error) {
-	if op.Seq <= 0 {
-		return 0, errors.New("realtime: ordered publish needs a positive seq")
+	if err := op.validate(); err != nil {
+		return 0, err
 	}
 	keys := make([]string, 0, 2+2*len(op.UserIDs))
 	keys = append(keys, b.gateKey(op.ConversationID), b.gapsKey())
 	for _, u := range op.UserIDs {
 		keys = append(keys, b.streamKey(u), b.userChan(u))
 	}
+	// revisions 6.0: per-recipient payloads travel as one JSON object keyed by
+	// the recipient's stream key (what the script iterates over).
+	perUser := ""
+	if len(op.PerUser) > 0 {
+		byKey := make(map[string]string, len(op.UserIDs))
+		for _, u := range op.UserIDs {
+			if p, ok := op.PerUser[u]; ok && len(p) > 0 {
+				byKey[b.streamKey(u)] = string(p)
+			}
+		}
+		if len(byKey) > 0 {
+			raw, err := json.Marshal(byKey)
+			if err != nil {
+				return 0, err
+			}
+			perUser = string(raw)
+		}
+	}
 	n, err := orderedScript.Run(ctx, b.client, keys, op.Seq, string(op.Payload), b.maxLen, b.streamTTL.Milliseconds(),
-		op.Now.UnixMilli(), GateTTL.Milliseconds(), op.ConversationID.String()).Int()
+		op.Now.UnixMilli(), GateTTL.Milliseconds(), op.ConversationID.String(), perUser).Int()
 	return n, err
 }
 
@@ -610,6 +676,7 @@ func decodeWire(payload string) (Delivery, bool) {
 type memGate struct {
 	last     int64
 	held     map[int64][]byte
+	heldPer  map[int64]map[uuid.UUID][]byte // revisions 6.0: per-recipient payloads of held-back slots
 	users    []uuid.UUID
 	gapSince time.Time
 }
@@ -670,22 +737,28 @@ func (b *MemoryBroker) Publish(_ context.Context, userID uuid.UUID, payload []by
 	return id, nil
 }
 
-func (b *MemoryBroker) emitAll(ctx context.Context, users []uuid.UUID, payload []byte) {
+// emitAll publishes payload to every user; per (optional) overrides it for
+// the users it names.
+func (b *MemoryBroker) emitAll(ctx context.Context, users []uuid.UUID, payload []byte, per map[uuid.UUID][]byte) {
 	for _, u := range users {
-		_, _ = b.Publish(ctx, u, payload)
+		p := payload
+		if o, ok := per[u]; ok && len(o) > 0 {
+			p = o
+		}
+		_, _ = b.Publish(ctx, u, p)
 	}
 }
 
 // PublishOrdered implements Broker with the same semantics as the Redis gate.
 func (b *MemoryBroker) PublishOrdered(ctx context.Context, op OrderedPublish) (int, error) {
-	if op.Seq <= 0 {
-		return 0, errors.New("realtime: ordered publish needs a positive seq")
+	if err := op.validate(); err != nil {
+		return 0, err
 	}
 	b.gmu.Lock()
 	defer b.gmu.Unlock()
 	g := b.gates[op.ConversationID]
 	if g == nil {
-		g = &memGate{last: op.Seq - 1, held: map[int64][]byte{}}
+		g = &memGate{last: op.Seq - 1, held: map[int64][]byte{}, heldPer: map[int64]map[uuid.UUID][]byte{}}
 		b.gates[op.ConversationID] = g
 	}
 	g.users = op.UserIDs
@@ -695,13 +768,16 @@ func (b *MemoryBroker) PublishOrdered(ctx context.Context, op OrderedPublish) (i
 	if op.Seq > g.last+1 {
 		if _, dup := g.held[op.Seq]; !dup {
 			g.held[op.Seq] = op.Payload
+			if len(op.PerUser) > 0 {
+				g.heldPer[op.Seq] = op.PerUser
+			}
 		}
 		if g.gapSince.IsZero() {
 			g.gapSince = op.Now
 		}
 		return 0, nil
 	}
-	b.emitAll(ctx, g.users, op.Payload)
+	b.emitAll(ctx, g.users, op.Payload, op.PerUser)
 	published := 1
 	g.last = op.Seq
 	for {
@@ -709,8 +785,9 @@ func (b *MemoryBroker) PublishOrdered(ctx context.Context, op OrderedPublish) (i
 		if !ok {
 			break
 		}
-		b.emitAll(ctx, g.users, p)
+		b.emitAll(ctx, g.users, p, g.heldPer[g.last+1])
 		delete(g.held, g.last+1)
+		delete(g.heldPer, g.last+1)
 		g.last++
 		published++
 	}
@@ -738,11 +815,12 @@ func (b *MemoryBroker) FlushGaps(ctx context.Context, cutoff time.Time) (int, er
 		sort.Slice(seqs, func(i, j int) bool { return seqs[i] < seqs[j] })
 		for _, s := range seqs {
 			if s > g.last {
-				b.emitAll(ctx, g.users, g.held[s])
+				b.emitAll(ctx, g.users, g.held[s], g.heldPer[s])
 				g.last = s
 				total++
 			}
 			delete(g.held, s)
+			delete(g.heldPer, s)
 		}
 		g.gapSince = time.Time{}
 	}

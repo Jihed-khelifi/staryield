@@ -3,6 +3,8 @@
  * server is authoritative for every field; the client only renders them.
  */
 
+import type { ChatHold } from "@/lib/api/holds"; // revisions 6.0 (§26.1): free-trial hold
+
 export type Role = "client" | "psychic" | "admin";
 export type PresenceStatus = "online" | "busy" | "away" | "offline";
 export type Availability = "online" | "away" | "offline";
@@ -156,6 +158,9 @@ export type Purchase = {
   created_at: string;
   completed_at?: string;
   wallet?: Wallet;
+  // revisions 6.0 (§26.5): the card used and the invoice issued for it.
+  card?: { brand: string; last4: string };
+  invoice?: { id: string; number: string };
 };
 
 export type Participant = {
@@ -178,7 +183,9 @@ export type SessionStatus =
   | "settled"
   | "declined"
   | "expired"
-  | "cancelled";
+  | "cancelled"
+  // revisions 6.0 (§26.1): the next minute could not be paid; open and live, never billed.
+  | "held";
 
 export type ChatSession = {
   id: string;
@@ -219,6 +226,10 @@ export type ChatSession = {
   sponsored_credits?: number;
   reconnects: number;
   server_time: string;
+  // --- revisions 6.0 (§26.1): free-trial hold ---
+  /** The open hold while `held`, else the reading's latest expired or revealed hold (the reveal UI after a reload). */
+  hold?: ChatHold;
+  // --- end revisions 6.0 ---
 };
 
 export type SessionSummary = {
@@ -261,6 +272,19 @@ export type ChatMessage = {
   reply_to?: ReplyPreview;
   /** Ids of the participants who liked the message; absent when nobody did (§23.3). */
   liked_by?: string[];
+  // --- revisions 6.0 (§26.1): free-trial hold ---
+  /** Advisor and admin views: hidden from the client right now. */
+  held?: boolean;
+  /**
+   * Client view: hidden by a hold. `body` is "" and attachments, `reply_to` and `liked_by` are left out. Set to
+   * `false` by the web app once the message was revealed, so an older locked copy never hides it again.
+   */
+  locked?: boolean;
+  /** On held or locked messages. */
+  hold_id?: string;
+  /** Client view of a locked message: characters of the hidden text (at most 2000). */
+  body_length?: number;
+  // --- end revisions 6.0 ---
 };
 
 /** The quoted message shown above a reply (§23.2). */
@@ -269,8 +293,10 @@ export type ReplyPreview = {
   seq: number;
   sender_id?: string;
   kind: "text" | "image";
-  /** First 140 characters of the body or caption; "" for an image without a caption. */
+  /** First 140 characters of the body or caption; "" for an image without a caption (and while the quoted message is locked). */
   excerpt: string;
+  /** revisions 6.0 (§26.1): the quoted message is hidden from the viewer by a hold. */
+  locked?: boolean;
 };
 
 /** Answer of PUT/DELETE /chat/messages/:id/like (§23.3). */

@@ -139,12 +139,9 @@ func (h *Handler) Numerology(c echo.Context) error {
 	return ok(c, out)
 }
 
-// sunSignRequest asks for the sun sign of a birth.
-type sunSignRequest struct {
-	BirthDate string `json:"birth_date"`
-	BirthTime string `json:"birth_time"`
-	PlaceID   string `json:"place_id"`
-}
+// sunSignRequest asks for the sun sign of a birth (also the "astrology"
+// input of the e-mailed report, revisions 6.0).
+type sunSignRequest = service.SunSignInput
 
 // SunSign answers the sun sign of a birth, flagging cusp births whose sign
 // depends on an unknown time or place.

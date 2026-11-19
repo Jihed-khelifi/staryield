@@ -101,14 +101,16 @@ export function ChatHeader({ counterpart, conversationId = null, viewerRole = "c
   const displayName = useClientName(advisor ? counterpart.id : null, counterpart.name);
   const dateOfBirth = clientProfile.profile?.date_of_birth ?? clientProfile.profile?.birth_details?.date_of_birth;
   const born = dateOfBirth ? formatDate(dateOfBirth, locale, "long") : "";
-  const live = session && (session.status === "active" || session.status === "disconnected" || session.status === "accepted");
+  const live = session && (session.status === "active" || session.status === "disconnected" || session.status === "accepted" || session.status === "held");
   const presence = viewerRole === "psychic" && counterpart.status ? (counterpart.status === "offline" ? "offline" : "online") : null;
   const statusLine =
     session?.status === "active"
       ? text("Live chat in progress")
       : session?.status === "disconnected"
         ? text("Reconnecting…")
-        : counterpart.status
+        : session?.status === "held"
+          ? text("Reading on hold") // revisions 6.0 (§26.1)
+          : counterpart.status
           ? text(statusCopy[counterpart.status] ?? counterpart.status)
           : "";
   const earned = useEarningsLabel(viewerRole === "psychic" && session && session.status !== "requested" ? earnings : null);

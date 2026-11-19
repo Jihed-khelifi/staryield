@@ -1939,6 +1939,13 @@
     "sha256": "ac5efb682af1fca3ac4a44c683469e09823f19c6f3062dd6ca5fcba83697a60e"
   },
   {
+    "key": "assets/fonts/source-serif-4-latin-variable-8e38e3fbd7.woff2",
+    "url": "https://assets.staryield.net/assets/fonts/source-serif-4-latin-variable-8e38e3fbd7.woff2",
+    "contentType": "font/woff2",
+    "bytes": 50952,
+    "sha256": "8e38e3fbd74dea20aabe0831ffef04c9f30bf6fc5b99b7a2649be0dd8c6d859c"
+  },
+  {
     "key": "assets/paper-texture.jpg",
     "url": "https://assets.staryield.net/assets/paper-texture.jpg",
     "contentType": "image/jpeg",
@@ -1951,6 +1958,13 @@
     "contentType": "image/svg+xml",
     "bytes": 3246,
     "sha256": "d3d09ebf1c76e16650bad22b267bd1ed2c48440ffb16027e8d8b7f5fb441407b"
+  },
+  {
+    "key": "assets/payments/powered-by-stripe-e434f84af2.svg",
+    "url": "https://assets.staryield.net/assets/payments/powered-by-stripe-e434f84af2.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 3311,
+    "sha256": "e434f84af23af5d3ab6dbe7cfc9f6fc6009d95d1986ad6d529c2760ec18a524b"
   },
   {
     "key": "assets/payments/visa-52743e9957.svg",

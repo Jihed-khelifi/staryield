@@ -68,6 +68,8 @@ export type ErrorCode =
   | "last_sign_in_method"
   | "reply_target_invalid"
   | "message_not_likeable"
+  // revisions 6.0 (§26.9): a message hidden by a free-trial hold cannot be liked or saved.
+  | "message_locked"
   // revisions 5.0: top-up offer and refund requests (§24.10).
   | "offer_unavailable"
   | "refund_request_exists"
@@ -223,6 +225,7 @@ export const errorCopy: Record<string, string> = {
   last_sign_in_method: "Create a password before you disconnect Google, so you can still sign in.",
   reply_target_invalid: "The message you replied to is no longer available.",
   message_not_likeable: "This message can't be liked.",
+  message_locked: "Top up to read this message first.",
   // revisions 5.0: top-up offer and refund requests (§24.10). Reason-specific copy lives with each flow.
   offer_unavailable: "The Welcome Pack is no longer available. Choose another pack to continue.",
   refund_request_exists: "You already have an open refund request for this payment.",

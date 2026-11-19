@@ -3,6 +3,7 @@ module github.com/Jihed-khelifi/staryield/backend
 go 1.26.2
 
 require (
+	codeberg.org/go-pdf/fpdf v0.12.0
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/alicebob/miniredis/v2 v2.37.0
 	github.com/aws/aws-sdk-go-v2 v1.47.3
@@ -16,6 +17,7 @@ require (
 	github.com/mileusna/useragent v1.3.5
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/soniakeys/meeus/v3 v3.0.1
+	github.com/stripe/stripe-go/v87 v87.1.0
 	go.uber.org/zap v1.27.1
 	golang.org/x/crypto v0.49.0
 	golang.org/x/image v0.47.0
@@ -45,6 +47,7 @@ require (
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/soniakeys/unit v1.0.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect

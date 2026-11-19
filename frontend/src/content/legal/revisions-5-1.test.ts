@@ -41,9 +41,11 @@ const HOURS: Record<Locale, string> = {
 };
 
 describe("revisions 5.1 legal updates", () => {
-  it.each(locales)("%s: Terms, Privacy Policy and Refund Policy are dated 2026-11-13 and match LEGAL_VERSIONS", (l) => {
+  it.each(locales)("%s: Terms, Privacy Policy and Refund Policy are dated 2026-11-13 or later and match LEGAL_VERSIONS (re-dated by revisions 6.0)", (l) => {
     for (const d of ["terms", "privacy", "refund"] as const) {
-      expect(legalDocuments[d][l].meta).toMatchObject({ version: "2026-11-13", effective: "2026-11-13", lastUpdated: "2026-11-13" });
+      const { version, effective, lastUpdated } = legalDocuments[d][l].meta;
+      expect(version >= "2026-11-13").toBe(true);
+      expect({ effective, lastUpdated }).toEqual({ effective: version, lastUpdated: version });
       expect(legalDocuments[d][l].meta.version).toBe(LEGAL_VERSIONS[d]);
     }
   });

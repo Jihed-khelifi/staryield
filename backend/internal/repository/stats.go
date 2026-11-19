@@ -49,23 +49,27 @@ type GormStatsRepository struct{ db *gorm.DB }
 func NewStatsRepository(db *gorm.DB) *GormStatsRepository { return &GormStatsRepository{db: db} }
 
 // FreeToPaid: clients whose first started session with the advisor fell in
-// the range and was free, and how many of them later paid.
+// the range and started free (free minutes, free mode, or nothing charged),
+// and how many of them paid: later in that same session (revisions 6.0: a
+// free trial that continues after its hold, or simply goes on paying) or in
+// a later session.
 func (r *GormStatsRepository) FreeToPaid(ctx context.Context, psychicID uuid.UUID, from, to time.Time) (Ratio, error) {
 	var out Ratio
 	err := database.Conn(ctx, r.db).Raw(`
 		WITH firsts AS (
-		  SELECT DISTINCT ON (client_id) client_id, started_at, credits_charged
+		  SELECT DISTINCT ON (client_id) client_id, started_at, credits_charged, free_minutes_used, sponsored
 		  FROM chat_sessions
 		  WHERE psychic_id = @psychic AND started_at IS NOT NULL
 		  ORDER BY client_id, started_at, id
 		)
 		SELECT count(*) AS denominator,
-		       count(*) FILTER (WHERE EXISTS (
+		       count(*) FILTER (WHERE f.credits_charged > 0 OR EXISTS (
 		         SELECT 1 FROM chat_sessions later
 		         WHERE later.psychic_id = @psychic AND later.client_id = f.client_id
 		           AND later.started_at > f.started_at AND later.credits_charged > 0)) AS numerator
 		FROM firsts f
-		WHERE f.started_at >= @from AND f.started_at < @to AND f.credits_charged = 0`,
+		WHERE f.started_at >= @from AND f.started_at < @to
+		  AND (f.free_minutes_used > 0 OR f.sponsored OR f.credits_charged = 0)`,
 		sql.Named("psychic", psychicID), sql.Named("from", from), sql.Named("to", to)).Scan(&out).Error
 	return out, err
 }

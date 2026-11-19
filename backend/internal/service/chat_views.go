@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -63,6 +64,10 @@ type SessionView struct {
 	Sponsored        bool  `json:"sponsored"`
 	SponsoredMinutes int   `json:"sponsored_minutes"`
 	SponsoredCredits int64 `json:"sponsored_credits"`
+	// Hold is the open hold while the reading is held, else the reading's
+	// latest expired or revealed hold (the client's reveal UI after a reload;
+	// revisions 6.0, §26.1).
+	Hold *HoldView `json:"hold,omitempty"`
 }
 
 // SessionSummary is the end-of-session recap (sequence step 18). For the
@@ -100,8 +105,20 @@ type MessageView struct {
 	// LikedBy lists who liked the message (at most the two participants,
 	// omitted when nobody did; §23.3).
 	LikedBy []uuid.UUID `json:"liked_by,omitempty"`
-	// replyToID is the stored target, resolved into ReplyTo by decorate.
+	// revisions 6.0 (§26.1): the free-trial hold. Held marks a message the
+	// client cannot read yet (advisor and admin views); Locked is the client's
+	// view of it (body, attachments, reply_to and liked_by are left out,
+	// BodyLength says how long the text was). HoldID names the hold of a held
+	// or locked message. redactMessages is the only place that turns one into
+	// the other.
+	Held       bool       `json:"held,omitempty"`
+	Locked     bool       `json:"locked,omitempty"`
+	HoldID     *uuid.UUID `json:"hold_id,omitempty"`
+	BodyLength int        `json:"body_length,omitempty"`
+	// replyToID is the stored target, resolved into ReplyTo by decorate;
+	// bodyLen is the character count of the stored body.
 	replyToID *uuid.UUID
+	bodyLen   int
 }
 
 // CounterpartView is the other side of a conversation as seen by the
@@ -171,7 +188,8 @@ type viewer struct {
 func messageView(m *domain.Message) MessageView {
 	v := MessageView{ID: m.ID, ConversationID: m.ConversationID, SessionID: m.SessionID, Seq: m.Seq, SenderID: m.SenderID,
 		Kind: string(m.Kind), Body: m.Body, CreatedAt: m.CreatedAt,
-		OffSession: m.SessionID == nil && m.Kind != domain.MessageSystem, replyToID: m.ReplyToID}
+		OffSession: m.SessionID == nil && m.Kind != domain.MessageSystem, replyToID: m.ReplyToID,
+		Held: m.Held, HoldID: m.HoldID, bodyLen: utf8.RuneCountInString(m.Body)} // revisions 6.0
 	if m.ClientMsgID != nil {
 		v.ClientMsgID = *m.ClientMsgID
 	}
@@ -182,10 +200,12 @@ func messageView(m *domain.Message) MessageView {
 type participants struct {
 	svc   *ChatService
 	cache map[uuid.UUID]ParticipantView
+	// holds caches the holds of the sessions rendered in this call (§26.1).
+	holds map[uuid.UUID]*domain.ChatHold
 }
 
 func (c *ChatService) newParticipants() *participants {
-	return &participants{svc: c, cache: map[uuid.UUID]ParticipantView{}}
+	return &participants{svc: c, cache: map[uuid.UUID]ParticipantView{}, holds: map[uuid.UUID]*domain.ChatHold{}}
 }
 
 func (p *participants) client(ctx context.Context, id uuid.UUID) ParticipantView {
@@ -243,6 +263,10 @@ func (c *ChatService) sessionView(ctx context.Context, ps *participants, s *doma
 		// is the client's business (the platform funds it).
 		v.RatePerMinute = v.ListRatePerMinute
 		v.SponsoredCredits = int64(s.SponsoredMinutes) * v.ListRatePerMinute // revisions 3.0
+	}
+	if h := ps.holdOf(ctx, s); h != nil { // revisions 6.0 (§26.1)
+		hv := holdView(h, w)
+		v.Hold = &hv
 	}
 	if w.Admin || w.ID == s.PsychicID {
 		earned := s.PsychicEarnings

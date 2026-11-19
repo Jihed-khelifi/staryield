@@ -60,7 +60,12 @@ type RefundDeps struct {
 type RefundService struct {
 	d   RefundDeps
 	cfg RefundSettings
+	// onCredits is told after courtesy credits were granted (revisions 6.0, §26.1).
+	onCredits CreditsGrantedHook
 }
+
+// OnCreditsGranted installs the hook told after courtesy credits were granted.
+func (s *RefundService) OnCreditsGranted(fn CreditsGrantedHook) { s.onCredits = fn }
 
 // NewRefundService wires the refund service and plugs its payment info into
 // the billing service's transactions list.

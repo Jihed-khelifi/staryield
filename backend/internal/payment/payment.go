@@ -48,6 +48,15 @@ type CheckoutRequest struct {
 	// (revisions 5.1, §25.3). Adapters pass it to the processor when it
 	// supports one; the sandboxes ignore it.
 	StatementDescriptor string
+	// revisions 6.0 (§26.5): the provider customer the charge belongs to
+	// (fraud screening and dispute evidence; empty when none), where the
+	// browser returns after a redirect-based authentication step, what the
+	// charge is tagged with at the provider (purchase id, idempotency key) and
+	// the 3-D Secure policy ("automatic" or "any").
+	CustomerRef  string
+	ReturnURL    string
+	Metadata     map[string]string
+	ThreeDSecure string
 }
 
 // CheckoutResult is the provider response.
@@ -56,6 +65,13 @@ type CheckoutResult struct {
 	ProviderRef string
 	RedirectURL string
 	FailureCode string
+	// revisions 6.0 (§26.5): the customer step still needed (3-D Secure),
+	// the card that paid, the processor's risk assessment and the 3-D Secure
+	// outcome ("authenticated", "attempted", "not_supported", "failed" or "").
+	NextAction *NextAction
+	Card       *CardMeta
+	Risk       *RiskInfo
+	ThreeDS    string
 }
 
 // WebhookEvent is a verified provider notification. Legacy credit-purchase
@@ -73,6 +89,29 @@ type WebhookEvent struct {
 	// RefundRef is the provider's id of the refund (charge.refunded), used
 	// to recognise refunds the platform issued itself.
 	RefundRef string `json:"refund_ref,omitempty"`
+
+	// revisions 6.0 (§26.5). ProviderType is the provider's own event type
+	// (e.g. "charge.dispute.created") kept for the webhook log; ObjectRef the
+	// id of the object the event is about (dispute, refund, fraud warning,
+	// payment method). Type is always one of the Event* constants.
+	Livemode      bool       `json:"livemode,omitempty"`
+	ProviderType  string     `json:"provider_type,omitempty"`
+	ObjectRef     string     `json:"object_ref,omitempty"`
+	Currency      string     `json:"currency,omitempty"`
+	DisputeRef    string     `json:"dispute_ref,omitempty"`
+	DisputeStatus string     `json:"dispute_status,omitempty"`
+	DisputeReason string     `json:"dispute_reason,omitempty"`
+	EvidenceDueBy *time.Time `json:"evidence_due_by,omitempty"`
+	// Fraud warnings: whether the warning can still be acted on (refund
+	// before a dispute) and the issuer's fraud type.
+	Actionable bool   `json:"actionable,omitempty"`
+	FraudType  string `json:"fraud_type,omitempty"`
+	// RefundStatus is the provider status of the refund (pending,
+	// succeeded, failed, canceled) on refund events.
+	RefundStatus string    `json:"refund_status,omitempty"`
+	Card         *CardMeta `json:"card,omitempty"`
+	Risk         *RiskInfo `json:"risk,omitempty"`
+	ThreeDS      string    `json:"three_ds,omitempty"`
 }
 
 // Provider is a payment gateway.

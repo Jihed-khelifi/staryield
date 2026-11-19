@@ -38,12 +38,16 @@ const doc = (d: Doc | "refund", l: Locale) => legalDocuments[d][l];
 const DOCS = locales.flatMap((l) => (["privacy", "terms"] as const).map((d) => [d, l] as const));
 
 describe("revisions 5.0 legal updates", () => {
-  it.each(DOCS)("%s/%s is dated 2026-11-13 (re-dated by revisions 5.1)", (d, l) => {
-    expect(doc(d, l).meta).toMatchObject({ version: "2026-11-13", effective: "2026-11-13", lastUpdated: "2026-11-13" });
+  it.each(DOCS)("%s/%s is dated 2026-11-13 or later (re-dated by revisions 5.1 and 6.0)", (d, l) => {
+    const { version, effective, lastUpdated } = doc(d, l).meta;
+    expect(version >= "2026-11-13").toBe(true);
+    expect({ effective, lastUpdated }).toEqual({ effective: version, lastUpdated: version });
   });
 
-  it.each(locales)("%s: the Refund Policy is dated 2026-11-13 (re-dated by revisions 5.1)", (l) => {
-    expect(doc("refund", l).meta).toMatchObject({ version: "2026-11-13", effective: "2026-11-13", lastUpdated: "2026-11-13" });
+  it.each(locales)("%s: the Refund Policy is dated 2026-11-13 or later (re-dated by revisions 5.1 and 6.0)", (l) => {
+    const { version, effective, lastUpdated } = doc("refund", l).meta;
+    expect(version >= "2026-11-13").toBe(true);
+    expect({ effective, lastUpdated }).toEqual({ effective: version, lastUpdated: version });
   });
 
   describe("Terms", () => {

@@ -6,9 +6,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-13",
-    "effective": "2026-11-13",
-    "lastUpdated": "2026-11-13",
+    "version": "2026-11-19",
+    "effective": "2026-11-19",
+    "lastUpdated": "2026-11-19",
     "badge": "STARYIELD · POLITIQUES",
     "title": "Politique de remboursement et d’annulation"
   },
@@ -48,6 +48,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Les nouveaux utilisateurs éligibles reçoivent quatre minutes de consultation gratuites sans avoir à fournir de moyen de paiement. L’essai ne nécessite aucun achat, ne se transforme pas en abonnement et n’entraîne aucun prélèvement. Les minutes d’essai gratuites n’ont aucune valeur en espèces ni valeur remboursable."
+        },
+        {
+          "type": "p",
+          "text": "Si vos minutes offertes sont épuisées pendant une consultation en direct, la consultation est mise en attente pendant une courte durée au lieu de se terminer (voir les [Conditions d’utilisation](/terms#free-trials-and-promotional-offers)). La mise en attente n’est pas facturée : vous ne payez que si vous ajoutez des Crédits pour continuer, ou si vous choisissez ensuite de révéler les réponses masquées pendant la mise en attente, et le prix vous est indiqué au préalable."
         }
       ]
     },
@@ -215,6 +219,10 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
+          "text": "Remboursements par carte. Le remboursement d’un paiement par carte est crédité sur la carte d’origine via Stripe. Nous le transmettons à Stripe sous 5 jours ouvrés après l’approbation, puis votre banque peut avoir besoin de 5 à 10 jours ouvrés supplémentaires pour l’afficher sur votre relevé. Pour chaque remboursement, nous émettons un avoir, que vous retrouvez dans votre compte à côté de la facture d’origine."
+        },
+        {
+          "type": "p",
           "text": "Les remboursements sont généralement effectués dans la devise de l’achat initial. Les établissements financiers externes décident eux-mêmes de leurs délais de traitement et de la conversion des devises."
         }
       ]
@@ -231,6 +239,14 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Votre relevé peut afficher les achats sous la mention STARYIELD MEDIA LLC."
+        },
+        {
+          "type": "p",
+          "text": "Tant qu’un litige de paiement est ouvert, les Crédits non utilisés achetés avec le paiement contesté peuvent être gelés et les nouveaux achats suspendus, comme prévu dans nos [Conditions d’utilisation](/terms#chargebacks-and-payment-disputes). Un paiement contesté ne peut pas être également remboursé : nous répondons alors au litige."
+        },
+        {
+          "type": "p",
+          "text": "Si l’émetteur de votre carte ou Stripe nous signale qu’un paiement pourrait être frauduleux, nous pouvons le rembourser immédiatement sur la carte d’origine et examiner votre compte. Un avoir est également émis pour ce remboursement."
         }
       ]
     },

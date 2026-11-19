@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-13",
-    "effective": "2026-11-13",
-    "lastUpdated": "2026-11-13",
+    "version": "2026-11-19",
+    "effective": "2026-11-19",
+    "lastUpdated": "2026-11-19",
     "badge": "ACUERDO DE PRIVACIDAD DE STARYIELD",
     "title": "Política de Privacidad"
   },
@@ -97,7 +97,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Datos de nacimiento y cálculos. Utilizamos su fecha, hora y lugar de nacimiento para calcular su carta natal, su horóscopo y otras lecturas con nuestro propio software astronómico; no los enviamos a servicios de astrología de terceros. Cuando utiliza nuestras calculadoras gratuitas sin una cuenta, los datos de nacimiento que introduce solo se utilizan para obtener el resultado y no se almacenan. La calculadora del Camino de Vida se ejecuta íntegramente en su navegador. Los nombres de lugares proceden de la base de datos geográfica GeoNames (geonames.org, con licencia CC BY 4.0), que alojamos nosotros mismos."
+          "text": "Datos de nacimiento y cálculos. Utilizamos su fecha, hora y lugar de nacimiento para calcular su carta natal, su horóscopo y otras lecturas con nuestro propio software astronómico; no los enviamos a servicios de astrología de terceros. Cuando utiliza nuestras calculadoras gratuitas sin una cuenta, los datos de nacimiento que introduce solo se utilizan para obtener el resultado y no se almacenan, salvo que nos pida enviarle el informe por correo electrónico: en ese caso se conservan, cifrados, solo hasta que se envíe el correo (véase la [Sección 2.14](#calculator-report-emails)). La calculadora del Camino de Vida se ejecuta en su navegador, y solo recibimos sus datos de nacimiento si solicita su informe por correo electrónico. Los nombres de lugares proceden de la base de datos geográfica GeoNames (geonames.org, con licencia CC BY 4.0), que alojamos nosotros mismos."
         },
         {
           "type": "p",
@@ -110,6 +110,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Registros de facturación y lotes de créditos. Por cada compra de créditos conservamos un registro de la transacción, del paquete comprado, del importe pagado y de su moneda. También conservamos un registro de cada lote de Créditos de su Saldo, marcado como Créditos comprados o de bonificación e indicando cuántos siguen sin usar, para que los Créditos se utilicen en el orden descrito en nuestros Términos y los reembolsos se calculen correctamente. Estos registros forman parte de nuestros registros de facturación."
+        },
+        {
+          "type": "p",
+          "text": "Facturas y notas de crédito. Por cada compra de créditos emitimos una factura y, por cada reembolso, una nota de crédito, cada una con su propio número correlativo. Muestran su nombre, su correo electrónico y su país (si se conoce), el paquete y el importe, la marca de la tarjeta y sus cuatro últimos dígitos, la referencia del procesador de pagos y los datos de nuestra empresa. Puede consultarlas y descargarlas en su cuenta, y normalmente adjuntamos la factura a su correo de recibo."
         },
         {
           "type": "p",
@@ -144,6 +148,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Actualmente no ofrecemos el inicio de sesión con Apple, Facebook ni otras cuentas de terceros, y no recibimos datos de tiendas de aplicaciones. Podemos recibir información limitada sobre usted de nuestros procesadores de pagos (por ejemplo, el resultado de un pago, indicadores de prevención del fraude, reembolsos y contracargos) y de nuestro proveedor de correo electrónico (por ejemplo, si no se pudo entregar un mensaje dirigido a usted)."
+        },
+        {
+          "type": "p",
+          "text": "Disputas de pago, avisos de fraude y señales de riesgo. Cuando un pago con tarjeta se disputa, o Stripe o el emisor de la tarjeta nos avisa de que podría ser fraudulento, recibimos los detalles de la disputa o del aviso (importe, motivo, estado y plazos) y los registramos junto con la compra, así como las pruebas que presentamos. Con cada pago con tarjeta recibimos además de Stripe indicadores de riesgo (un nivel y una puntuación de riesgo, el país de la tarjeta y el resultado de cualquier autenticación 3-D Secure) y los conservamos con la transacción para prevenir el fraude."
         },
         {
           "type": "h3",
@@ -330,6 +338,38 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Almacenamos y protegemos estos mensajes como los demás mensajes descritos en la [Sección 2.5](#live-readings-ratings-and-notifications): solo son visibles para los dos participantes de la conversación, se conservan mientras la conversación exista (véase la [Sección 8](#data-retention)), y el personal autorizado solo puede revisar el texto para gestionar una disputa, una denuncia de seguridad o una obligación legal, con un motivo indicado y una anotación en el registro de auditoría. El otro participante recibe una notificación dentro de la aplicación y un contador de no leídos y, si la tiene activada, una notificación push, ninguna de las cuales incluye el texto del mensaje (véase la [Sección 2.11](#chat-notifications-and-drafts)). Para que la función sea equitativa, contamos los mensajes que envía cada participante por conversación durante un periodo móvil de 24 horas y registramos que se ha rechazado un mensaje cuando se alcanza el límite. Los mensajes escritos mientras una consulta en vivo está en pausa pertenecen a esa consulta. Las reglas de uso de esta función figuran en nuestros [Términos de uso](/terms#messages-outside-live-readings)."
+        },
+        {
+          "type": "p",
+          "text": "Respuestas ocultas durante una espera. Si una consulta en vivo se pone en espera porque se agotaron sus minutos gratuitos o sus Créditos (véanse nuestros [Términos de uso](/terms#free-trials-and-promotional-offers)), las respuestas que el asesor escribe entretanto se almacenan como cualquier otro mensaje, pero permanecen ocultas para usted hasta que continúe la consulta o decida revelarlas; registramos la espera, cuántas respuestas ocultó y, si las revela, el cargo correspondiente. Las respuestas ocultas se incluyen en su exportación de datos (véase la [Sección 5](#your-privacy-rights))."
+        },
+        {
+          "type": "h3",
+          "id": "calculator-report-emails",
+          "n": "2.14",
+          "title": "Correos con el informe de las calculadoras"
+        },
+        {
+          "type": "p",
+          "text": "En nuestras calculadoras de carta natal, de astrología y del Camino de Vida puede pedirnos que le enviemos por correo electrónico el informe que ve en pantalla. Para ello recogemos su dirección de correo electrónico, el idioma de la página y un país aproximado deducido de su dirección IP (véase la [Sección 2.3](#data-we-collect-automatically)). Sus datos de nacimiento se utilizan para calcular el informe y enviarlo, y se conservan, cifrados, solo hasta que se envía el correo; el contenido del mensaje, que contiene el informe, se elimina de nuestra cola de envío una vez enviado (véase la [Sección 8](#data-retention))."
+        },
+        {
+          "type": "p",
+          "text": "Qué conservamos. Por cada dirección conservamos un único registro: la dirección (almacenada cifrada, junto con un hash con clave que sirve para reconocerla), su idioma y su país, las calculadoras que ha utilizado, cuántos informes le hemos enviado, si eligió recibir correos comerciales y, en ese caso, un registro de consentimiento (la hora, si la casilla ya estaba marcada cuando la vio, la versión del texto de consentimiento, un hash unidireccional de su dirección IP y el agente de usuario de su navegador) y, si más adelante se da de baja, la hora en que lo hizo. No conservamos sus datos de nacimiento en este registro. Si tiene una cuenta con la misma dirección de correo electrónico, el registro queda vinculado a ella."
+        },
+        {
+          "type": "p",
+          "text": "Para qué lo usamos y durante cuánto tiempo. Usamos el registro para enviarle el informe que solicita (ejecución de un contrato con usted) y para conservar su elección sobre el marketing (su consentimiento) y así respetar una baja. Pedir un informe no le suscribe al marketing. Conservamos el registro hasta que nos pida borrarlo o, si está vinculado a su cuenta, hasta que se borre su cuenta; después de su baja lo usamos solo para recordar su elección. Puede pedirnos acceder a él o borrarlo mediante este [formulario de solicitud](/contact?topic=privacy) (véase la [Sección 5](#your-privacy-rights))."
+        },
+        {
+          "type": "h3",
+          "id": "marketing-emails",
+          "n": "2.15",
+          "title": "Correos comerciales"
+        },
+        {
+          "type": "p",
+          "text": "Si solicita un informe, puede elegir recibir por correo electrónico horóscopos, ofertas y novedades de Staryield. Solo enviamos estos correos con su consentimiento. Cuando la ley lo permite, por ejemplo en los Estados Unidos, la casilla puede aparecer ya marcada; puede desmarcarla antes de enviar, y registramos si estaba premarcada. En los demás países la casilla aparece sin marcar y no le enviamos nada a menos que la marque. Cada correo comercial incluye un enlace para darse de baja, y también puede desactivar las novedades comerciales en la [configuración de su cuenta](/profile/settings). Nunca vendemos su dirección de correo electrónico ni se la damos a nadie para su propio marketing. Los correos comerciales los envía por nuestra cuenta un proveedor de correo electrónico que actúa según nuestras instrucciones y recibe su dirección de correo electrónico, idioma y país."
         }
       ]
     },
@@ -441,6 +481,21 @@ const content: LegalDocumentContent = {
               "Interés legítimo (reservar los Servicios a adultos, como exigen nuestros Términos); Obligación legal cuando proceda"
             ],
             [
+              "Para enviarle por correo electrónico el informe de la calculadora que solicita y conservar constancia de sus elecciones de correo",
+              "Identificadores (correo electrónico, idioma, país); Correos con el informe de las calculadoras; Datos de nacimiento (solo hasta que se envía el informe)",
+              "Ejecución de un contrato con usted (el informe que solicita); Su consentimiento (correos comerciales); Interés legítimo (recordar que se dio de baja)"
+            ],
+            [
+              "Para emitir facturas y notas de crédito y conservarlas con fines contables y fiscales",
+              "Identificadores (nombre, correo electrónico, país); Datos de pago; Registros de facturación y lotes de créditos; Facturas y notas de crédito",
+              "Ejecución de un contrato con usted; Obligación legal (registros contables y fiscales)"
+            ],
+            [
+              "Para prevenir el fraude en los pagos y enviar pruebas a Stripe y a las redes de tarjetas cuando se disputa un pago",
+              "Identificadores; Datos de pago; Registro de consentimiento de la compra; Registros de facturación y lotes de créditos; Disputas de pago, avisos de fraude y señales de riesgo; Datos de actividad en línea (registro de las consultas utilizadas después de la compra)",
+              "Interés legítimo (véase la descripción); Obligación legal cuando corresponda"
+            ],
+            [
               "Conservar la prueba de las condiciones aceptadas en cada compra y responder a las disputas de pago y a las devoluciones de cargo",
               "Registro de consentimiento de la compra; Registros de facturación y lotes de créditos; Datos del método de pago y normas de las redes de tarjetas",
               "Interés legítimo (consulte la descripción)"
@@ -462,7 +517,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Al procesar pagos, reembolsos y devoluciones de cargo: para proteger nuestro negocio de reclamaciones fraudulentas; para tomar decisiones informadas y eficientes con respecto a las solicitudes de reembolso; para conservar la prueba de las condiciones que aceptó en cada compra y poder responder a las disputas de pago y cumplir las normas de las redes de tarjetas."
+          "text": "Al procesar pagos, reembolsos y devoluciones de cargo: para proteger nuestro negocio de reclamaciones fraudulentas; para tomar decisiones informadas y eficientes con respecto a las solicitudes de reembolso; para conservar la prueba de las condiciones que aceptó en cada compra y poder responder a las disputas de pago y cumplir las normas de las redes de tarjetas; para prevenir el fraude en los pagos y enviar pruebas a nuestro procesador de pagos y a las redes de tarjetas cuando se disputa un pago."
         },
         {
           "type": "p",
@@ -471,6 +526,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Al enviar comunicaciones de marketing: en jurisdicciones donde no se requiere consentimiento, nuestro interés legítimo es alentarlo a utilizar los Servicios, por ejemplo, para notificarle que el asesor (psíquico) está en línea; Para promocionar los Servicios, por ejemplo, si no compró los Servicios, podemos enviarle recordatorios por correo electrónico invitándolo a completar una compra."
+        },
+        {
+          "type": "p",
+          "text": "Al recordar sus elecciones de correo electrónico: para conservar constancia de que se dio de baja de los correos comerciales, o de que no se pudo entregar un mensaje a una dirección, y así no escribirle nunca en contra de su voluntad."
         },
         {
           "type": "p",
@@ -516,9 +575,10 @@ const content: LegalDocumentContent = {
           "type": "ul",
           "items": [
             "Alojamiento, almacenamiento y distribución: utilizamos Cloudflare para alojar nuestro sitio web, almacenar las imágenes subidas y las exportaciones de datos en el almacenamiento de objetos Cloudflare R2, distribuir el contenido y proteger los Servicios frente a ataques malintencionados. Nuestros servidores de aplicaciones y bases de datos funcionan en Railway.",
-            "Envío de correos electrónicos: utilizamos Cloudflare Email Service para enviar correos transaccionales, como mensajes de seguridad de la cuenta, recibos y notificaciones de exportación de datos. No lo utilizamos para enviar correos comerciales.",
+            "Envío de correos electrónicos: utilizamos Cloudflare Email Service para enviar correos transaccionales, como mensajes de seguridad de la cuenta, recibos con sus facturas, los informes de las calculadoras que solicita y notificaciones de exportación de datos. No lo utilizamos para enviar correos comerciales.",
+            "Envío de correos comerciales: si elige recibir correos comerciales (véase la [Sección 2.15](#marketing-emails)), su dirección de correo electrónico, idioma y país se entregan al proveedor de correo electrónico que los envía por nuestra cuenta.",
             "Notificaciones push: si activa las notificaciones push, se entregan a través del servicio push de su navegador (por ejemplo, Google, Mozilla, Apple o Microsoft). El contenido de cada notificación está cifrado para que el servicio push no pueda leerlo.",
-            "Procesamiento de pagos: los pagos con tarjeta de créditos los procesan procesadores de pagos externos. Según su país, su moneda, su cuenta y el producto adquirido, un pago puede gestionarlo Stripe u otro procesador de tarjetas; usted introduce los datos de su tarjeta directamente en el procesador, que solo comparte con nosotros un token de pago e información limitada de la tarjeta. Los retiros de los asesores se pagan mediante transferencia bancaria o PayPal.",
+            "Procesamiento de pagos: los pagos con tarjeta de créditos los procesa Stripe (Stripe, Inc. y sus filiales). Usted introduce los datos de su tarjeta directamente en Stripe, también cuando usa Apple Pay o Google Pay, por lo que nunca vemos el número completo de su tarjeta ni su código de seguridad. Enviamos a Stripe su correo electrónico, su nombre, el importe y la moneda, y una referencia de su compra. Mientras paga, Stripe.js, que se carga en su navegador desde js.stripe.com, recoge además datos del dispositivo y de la red (como su dirección IP, datos de su navegador y de su dispositivo y cómo interactúa con el formulario de pago) para prevenir el fraude. Stripe trata estos datos como nuestro proveedor de servicios y, para prevenir el fraude y cumplir sus propias obligaciones legales, como responsable del tratamiento independiente; consulte la política de privacidad de Stripe en https://stripe.com/privacy. Si encaminamos un pago a otro procesador de tarjetas, ese procesador recibe los mismos tipos de datos conforme a su propia política de privacidad. Los retiros de los asesores se pagan mediante transferencia bancaria o PayPal.",
             "Datos de lugares: utilizamos la base de datos geográfica GeoNames (CC BY 4.0) para sugerir lugares de nacimiento. Alojamos nosotros mismos una copia de esta base de datos, por lo que sus búsquedas no se envían a GeoNames.",
             "Analítica: nuestra analítica y nuestros informes de errores son propios y funcionan en nuestros propios sistemas. No utilizamos herramientas de analítica, de grabación de sesiones ni de publicidad de terceros. El widget de opiniones de Trustpilot descrito a continuación es el único contenido de terceros que incorporamos en nuestras páginas.",
             "Google (inicio de sesión): si decide registrarse o iniciar sesión con su cuenta de Google, Google actúa como proveedor de identidad. Nos facilita el identificador de su cuenta de Google, su dirección de correo electrónico y si ha verificado esa dirección; nosotros no enviamos a Google nada sobre sus lecturas, compras o mensajes. Google sabe que ha utilizado su cuenta de Google para iniciar sesión en Staryield y trata esa información conforme a su propia política de privacidad. Google no interviene si inicia sesión con su dirección de correo electrónico y su contraseña.",
@@ -527,6 +587,10 @@ const content: LegalDocumentContent = {
             "Asesores, consultores y contratistas independientes. De vez en cuando, podemos compartir información personal limitada con nuestros contratistas independientes, consultores, especialistas externos, socios y asesores. Procesan esta información en nuestro nombre para operar, mantener, proteger y mejorar los Servicios, y garantizar el cumplimiento legal y normativo. Les exigimos que utilicen la información sólo para estos fines, la protejan adecuadamente y la mantengan confidencial.",
             "Asesores (psíquicos): los asesores con los que chatea reciben sus mensajes (incluidos los enviados fuera de las consultas en vivo, véase la [Sección 2.13](#messages-outside-live-readings)) y la ficha de cliente descrita en la [Sección 2.5](#live-readings-ratings-and-notifications); la ficha incluye siempre su fecha de nacimiento y solo muestra su ciudad de nacimiento si decide compartirla. Una nota que un asesor escribe sobre usted solo se comparte con otros asesores si su autor decide compartirla, y únicamente con asesores que también han tenido una sesión con usted (véase la [Sección 2.7](#advisor-notes))."
           ]
+        },
+        {
+          "type": "p",
+          "text": "Disputas de pago. Si usted o su banco disputan un pago, enviamos a nuestro procesador de pagos Stripe, que los transmite a las redes de tarjetas y a su banco, las pruebas necesarias para responder a la disputa: su nombre y correo electrónico, la compra y su fecha, el registro de las condiciones que aceptó con la compra (véase la [Sección 2.1](#data-you-directly-provide-to-us)), un registro de las consultas que utilizó después de la compra (fecha, asesor, minutos y Créditos) y la factura. Nunca enviamos el contenido de sus mensajes."
         },
         {
           "type": "p",
@@ -630,7 +694,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Puede descargar una copia de sus datos personales en cualquier momento en la [configuración de su cuenta](/profile/settings), en Datos y privacidad. Preparamos un archivo ZIP con su cuenta y su perfil, sus preferencias y consentimientos, los dispositivos con sesión iniciada, sus métodos de inicio de sesión (por ejemplo, el correo electrónico de una cuenta de Google vinculada), sus compras y sus transacciones, su historial de créditos, sus conversaciones (con las respuestas y los «Me gusta») y las imágenes que subió, sus mensajes guardados, sus notificaciones y sus valoraciones. Cuando está listo, se lo notificamos en la aplicación y por correo electrónico; el enlace de descarga solo puede utilizarse una vez y el archivo se elimina a los 7 días. Las notas que los asesores escribieron sobre usted no forman parte de esta exportación porque contienen las observaciones propias de los asesores; puede solicitarlas mediante este [formulario de solicitud](/contact?topic=privacy) y nuestro personal se las facilitará tras revisar su solicitud."
+          "text": "Puede descargar una copia de sus datos personales en cualquier momento en la [configuración de su cuenta](/profile/settings), en Datos y privacidad. Preparamos un archivo ZIP con su cuenta y su perfil, sus preferencias y consentimientos, los dispositivos con sesión iniciada, sus métodos de inicio de sesión (por ejemplo, el correo electrónico de una cuenta de Google vinculada), sus compras y sus transacciones, su historial de créditos, sus conversaciones (con las respuestas y los «Me gusta», y las respuestas del asesor que se le ocultaron durante una espera) y las imágenes que subió, sus mensajes guardados, sus notificaciones y sus valoraciones. Cuando está listo, se lo notificamos en la aplicación y por correo electrónico; el enlace de descarga solo puede utilizarse una vez y el archivo se elimina a los 7 días. Las notas que los asesores escribieron sobre usted no forman parte de esta exportación porque contienen las observaciones propias de los asesores; puede solicitarlas mediante este [formulario de solicitud](/contact?topic=privacy) y nuestro personal se las facilitará tras revisar su solicitud."
         },
         {
           "type": "h4",
@@ -694,7 +758,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "En particular, si transferimos datos personales procedentes del Espacio Económico Europeo o del Reino Unido a países con un nivel adecuado de protección de datos, nos basamos en las decisiones de adecuación de la Comisión Europea; por ejemplo, podemos transferir datos personales a proveedores de servicios de los Estados Unidos que participan en el Marco de Privacidad de Datos UE-EE. UU. Si transferimos datos personales procedentes del Espacio Económico Europeo o del Reino Unido a países sin un nivel adecuado de protección de datos, nos basamos en las Cláusulas Contractuales Tipo aprobadas por la Comisión Europea (con el anexo del Reino Unido cuando corresponda). Nuestros proveedores de servicios, incluidos Cloudflare y nuestros procesadores de pagos, pueden tratar datos personales en los Estados Unidos y en otros países. Google (en los Estados Unidos) recibe datos cuando decide iniciar sesión con su cuenta de Google, y Trustpilot A/S (en Dinamarca) los recibe cuando su widget de opiniones se carga en su navegador; cada uno trata esos datos conforme a su propia política de privacidad."
+          "text": "En particular, si transferimos datos personales procedentes del Espacio Económico Europeo o del Reino Unido a países con un nivel adecuado de protección de datos, nos basamos en las decisiones de adecuación de la Comisión Europea; por ejemplo, podemos transferir datos personales a proveedores de servicios de los Estados Unidos que participan en el Marco de Privacidad de Datos UE-EE. UU. Si transferimos datos personales procedentes del Espacio Económico Europeo o del Reino Unido a países sin un nivel adecuado de protección de datos, nos basamos en las Cláusulas Contractuales Tipo aprobadas por la Comisión Europea (con el anexo del Reino Unido cuando corresponda). Nuestros proveedores de servicios, incluidos Cloudflare, Stripe y nuestros demás procesadores de pagos, pueden tratar datos personales en los Estados Unidos y en otros países. Google (en los Estados Unidos) recibe datos cuando decide iniciar sesión con su cuenta de Google, y Trustpilot A/S (en Dinamarca) los recibe cuando su widget de opiniones se carga en su navegador; cada uno trata esos datos conforme a su propia política de privacidad."
         }
       ]
     },
@@ -731,6 +795,14 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Registros de facturación y de reembolsos. Los registros de compras de créditos, lotes de créditos y solicitudes de reembolso (la transacción, el paquete, los Créditos utilizados y restantes, el motivo, los detalles, el estado y la resolución) se conservan como registros financieros durante el tiempo que exijan las normas contables, fiscales y de prescripción de las disputas, y no se eliminan cuando cierra su cuenta. Cuando se borra su cuenta, se eliminan los detalles que escribió en una solicitud de reembolso y nuestras notas sobre su resolución; se conservan los importes, los Créditos, el estado y las fechas. El hash unidireccional de la tarjeta utilizado para el paquete de bienvenida se conserva junto con el registro de la oferta mientras deba hacerse cumplir el límite de la oferta, es decir, mientras se conserve ese registro de facturación. El indicador de edad se conserva mientras su cuenta exista. El registro de consentimiento de la compra se conserva junto con el registro de facturación de la compra, mientras se conserve este."
+        },
+        {
+          "type": "p",
+          "text": "Facturas y notas de crédito. Las facturas y las notas de crédito son registros contables. Las conservamos durante el tiempo que exijan las leyes contables y fiscales, incluso después de que cierre o borre su cuenta, sobre la base de nuestras obligaciones legales. Cuando se borra su cuenta, el nombre, el correo electrónico y el país que figuran en ellas permanecen sellados (cifrados) y solo se utilizan con fines contables, fiscales y jurídicos. Los registros de disputas de pago y de avisos de fraude se conservan junto con el registro de facturación de la compra."
+        },
+        {
+          "type": "p",
+          "text": "Los registros de los correos con el informe de las calculadoras se conservan hasta que nos pida borrarlos o hasta que se borre la cuenta a la que están vinculados (véase la [Sección 2.14](#calculator-report-emails)). Los datos de nacimiento utilizados para un informe se conservan solo hasta que se envía su correo."
         },
         {
           "type": "p",
@@ -831,7 +903,7 @@ const content: LegalDocumentContent = {
             ],
             [
               "Información de actividad en Internet u otras redes electrónicas (su interacción con nuestro sitio web)",
-              "Proveedores de alojamiento, almacenamiento y distribución; Trustpilot (widget de opiniones, datos del navegador y dirección de la página)"
+              "Proveedores de alojamiento, almacenamiento y distribución; Trustpilot (widget de opiniones, datos del navegador y dirección de la página); Procesadores de pagos (datos del dispositivo y de la red recogidos mientras paga, para prevenir el fraude)"
             ],
             [
               "Datos de geolocalización (solo ubicación aproximada)",

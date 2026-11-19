@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useWatch } from "react-hook-form";
 import * as yup from "yup";
-import { ArrowLeft, LockKeyhole } from "lucide-react";
+import { ArrowLeft, LoaderCircle, LockKeyhole } from "lucide-react";
 
 import { COMPANY } from "@/config/company";
 import { useI18n } from "@/i18n/i18n-provider";
@@ -11,6 +11,8 @@ import type { TranslateCopy } from "@/i18n/translate-copy";
 import { billingApi, purchaseCredits, type PaymentMethod } from "@/lib/api/billing";
 import { toApiError } from "@/lib/api/errors";
 import type { PricingPack } from "@/lib/api/pricing";
+import { waitForPurchase } from "@/lib/api/purchase-stream";
+import type { Purchase } from "@/lib/api/types";
 import { useSession } from "@/lib/auth/session-provider";
 import { classifyPurchaseFailure } from "@/lib/billing/top-up";
 import type { AttemptKey } from "@/lib/billing/use-attempt-key";
@@ -18,6 +20,7 @@ import { purchaseConsent } from "@/lib/legal/versions";
 import { applyApiError } from "@/lib/forms/server-errors";
 import { keepFocusOnPress } from "@/lib/forms/submit-press";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
+import { isHttpsUrl, runNextAction } from "@/lib/payments/next-action";
 import type { PaymentFieldsHandle } from "@/lib/payments/payment-fields";
 import { formatPackPrice } from "@/lib/pricing";
 import { emailRule } from "@/lib/schemas/common";
@@ -68,6 +71,12 @@ async function savedCards(signal: AbortSignal): Promise<PaymentMethod[]> {
  * on screen travel with the purchase as consent evidence (§25.2). The
  * acknowledgement next to the button still states what is bought. When card
  * payments are off for the account, the provider's own checkout page is used.
+ *
+ * Revisions 6.0 (§26.5): a purchase can come back `pending` (3-D Secure,
+ * processing). A `next_action` is run first (the element's handle for a new
+ * card, `runNextAction` for a saved one), then the purchase stream reports the
+ * outcome. The dialog never navigates, the form stays locked until the outcome
+ * is known, and "Confirming your payment…" says what is happening.
  */
 type StepProps = {
   pack: PricingPack;
@@ -110,6 +119,10 @@ function PaymentForm({ pack, attempt, onBack, onPurchased, onOfferUnavailable, s
   const method = useWatch({ control: form.control, name: "method" });
   const receipt = useWatch({ control: form.control, name: "receipt" });
   const fields = React.useRef<PaymentFieldsHandle>(null);
+  const [confirming, setConfirming] = React.useState(false);
+  // Closing the dialog while a payment is confirming stops listening (the wallet still updates by realtime).
+  const watch = React.useRef<AbortController | null>(null);
+  React.useEffect(() => () => watch.current?.abort(), []);
   const [fieldsStatus, setFieldsStatus] = React.useState<PaymentFieldsStatus>("loading");
   const receiptId = React.useId();
   const methodId = React.useId();
@@ -117,6 +130,22 @@ function PaymentForm({ pack, attempt, onBack, onPurchased, onOfferUnavailable, s
   const newCard = method === "new";
   // Ready when the provider fields loaded, or when card payments are off for this account.
   const paymentReady = !newCard || fieldsStatus === "ready" || fieldsStatus === "unavailable";
+
+  /** A purchase that will not change any more. */
+  function settle(purchase: Purchase) {
+    if (purchase.status === "succeeded") {
+      // The response carries the new wallet; the realtime wallet.updated event says the same.
+      if (purchase.wallet) setWallet(purchase.wallet);
+      toast.show({ tone: "success", message: text("{value0} credits added to your balance.", { value0: purchase.credits.toLocaleString(locale) }) });
+      onPurchased();
+    } else if (purchase.status === "failed") {
+      // Final for this key (renewed above): the next try is a new purchase.
+      form.setError("root.server", { type: "declined", message: text(declineMessage(purchase.failure_reason)) });
+    } else {
+      toast.show({ tone: "info", message: text("Your payment is processing. Credits appear as soon as it is confirmed.") });
+      onPurchased();
+    }
+  }
 
   async function pay(values: PaymentValues) {
     try {
@@ -135,18 +164,37 @@ function PaymentForm({ pack, attempt, onBack, onPurchased, onOfferUnavailable, s
         ...payment,
       });
       attempt.renew();
-      if (purchase.next_action?.url && /^https:\/\//.test(purchase.next_action.url)) {
-        window.location.assign(purchase.next_action.url);
+      const action = purchase.next_action;
+      if (action?.url && isHttpsUrl(action.url)) {
+        window.location.assign(action.url);
         return;
       }
-      if (purchase.status === "succeeded") {
-        // The response carries the new wallet; the realtime wallet.updated event says the same.
-        if (purchase.wallet) setWallet(purchase.wallet);
-        toast.show({ tone: "success", message: text("{value0} credits added to your balance.", { value0: purchase.credits.toLocaleString(locale) }) });
-      } else {
-        toast.show({ tone: "info", message: text("Your payment is processing. Credits appear as soon as it is confirmed.") });
+      if (purchase.status !== "pending") {
+        settle(purchase);
+        return;
       }
-      onPurchased();
+      // Pending: 3-D Secure first (when asked), then the stream reports the outcome.
+      const controller = new AbortController();
+      watch.current?.abort();
+      watch.current = controller;
+      setConfirming(true);
+      if (action) {
+        const handle = newCard && fieldsStatus === "ready" && fields.current ? fields.current.handleNextAction : runNextAction;
+        const result = await handle(action);
+        if (controller.signal.aborted) return;
+        if (result.ok === false) {
+          form.setError("root.server", { type: "declined", message: result.message || text(declineMessage("authentication_failed")) });
+          return;
+        }
+      }
+      const outcome = await waitForPurchase(purchase.id, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (outcome.kind === "final") settle(outcome.purchase);
+      else {
+        // Timeout (it settles by webhook) or an unreadable stream: not a failure.
+        toast.show({ tone: "info", message: text("Your payment is processing. Credits appear as soon as it is confirmed.") });
+        onPurchased();
+      }
     } catch (err) {
       const e = toApiError(err);
       if (e.code === "aborted") return;
@@ -174,6 +222,8 @@ function PaymentForm({ pack, attempt, onBack, onPurchased, onOfferUnavailable, s
           if (e.code === "validation_failed") attempt.renew();
           applyApiError(form, err, { text, fieldMap: { payment_token: "method", payment_method_id: "method" } });
       }
+    } finally {
+      setConfirming(false);
     }
   }
 
@@ -223,12 +273,28 @@ function PaymentForm({ pack, attempt, onBack, onPurchased, onOfferUnavailable, s
             />
           ) : null}
           {newCard ? (
-            <PaymentFields purpose="credits" cardholder={user?.display_name} disabled={submitting} onStatus={setFieldsStatus} ref={fields} />
+            <PaymentFields
+              purpose="credits"
+              cardholder={user?.display_name}
+              disabled={submitting}
+              onStatus={setFieldsStatus}
+              genericNote={
+                <p className="top-up-secure">
+                  <LockKeyhole size={14} aria-hidden className="shrink-0" />
+                  {text("Card details are entered with our payment provider and never reach or stay on Staryield servers.")}
+                </p>
+              }
+              ref={fields}
+            />
           ) : null}
-          <p className="top-up-secure">
-            <LockKeyhole size={14} aria-hidden className="shrink-0" />
-            {text("Card details are entered with our payment provider and never reach or stay on Staryield servers.")}
-          </p>
+          {confirming ? (
+            <div className="top-up-confirming" role="status" data-testid="top-up-confirming">
+              <LoaderCircle aria-hidden className="top-up-confirming-icon size-4 shrink-0" />
+              <p>
+                {text("Confirming your payment…")} <span>{text("Keep this window open: your credits appear here as soon as your bank confirms.")}</span>
+              </p>
+            </div>
+          ) : null}
           <FormField
             control={form.control}
             name="receipt"
@@ -287,7 +353,7 @@ function PaymentForm({ pack, attempt, onBack, onPurchased, onOfferUnavailable, s
             onMouseDown={keepFocusOnPress}
             data-testid="checkout-pay"
           >
-            {submitting ? text("Processing payment…") : text("Pay {value0} USD", { value0: price })}
+            {confirming ? text("Confirming your payment…") : submitting ? text("Processing payment…") : text("Pay {value0} USD", { value0: price })}
           </Button>
           <PurchaseAcknowledgement pack={pack} />
           <AcceptedCards label={text("We accept")} className="top-up-cards" />

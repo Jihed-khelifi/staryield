@@ -33,7 +33,8 @@ const (
 	// which instances announce a site configuration change.
 	SiteChangedChannel = "site:config:changed"
 
-	siteCacheKey      = "site:config:v2" // v2: adds off_session (an older copy would read as disabled)
+	siteCacheKey      = "site:config:v3" // v3: adds trial_hold, payment_policies, calculator_report (revisions 6.0)
+	siteCacheKeyV2    = "site:config:v2" // written by instances that predate revisions 6.0; dropped with v3
 	siteCacheKeyV1    = "site:config:v1" // written by instances that predate off_session; dropped with v2
 	siteStatsKey      = "site:free-mode:stats:v1"
 	siteLocalTTL      = 10 * time.Second
@@ -68,6 +69,9 @@ type SiteDeps struct {
 	Clock clock.Clock
 	Log   *zap.Logger
 	Cfg   SiteSettings
+	// HoldStats serves the free-trial hold figures of the admin card (revisions
+	// 6.0, §26.1); nil leaves them at zero.
+	HoldStats HoldStatsReader
 }
 
 // BannerSettings is the promo bar's own switch.
@@ -142,6 +146,12 @@ type siteSnapshot struct {
 	OffSession OffSessionSettings  `json:"off_session"`
 	Items      []domain.SiteBanner `json:"items"`
 	Defaults   bool                `json:"defaults,omitempty"`
+	// revisions 6.0 (§26.0). The zero values are the fail-closed defaults
+	// (site_revisions6.go): no hold, the protective payment policies, no
+	// e-mail report.
+	TrialHold        TrialHoldSettings        `json:"trial_hold"`
+	PaymentPolicies  PaymentPolicies          `json:"payment_policies"`
+	CalculatorReport CalculatorReportSettings `json:"calculator_report"`
 }
 
 // SiteService serves and administers the site configuration.
@@ -198,7 +208,7 @@ func (s *SiteService) dropLocal() {
 func (s *SiteService) changed(ctx context.Context) {
 	s.dropLocal()
 	if s.d.Cache != nil {
-		warnErr(ctx, "site: drop cached config", s.d.Cache.Del(ctx, siteCacheKey, siteCacheKeyV1, siteStatsKey))
+		warnErr(ctx, "site: drop cached config", s.d.Cache.Del(ctx, siteCacheKey, siteCacheKeyV2, siteCacheKeyV1, siteStatsKey))
 	}
 	if s.d.Bus != nil {
 		warnErr(ctx, "site: announce config change", s.d.Bus.Publish(ctx, SiteChangedChannel, "changed"))
@@ -215,6 +225,9 @@ func (s *SiteService) defaults() *siteSnapshot {
 		Free:     freeModeDoc{Version: 1, UpdatedAt: now},
 		Items:    []domain.SiteBanner{},
 		Defaults: true,
+		// revisions 6.0: no hold and no e-mail report (zero values); the
+		// protective payment policies.
+		PaymentPolicies: defaultPaymentPolicies(now),
 	}
 }
 
@@ -305,6 +318,13 @@ func (s *SiteService) fromDB(ctx context.Context) (*siteSnapshot, error) {
 			snap.Free = freeModeFrom(st)
 		case domain.SiteSettingOffSession:
 			snap.OffSession = offSessionFrom(st)
+		// revisions 6.0 (§26.0)
+		case domain.SiteSettingTrialHold:
+			snap.TrialHold = trialHoldFrom(st)
+		case domain.SiteSettingPaymentPolicies:
+			snap.PaymentPolicies = paymentPoliciesFrom(st)
+		case domain.SiteSettingCalculatorReport:
+			snap.CalculatorReport = calculatorReportFrom(st)
 		}
 	}
 	return snap, nil

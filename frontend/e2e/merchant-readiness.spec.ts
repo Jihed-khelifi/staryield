@@ -134,10 +134,10 @@ test.describe("legal documents without memberships", () => {
     await expect(root).not.toContainText(/Premium Membership/i);
   });
 
-  test("the documents are dated 13.11.2026 / 2026-11-13 in the header", async ({ page }) => {
+  test("the documents are dated 19.11.2026 / 2026-11-19 in the header", async ({ page }) => {
     for (const doc of ["terms", "privacy"]) {
       await page.goto(`/en/${doc}`);
-      await expect(page.locator("[data-legal-document] header time").first()).toHaveAttribute("datetime", "2026-11-13");
+      await expect(page.locator("[data-legal-document] header time").first()).toHaveAttribute("datetime", "2026-11-19");
     }
   });
 });

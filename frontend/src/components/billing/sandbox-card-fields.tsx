@@ -7,6 +7,7 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { ApiError } from "@/lib/api/errors";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { cardBrand, cardFieldsSchema, digits, formatCardNumber, formatExpiry, parseExpiry, type CardFieldsValues } from "@/lib/payments/card";
+import { runNextAction } from "@/lib/payments/next-action";
 import { sandboxToken, sandboxTokenPrefix, type PaymentFieldsProps } from "@/lib/payments/payment-fields";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
@@ -45,6 +46,8 @@ export function SandboxCardFields({ config, disabled, variant = "dialog", cardho
         const last4 = digits(values.number).slice(-4);
         return { provider: config.provider, token: sandboxToken(prefix, { brand, last4, month: expiry.month, year: expiry.year }), brand, last4 };
       },
+      // revisions 6.0: the sandbox's `sandbox_3ds` settles by itself, so there is nothing to show.
+      handleNextAction: (next) => runNextAction(next),
     }),
     [config, form]
   );

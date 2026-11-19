@@ -175,8 +175,7 @@ export function SubscribeDialog({
               ) : null}
               <CardPicker
                 methods={methods}
-                purpose="subscription"
-                planVersionId={plan.version_id}
+                purpose="method"
                 disabled={form.formState.isSubmitting}
                 onMethodAdded={onMethodAdded}
                 ref={picker}
@@ -294,7 +293,7 @@ export function ChangeCardDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={(event) => dialogSubmit(form, submit)(event)} noValidate className="settings-dialog-form">
-            <CardPicker methods={others} purpose="subscription" disabled={form.formState.isSubmitting} onMethodAdded={onMethodAdded} ref={picker} />
+            <CardPicker methods={others} purpose="method" disabled={form.formState.isSubmitting} onMethodAdded={onMethodAdded} ref={picker} />
             <FormRootError />
             <DialogFooter>
               <DialogClose asChild>
@@ -383,7 +382,8 @@ export function AddCardDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={(event) => dialogSubmit(form, submit)(event)} noValidate className="settings-dialog-form">
-            <PaymentFields purpose="subscription" variant="dialog" disabled={form.formState.isSubmitting} onStatus={setStatus} ref={fields} />
+            {/* revisions 6.0 (§26.5): saving a card is its own purpose; Stripe confirms a SetupIntent and returns the payment method id. */}
+            <PaymentFields purpose="method" variant="dialog" disabled={form.formState.isSubmitting} onStatus={setStatus} ref={fields} />
             {firstCard ? null : (
               <FormField
                 control={form.control}

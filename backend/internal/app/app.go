@@ -29,6 +29,7 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/migrations"
 	"github.com/Jihed-khelifi/staryield/backend/internal/oidc"
 	"github.com/Jihed-khelifi/staryield/backend/internal/payment"
+	"github.com/Jihed-khelifi/staryield/backend/internal/payment/stripepay"
 	"github.com/Jihed-khelifi/staryield/backend/internal/push"
 	"github.com/Jihed-khelifi/staryield/backend/internal/ratelimit"
 	"github.com/Jihed-khelifi/staryield/backend/internal/realtime"
@@ -270,6 +271,10 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		provider = payment.Disabled{}
 		log.Warn("payments disabled: credit purchases are refused until a provider is configured")
 	}
+	if cfg.Payments.Provider == config.StripeProvider {
+		// revisions 6.0 (§26.5): the hosted checkout stays off; purchases are charged through the registry's providers.
+		provider = payment.Disabled{}
+	}
 	if _, off := store.(storage.Disabled); off {
 		log.Warn("object storage disabled: avatar uploads are refused until STARYIELD_STORAGE_DRIVER=r2")
 	}
@@ -398,6 +403,15 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 				providers = append(providers, payment.NewSandboxA(proc, cfg.Payments.WebhookSecret, cfg.Payments.WebhookTolerance))
 			case "sandbox_b":
 				providers = append(providers, payment.NewSandboxB(proc))
+			case config.StripeProvider: // revisions 6.0 (§26.5): config validated the keys
+				sp, err := stripepay.New(stripepay.Options{SecretKey: cfg.Stripe.SecretKey, PublishableKey: cfg.Stripe.PublishableKey,
+					WebhookSecret: cfg.Stripe.WebhookSecret, APIBase: cfg.Stripe.APIBase, Timeout: cfg.Stripe.Timeout,
+					WebhookTolerance: cfg.Payments.WebhookTolerance, Logger: log, Now: clk.Now})
+				if err != nil {
+					return nil, fmt.Errorf("app: stripe: %w", err)
+				}
+				providers = append(providers, sp)
+				log.Info("stripe payments enabled", zap.Bool("livemode", sp.Livemode()))
 			}
 		}
 		registry = payment.NewRegistry(cfg.Payments.DefaultProvider, providers...)
@@ -407,7 +421,8 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Events: publisher, Notify: dispatcher, Tracker: track, Clock: clk},
 		service.BillingSettings{Currency: cfg.Payments.Currency, RenewalLease: cfg.Payments.RenewalLease, GracePeriod: cfg.Payments.GracePeriod,
 			IncompleteTTL: cfg.Payments.IncompleteTTL, MaxPaymentMethods: cfg.Payments.MaxPaymentMethods, IPHashSecret: cfg.Analytics.IPHashSecret,
-			MembershipsEnabled: cfg.Billing.MembershipsEnabled, StatementDescriptor: cfg.Payments.StatementDescriptor}) // revisions 5.1
+			MembershipsEnabled: cfg.Billing.MembershipsEnabled, StatementDescriptor: cfg.Payments.StatementDescriptor, // revisions 5.1
+			FrontendURL: cfg.App.FrontendURL}) // revisions 6.0
 	// revisions 5.0: refund requests (§24.4) and the revenue report (§24.5).
 	refundRepo := repository.NewRefundRepository(db)
 	refundSvc := service.NewRefundService(service.RefundDeps{Tx: txm, Repo: refundRepo, Billing: billingSvc,
@@ -434,10 +449,32 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	// through Pub/Sub. Registration and chat requests read it through hooks.
 	siteSvc := service.NewSiteService(service.SiteDeps{Tx: txm, Repo: repository.NewSiteRepository(db), Cache: kv,
 		Bus: cache.NewRedisBus(rdb, prefix), Audit: audit, Clock: clk, Log: log.With(zap.String("component", "site")),
+		HoldStats: chatRepo, // revisions 6.0 (§26.1)
 		Cfg: service.SiteSettings{AllowedHosts: cfg.Links.AllowedHosts, SignupFallbackMinutes: cfg.Billing.SignupFreeMinutes,
 			IPHashSecret: cfg.Analytics.IPHashSecret, GoogleEnabled: cfg.Google.Enabled(),
 			MembershipsEnabled: cfg.Billing.MembershipsEnabled}}) // revisions 5.1
 	authSvc.SetSignupOffer(siteSvc.SignupFreeMinutes)
+	billingSvc.WithPolicies(siteSvc.PaymentPolicies) // revisions 6.0 (§26.5): dispute, fraud-warning and 3-D Secure policies
+	// revisions 6.0 (§26.6): invoices and credit notes. Issued after the money
+	// moved (outside its transaction), attached to the e-mails that announce
+	// them (the outbox resolves the reference when it delivers) and backfilled by
+	// a job when an inline attempt failed.
+	invoiceSvc := service.NewInvoiceService(service.InvoiceDeps{Tx: txm, Repo: repository.NewInvoiceRepository(db),
+		Billing: repository.NewBillingRepository(db), Credits: credits, Users: users, Sealer: sealer, Audit: audit, Clock: clk,
+		Log: log.With(zap.String("component", "invoices"))},
+		service.InvoiceSettings{StatementDescriptor: cfg.Payments.StatementDescriptor, SupportEmail: cfg.Mail.SupportInbox,
+			FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret})
+	creditSvc.WithInvoicer(invoiceSvc).WithInvoiceLookup(invoiceSvc)
+	billingSvc.WithInvoicer(invoiceSvc).WithInvoiceLookup(invoiceSvc)
+	mailSvc.RegisterAttachments(service.InvoiceAttachmentKind, invoiceSvc)
+	// end revisions 6.0 (§26.6): invoices
+	// revisions 6.0 (§26.5): payment operations. The webhook log, disputes and fraud warnings, the
+	// purchase gate (open dispute), the purchase stream's relay and the alert e-mails to the support inbox.
+	billingSvc.WithPaymentOps(repository.NewPaymentOpsRepository(db), service.PaymentOpsSettings{FrontendURL: cfg.App.FrontendURL,
+		ConsoleURL: cfg.Admin.ConsoleURL, SupportInbox: cfg.Mail.SupportInbox}, mailSvc)
+	creditSvc.WithPurchaseGate(billingSvc.PurchaseGate)
+	creditSvc.OnPurchaseSettled(creditSvc.PublishPurchaseUpdate)
+	billingSvc.WithInvoicePDFs(invoiceSvc) // dispute evidence attaches the purchase's invoice (§26.5, §26.6)
 	// revisions 5.0: pricing catalog (§24.1) and the welcome offer (§24.2). The
 	// catalog snapshot is cached like the site configuration and invalidated on
 	// every pack or pricing-settings write; the welcome offer's card keys use a
@@ -453,6 +490,15 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	// end revisions 5.0: pricing
 	chatSvc.SetFreeMode(siteSvc.FreeModeActive)
 	chatSvc.SetOffSessionSettings(siteSvc.OffSessionSettings) // revisions 3.3: messages outside a live chat
+	// revisions 6.0 (§26.1): free-trial hold. A purchase that succeeded, an admin
+	// credit grant and courtesy credits resume the client's held readings.
+	chatSvc.SetTrialHold(siteSvc.TrialHold)
+	creditSvc.OnPurchaseSettled(func(ctx context.Context, p *domain.CreditPurchase) {
+		if p.Status == domain.PurchaseSucceeded {
+			chatSvc.ResumeHolds(ctx, p.UserID)
+		}
+	})
+	refundSvc.OnCreditsGranted(chatSvc.ResumeHolds)
 	// --- end site settings ---
 	// --- identity: devices, settings, consents, exports, closure ---
 	sessionsRepo := repository.NewSessionRepository(db)
@@ -493,6 +539,18 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 			IPHashSecret: cfg.Analytics.IPHashSecret}})
 	adminSvc.SetIdentities(identities)
 	// end revisions 4.0: Sign in with Google
+	// revisions 6.0 (§26.4): the calculators' e-mail report. The unsubscribe tokens are keyed with a key
+	// derived (own label) from the data encryption key; the per-address budget scales with the rate-limit
+	// scale like the other service-level rules.
+	reportSvc := service.NewCalculatorReportService(service.ReportDeps{Tx: txm, Leads: repository.NewEmailLeadRepository(db), Users: users,
+		Astro: astroSvc, Mail: mailSvc, Sealer: sealer, Audit: audit, Limiter: limiter, Tracker: track, Clock: clk,
+		Settings: siteSvc.CalculatorReport,
+		Cfg: service.ReportSettings{FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret,
+			UnsubscribeKey: security.Keyed(string(key), "staryield:marketing-unsubscribe:v1", 0),
+			AddressRule:    service.ReportAddressRule.Scaled(cfg.RateLimit.Scale)}})
+	authSvc.SetRegistrationHook(reportSvc.LinkRegistration)
+	purgeCalcLead := service.PurgeAll(calculatorSvc, reportSvc) // account erasure also deletes the user's e-mail lead
+	// end revisions 6.0 (§26.4)
 	eraser := service.NewAccountEraser(service.EraserDeps{Tx: txm, Users: users, Tokens: tokens, Psychics: psychics, Hasher: hasher,
 		Clock: clk, Notes: notesRepo, Push: repository.NewPushRepository(db), Actions: actionsRepo, Exports: exportsRepo,
 		Sessions: sessionsRepo, Consents: consentsRepo, Waitlist: waitlistRepo, Support: supportRepo, Advisor: advisorSvc, ChatData: chatSvc, AvatarStore: store, ExportStore: exportStore,
@@ -501,7 +559,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Refunds:    refundRepo, // revisions 5.0: refund request free text (§24.4)
 	})
 	eraser.SetBilling(billingSvc)        // memberships end and saved cards are forgotten
-	eraser.SetCalculators(calculatorSvc) // revisions 3.0: calculator analytics
+	eraser.SetCalculators(purgeCalcLead) // revisions 3.0: calculator analytics
 	adminSvc.SetEraser(eraser)
 	accountSvc := service.NewAccountService(service.AccountDeps{Tx: txm, Users: users, Accounts: repository.NewAccountRepository(db),
 		Tokens: tokens, Actions: actionsRepo, Psychics: psychics, Requests: requests, Audit: audit, Auth: authSvc, UserSvc: userSvc,
@@ -528,10 +586,13 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Site:    siteSvc}    // revisions 3.0: site settings
 	services.GoogleAuth = googleSvc // revisions 4.0: Sign in with Google
 	services.Pricing = pricingSvc   // revisions 5.0: pricing catalog
+	services.Invoices = invoiceSvc  // revisions 6.0 (§26.6)
 	// revisions 5.0: refund requests and the revenue report
 	services.Refunds = refundSvc
 	services.Revenue = service.NewRevenueService(repository.NewRevenueRepository(db), pricingSvc, clk,
 		service.RevenueSettings{Currency: cfg.Payments.Currency, PayoutCentsPerCredit: cfg.Billing.PayoutCentsPerCredit})
+	// revisions 6.0 (§26.4): the calculators' e-mail report
+	services.CalculatorReport = reportSvc
 	cookieNames := api.CookieNamesFor(cfg.Security)
 	health := func(r *http.Request) map[string]error {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -607,6 +668,11 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		return err
 	}})
 	// end revisions 5.0: credit lots
+	// revisions 6.0 (§26.6): issue the invoices and credit notes the inline path missed.
+	scheduler.WithJobs(worker.Job{Name: service.InvoiceBackfillJob, Every: 5 * time.Minute, Run: func(ctx context.Context) error {
+		_, err := invoiceSvc.RunBackfill(ctx)
+		return err
+	}})
 	// revisions 3.0: support desk
 	scheduler.WithJobs(worker.Job{Name: service.SupportJob, Every: time.Hour, Run: supportSvc.RunMaintenance})
 	// end revisions 3.0: support desk

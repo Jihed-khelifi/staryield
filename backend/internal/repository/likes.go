@@ -22,6 +22,7 @@ type ReplyTargetRow struct {
 	SenderID *uuid.UUID
 	Kind     string
 	Body     string
+	Held     bool // revisions 6.0 (§26.1): hidden from the client by a hold
 }
 
 // LikeRow is one like in a batched lookup.
@@ -37,7 +38,7 @@ func (r *GormChatRepository) ReplyTargets(ctx context.Context, ids []uuid.UUID) 
 		return nil, nil
 	}
 	var out []ReplyTargetRow
-	err := database.Conn(ctx, r.db).Table("chat_messages").Select("id, seq, sender_id, kind, body").Where("id IN ?", ids).Scan(&out).Error
+	err := database.Conn(ctx, r.db).Table("chat_messages").Select("id, seq, sender_id, kind, body, held").Where("id IN ?", ids).Scan(&out).Error
 	return out, err
 }
 

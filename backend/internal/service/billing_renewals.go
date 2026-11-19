@@ -60,13 +60,28 @@ func (s *BillingService) execute(ctx context.Context, a *chargeAttempt) chargeOu
 		logger.FromContext(ctx).Error("billing: card references unavailable", zap.Error(err), zap.String("method_id", a.method.ID.String()))
 		return chargeOutcome{decline: &payment.DeclineError{Code: "payment_method_unavailable"}}
 	}
-	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	res, err := charger.ChargeStored(cctx, payment.StoredCharge{CustomerRef: customerRef, MethodRef: methodRef, AmountCents: a.tx.AmountCents,
+	// revisions 6.0 (§26.5): our ids tag the charge at the provider; a customer-present charge
+	// follows the 3-D Secure policy and, for a credit purchase, can return from a redirect.
+	charge := payment.StoredCharge{CustomerRef: customerRef, MethodRef: methodRef, AmountCents: a.tx.AmountCents,
 		Currency: a.tx.Currency, IdempotencyKey: a.tx.IdempotencyKey, Reason: a.reason, NetworkTxnRef: networkRef, Description: a.tx.Description,
-		StatementDescriptor: s.cfg.StatementDescriptor}) // revisions 5.1
+		StatementDescriptor: s.cfg.StatementDescriptor, // revisions 5.1
+		Metadata:            chargeMetadata(a.tx)}
+	if a.reason == payment.ReasonCustomerInitiated {
+		charge.ThreeDSecure = s.policies(ctx).ThreeDSecure
+		if a.tx.CreditPurchaseID != nil {
+			charge.ReturnURL = s.returnURL(ctx, a.tx.UserID, *a.tx.CreditPurchaseID)
+		}
+	}
+	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	res, err := charger.ChargeStored(cctx, charge)
 	cancel()
 	if d, ok := payment.AsDecline(err); ok {
 		return chargeOutcome{decline: d}
+	}
+	if errors.Is(err, payment.ErrConfiguration) { // a refused processor key: retry later, never a hard decline
+		logger.FromContext(ctx).Error("billing: the payment processor refused our credentials (configuration error)", zap.Error(err),
+			zap.String("transaction_id", a.tx.ID.String()))
+		return chargeOutcome{decline: &payment.DeclineError{Code: "provider_unavailable", Soft: true}}
 	}
 	if err != nil {
 		logger.FromContext(ctx).Warn("billing: charge outcome unknown; will reconcile", zap.Error(err),

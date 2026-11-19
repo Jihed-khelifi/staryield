@@ -353,6 +353,11 @@ func (s *PricingService) DeletePack(ctx context.Context, id uuid.UUID) error {
 			return err
 		}
 		code = p.Code
+		if p.Reference {
+			// Savings badges are measured against it (§24.1): the console says so and
+			// expects this refusal (revisions 6.0 integration fix).
+			return apperror.Conflict(apperror.CodeConflict, "This pack is the reference for savings badges. Make another pack the reference first.")
+		}
 		used, err := s.d.Repo.PackInUse(ctx, id)
 		if err != nil {
 			return err

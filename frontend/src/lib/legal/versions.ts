@@ -6,10 +6,11 @@
  * fails as soon as a document's `meta.version` changes without it.
  */
 export const LEGAL_VERSIONS = {
-  // revisions 5.1: memberships removed from the Terms and Privacy Policy, consent record, withdrawal paragraph (2026-11-13).
-  terms: "2026-11-13",
-  privacy: "2026-11-13",
-  refund: "2026-11-13",
+  // revisions 6.0 (§26.8): free-trial hold, Stripe, invoices, disputes, calculator report e-mails (2026-11-19).
+  // The API refuses consent dates in the future (UTC): ship on or after 2026-11-19 UTC.
+  terms: "2026-11-19",
+  privacy: "2026-11-19",
+  refund: "2026-11-19",
 } as const;
 
 export type LegalConsent = { terms: string; privacy: string; refund: string };

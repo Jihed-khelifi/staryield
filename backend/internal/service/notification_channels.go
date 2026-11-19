@@ -173,7 +173,8 @@ func (n *NotificationChannels) Deliver(ctx context.Context, rows []domain.Notifi
 			if content, ok := mail.Notification(locale, row.Kind, row.Data, link); ok {
 				uid := row.UserID
 				emails = append(emails, EmailRequest{UserID: &uid, To: c.Email, Locale: locale, Category: p.Category,
-					Template: "notification:" + row.Kind, Content: content, DedupeKey: "notification:" + row.ID.String()})
+					Template: "notification:" + row.Kind, Content: content, DedupeKey: "notification:" + row.ID.String(),
+					Attachments: invoiceAttachments(row.Kind, row.Data)}) // revisions 6.0 (§26.6): the receipt attaches the invoice, a refund notice the credit note
 			}
 		}
 		if n.push != nil && p.wantsPush(c) {

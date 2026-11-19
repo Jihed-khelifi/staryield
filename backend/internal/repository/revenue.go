@@ -169,7 +169,7 @@ func (r *GormRevenueRepository) RecognizedSeries(ctx context.Context, p RevenueP
 	return r.series(ctx, p, `SELECT date_trunc('`+u+`', ts AT TIME ZONE 'UTC') AS bucket, sum(v)::bigint AS amount, count(*) AS count FROM (
 			SELECT e.created_at AS ts, a.value_millicents AS v
 			FROM credit_ledger e JOIN credit_lot_allocations a ON a.ledger_entry_id = e.id
-			WHERE e.entry_type = 'chat_charge' AND e.created_at >= ? AND e.created_at < ?
+			WHERE e.entry_type IN ('chat_charge', 'chat_reveal') AND e.created_at >= ? AND e.created_at < ?
 			UNION ALL
 			SELECT rel.created_at, a.value_millicents
 			FROM credit_ledger rel

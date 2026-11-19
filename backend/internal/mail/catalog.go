@@ -218,6 +218,8 @@ func Notification(locale, kind string, data map[string]any, link string) (Conten
 		if str(data["status"]) == "approved" { // revisions 5.1: amount and the original purchase (§25.5)
 			c.Details = refundDetails(t, data, intOf(data["refunded_cents"]))
 			c.Links = policyLinks(t)
+			documentLinks(t, &c, data, link != "", "Credit note", "View credit note", "credit_note_id", "credit_note_number",
+				"Your credit note is attached to this e-mail as a PDF.") // revisions 6.0 (§26.6)
 		}
 	// end revisions 5.0: refund requests
 	// revisions 3.0: support desk

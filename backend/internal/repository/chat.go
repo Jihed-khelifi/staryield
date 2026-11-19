@@ -21,6 +21,9 @@ type InboxRow struct {
 	LastSenderID            *uuid.UUID
 	LastMsgSeq              *int64
 	LastReplyToID           *uuid.UUID
+	LastHeld                *bool      // revisions 6.0 (§26.1): the preview is hidden from the client by a hold
+	LastHoldID              *uuid.UUID // revisions 6.0
+	LastBodyLen             *int       // revisions 6.0: characters of the whole last body (LastBody is cut)
 	CounterpartName         *string
 	CounterpartNickname     *string
 	CounterpartAvatarURL    *string
@@ -128,6 +131,24 @@ type ChatRepository interface {
 	LikeMessage(ctx context.Context, messageID, userID uuid.UUID, at time.Time) (bool, error)
 	UnlikeMessage(ctx context.Context, messageID, userID uuid.UUID) (bool, error)
 	PurgeLikesForUser(ctx context.Context, userID uuid.UUID) (int64, error)
+
+	// revisions 6.0 (§26.1): the free-trial hold, see holds.go. Lock order is
+	// session, hold, wallet.
+	CreateHold(ctx context.Context, h *domain.ChatHold) error
+	GetHold(ctx context.Context, id uuid.UUID) (*domain.ChatHold, error)
+	GetHoldForUpdate(ctx context.Context, id uuid.UUID) (*domain.ChatHold, error)
+	OpenHoldForSessionForUpdate(ctx context.Context, sessionID uuid.UUID) (*domain.ChatHold, error)
+	SaveHold(ctx context.Context, h *domain.ChatHold) error
+	IncrementHeldMessages(ctx context.Context, holdID uuid.UUID) error
+	// HoldsByIDs loads a page of holds in one query (missing ids are skipped).
+	HoldsByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.ChatHold, error)
+	HeldSessionIDsForClient(ctx context.Context, clientID uuid.UUID) ([]uuid.UUID, error)
+	ClaimExpiredHolds(ctx context.Context, now time.Time, limit int) ([]domain.Session, error)
+	// UnlockHoldMessages makes every message a hold hid visible (one UPDATE).
+	UnlockHoldMessages(ctx context.Context, h *domain.ChatHold) (int64, error)
+	ListHoldMessages(ctx context.Context, h *domain.ChatHold) ([]domain.Message, error)
+	HasPendingPurchaseSince(ctx context.Context, clientID uuid.UUID, since time.Time) (bool, error)
+	HoldStatsSince(ctx context.Context, since time.Time) (HoldStats, error)
 }
 
 // GormChatRepository implements ChatRepository.
@@ -179,7 +200,9 @@ func (r *GormChatRepository) FindConversation(ctx context.Context, clientID, psy
 // identity joined in, ordered by (last_activity_at, id) for keyset paging.
 // Unread counts are maintained on the row, so no per-row subquery runs.
 func inboxQuery(db *gorm.DB, f InboxFilter) *gorm.DB {
-	const preview = "c.*, left(m.body, 141) AS last_body, m.kind AS last_kind, m.sender_id AS last_sender_id, m.seq AS last_msg_seq, m.reply_to_id AS last_reply_to_id"
+	// revisions 6.0: last_held / last_hold_id / last_body_len let the service lock a preview a hold hides.
+	const preview = "c.*, left(m.body, 141) AS last_body, m.kind AS last_kind, m.sender_id AS last_sender_id, m.seq AS last_msg_seq, m.reply_to_id AS last_reply_to_id, " +
+		"m.held AS last_held, m.hold_id AS last_hold_id, char_length(m.body) AS last_body_len"
 	q := db.Table("conversations AS c").Joins("LEFT JOIN chat_messages m ON m.id = c.last_message_id")
 	if f.AsPsychic {
 		// The counterpart is a client: display name, nickname and avatar, and

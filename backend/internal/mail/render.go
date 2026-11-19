@@ -27,6 +27,40 @@ type Content struct {
 	// Links are secondary links under the action (policies). A URL starting
 	// with "/" is a locale-less app path and is made absolute by Render.
 	Links []Action
+	// Sections are titled blocks between the paragraphs and the details (the
+	// calculators' e-mailed report, revisions 6.0, §26.4).
+	Sections []Section
+	// ListUnsubscribe is an absolute https URL put in the List-Unsubscribe
+	// header (the report e-mail's marketing unsubscribe link).
+	ListUnsubscribe string
+}
+
+// Section is a titled block of a report-style e-mail: paragraphs, then a list
+// of items (a tarot card with its picture, a number card).
+type Section struct {
+	Title      string
+	Paragraphs []string
+	Items      []Item
+	// Note is small print under the block.
+	Note string
+	// Action is a call-to-action button under the block. A URL starting with
+	// "/" is a locale-less app path and is made absolute by Render.
+	Action *Action
+}
+
+// Item is one entry of a Section. Every field is plain text; ImageURL must be
+// an https URL (the layout escapes everything else).
+type Item struct {
+	// Caption is the small line above the title ("HOUSE 1 · SELF").
+	Caption string
+	Title   string
+	// Badge is a short tag next to the title ("Reversed").
+	Badge string
+	Body  string
+	// Note is small print under the body.
+	Note     string
+	ImageURL string
+	ImageAlt string
 }
 
 // Detail is one labelled fact of a receipt-style e-mail. Label is translated;
@@ -83,6 +117,17 @@ func Render(c Content, l Layout) (Rendered, error) {
 		}
 		links = append(links, a)
 	}
+	sections := make([]Section, 0, len(c.Sections))
+	for _, sec := range c.Sections {
+		if sec.Action != nil {
+			a := *sec.Action
+			if strings.HasPrefix(a.URL, "/") {
+				a.URL = AppURL(l.FrontendURL, locale, a.URL)
+			}
+			sec.Action = &a
+		}
+		sections = append(sections, sec)
+	}
 	view := struct {
 		Lang, Subject, Preheader, Heading, Note string
 		Paragraphs                              []string
@@ -94,6 +139,7 @@ func Render(c Content, l Layout) (Rendered, error) {
 		Company, Address, Support, SupportLabel, Hours string
 		Details                                        []Detail
 		Links                                          []Action
+		Sections                                       []Section // revisions 6.0 (§26.4)
 	}{
 		Lang: locale, Subject: c.Subject, Preheader: c.Preheader, Heading: c.Heading, Note: c.Note, Paragraphs: c.Paragraphs,
 		Action: c.Action, Home: home(l.FrontendURL, locale), Settings: settings,
@@ -103,7 +149,7 @@ func Render(c Content, l Layout) (Rendered, error) {
 		Tagline: t("Astrology and psychic readings for entertainment purposes only."),
 		Rights:  t("For entertainment purposes only."),
 		Company: CompanyLegalName, Address: CompanyAddress, Support: support, SupportLabel: t("Support"), Hours: t(SupportHours),
-		Details: details, Links: links,
+		Details: details, Links: links, Sections: sections,
 	}
 	if l.Category == "notification" || l.Category == "marketing" {
 		view.Notification = t("You receive this email because email notifications are on for your account.")
@@ -118,6 +164,9 @@ func Render(c Content, l Layout) (Rendered, error) {
 	for _, p := range c.Paragraphs {
 		text.WriteString(p)
 		text.WriteString("\n\n")
+	}
+	for _, sec := range sections {
+		writeSectionText(&text, sec)
 	}
 	for _, d := range details {
 		text.WriteString(d.Label + ": " + d.Value + "\n")
@@ -157,7 +206,46 @@ func Render(c Content, l Layout) (Rendered, error) {
 	if view.Notification != "" && strings.HasPrefix(settings, "https://") {
 		out.Headers["List-Unsubscribe"] = "<" + settings + ">"
 	}
+	if u := strings.TrimSpace(c.ListUnsubscribe); strings.HasPrefix(u, "https://") && !strings.ContainsAny(u, "<>\r\n ") {
+		out.Headers["List-Unsubscribe"] = "<" + u + ">"
+	}
 	return out, nil
+}
+
+// writeSectionText writes a Section as plain text: the title underlined, the
+// paragraphs, then one numbered entry per item.
+func writeSectionText(b *strings.Builder, sec Section) {
+	if sec.Title != "" {
+		b.WriteString(sec.Title + "\n" + strings.Repeat("-", min(len([]rune(sec.Title)), 60)) + "\n\n")
+	}
+	for _, p := range sec.Paragraphs {
+		b.WriteString(p + "\n\n")
+	}
+	for i, it := range sec.Items {
+		head := it.Title
+		if it.Badge != "" {
+			head += " (" + it.Badge + ")"
+		}
+		if it.Caption != "" {
+			head = it.Caption + ": " + head
+		}
+		b.WriteString(fmt.Sprintf("%d. %s\n", i+1, head))
+		if it.Body != "" {
+			b.WriteString("   " + it.Body + "\n")
+		}
+		if it.Note != "" {
+			b.WriteString("   " + it.Note + "\n")
+		}
+	}
+	if len(sec.Items) > 0 {
+		b.WriteString("\n")
+	}
+	if sec.Note != "" {
+		b.WriteString(sec.Note + "\n\n")
+	}
+	if sec.Action != nil {
+		b.WriteString(sec.Action.Label + ":\n" + sec.Action.URL + "\n\n")
+	}
 }
 
 // oneLine strips CR/LF so a subject can never split into extra headers.
@@ -219,7 +307,23 @@ var htmlLayout = template.Must(template.New("layout").Parse(`<!doctype html>
 <h1 style="margin:0 0 16px 0;font-family:Castellar,Cinzel,Georgia,'Times New Roman',serif;font-weight:normal;font-size:24px;line-height:1.3;color:#15100B;">{{.Heading}}</h1>
 {{range .Paragraphs}}<p style="margin:0 0 14px 0;font-size:16px;line-height:1.6;color:#15100B;">{{.}}</p>
 {{end}}</td></tr>
-{{if .Details}}<tr><td style="padding:0 32px 8px 32px;">
+{{range .Sections}}<tr><td style="padding:8px 32px 0 32px;font-family:'Source Serif 4',Georgia,'Times New Roman',serif;">
+{{if .Title}}<h2 style="margin:16px 0 10px 0;font-family:Castellar,Cinzel,Georgia,'Times New Roman',serif;font-weight:normal;font-size:18px;line-height:1.4;letter-spacing:1px;text-transform:uppercase;color:#15100B;">&#10022; {{.Title}} &#10022;</h2>{{end}}
+{{range .Paragraphs}}<p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#15100B;">{{.}}</p>
+{{end}}{{if .Items}}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #E0D5C3;">
+{{range .Items}}<tr>{{if .ImageURL}}<td width="54" valign="top" style="padding:10px 12px 10px 0;border-bottom:1px solid #E0D5C3;"><img src="{{.ImageURL}}" alt="{{.ImageAlt}}" width="42" height="71" style="display:block;width:42px;height:71px;border:1px solid #2E2A22;border-radius:3px;"></td>{{end}}<td valign="top" style="padding:10px 0;border-bottom:1px solid #E0D5C3;font-family:'Source Serif 4',Georgia,serif;">
+{{if .Caption}}<div style="font-size:11px;line-height:1.4;letter-spacing:1.2px;text-transform:uppercase;color:#978F6E;">{{.Caption}}</div>{{end}}
+<div style="font-family:Castellar,Cinzel,Georgia,serif;font-size:17px;line-height:1.3;color:#15100B;">{{.Title}}{{if .Badge}} <span style="font-family:'Source Serif 4',Georgia,serif;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#6B5214;">{{.Badge}}</span>{{end}}</div>
+{{if .Body}}<div style="margin-top:2px;font-size:14px;line-height:1.5;color:#15100B;">{{.Body}}</div>{{end}}
+{{if .Note}}<div style="margin-top:2px;font-size:12px;line-height:1.4;color:#6B5214;">{{.Note}}</div>{{end}}
+</td></tr>
+{{end}}</table>{{end}}
+{{if .Note}}<p style="margin:10px 0 0 0;font-size:12px;line-height:1.5;color:#978F6E;">{{.Note}}</p>{{end}}
+{{if .Action}}<table role="presentation" cellpadding="0" cellspacing="0" style="margin:12px 0 4px 0;"><tr><td style="background:#C29A3D;border-radius:8px;">
+<a href="{{.Action.URL}}" style="display:inline-block;padding:10px 24px;font-family:Castellar,Cinzel,Georgia,serif;font-size:14px;letter-spacing:1px;color:#15100B;text-decoration:none;">{{.Action.Label}}</a>
+</td></tr></table>{{end}}
+</td></tr>
+{{end}}{{if .Details}}<tr><td style="padding:0 32px 8px 32px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #E0D5C3;">
 {{range .Details}}<tr><td style="padding:8px 0;border-bottom:1px solid #E0D5C3;font-family:'Source Serif 4',Georgia,serif;font-size:14px;line-height:1.5;color:#978F6E;width:38%;vertical-align:top;">{{.Label}}</td><td style="padding:8px 0;border-bottom:1px solid #E0D5C3;font-family:'Source Serif 4',Georgia,serif;font-size:14px;line-height:1.5;color:#15100B;vertical-align:top;word-break:break-word;">{{.Value}}</td></tr>
 {{end}}</table>
