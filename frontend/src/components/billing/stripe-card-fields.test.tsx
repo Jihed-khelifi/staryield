@@ -19,6 +19,8 @@ const m = vi.hoisted(() => ({
   elementsOptions: vi.fn(),
   elementOptions: vi.fn(),
   ready: { mode: "ready" as "ready" | "never" | "error" },
+  /** Thrown by <Elements> while set, as Stripe.js throws an IntegrationError from `stripe.elements()`. */
+  elementsError: { current: null as Error | null },
   clientConfig: vi.fn(),
 }));
 
@@ -27,6 +29,7 @@ vi.mock("@stripe/react-stripe-js", async () => {
   return {
     Elements: ({ children, options }: { children: React.ReactNode; options: unknown }) => {
       m.elementsOptions(options);
+      if (m.elementsError.current) throw m.elementsError.current;
       return <div data-testid="elements">{children}</div>;
     },
     PaymentElement: ({ options, onReady, onLoadError }: { options: unknown; onReady: () => void; onLoadError: () => void }) => {
@@ -47,6 +50,7 @@ vi.mock("@/lib/api/billing", () => ({ billingApi: { clientConfig: m.clientConfig
 import { paymentAdapters, PaymentFields } from "@/components/billing/payment-fields";
 import { StripeCardFields } from "@/components/billing/stripe-card-fields";
 import { POWERED_BY_STRIPE_HREF, POWERED_BY_STRIPE_SRC, STRIPE_FONTS } from "@/config/payments";
+import { logger } from "@/lib/logger";
 
 const payment: ClientConfig = { provider: "stripe", type: "stripe_elements", publishable_key: "pk_test_x", mode: "payment", amount_cents: 1000, currency: "USD", payment_method_types: ["card"], livemode: false };
 const setup: ClientConfig = { provider: "stripe", type: "stripe_elements", publishable_key: "pk_test_x", mode: "setup", client_secret: "seti_1_secret_2", livemode: true };
@@ -62,6 +66,7 @@ function mount(config: ClientConfig = payment, props: Partial<React.ComponentPro
 beforeAll(stubResizeObserver);
 beforeEach(() => {
   m.ready.mode = "ready";
+  m.elementsError.current = null;
   m.getStripe.mockResolvedValue(m.stripe);
   m.elements.submit.mockResolvedValue({});
   m.stripe.createConfirmationToken.mockResolvedValue({
@@ -90,12 +95,26 @@ describe("payment mode", () => {
     mount();
     await screen.findByTestId("payment-element");
     const options = m.elementsOptions.mock.calls.at(-1)?.[0];
-    expect(options).toMatchObject({ mode: "payment", amount: 1000, currency: "usd", paymentMethodTypes: ["card"], locale: "en", fonts: STRIPE_FONTS });
+    expect(options).toMatchObject({ mode: "payment", amount: 1000, currency: "usd", allowedPaymentMethodTypes: ["card"], locale: "en", fonts: STRIPE_FONTS });
+    // The Stripe.js release @stripe/stripe-js pins ("endive") throws an IntegrationError for the old name.
+    expect(options).not.toHaveProperty("paymentMethodTypes");
     expect(options.appearance.variables.borderRadius).toBe("8px");
     expect(options.appearance.variables.fontFamily).toContain("Source Serif 4");
     expect(options.appearance.rules[".Input:focus"]).toBeTruthy();
     expect(m.elementOptions.mock.calls.at(-1)?.[0]).toMatchObject({ layout: "tabs" });
     expect(m.getStripe).toHaveBeenCalledWith("pk_test_x", "en");
+  });
+
+  it("allows exactly the payment method types the API created the intent with, card only when it names none", async () => {
+    mount({ ...payment, payment_method_types: ["card", "link"] });
+    await screen.findByTestId("payment-element");
+    expect(m.elementsOptions.mock.calls.at(-1)?.[0].allowedPaymentMethodTypes).toEqual(["card", "link"]);
+    for (const payment_method_types of [undefined, []]) {
+      cleanup();
+      mount({ ...payment, payment_method_types });
+      await screen.findByTestId("payment-element");
+      expect(m.elementsOptions.mock.calls.at(-1)?.[0].allowedPaymentMethodTypes).toEqual(["card"]);
+    }
   });
 
   it("shows a skeleton until the element is ready, and reports loading then ready", async () => {
@@ -242,7 +261,9 @@ describe("secured by Stripe", () => {
     m.getStripe.mockRejectedValueOnce(new Error("blocked"));
     const u = userEvent.setup();
     const { onState } = mount();
-    expect((await screen.findByRole("alert")).textContent).toContain("The secure card form could not be loaded");
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("The secure card form could not be loaded");
+    expect(alert.getAttribute("data-reason")).toBe("script");
     expect(screen.getByTestId("secured-by-stripe")).toBeTruthy();
     expect(onState).toHaveBeenLastCalledWith("error");
     await u.click(screen.getByRole("button", { name: "Try again" }));
@@ -265,9 +286,35 @@ describe("secured by Stripe", () => {
   it("reports an element that fails to load, with a retry", async () => {
     m.ready.mode = "error";
     const { onState } = mount();
-    expect((await screen.findByRole("alert")).textContent).toContain("could not be loaded");
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("could not be loaded");
+    expect(alert.getAttribute("data-reason")).toBe("element");
     expect(onState).toHaveBeenLastCalledWith("error");
     expect(screen.getByTestId("secured-by-stripe")).toBeTruthy();
+  });
+
+  it("keeps a failure inside Stripe's Elements in the card form: alert, error status, logged, and Try again mounts it afresh", async () => {
+    // What production hit: Stripe.js threw an IntegrationError from `stripe.elements()` and the whole site fell to the root error page.
+    const integration = Object.assign(new Error("Invalid value for elements(): `paymentMethodTypes` is no longer supported in this version of Stripe.js."), { name: "IntegrationError" });
+    m.elementsError.current = integration;
+    const logError = vi.spyOn(logger, "error").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {}); // React reports the caught error too.
+    const u = userEvent.setup();
+    const { ref, onState } = mount();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("The secure card form could not be loaded");
+    expect(alert.getAttribute("data-reason")).toBe("crash");
+    expect(screen.getByTestId("secured-by-stripe")).toBeTruthy();
+    await waitFor(() => expect(onState).toHaveBeenLastCalledWith("error"));
+    expect(logError).toHaveBeenCalledWith(expect.stringContaining("paymentMethodTypes"), integration, expect.objectContaining({ code: "stripe_elements_failed" }));
+    await expect(ref.current!.tokenize()).rejects.toMatchObject({ code: "feature_unavailable" });
+
+    m.elementsError.current = null;
+    await u.click(screen.getByRole("button", { name: "Try again" }));
+    await screen.findByTestId("payment-element");
+    await waitFor(() => expect(onState).toHaveBeenLastCalledWith("ready"));
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("is accessible", async () => {

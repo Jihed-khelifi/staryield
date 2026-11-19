@@ -3825,8 +3825,11 @@ What the build settled that §26 above left open or stated differently:
     (`docs/stripe-setup.md`).
   * API version `2026-10-28.endive` (stripe-go v87.1.0) has no
     `payment_method_types` on intents: the adapter sends
-    `allowed_payment_method_types: ["card"]` (the web keeps
-    `allowedPaymentMethodTypes: ["card"]`).
+    `allowed_payment_method_types: ["card"]`. The web passes the client
+    configuration's `payment_method_types` to Elements as
+    `allowedPaymentMethodTypes` (card only when absent): the Stripe.js release
+    @stripe/stripe-js 10 loads (`js.stripe.com/endive/stripe.js`) throws an
+    IntegrationError for the old `paymentMethodTypes`.
   * Refund events carry `RefundRef`/`ObjectRef` and no `IdempotencyKey`.
     Decline codes: `generic_decline` and a bare `card_declined` become
     `card_declined`; 3-D Secure failures `authentication_failed`.
@@ -3865,3 +3868,15 @@ What the build settled that §26 above left open or stated differently:
   already said the server refuses). A hold with no hidden message cannot be
   revealed (`409 invalid_state`, nothing charged). The advisor KPI
   `free_to_paid` counts a trial that goes on paying in the same reading (§8.1).
+* **Production fix (2026-11-19).** The card form passed `paymentMethodTypes`,
+  so Stripe.js threw while building its Elements, the top-up fell to the root
+  error page, and that page's Try again threw too (vinext 1.0 passes error
+  pages `error` and `reset` only, never the `retry` of the Next.js 16.3 docs).
+  Now the option is `allowedPaymentMethodTypes`, typed with `satisfies` so
+  TypeScript flags a renamed option. Stripe's Elements sit in an error
+  boundary: a failure is logged (`stripe_elements_failed`), the form says it
+  could not be loaded with Try again (`data-reason`: `script`, `element` or
+  `crash`), and Pay stays off. Error pages use `error-recovery`: a route
+  refreshes, then resets; the root page reloads; in the console Try again
+  also resets the React Query cache. `e2e/stripe-elements.spec.ts` loads the
+  real Stripe.js with a dummy test key (no Stripe account; network access).

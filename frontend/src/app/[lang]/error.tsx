@@ -4,12 +4,14 @@ import { useEffect } from "react";
 import Link from "next/link";
 
 import { useI18n } from "@/i18n/i18n-provider";
+import { useRouteRetry, type ErrorPageProps } from "@/lib/error-recovery";
 import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 
 /** Route-level error boundary: logs the failure and offers recovery. */
-export default function RouteError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
+export default function RouteError({ error, retry, reset }: ErrorPageProps) {
   const { text, locale } = useI18n();
+  const tryAgain = useRouteRetry({ retry, reset });
   useEffect(() => {
     logger.error(`render failed: ${error.message}`, error, { code: "render_failed", digest: error.digest ?? "" });
   }, [error]);
@@ -21,7 +23,7 @@ export default function RouteError({ error, retry }: { error: Error & { digest?:
       </p>
       {error.digest ? <p className="mt-2 text-xs text-sage">{text("Reference: {value0}", { value0: error.digest })}</p> : null}
       <div className="mt-8 flex gap-4">
-        <Button className="gold-button" onClick={() => retry()}>
+        <Button className="gold-button" onClick={tryAgain}>
           {text("Try again")}
         </Button>
         <Button asChild variant="outline">

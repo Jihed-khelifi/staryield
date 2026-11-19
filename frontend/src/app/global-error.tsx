@@ -2,13 +2,14 @@
 
 import { useEffect } from "react";
 
+import { retryRoot, type ErrorPageProps } from "@/lib/error-recovery";
 import { logger } from "@/lib/logger";
 
 /**
  * Last-resort boundary for failures in the root layout (before i18n is
  * available). Kept minimal and self-contained, with inline brand styling.
  */
-export default function GlobalError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
+export default function GlobalError({ error, retry }: ErrorPageProps) {
   useEffect(() => {
     logger.error(`root layout failed: ${error.message}`, error, { code: "root_failed", digest: error.digest ?? "" });
   }, [error]);
@@ -19,7 +20,7 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
           {/* i18n is unavailable when the root layout fails; English fallback. */}
           <h1 style={{ fontWeight: 400, letterSpacing: "0.08em" }}>{"STARYIELD"}</h1>
           <p>{"Something went wrong. Please try again."}</p>
-          <button type="button" onClick={() => retry()} style={{ marginTop: 16, padding: "12px 24px", background: "#c29a3d", border: 0, cursor: "pointer" }}>
+          <button type="button" onClick={() => retryRoot(retry)} style={{ marginTop: 16, padding: "12px 24px", background: "#c29a3d", border: 0, cursor: "pointer" }}>
             {"Try again"}
           </button>
         </main>

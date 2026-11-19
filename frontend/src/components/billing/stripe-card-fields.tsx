@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
-import type { Stripe, StripeElementsOptions, StripeError } from "@stripe/stripe-js";
+import type { Stripe, StripeElementsOptions, StripeElementsOptionsClientSecret, StripeElementsOptionsMode, StripeError } from "@stripe/stripe-js";
 
 import { STRIPE_FONTS } from "@/config/payments";
 import { useI18n } from "@/i18n/i18n-provider";
@@ -12,9 +12,20 @@ import { finishStripeAction, runNextAction } from "@/lib/payments/next-action";
 import type { NextActionResult, PaymentFieldsHandle, PaymentFieldsProps, PaymentFieldsState, TokenizedCard } from "@/lib/payments/payment-fields";
 import { getStripe, readPaymentTokens, stripeAppearance, stripeLocale } from "@/lib/payments/stripe";
 import { SecuredByStripe } from "@/components/billing/secured-by-stripe";
+import { ErrorBoundary } from "@/components/feedback/error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type Loaded = { stripe: Stripe } | { error: true } | null;
+
+/**
+ * Why the card form could not be shown: Stripe.js did not load ("script"),
+ * Stripe's iframe reported a load error ("element"), or Stripe.js threw while
+ * building its Elements ("crash"). Kept on the alert for support and tests.
+ */
+type FailureReason = "script" | "element" | "crash";
+
+/** What the PaymentIntent allows when the API names nothing: cards (Apple Pay and Google Pay are card wallets). */
+const CARD_ONLY = ["card"];
 
 /** Stripe's validation errors are shown by the element itself; anything else is ours to show. */
 function isValidation(error: StripeError): boolean {
@@ -55,60 +66,70 @@ export function StripeCardFields({ config, disabled, variant = "dialog", cardhol
   const clientSecret = config.client_secret;
   const amount = config.amount_cents;
   const currency = config.currency;
+  const allowed = config.payment_method_types;
   const options = React.useMemo<StripeElementsOptions>(() => {
     const appearance = stripeAppearance(readPaymentTokens());
     const common = { appearance, fonts: STRIPE_FONTS, locale: stripeLocale(locale) };
-    if (setup && clientSecret) return { clientSecret, ...common };
+    if (setup && clientSecret) return { clientSecret, ...common } satisfies StripeElementsOptionsClientSecret;
+    // `satisfies` keeps TypeScript's unknown-key check: the Stripe.js release @stripe/stripe-js pins
+    // ("endive") throws an IntegrationError for a renamed option (it was `paymentMethodTypes`).
     return {
       mode: "payment",
       amount: amount ?? 0,
       currency: (currency ?? "usd").toLowerCase(),
-      paymentMethodTypes: ["card"],
+      // The same list the API creates the PaymentIntent with (`allowed_payment_method_types`).
+      allowedPaymentMethodTypes: allowed?.length ? allowed : CARD_ONLY,
       ...common,
-    };
-  }, [setup, clientSecret, amount, currency, locale]);
+    } satisfies StripeElementsOptionsMode;
+  }, [setup, clientSecret, amount, currency, allowed, locale]);
 
   const retry = React.useCallback(() => setAttempt((n) => n + 1), []);
   return (
     <div className="payment-stripe" data-variant={variant} data-testid="stripe-fields">
       {stripe ? (
-        <Elements stripe={stripe} options={options} key={attempt}>
-          <PaymentElementFields config={config} disabled={disabled} variant={variant} cardholder={cardholder} onState={onState} onRetry={retry} ref={ref} />
-        </Elements>
+        // Whatever Stripe.js throws while it builds or mounts its Elements stays in this form; a retry mounts it afresh.
+        <ErrorBoundary key={attempt} code="stripe_elements_failed" fallback={<UnavailableOrLoading failure="crash" onRetry={retry} onState={onState} ref={ref} />}>
+          <Elements stripe={stripe} options={options}>
+            <PaymentElementFields config={config} disabled={disabled} variant={variant} cardholder={cardholder} onState={onState} onRetry={retry} ref={ref} />
+          </Elements>
+        </ErrorBoundary>
       ) : (
-        <UnavailableOrLoading failed={failed} onRetry={retry} onState={onState} ref={ref} />
+        <UnavailableOrLoading failure={failed ? "script" : null} onRetry={retry} onState={onState} ref={ref} />
       )}
       <SecuredByStripe livemode={config.livemode} />
     </div>
   );
 }
 
-/** While Stripe.js loads (skeleton) or when it could not (message, retry). */
+/** While Stripe.js loads (skeleton), or when the form could not be shown (message, retry). */
 function UnavailableOrLoading({
-  failed,
+  failure,
   onRetry,
   onState,
   ref,
 }: {
-  failed: boolean;
+  failure: Exclude<FailureReason, "element"> | null;
   onRetry: () => void;
   onState?: (state: PaymentFieldsState) => void;
   ref?: React.Ref<PaymentFieldsHandle>;
 }) {
-  const { text } = useI18n();
-  useReportState(onState, failed ? "error" : "loading");
-  // Nothing to tokenise yet: the parent's pay button is off, and tokenising says so.
+  useReportState(onState, failure ? "error" : "loading");
+  // Nothing to tokenise: the parent's pay button is off, and tokenising says so.
   React.useImperativeHandle(ref, () => notReadyHandle(), []);
-  if (failed)
-    return (
-      <div className="payment-fields-note" role="alert">
-        <p>{text("The secure card form could not be loaded. Check your connection and try again.")}</p>
-        <button type="button" className="underline" onClick={onRetry}>
-          {text("Try again")}
-        </button>
-      </div>
-    );
-  return <ElementSkeleton />;
+  return failure ? <LoadFailedNote reason={failure} onRetry={onRetry} /> : <ElementSkeleton />;
+}
+
+/** The card form could not be shown: what to do, and a retry. */
+function LoadFailedNote({ reason, onRetry }: { reason: FailureReason; onRetry: () => void }) {
+  const { text } = useI18n();
+  return (
+    <div className="payment-fields-note" role="alert" data-reason={reason}>
+      <p>{text("The secure card form could not be loaded. Check your connection and try again.")}</p>
+      <button type="button" className="underline" onClick={onRetry}>
+        {text("Try again")}
+      </button>
+    </div>
+  );
 }
 
 function ElementSkeleton() {
@@ -214,12 +235,7 @@ function PaymentElementFields({ config, disabled, onState, onRetry, ref }: Payme
     <div className="payment-stripe-frame" data-ready={ready} aria-disabled={disabled || undefined}>
       {!ready && !loadError ? <ElementSkeleton /> : null}
       {loadError ? (
-        <div className="payment-fields-note" role="alert">
-          <p>{text("The secure card form could not be loaded. Check your connection and try again.")}</p>
-          <button type="button" className="underline" onClick={onRetry}>
-            {text("Try again")}
-          </button>
-        </div>
+        <LoadFailedNote reason="element" onRetry={onRetry} />
       ) : (
         <div className="payment-stripe-element" aria-hidden={!ready} style={disabled ? { pointerEvents: "none", opacity: 0.6 } : undefined}>
           <PaymentElement
