@@ -68,8 +68,13 @@ test.describe("Stripe Payment Element with the real Stripe.js", { tag: "@respons
     await newClient(page, "stripe-js");
     await answerWithStripeConfig(page);
     const script = page.waitForRequest(STRIPE_JS);
-    await openPayStep(page);
+    const configRequest = page.waitForRequest(/\/api\/v1\/billing\/client-config\b/);
+    const pack = await openPayStep(page);
     await script;
+    // The card form asks for the pack being paid: Stripe.js needs its price (it threw for `amount` 0).
+    const asked = new URL((await configRequest).url()).searchParams;
+    expect(asked.get("purpose")).toBe("credits");
+    expect(asked.get("pack_id")).toBe(pack.id);
 
     await expect(page.getByTestId("secured-by-stripe")).toBeVisible();
     await expect(page.getByTestId("stripe-test-mode")).toHaveText("Test mode");

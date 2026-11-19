@@ -275,6 +275,7 @@ function PaymentForm({ pack, attempt, onBack, onPurchased, onOfferUnavailable, s
           {newCard ? (
             <PaymentFields
               purpose="credits"
+              packId={pack.id}
               cardholder={user?.display_name}
               disabled={submitting}
               onStatus={setFieldsStatus}

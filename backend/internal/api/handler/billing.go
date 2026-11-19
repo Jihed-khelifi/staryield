@@ -61,8 +61,12 @@ func (h *Handler) BillingClientConfig(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	pack, err := optionalUUID(c, "pack_id")
+	if err != nil {
+		return err
+	}
 	out, err := b.ClientConfig(c.Request().Context(), principal(c).UserID, service.ClientConfigInput{Purpose: c.QueryParam("purpose"),
-		PlanVersionID: planVersion, TrustedCountry: h.trustedCountry(c)})
+		PlanVersionID: planVersion, PackID: pack, TrustedCountry: h.trustedCountry(c)})
 	if err != nil {
 		return err
 	}

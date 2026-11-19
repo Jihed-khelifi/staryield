@@ -118,10 +118,20 @@ export type SubscriptionResult = { subscription: Subscription; transaction?: Tra
 /** `method` (revisions 6.0): save a card without paying (Stripe confirms a SetupIntent). */
 export type PaymentPurpose = "credits" | "subscription" | "method";
 
+/** What a card form is for: the membership version or the credit pack being paid. */
+export type ClientConfigTarget = { planVersionId?: string; packId?: string };
+
 export const billingApi = {
   plans: (signal?: AbortSignal) => api<{ items: Plan[] }>("/api/v1/billing/plans", { signal }).then((r) => r.items),
-  clientConfig: (purpose: PaymentPurpose, planVersionId?: string, signal?: AbortSignal) =>
-    api<ClientConfig>("/api/v1/billing/client-config", { query: { purpose, plan_version_id: planVersionId }, signal }),
+  /**
+   * The routed provider's card fields. `planVersionId` (a membership) or `packId` (credits) names
+   * what is being paid: Stripe's Payment Element needs its price up front (revisions 6.0, §26.5).
+   */
+  clientConfig: (purpose: PaymentPurpose, target: ClientConfigTarget = {}, signal?: AbortSignal) =>
+    api<ClientConfig>("/api/v1/billing/client-config", {
+      query: { purpose, plan_version_id: target.planVersionId, pack_id: target.packId },
+      signal,
+    }),
   paymentMethods: (signal?: AbortSignal) =>
     api<{ items: PaymentMethod[] }>("/api/v1/billing/payment-methods", { signal }).then((r) => r.items),
   /** Saves a provider token (201, or 200 when the same card is already saved). */

@@ -807,7 +807,7 @@ Error codes: `payment_failed` (402, `details.reason` = decline code such as
 | Method & path | Notes |
 | --- | --- |
 | `GET /billing/plans` | Public. `{items: Plan[]}` in the caller's locale. Cached 5 min. |
-| `GET /billing/client-config?purpose=credits\|subscription&plan_version_id=` | `ClientConfig` of the provider routed for this user/country. |
+| `GET /billing/client-config?purpose=credits\|subscription\|method&plan_version_id=&pack_id=` | `ClientConfig` of the provider routed for this user/country. `plan_version_id` (a membership) or `pack_id` (credits, revisions 6.0) names what is paid: its price and currency go into the configuration. |
 | `GET /billing/payment-methods` | `{items: PaymentMethod[]}` (default first). |
 | `POST /billing/payment-methods` | `{provider, token, billing_country?, make_default?, idempotency_key}` → `201 PaymentMethod` (`200` on replay or when the same card is already saved). Rate limited. |
 | `DELETE /billing/payment-methods/:id` | `204`. `409 payment_method_required` if it is the only card of an auto-renewing membership. |
@@ -3475,7 +3475,7 @@ PaymentIntents carry metadata `sy_purchase_id`, `sy_tx_id`, `sy_user_id`,
 
 | Capability | Stripe |
 | --- | --- |
-| `ClientConfig` | `credits`/`subscription`: `{type: "stripe_elements", publishable_key, mode: "payment", amount_cents, currency, payment_method_types: ["card"], livemode}` (deferred intent). `method`: a SetupIntent for the user's customer (`usage: on_session`, card only, 3-D Secure policy) → `{mode: "setup", client_secret, …}`. |
+| `ClientConfig` | `credits`/`subscription`: `{type: "stripe_elements", publishable_key, mode: "payment", amount_cents, currency, payment_method_types: ["card"], livemode}` (deferred intent; the amount is the price of the `pack_id` or `plan_version_id` asked for, which Stripe.js requires). `method`: a SetupIntent for the user's customer (`usage: on_session`, card only, 3-D Secure policy) → `{mode: "setup", client_secret, …}`. |
 | `Checkout` (token) | Token = ConfirmationToken (`ctoken_…`). PaymentIntent `{amount, currency, confirm: true, confirmation_token, payment_method_types: ["card"], customer?, description, return_url, metadata, payment_method_options.card.request_three_d_secure, expand: ["latest_charge"]}`. `succeeded` → succeeded; `requires_action` → pending + `next_action {type: "use_stripe_sdk", client_secret}`; `processing` → pending; card errors → failed with the decline code. |
 | `InspectToken` | ConfirmationToken `payment_method_preview.card` → brand, last4, expiry, country, **fingerprint** (welcome offer, §24.2). |
 | `EnsureCustomer` / `DeleteCustomer` | Customer with metadata `sy_user_id`, the account e-mail and display name (fraud screening, dispute evidence); deleted at account closure. |
@@ -3880,3 +3880,15 @@ What the build settled that §26 above left open or stated differently:
   refreshes, then resets; the root page reloads; in the console Try again
   also resets the React Query cache. `e2e/stripe-elements.spec.ts` loads the
   real Stripe.js with a dummy test key (no Stripe account; network access).
+  A second production error followed: credits asked for no pack, so the
+  configuration had no amount and Stripe.js threw "`amount` must be greater
+  than 0" (contained by the boundary above). The top-up now sends `pack_id`
+  and the API answers with that pack's price and currency, routed like the
+  purchase; an unknown pack is `404`, a malformed id `422`. Run against a
+  Stripe test account, the form also showed Link with its bank ("$5 back")
+  and Klarna payments, which `allowedPaymentMethodTypes: ["card"]` does not
+  hide and the card-only intents refuse: the Payment Element sets
+  `wallets.link: "never"`. Testing note: `npm run dev` (and so Playwright) runs
+  Next.js, production runs vinext; the error-page and Stripe specs were also
+  run against the vinext build served by `wrangler dev`
+  (`docs/stripe-setup.md` §8).

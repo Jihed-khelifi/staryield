@@ -105,6 +105,16 @@ describe("payment mode", () => {
     expect(m.getStripe).toHaveBeenCalledWith("pk_test_x", "en");
   });
 
+  it("offers cards only, in both modes: Link stays off (it brings bank and Klarna payments the API's card-only intents refuse)", async () => {
+    mount();
+    await screen.findByTestId("payment-element");
+    expect(m.elementOptions.mock.calls.at(-1)?.[0]).toMatchObject({ wallets: { link: "never" } });
+    cleanup();
+    mount(setup);
+    await screen.findByTestId("payment-element");
+    expect(m.elementOptions.mock.calls.at(-1)?.[0]).toMatchObject({ wallets: { link: "never" } });
+  });
+
   it("allows exactly the payment method types the API created the intent with, card only when it names none", async () => {
     mount({ ...payment, payment_method_types: ["card", "link"] });
     await screen.findByTestId("payment-element");
@@ -332,7 +342,16 @@ describe("through PaymentFields", () => {
     await screen.findByTestId("stripe-fields");
     await waitFor(() => expect(onStatus).toHaveBeenLastCalledWith("ready"));
     expect(screen.queryByText("generic provider note")).toBeNull();
-    expect(m.clientConfig).toHaveBeenCalledWith("credits", undefined, expect.anything());
+    expect(m.clientConfig).toHaveBeenCalledWith("credits", {}, expect.anything());
+  });
+
+  it("asks for the configuration of the pack being paid, and again when the pack changes", async () => {
+    m.clientConfig.mockResolvedValue(payment);
+    const view = renderWithI18n(<PaymentFields purpose="credits" packId="pack-1" />);
+    await screen.findByTestId("stripe-fields");
+    expect(m.clientConfig).toHaveBeenLastCalledWith("credits", { packId: "pack-1" }, expect.anything());
+    view.rerender(<PaymentFields purpose="credits" packId="pack-2" />);
+    await waitFor(() => expect(m.clientConfig).toHaveBeenLastCalledWith("credits", { packId: "pack-2" }, expect.anything()));
   });
 
   it("keeps the generic note for the sandbox", async () => {
@@ -355,6 +374,6 @@ describe("through PaymentFields", () => {
     m.clientConfig.mockResolvedValue(setup);
     renderWithI18n(<PaymentFields purpose="method" />);
     await screen.findByTestId("stripe-fields");
-    expect(m.clientConfig).toHaveBeenCalledWith("method", undefined, expect.anything());
+    expect(m.clientConfig).toHaveBeenCalledWith("method", {}, expect.anything());
   });
 });

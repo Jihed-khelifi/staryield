@@ -114,4 +114,28 @@ blocks purchases until it is closed.
 
 The Playwright spec `frontend/e2e/stripe-checkout.spec.ts` runs against Stripe
 test mode when `E2E_STRIPE_PUBLISHABLE_KEY` is set (with the API running on
-the matching test keys).
+the matching test keys). Locally:
+
+1. `backend/.env`: the test keys, `STARYIELD_PAYMENTS_PROVIDER=stripe`,
+   `STARYIELD_PAYMENTS_PROVIDERS=stripe`, `STARYIELD_PAYMENTS_DEFAULT_PROVIDER=stripe`,
+   and `STARYIELD_STRIPE_WEBHOOK_SECRET` from `stripe listen --print-secret`
+   (the Stripe CLI's own secret, logged in to the Staryield account).
+2. Point the "Default" routing rule at `stripe` (section 4).
+3. Forward the events (the CLI needs them named):
+   `stripe listen --events payment_intent.succeeded,payment_intent.payment_failed,payment_intent.processing,payment_intent.canceled,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.updated,charge.dispute.closed,charge.dispute.funds_withdrawn,charge.dispute.funds_reinstated,radar.early_fraud_warning.created,radar.early_fraud_warning.updated,payment_method.detached,customer.deleted,review.opened,review.closed --forward-to http://localhost:8080/api/v1/webhooks/payments/stripe`
+4. `E2E_STRIPE_PUBLISHABLE_KEY=pk_test_… npx playwright test e2e/stripe-checkout.spec.ts e2e/stripe-elements.spec.ts`.
+
+`npm run dev` runs Next.js, while production runs vinext. To test the build
+that ships, build it with the API origin and serve the worker locally:
+`NEXT_PUBLIC_API_URL=http://localhost:8080 npx vite build`, then
+`npx wrangler dev --config dist/server/wrangler.json --port 3000 --local`, and
+run Playwright with `E2E_BASE_URL=http://localhost:3000` (it reuses that server).
+
+A test-mode webhook endpoint that points at production also receives these
+local test events; production acknowledges them as "no payment matches this
+event" (or refuses them when it verifies with a live secret).
+
+The card form offers cards only (Apple Pay and Google Pay are card wallets).
+Link stays off in code (`wallets.link: "never"`): `allowedPaymentMethodTypes`
+does not hide it, and it brings bank and Klarna payments that the API's
+card-only intents refuse.

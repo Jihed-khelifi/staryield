@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
-import type { Stripe, StripeElementsOptions, StripeElementsOptionsClientSecret, StripeElementsOptionsMode, StripeError } from "@stripe/stripe-js";
+import type {
+  Stripe,
+  StripeElementsOptions,
+  StripeElementsOptionsClientSecret,
+  StripeElementsOptionsMode,
+  StripeError,
+  StripePaymentElementOptions,
+} from "@stripe/stripe-js";
 
 import { STRIPE_FONTS } from "@/config/payments";
 import { useI18n } from "@/i18n/i18n-provider";
@@ -26,6 +33,14 @@ type FailureReason = "script" | "element" | "crash";
 
 /** What the PaymentIntent allows when the API names nothing: cards (Apple Pay and Google Pay are card wallets). */
 const CARD_ONLY = ["card"];
+
+/**
+ * The Payment Element: tabs (cards, plus Apple Pay and Google Pay where the
+ * device has them). Link stays off: `allowedPaymentMethodTypes` does not hide
+ * it, and it brings its own bank and Klarna payments that the API's card-only
+ * intents refuse (checked against the real Stripe.js and a test account).
+ */
+const PAYMENT_ELEMENT_OPTIONS = { layout: "tabs", wallets: { link: "never" } } satisfies StripePaymentElementOptions;
 
 /** Stripe's validation errors are shown by the element itself; anything else is ours to show. */
 function isValidation(error: StripeError): boolean {
@@ -239,7 +254,7 @@ function PaymentElementFields({ config, disabled, onState, onRetry, ref }: Payme
       ) : (
         <div className="payment-stripe-element" aria-hidden={!ready} style={disabled ? { pointerEvents: "none", opacity: 0.6 } : undefined}>
           <PaymentElement
-            options={{ layout: "tabs", readOnly: disabled }}
+            options={{ ...PAYMENT_ELEMENT_OPTIONS, readOnly: disabled }}
             onReady={() => setReady(true)}
             onLoadError={() => setLoadError(true)}
             onChange={() => error && setError(null)}

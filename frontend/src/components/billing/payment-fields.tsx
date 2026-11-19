@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { useI18n } from "@/i18n/i18n-provider";
-import { billingApi, type PaymentPurpose } from "@/lib/api/billing";
+import { billingApi, type ClientConfigTarget, type PaymentPurpose } from "@/lib/api/billing";
 import { errorMessage } from "@/lib/api/errors";
 import type { PaymentFieldsAdapter, PaymentFieldsHandle, PaymentFieldsState } from "@/lib/payments/payment-fields";
 import { useAsync } from "@/lib/use-async";
@@ -20,6 +20,11 @@ export const paymentAdapters: Record<string, PaymentFieldsAdapter> = {
 
 export type PaymentFieldsStatus = "loading" | "ready" | "unavailable" | "error";
 
+/** Only the ids that are set, so the request names nothing else. */
+function target(planVersionId?: string, packId?: string): ClientConfigTarget {
+  return { ...(planVersionId ? { planVersionId } : {}), ...(packId ? { packId } : {}) };
+}
+
 /**
  * Loads the routed provider's client configuration and renders its card
  * fields through the matching adapter. `ref.tokenize()` returns a provider
@@ -29,6 +34,7 @@ export type PaymentFieldsStatus = "loading" | "ready" | "unavailable" | "error";
 export function PaymentFields({
   purpose,
   planVersionId,
+  packId,
   disabled,
   variant = "dialog",
   cardholder,
@@ -38,6 +44,8 @@ export function PaymentFields({
 }: {
   purpose: PaymentPurpose;
   planVersionId?: string;
+  /** The credit pack being paid (purpose `credits`): Stripe's Payment Element needs its price. */
+  packId?: string;
   disabled?: boolean;
   variant?: "dialog" | "checkout";
   cardholder?: string;
@@ -47,7 +55,7 @@ export function PaymentFields({
   ref?: React.Ref<PaymentFieldsHandle>;
 }) {
   const { text } = useI18n();
-  const config = useAsync((signal) => billingApi.clientConfig(purpose, planVersionId, signal), [purpose, planVersionId]);
+  const config = useAsync((signal) => billingApi.clientConfig(purpose, target(planVersionId, packId), signal), [purpose, planVersionId, packId]);
   const adapter = config.data ? paymentAdapters[config.data.type] : undefined;
   // Adapters that load asynchronously (Stripe.js) report when they can tokenise.
   const [adapterState, setAdapterState] = React.useState<PaymentFieldsState>("loading");

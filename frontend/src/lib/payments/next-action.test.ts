@@ -26,7 +26,7 @@ describe("runNextAction", () => {
 
   it("runs Stripe's next action with the publishable key from client-config (saved card, nothing mounted)", async () => {
     await expect(runNextAction({ type: "use_stripe_sdk", client_secret: "pi_1_secret_2" })).resolves.toEqual({ ok: true });
-    expect(m.clientConfig).toHaveBeenCalledWith("credits", undefined, undefined);
+    expect(m.clientConfig).toHaveBeenCalledWith("credits", {}, undefined);
     expect(m.getStripe).toHaveBeenCalledWith("pk_test_x", expect.any(String));
     expect(m.handleNextAction).toHaveBeenCalledWith({ clientSecret: "pi_1_secret_2" });
   });

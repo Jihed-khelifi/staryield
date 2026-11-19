@@ -20,8 +20,11 @@ import (
 
 // ClientConfigInput asks how to collect a card for a payment.
 type ClientConfigInput struct {
-	Purpose        string
-	PlanVersionID  *uuid.UUID
+	Purpose       string
+	PlanVersionID *uuid.UUID
+	// PackID is the credit pack being paid (purpose credits, revisions 6.0
+	// §26.5): its price and currency go into the configuration.
+	PackID         *uuid.UUID
 	TrustedCountry string
 }
 
@@ -46,12 +49,22 @@ func (s *BillingService) ClientConfig(ctx context.Context, userID uuid.UUID, in 
 	route := payment.RouteInput{UserID: userID.String(), Countries: countries(in.TrustedCountry), Currency: s.cfg.Currency,
 		Purpose: routePurpose, Needs: payment.CapClientConfig | payment.CapVault | payment.CapAttach | payment.CapStoredCharge}
 	amount := int64(0)
-	if in.PlanVersionID != nil {
+	switch {
+	case in.PlanVersionID != nil:
 		v, err := s.repo.GetVersion(ctx, *in.PlanVersionID)
 		if err != nil {
 			return nil, mapRepoErr(err, "Plan")
 		}
 		route.PlanID, route.Currency, amount = v.PlanID.String(), v.Currency, v.PriceCents
+	case purpose == payment.PurposeCredits && in.PackID != nil:
+		// revisions 6.0 (§26.5): Stripe's Payment Element is a deferred intent that needs the amount
+		// up front (wallets show it to the payer): the pack's price and currency, as the purchase
+		// charges and routes them. Whether the pack may still be bought is the purchase's call.
+		pack, err := s.credits.GetPack(ctx, *in.PackID)
+		if err != nil {
+			return nil, mapRepoErr(err, "Credit pack")
+		}
+		route.Currency, amount = pack.Currency, pack.PriceCents
 	}
 	providers, _, err := s.route(ctx, route)
 	if errors.Is(err, payment.ErrNoProvider) {

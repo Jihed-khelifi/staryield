@@ -276,7 +276,7 @@ describe("BillingCard payments (revisions 6.0, §26.5–§26.6)", () => {
     await u.type(screen.getByLabelText("CVV"), "123");
     await u.click(screen.getByTestId("add-card-save"));
     await waitFor(() => expect(m.billingApi.attachMethod).toHaveBeenCalled());
-    expect(m.billingApi.clientConfig).toHaveBeenCalledWith("method", undefined, expect.anything());
+    expect(m.billingApi.clientConfig).toHaveBeenCalledWith("method", {}, expect.anything());
     expect(m.billingApi.clientConfig).not.toHaveBeenCalledWith("subscription", expect.anything(), expect.anything());
     expect(m.billingApi.attachMethod.mock.calls[0][0]).toMatchObject({ provider: "sandbox_a", token: "sbx_a_visa_4242_12_2039" });
   });

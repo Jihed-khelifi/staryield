@@ -397,6 +397,43 @@ func TestStripeLostResponseIsReconciledByLookup(t *testing.T) {
 	}
 }
 
+// A credit top-up's Payment Element is a deferred intent: Stripe.js refuses to build it without
+// the amount ("`amount` must be greater than 0"), and wallets show that amount to the payer. The
+// client configuration carries the price of the pack being paid, as the purchase charges it.
+func TestStripeCreditsClientConfigCarriesThePackPrice(t *testing.T) {
+	e, _ := stripeEnv(t)
+	c := e.registerClient()
+	var packs struct {
+		Items []service.PackView `json:"items"`
+	}
+	c.must(http.StatusOK, http.MethodGet, "/api/v1/credit-packs", nil, &packs)
+	var pack service.PackView
+	for _, p := range packs.Items {
+		if p.Credits == 250 && !strings.HasPrefix(p.Code, "welcome_") {
+			pack = p
+		}
+	}
+	if pack.ID == uuid.Nil || pack.PriceCents <= 0 {
+		t.Fatalf("no priced 250-credit pack: %+v", packs.Items)
+	}
+
+	var cfg struct {
+		Mode        string `json:"mode"`
+		AmountCents int64  `json:"amount_cents"`
+		Currency    string `json:"currency"`
+	}
+	c.must(http.StatusOK, http.MethodGet, "/api/v1/billing/client-config?purpose=credits&pack_id="+pack.ID.String(), nil, &cfg)
+	if cfg.Mode != "payment" || cfg.AmountCents != pack.PriceCents || cfg.Currency != strings.ToLower(pack.Currency) {
+		t.Fatalf("credits config for %s (%d %s): %+v", pack.Code, pack.PriceCents, pack.Currency, cfg)
+	}
+	if r := c.call(http.MethodGet, "/api/v1/billing/client-config?purpose=credits&pack_id="+uuid.NewString(), nil); r.status != http.StatusNotFound {
+		t.Fatalf("unknown pack: %d %s", r.status, r.body)
+	}
+	if r := c.call(http.MethodGet, "/api/v1/billing/client-config?purpose=credits&pack_id=not-a-pack", nil); r.status != http.StatusUnprocessableEntity {
+		t.Fatalf("malformed pack id: %d %s", r.status, r.body)
+	}
+}
+
 func TestStripeSavedCardsAndPurchasesWithThem(t *testing.T) {
 	e, fake := stripeEnv(t)
 	c := e.registerClient()

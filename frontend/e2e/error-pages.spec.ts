@@ -6,6 +6,9 @@
  * A malformed API answer (injected here) makes the profile's request list throw while rendering,
  * which shows the route error page. Once the API answers properly again, Try again must render the
  * page again (refresh the route, then reset the boundary) without any uncaught error.
+ *
+ * `npm run dev` runs Next.js, which does pass `retry`: only a run against the vinext build (served by
+ * `wrangler dev`, docs/stripe-setup.md §8) exercises what production gets.
  */
 import { expect, test } from "@playwright/test";
 

@@ -42,7 +42,8 @@ export async function runNextAction(next: NextAction, signal?: AbortSignal): Pro
   if (next.type === "use_stripe_sdk" && next.client_secret) {
     let stripe: Stripe | null;
     try {
-      const config = await billingApi.clientConfig("credits", undefined, signal);
+      // Only the publishable key is needed here (no Payment Element is built).
+      const config = await billingApi.clientConfig("credits", {}, signal);
       if (!config.publishable_key) return { ok: false };
       stripe = await getStripe(config.publishable_key, currentLocale());
     } catch (error) {

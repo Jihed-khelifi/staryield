@@ -310,6 +310,8 @@ describe("step 2: pay", () => {
     expect(screen.getByTestId("checkout-pay").textContent).toBe("Pay $80 USD");
     expect(screen.getByTestId("top-up-ack").textContent).toContain("purchase 675 credits for $80 USD");
     expect(screen.getByRole("dialog", { name: "Complete your purchase" })).toBeTruthy();
+    // The card form is configured for the pack being paid: Stripe's Payment Element needs its price (§26.5).
+    expect(m.clientConfig).toHaveBeenCalledWith("credits", { packId: popular.id }, expect.anything());
     await u.click(screen.getByTestId("top-up-back"));
     expect(radio(/Most Popular/).getAttribute("aria-checked")).toBe("true");
     expect(m.purchase).not.toHaveBeenCalled();
