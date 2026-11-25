@@ -13,6 +13,7 @@ import { useSession } from "@/lib/auth/session-provider";
 import { applyApiError } from "@/lib/forms/server-errors";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { newPasswordSchema, type NewPasswordValues } from "@/lib/schemas/auth";
+import { useToast } from "@/components/feedback/toast-provider";
 import { Form, FormRootError } from "@/components/ui/form";
 
 import { AuthCard, AuthShell, clearSignupEmail, readSignupEmail } from "./auth-card";
@@ -23,6 +24,7 @@ export function SignupPasswordForm() {
   const { text, locale } = useI18n();
   const router = useRouter();
   const { setUser } = useSession();
+  const toast = useToast();
   const form = useSchemaForm(newPasswordSchema, { defaultValues: { password: "", confirm: "" } });
   // The email belongs to step 1, so its problems get a way back there.
   const [emailProblem, setEmailProblem] = React.useState<"taken" | "invalid" | null>(null);
@@ -53,6 +55,9 @@ export function SignupPasswordForm() {
       }
       setUser(res.user);
       clearSignupEmail();
+      // Growth: the welcome e-mail carries the confirmation link (non-blocking: the next step continues).
+      // Only when the account says a link is waiting (none goes to an address that refuses e-mail).
+      if (res.user.email_verified === false && res.user.email_verification) toast.show({ tone: "info", message: text("We sent a confirmation link to {value0}. Open it to confirm your email.", { value0: input.email }), durationMs: 9000 });
       track("signup_step_completed", { step: "password" });
       router.push(`/${locale}/signup/birth`);
     } catch (err) {

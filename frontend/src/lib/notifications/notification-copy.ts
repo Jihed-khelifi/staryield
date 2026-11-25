@@ -7,6 +7,7 @@
 import type { AppNotification, NotificationKind } from "@/lib/api/types";
 import type { TranslationValues } from "@/i18n/types";
 import { lifecycleText, type LifecycleKind } from "@/lib/notifications/lifecycle-copy";
+import { emailVerifiedCopy } from "@/lib/notifications/email-verified-copy";
 
 type Translate = <T>(value: T, values?: TranslationValues) => T;
 
@@ -48,6 +49,7 @@ export const NOTIFICATION_KINDS = [
   "payment.refunded",
   "subscription.started",
   // --- growth: e-mail verification ---
+  "account.email_verified",
   // --- end growth: e-mail verification ---
 
   // --- growth: referrals ---
@@ -332,6 +334,8 @@ export function notificationText(
     case "broadcast":
       return { title: pickLocalized(d.title, locale) || text(T.fallbackTitle), body: pickLocalized(d.body, locale) };
     // --- growth: e-mail verification ---
+    case "account.email_verified":
+      return { title: text(emailVerifiedCopy.title), body: text(emailVerifiedCopy.body) };
     // --- end growth: e-mail verification ---
 
     // --- growth: referrals ---
@@ -376,6 +380,8 @@ export function notificationFallbackLink(n: AppNotification): string | null {
     case "account.reactivated":
       return "/profile";
     // --- growth: e-mail verification ---
+    case "account.email_verified":
+      return "/profile/settings#account";
     // --- end growth: e-mail verification ---
 
     // --- growth: referrals ---

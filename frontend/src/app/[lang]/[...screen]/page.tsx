@@ -27,6 +27,8 @@ import { AgeRestricted } from "@/components/account/age-restricted";
 import { AgeGuard } from "@/lib/auth/age-gate";
 // account settings: one-time e-mail link pages (tokens are read client-side, then stripped).
 import { EmailLinkPage, type EmailLinkAction } from "@/components/account/email-link-page";
+// growth: e-mail verification (token read client-side from the URL fragment, then stripped).
+import { VerifyEmailPage } from "@/components/account/verify-email-page";
 import { LinkTicketPage, MyTicketPage, SupportRequestsPage } from "@/components/support/support-pages";
 import { UnsubscribePage } from "@/components/marketing/unsubscribe-page"; // revisions 6.0 (§26.4)
 // revisions 5.0: public pricing page and the Refund Policy (docs/platform-extensions.md §24.8).
@@ -133,6 +135,7 @@ export async function generateMetadata({
     "confirm-email": "Confirm your email",
     "cancel-email-change": "Email change",
     "keep-account": "Keep your account",
+    "verify-email": "Confirm your email", // growth: e-mail verification
     unsubscribe: "Unsubscribe", // revisions 6.0 (§26.4)
     "support/requests": "Support requests",
     "age-restricted": "Account restricted", // revisions 5.0
@@ -148,7 +151,7 @@ export async function generateMetadata({
   if (route === "credits/return") return { title, robots: { index: false, follow: false }, referrer: "no-referrer" };
   // One-time links: never indexed, and the URL (with its token) is never
   // sent as a referrer.
-  if (route in emailLinks || route === "auth/google" || route === "age-restricted" || route === "unsubscribe")
+  if (route in emailLinks || route === "verify-email" || route === "auth/google" || route === "age-restricted" || route === "unsubscribe")
     return { title, referrer: "no-referrer", robots: { index: false, follow: false } };
   // Support desk (requester side): signed-in pages and the private link are never indexed;
   // the private link also never leaks its URL as a referrer.
@@ -208,6 +211,7 @@ export default async function ScreenPage({ params }: RouteProps) {
   if (route in auth) return <AuthFlow key={route} step={auth[route]} />;
   if (route in accounts) return <Account key={route} view={accounts[route]} />;
   if (route in emailLinks) return <EmailLinkPage key={route} action={emailLinks[route]} />;
+  if (route === "verify-email") return <VerifyEmailPage key={route} />; // growth: e-mail verification
   // Google sign-in: where the API sends the browser back (result in the query, read client-side).
   if (route === "auth/google") return <GoogleReturn key={route} />;
   // revisions 6.0 (§26.4): the unsubscribe link of the report e-mail (token read client-side, then stripped).

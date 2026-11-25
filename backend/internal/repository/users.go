@@ -17,8 +17,10 @@ type UserFilter struct {
 	Query  string
 	Role   domain.Role
 	Status domain.UserStatus
-	Cursor *Cursor
-	Limit  int
+	// Verified filters by e-mail verification (nil: all).
+	Verified *bool
+	Cursor   *Cursor
+	Limit    int
 }
 
 // UserRepository persists users and their profiles.
@@ -102,6 +104,13 @@ func (r *GormUserRepository) List(ctx context.Context, f UserFilter) ([]domain.U
 	}
 	if f.Status != "" {
 		q = q.Where("status = ?", f.Status)
+	}
+	if f.Verified != nil {
+		if *f.Verified {
+			q = q.Where("email_verified_at IS NOT NULL")
+		} else {
+			q = q.Where("email_verified_at IS NULL")
+		}
 	}
 	q = applyCursor(q, f.Cursor, "created_at", "id")
 	var out []domain.User

@@ -132,6 +132,8 @@ const samples: Record<NotificationKind, Record<string, unknown>> = {
   "lifecycle.first_reading": { free_minutes: 5, online_advisors: 3 },
   "lifecycle.invite_friends": {},
   "lifecycle.win_back": { online_advisors: 4 },
+  // growth: e-mail verification
+  "account.email_verified": {},
 };
 
 describe("copy for every kind (§23.6)", () => {

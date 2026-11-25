@@ -94,6 +94,7 @@ type Services struct {
 	CalculatorReport *service.CalculatorReportService
 
 	// --- growth: e-mail verification ---
+	EmailVerification *service.EmailVerificationService
 	// --- end growth: e-mail verification ---
 
 	// --- growth: referrals ---

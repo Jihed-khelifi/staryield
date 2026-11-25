@@ -36,6 +36,8 @@ type AdminUserRow struct {
 	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
 	// AgeStatus is the 18+ gate status (revisions 5.0, §24.6).
 	AgeStatus domain.AgeStatus `json:"age_status"`
+	// EmailVerifiedAt is when the address was verified (null: not verified).
+	EmailVerifiedAt *time.Time `json:"email_verified_at"`
 }
 
 // AdminProfile is the subset of a profile administrators see.
@@ -229,11 +231,12 @@ func (s *AdminService) record(ctx context.Context, action, targetType, targetID 
 
 func adminUserRow(u *domain.User) AdminUserRow {
 	return AdminUserRow{ID: u.ID, Email: u.Email, Role: string(u.Role), Status: string(u.Status), StatusReason: u.StatusReason,
-		DisplayName: u.DisplayName, Locale: u.Locale, CreatedAt: u.CreatedAt, LastLoginAt: u.LastLoginAt, AgeStatus: u.AgeStatus()}
+		DisplayName: u.DisplayName, Locale: u.Locale, CreatedAt: u.CreatedAt, LastLoginAt: u.LastLoginAt, AgeStatus: u.AgeStatus(),
+		EmailVerifiedAt: u.EmailVerifiedAt}
 }
 
 // Users lists accounts with optional search and filters.
-func (s *AdminService) Users(ctx context.Context, q, role, status, cursor string, limit int) (Page[AdminUserRow], error) {
+func (s *AdminService) Users(ctx context.Context, q, role, status, cursor string, limit int, opts ...UserListOption) (Page[AdminUserRow], error) {
 	c, err := decodeCursor(cursor)
 	if err != nil {
 		return Page[AdminUserRow]{}, err
@@ -244,8 +247,12 @@ func (s *AdminService) Users(ctx context.Context, q, role, status, cursor string
 	if status != "" && !domain.UserStatus(status).Valid() {
 		return Page[AdminUserRow]{}, apperror.Validation(map[string]string{"status": "Unknown status."})
 	}
-	rows, err := s.users.List(ctx, repository.UserFilter{Query: truncateString(strings.TrimSpace(q), 100), Role: domain.Role(role),
-		Status: domain.UserStatus(status), Cursor: c, Limit: limit})
+	f := repository.UserFilter{Query: truncateString(strings.TrimSpace(q), 100), Role: domain.Role(role),
+		Status: domain.UserStatus(status), Cursor: c, Limit: limit}
+	for _, opt := range opts {
+		opt(&f)
+	}
+	rows, err := s.users.List(ctx, f)
 	if err != nil {
 		return Page[AdminUserRow]{}, apperror.Internal(err)
 	}

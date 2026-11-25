@@ -12,6 +12,7 @@ import {
   ImageIcon,
   KeyRound,
   Mail,
+  MailCheck,
   Megaphone,
   MessageCircle,
   MessageCircleX,
@@ -51,6 +52,7 @@ const icons: Record<string, LucideIcon> = {
   "export.ready": Download,
   "account.email_change_requested": Mail,
   "account.email_changed": Mail,
+  "account.email_verified": MailCheck, // growth: e-mail verification
   "account.reactivated": UserCheck,
   "account.google_linked": KeyRound,
   "account.google_unlinked": KeyRound,

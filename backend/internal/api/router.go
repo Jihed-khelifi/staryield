@@ -311,6 +311,11 @@ func NewRouter(d Deps) *echo.Echo {
 	me.POST("/notifications/read", h.MarkNotificationsRead, writeRL)
 
 	// --- growth: e-mail verification ---
+	// The link may be opened on another device, signed out: public, by IP, fail closed.
+	a.POST("/email/verify", h.VerifyEmail, authRL)
+	// Resending has its own small hourly budget per user (it sends e-mail): fail closed.
+	verifyResendRL := mw.RateLimit(limiter, rule("email_verification", config.Rule{Rate: 5, Period: time.Hour, Burst: 5}, scale), mw.ByUserOrIP, false)
+	me.POST("/email/verification", h.ResendEmailVerification, verifyResendRL)
 	// --- end growth: e-mail verification ---
 
 	// --- growth: referrals ---
@@ -537,6 +542,8 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.POST("/users/:id/credits", h.AdminAdjustCredits, stepUp, adminRL)
 	ad.POST("/users/:id/logout-all", h.AdminLogoutUser, adminRL)
 	ad.POST("/users/:id/age-review", h.AdminAgeReview, stepUp, adminRL) // revisions 5.0: 18+ age gate (§24.6)
+	// growth: e-mail verification (resend the link; audited)
+	ad.POST("/users/:id/email-verification", h.AdminResendEmailVerification, adminRL)
 	ad.GET("/psychics", h.AdminPsychics)
 	ad.POST("/psychics", h.AdminCreatePsychic, adminRL)
 	ad.GET("/psychics/:id", h.AdminPsychic)

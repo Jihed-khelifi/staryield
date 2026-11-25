@@ -243,6 +243,8 @@ func TestExplainHotQueries(t *testing.T) {
 	checks = append(checks, reportLeadChecks(live)...)
 	// growth: lifecycle messaging and the onboarding checklist
 	checks = append(checks, lifecycleChecks(live)...)
+	// growth: e-mail verification (token lookups, admin filter)
+	checks = append(checks, emailVerificationChecks(live)...)
 
 	var lines []string
 	for _, qc := range checks {
