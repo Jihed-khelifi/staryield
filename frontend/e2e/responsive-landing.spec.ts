@@ -97,9 +97,10 @@ test.describe("responsive landing page and footer @responsive", () => {
         if (width < 640) expect(cards.minRatio).toBeGreaterThanOrEqual(0.85);
 
         const footer = await footerColumns(page);
-        // Brand + four link groups (Platform, Explore, Support, Staryield): one row from 1024px.
-        expect(footer.groupsPerRow, `${locale} @${width} footer groups per row`).toBe(width >= 1024 ? 4 : width >= 768 ? 3 : width >= 360 ? 2 : 1);
-        if (width < 1024) expect(footer.brandWidth).toBeGreaterThanOrEqual(footer.container - 1);
+        // Brand + four link groups (Platform, Explore, Support, Staryield): one row from 1200px
+        // (below, the longer fr/es group titles broke mid-word).
+        expect(footer.groupsPerRow, `${locale} @${width} footer groups per row`).toBe(width >= 1200 ? 4 : width >= 768 ? 3 : width >= 360 ? 2 : 1);
+        if (width < 1200) expect(footer.brandWidth).toBeGreaterThanOrEqual(footer.container - 1);
       }
       expect(problems, problems.join("\n")).toEqual([]);
     });

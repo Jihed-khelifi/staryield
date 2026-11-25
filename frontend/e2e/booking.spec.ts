@@ -200,7 +200,7 @@ test.describe("signed-in client", () => {
 });
 
 test.describe("phones", () => {
-  test("the profile shows a sticky booking bar above the tab bar, without horizontal scroll or a covered footer", async ({ browser }) => {
+  test("the profile shows a sticky booking bar at the bottom, without horizontal scroll or a covered footer", async ({ browser }) => {
     const ramone = await advisorSession(browser, "ramone");
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: "en-US" });
     const page = await context.newPage();
@@ -214,14 +214,24 @@ test.describe("phones", () => {
       await expectNoHorizontalScroll(page);
       await expectNoA11yViolations(page, ["[data-testid=booking-bar]"]);
 
-      // Bottom of the page: the bar sits above the tab bar and over no content.
+      // Bottom of the page: the bar sits above the tab bar (signed in) or the
+      // screen's edge (a visitor gets the public frame, §27.2: no tab bar, a
+      // footer) and covers nothing.
+      await expect(page.locator(".mobile-navigation")).toHaveCount(0);
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       const geometry = await page.evaluate(() => {
         const barBox = document.querySelector('[data-testid="booking-bar"]')!.getBoundingClientRect();
-        const nav = document.querySelector(".mobile-navigation")!.getBoundingClientRect();
-        const main = document.querySelector("main.psychic-profile")!;
-        const last = main.lastElementChild!.getBoundingClientRect();
-        return { barTop: barBox.top, barBottom: barBox.bottom, barLeft: barBox.left, barRight: barBox.right, navTop: nav.top, lastBottom: last.bottom, width: window.innerWidth };
+        const nav = document.querySelector(".mobile-navigation");
+        const last = (document.querySelector("footer.site-footer") ?? document.querySelector("main.psychic-profile")!.lastElementChild!).getBoundingClientRect();
+        return {
+          barTop: barBox.top,
+          barBottom: barBox.bottom,
+          barLeft: barBox.left,
+          barRight: barBox.right,
+          navTop: nav ? nav.getBoundingClientRect().top : window.innerHeight,
+          lastBottom: last.bottom,
+          width: window.innerWidth,
+        };
       });
       expect(geometry.barBottom).toBeLessThanOrEqual(geometry.navTop);
       expect(geometry.barLeft).toBeGreaterThanOrEqual(0);
