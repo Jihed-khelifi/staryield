@@ -46,13 +46,15 @@ function expectAlternates(alternates: Record<string, string | null>, route: stri
   });
 }
 
+/** Fill each date box and check it holds the value before the next one (no lost keystroke goes unnoticed). */
 async function fillDates(page: Page, scope: string, dates: [string, string, string][]) {
   const groups = page.getByTestId(scope).locator("[data-slot=date-parts-input]");
-  for (const [index, [day, month, year]] of dates.entries()) {
-    const group = groups.nth(index);
-    await group.locator("input").nth(0).fill(day);
-    await group.locator("input").nth(1).fill(month);
-    await group.locator("input").nth(2).fill(year);
+  for (const [index, parts] of dates.entries()) {
+    const inputs = groups.nth(index).locator("input");
+    for (const [position, value] of parts.entries()) {
+      await inputs.nth(position).fill(value);
+      await expect(inputs.nth(position)).toHaveValue(value);
+    }
   }
 }
 
@@ -67,6 +69,16 @@ test.describe("crawler files", () => {
     for (const path of ["/*/profile", "/*/chatroom", "/*/credits", "/*/signup/", "/go/", "/*/unsubscribe", "/*/verify-email", "/*/support/"])
       expect(body).toContain(`Disallow: ${path}`);
     expect(body).toContain(`Sitemap: ${SITE}/sitemap.xml`);
+    expect(body).toContain(`Sitemap: ${SITE}/psychics/sitemap.xml`);
+  });
+
+  test("the advisors' sitemap lists the public profiles in three locales", async ({ request }) => {
+    const response = await request.get("/psychics/sitemap.xml");
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toContain("xml");
+    const xml = await response.text();
+    for (const locale of ["en", "fr", "es"]) expect(xml).toContain(`<loc>${SITE}/${locale}/psychics/ramone</loc>`);
+    expect(xml).toContain(`<xhtml:link rel="alternate" hreflang="x-default" href="${SITE}/en/psychics/ramone" />`);
   });
 
   test("sitemap.xml lists every indexable page in three locales with hreflang alternates", async ({ request }) => {
@@ -95,8 +107,9 @@ test.describe("crawler files", () => {
 const PAGES = [
   { path: "/en/life-path-number", route: "/life-path-number", h1: "Life Path Numbers and Their Meanings", locale: "en_US" },
   { path: "/fr/life-path-number/7", route: "/life-path-number/7", h1: "Chemin de vie 7 : Le Chercheur de vérité", locale: "fr_FR" },
-  { path: "/es/tarot-birth-card", route: "/tarot-birth-card", h1: "Las cartas de nacimiento del tarot y su significado", locale: "es_ES" },
-  { path: "/en/tarot-birth-card/the-star", route: "/tarot-birth-card/the-star", h1: "The Star as a Tarot Birth Card", locale: "en_US" },
+  // The tarot pages preview a 210 px card: too narrow for X's large card, so they use the small one.
+  { path: "/es/tarot-birth-card", route: "/tarot-birth-card", h1: "Las cartas de nacimiento del tarot y su significado", locale: "es_ES", card: "summary" },
+  { path: "/en/tarot-birth-card/the-star", route: "/tarot-birth-card/the-star", h1: "The Star as a Tarot Birth Card", locale: "en_US", card: "summary" },
   { path: "/fr/compatibility", route: "/compatibility", h1: "Compatibilité des signes du zodiaque", locale: "fr_FR" },
   { path: "/en/compatibility/aries-and-leo", route: "/compatibility/aries-and-leo", h1: "Aries and Leo Compatibility", locale: "en_US" },
 ];
@@ -116,7 +129,7 @@ test.describe("search pages", { tag: "@responsive" }, () => {
       expect(head.ogUrl).toBe(`${SITE}${item.path}`);
       expect(head.ogLocale).toBe(item.locale);
       expect(head.ogImage).toMatch(/^https:\/\/assets\.staryield\.net\/assets\//);
-      expect(head.twitterCard).toBe("summary_large_image");
+      expect(head.twitterCard).toBe(item.card ?? "summary_large_image");
       expect(head.robots).toBeNull();
       const types = head.jsonLd.map((data: { "@type": string }) => data["@type"]);
       expect(types).toEqual(["BreadcrumbList", "FAQPage"]);
@@ -187,7 +200,8 @@ test.describe("embedded calculators", { tag: "@responsive" }, () => {
     });
     await page.goto("/en/compatibility");
     await page.getByTestId("compatibility-submit").click();
-    await expect(page.getByTestId("compatibility-form").getByText("Enter your date of birth.")).toHaveCount(2);
+    await expect(page.getByTestId("compatibility-form").getByText("Enter your date of birth.")).toHaveCount(1);
+    await expect(page.getByTestId("compatibility-form").getByText("Enter their date of birth.")).toHaveCount(1);
     // Leo first, Aries second: the canonical page is still aries-and-leo.
     await fillDates(page, "compatibility-form", [["05", "08", "1988"], ["10", "04", "1990"]]);
     await page.getByTestId("compatibility-submit").click();
@@ -199,6 +213,8 @@ test.describe("embedded calculators", { tag: "@responsive" }, () => {
     await page.getByTestId("compatibility-submit").click();
     await expect(page.getByTestId("compatibility-here")).toContainText("Your signs are Aries and Leo: this is your pairing.");
     await expect(page).toHaveURL(/\/en\/compatibility\/aries-and-leo$/);
+    // The confirmation takes the focus on the next frame: wait for it, so it cannot pull the focus out of a box being filled.
+    await expect(page.getByTestId("compatibility-here")).toBeFocused();
 
     // A cusp birthday (20 April 1990): both possible signs, a link to settle it, then the chosen pair.
     await fillDates(page, "compatibility-form", [["20", "04", "1990"], ["05", "08", "1988"]]);
@@ -224,18 +240,40 @@ test.describe("site pages", () => {
     expect(head.jsonLd.map((data: { "@type": string }) => data["@type"])).toEqual(["Organization", "WebSite"]);
   });
 
-  test("a calculator has a keyword title, a canonical URL, breadcrumbs and its FAQ as structured data", async ({ page }) => {
+  test("a calculator has a keyword title, a canonical URL and its FAQ as structured data", async ({ page }) => {
     await page.goto("/en/calculators/path-of-life");
     const head = await headOf(page);
     expect(head.title).toBe("Life Path Number Calculator — Staryield");
     expect(head.canonical).toBe(`${SITE}/en/calculators/path-of-life`);
     expectAlternates(head.alternates, "/calculators/path-of-life");
-    expect(head.jsonLd.map((data: { "@type": string }) => data["@type"])).toEqual(["BreadcrumbList", "FAQPage"]);
+    // No BreadcrumbList: the calculator page shows no breadcrumb trail.
+    expect(head.jsonLd.map((data: { "@type": string }) => data["@type"])).toEqual(["FAQPage"]);
     // The answers are in the page (hidden until opened), so crawlers read them.
-    const faq = head.jsonLd[1] as { mainEntity: { acceptedAnswer: { text: string } }[] };
+    const faq = head.jsonLd[0] as { mainEntity: { acceptedAnswer: { text: string } }[] };
     expect(await page.getByTestId("article-faq").textContent()).toContain(faq.mainEntity[0].acceptedAnswer.text.slice(0, 40));
     // Its article links to the Life Path hub.
     await expect(page.locator('[data-calculator-article] a[href="/en/life-path-number"]')).toHaveCount(1);
+  });
+
+  test("the FAQ page describes the questions it answers", async ({ page }) => {
+    await page.goto("/en/faq");
+    const head = await headOf(page);
+    expect(head.jsonLd.map((data: { "@type": string }) => data["@type"])).toEqual(["FAQPage"]);
+    const faq = head.jsonLd[0] as { mainEntity: { name: string }[] };
+    expect(faq.mainEntity.length).toBeGreaterThan(0);
+    for (const question of faq.mainEntity) await expect(page.getByText(question.name, { exact: true }).first()).toBeAttached();
+  });
+
+  test("an advisor profile is described with the advisor's real name; an unknown slug is a 404 that reflects nothing", async ({ page, request }) => {
+    await page.goto("/en/psychics/ramone");
+    const head = await headOf(page);
+    expect(head.title).toBe("Ramone — Staryield");
+    expect(head.canonical).toBe(`${SITE}/en/psychics/ramone`);
+    expect(head.robots).toBeNull();
+    const unknown = await request.get("/en/psychics/staryield-refund-desk-call-1-800-555-0199");
+    expect(unknown.status()).toBe(404);
+    expect(await unknown.text()).not.toMatch(/refund desk/i);
+    expect((await request.get("/en/constructor")).status()).toBe(404);
   });
 
   test("private and one-time pages stay out of the index", async ({ page }) => {
