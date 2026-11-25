@@ -36,8 +36,15 @@ import { isLocale } from "@/i18n/config";
 import { isRefundAlias } from "@/lib/legal/refund-aliases"; // revisions 5.1
 import advisors from "@/data/advisors.json";
 import { getDictionary } from "@/i18n/dictionaries";
-import { createTranslateCopy } from "@/i18n/translate-copy";
-import { localePath, locales } from "@/i18n/config";
+import { createTranslateCopy, type TranslateCopy } from "@/i18n/translate-copy";
+import type { Locale } from "@/i18n/config";
+// growth (seo): page metadata, link previews and structured data.
+import { articleKindForCalculator, getCalculatorArticle, type CalculatorRouteKind } from "@/content/calculators";
+import { SEO_COMMON } from "@/content/seo/names";
+import { JsonLd } from "@/lib/seo/json-ld";
+import { breadcrumbJsonLd, faqJsonLd, type JsonLdObject } from "@/lib/seo/jsonld";
+import { ADVISOR_DESCRIPTION, AUTH_ROUTES, DEFAULT_IMAGE_ALT, PAGE_SEO } from "@/lib/seo/pages";
+import { NOINDEX, NOINDEX_FOLLOW, pageAlternates, pageMetadata } from "@/lib/seo/site";
 
 const content = {
   about: About,
@@ -76,6 +83,15 @@ const calculatorKinds: CalculatorKind[] = [
 type RouteProps = { params: Promise<{ lang: string; screen: string[] }> };
 
 const supportReference = /^SY-[A-Za-z0-9]{4,16}$/;
+/** An advisor profile slug (`/psychics/<slug>`), as the page accepts it. */
+const advisorSlug = /^(?=.{1,64}$)[a-z0-9]+(-[a-z0-9]+)*$/;
+/** "maria-luz" → "Maria Luz". */
+function nameFromSlug(slug: string): string {
+  return slug
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
 /** revisions 6.0 (§26.6): `/profile/invoices/<id>` (ids are UUIDs). */
 const invoiceId = /^[A-Za-z0-9-]{8,64}$/;
 function invoiceRoute(screen: string[]): string | null {
@@ -98,18 +114,9 @@ export async function generateMetadata({
   if (!isLocale(lang)) return {};
   const text = createTranslateCopy((await getDictionary(lang)).copy);
   const route = screen.join("/");
-  if (screen.length === 1 && isRefundAlias(screen[0])) return { robots: { index: false, follow: false } }; // revisions 5.1: redirect only
+  if (screen.length === 1 && isRefundAlias(screen[0])) return { robots: NOINDEX }; // revisions 5.1: redirect only
+  // Pages that are not indexed keep a plain title (the indexable ones are described by PAGE_SEO).
   const titles: Record<string, string> = {
-    about: "About",
-    reviews: "Reviews",
-    standards: "Standards",
-    faq: "FAQ",
-    disclaimer: "Disclaimer",
-    terms: "Terms of Use",
-    privacy: "Privacy Policy",
-    pricing: "Pricing", // revisions 5.0
-    "refund-policy": "Refund Policy", // revisions 5.0
-    contact: "Contact",
     psychics: "Psychics",
     profile: "Profile",
     "profile/chart": "Natal Chart",
@@ -124,9 +131,6 @@ export async function generateMetadata({
     login: "Log in",
     "forgot-password": "Forgot password",
     "reset-password": "Choose a new password",
-    "calculators/natal-chart": "Natal Chart",
-    "calculators/path-of-life": "Life Path",
-    "calculators/astrology": "Astrology",
     "auth/google": "Log in",
     "confirm-email": "Confirm your email",
     "cancel-email-change": "Email change",
@@ -135,52 +139,91 @@ export async function generateMetadata({
     "support/requests": "Support requests",
     "age-restricted": "Account restricted", // revisions 5.0
   };
+  // growth (seo): advisors come from the API; a profile missing from the static list is named after its slug.
   const advisor =
-    screen[0] === "psychics"
-      ? advisors.find((item) => item.slug === screen[1])
+    screen[0] === "psychics" && screen.length === 2 && advisorSlug.test(screen[1])
+      ? (advisors.find((item) => item.slug === screen[1]) ?? { slug: screen[1], name: nameFromSlug(screen[1]) })
       : undefined;
-  const title =
-    advisor?.name ?? text(titles[route.replace(/\/results$/, "")] ?? "Home");
+  const base = route.replace(/\/results$/, "");
+  const title = advisor?.name ?? text(PAGE_SEO[base]?.title ?? titles[base] ?? "Home");
   // revisions 6.0: the invoice and the payment return page are private.
-  if (invoiceRoute(screen)) return { title: text("Invoice"), robots: { index: false, follow: false }, referrer: "no-referrer" };
-  if (route === "credits/return") return { title, robots: { index: false, follow: false }, referrer: "no-referrer" };
+  if (invoiceRoute(screen)) return { title: text("Invoice"), robots: NOINDEX, referrer: "no-referrer" };
+  if (route === "credits/return") return { title, robots: NOINDEX, referrer: "no-referrer" };
   // One-time links: never indexed, and the URL (with its token) is never
   // sent as a referrer.
   if (route in emailLinks || route === "auth/google" || route === "age-restricted" || route === "unsubscribe")
-    return { title, referrer: "no-referrer", robots: { index: false, follow: false } };
+    return { title, referrer: "no-referrer", robots: NOINDEX };
   // Support desk (requester side): signed-in pages and the private link are never indexed;
   // the private link also never leaks its URL as a referrer.
   const support = supportRoute(screen);
   if (support) {
     const title = text(support.kind === "list" ? "Support requests" : "Support request");
     return support.kind === "link"
-      ? { title, referrer: "no-referrer", robots: { index: false, follow: false } }
-      : { title, robots: { index: false, follow: false } };
+      ? { title, referrer: "no-referrer", robots: NOINDEX }
+      : { title, robots: NOINDEX };
   }
   // The directory is for signed-in customers (visitors are redirected home).
   if (route === "psychics") return { title, robots: { index: false } };
-  // revisions 5.0: the public pricing and refund pages are indexed and described.
-  const description =
-    route === "pricing"
-      ? text("Simple, transparent pricing: start with free minutes, then choose a one-time credit pack. No subscriptions and no automatic top-ups.")
-      : route === "refund-policy"
-        ? text("How refunds work for Staryield credit packs, promotional credits and readings, and how to request one.")
-        : undefined;
-  return {
-    ...(description ? { description } : {}),
-    title:
-      screen.at(-1) === "results" ? `${title} — ${text("Results")}` : title,
-    alternates: {
-      languages: Object.fromEntries(
-        locales.map((locale) => [locale, localePath(`/${route}`, locale)]),
-      ),
-    },
-  };
+  // growth (seo): the account, the sign-in steps and the design's sample results are not indexed.
+  if (route in accounts || route === "credits" || AUTH_ROUTES.has(route)) return { title, robots: NOINDEX_FOLLOW };
+  if (screen[0] === "calculators" && screen.at(-1) === "results")
+    return { title: `${title} — ${text("Results")}`, robots: NOINDEX_FOLLOW };
+  // growth (seo): indexable pages get a keyword-aware title and description, a canonical URL,
+  // absolute hreflang alternates (with x-default) and a link preview.
+  const seo = PAGE_SEO[route];
+  if (seo)
+    return pageMetadata({ locale: lang, route: `/${route}`, title, description: text(seo.description), imageAlt: text(DEFAULT_IMAGE_ALT) });
+  if (advisor)
+    return pageMetadata({
+      locale: lang,
+      route: `/${route}`,
+      title,
+      description: text(ADVISOR_DESCRIPTION, { value0: advisor.name }),
+      imageAlt: text(DEFAULT_IMAGE_ALT),
+    });
+  return { title, alternates: pageAlternates(`/${route}`, lang) };
 }
+
+/**
+ * growth (seo): BreadcrumbList for the indexable pages of this route, and
+ * FAQPage for a calculator's article (its questions and answers are on the page).
+ */
+function screenJsonLd(route: string, lang: Locale, text: TranslateCopy): JsonLdObject[] {
+  const seo = PAGE_SEO[route];
+  if (!seo) return [];
+  const data = [
+    breadcrumbJsonLd(lang, [
+      { name: SEO_COMMON[lang].home, route: "" },
+      { name: text(seo.title), route: `/${route}` },
+    ]),
+  ];
+  const kind = route.startsWith("calculators/") ? route.slice("calculators/".length) : "";
+  if (kind in articleKindForCalculator) {
+    const faq = getCalculatorArticle(kind as CalculatorRouteKind, lang)
+      .sections.flatMap((section) => section.blocks)
+      .flatMap((block) => (block.type === "faq" ? block.items : []));
+    if (faq.length) data.push(faqJsonLd(faq));
+  }
+  return data;
+}
+
 export default async function ScreenPage({ params }: RouteProps) {
   const { lang, screen } = await params;
   if (!isLocale(lang)) notFound();
   const route = screen.join("/");
+  const page = screenPage(lang, screen, route);
+  const data = PAGE_SEO[route] ? screenJsonLd(route, lang, createTranslateCopy((await getDictionary(lang)).copy)) : [];
+  return data.length ? (
+    <>
+      <JsonLd data={data} />
+      {page}
+    </>
+  ) : (
+    page
+  );
+}
+
+function screenPage(lang: Locale, screen: string[], route: string) {
   // revisions 5.1: fallback for the refund aliases (the proxy normally redirects them first), §25.6.
   if (screen.length === 1 && isRefundAlias(screen[0])) permanentRedirect(`/${lang}/refund-policy`);
   if (route in content) {
@@ -218,12 +261,7 @@ export default async function ScreenPage({ params }: RouteProps) {
   if (route === "psychics") return <PsychicsBrowse />;
   // Advisors come from the API; any well-formed slug is resolved client-side
   // (unknown slugs render the not-found state).
-  if (
-    screen[0] === "psychics" &&
-    screen.length === 2 &&
-    /^[a-z0-9]+(-[a-z0-9]+)*$/.test(screen[1]) &&
-    screen[1].length <= 64
-  )
+  if (screen[0] === "psychics" && screen.length === 2 && advisorSlug.test(screen[1]))
     return <PsychicProfile key={route} slug={screen[1]} />;
   const invoice = invoiceRoute(screen);
   if (invoice) return <InvoicePage key={invoice} id={invoice} />;

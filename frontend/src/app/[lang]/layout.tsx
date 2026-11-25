@@ -33,6 +33,8 @@ import { ThemeSync } from "@/components/layout/theme-sync";
 // revisions 5.0: 18+ age gate (§24.6): a gated API answer becomes the birth step or the restricted screen.
 import { AgeGateEffects } from "@/lib/auth/age-gate";
 import { THEME_COOKIE, parseThemeCookie } from "@/lib/theme";
+// growth (seo): absolute canonical, hreflang and link-preview URLs.
+import { SITE_NAME, SITE_URL } from "@/lib/seo/site";
 
 /** Stand-in for Castellar, which is not available as a webfont. */
 const cinzel = Cinzel({
@@ -70,6 +72,8 @@ export async function generateMetadata({
   const text = createTranslateCopy(dictionary.copy);
 
   return {
+    metadataBase: new URL(SITE_URL),
+    applicationName: SITE_NAME,
     title: {
       default: `${dictionary.nav.brand} — ${text("Grounded wisdom. Personalized guidance.")}`,
       template: `%s — ${dictionary.nav.brand}`,
