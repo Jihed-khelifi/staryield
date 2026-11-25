@@ -216,6 +216,50 @@ func TestMailEnqueueSealsAndDelivers(t *testing.T) {
 	}
 }
 
+// A deployment without a provider (the no-op driver) must never look
+// delivered: the row is cancelled with reason no_provider and keeps no body.
+func TestMailNoopDriverIsRecordedAsNotSent(t *testing.T) {
+	svc, repo, _, _ := newTestMail(t)
+	svc.provider = mail.NoopMailer{}
+	if err := svc.Enqueue(context.Background(), req(uuid.New(), domain.EmailAccount, "calculator_report")); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := svc.Drain(context.Background()); err != nil || n != 1 {
+		t.Fatalf("drain: %d %v", n, err)
+	}
+	rows := repo.byTemplate("calculator_report")
+	if len(rows) != 1 || rows[0].Status != domain.EmailCancelled || rows[0].StatusReason != reasonNoProvider ||
+		rows[0].SentAt != nil || rows[0].PayloadSealed != "" || rows[0].ToSealed != "" {
+		t.Fatalf("noop row: %+v", rows)
+	}
+}
+
+// Provider account problems (plan restrictions, revoked tokens) are retried
+// with backoff, so the message goes out once the operator fixes the account,
+// and the row keeps the provider's code for the admin console.
+func TestMailProviderConfigErrorsAreRetried(t *testing.T) {
+	svc, repo, rec, clk := newTestMail(t)
+	rec.SetFail(func(mail.Message) (mail.Result, error) {
+		return mail.Result{}, &mail.SendError{Status: 403, Code: 10208, Reason: "email.sending.error.email.recipient_plan_restricted",
+			Retryable: true, Config: true, Hint: "upgrade"}
+	})
+	if err := svc.Enqueue(context.Background(), req(uuid.New(), domain.EmailAccount, "calculator_report")); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = svc.Drain(context.Background())
+	row := repo.byTemplate("calculator_report")[0]
+	if row.Status != domain.EmailQueued || !strings.Contains(row.LastError, "10208") || row.PayloadSealed == "" {
+		t.Fatalf("after a config failure: %+v", row)
+	}
+	// The operator upgrades the plan: the next attempt delivers.
+	rec.SetFail(nil)
+	clk.Advance(time.Hour)
+	_, _ = svc.Drain(context.Background())
+	if got, _ := repo.Get(context.Background(), row.ID); got.Status != domain.EmailSent || len(rec.Sent()) != 1 {
+		t.Fatalf("after the fix: %+v (sent %d)", got, len(rec.Sent()))
+	}
+}
+
 func TestMailMarketingIsNeverSentThroughTransactionalProvider(t *testing.T) {
 	svc, repo, rec, _ := newTestMail(t)
 	if err := svc.Enqueue(context.Background(), req(uuid.New(), domain.EmailMarketing, "notification:broadcast")); err != nil {

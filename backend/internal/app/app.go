@@ -230,7 +230,12 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 			mailer = mail.LogMailer{From: cfg.Mail.From}
 		default:
 			mailer = mail.NoopMailer{}
-			log.Warn("mail driver is noop: e-mail (password resets, account notices) is discarded")
+			msg := "mail driver is noop: every e-mail (sign-up verification, password resets, calculator reports, receipts) is discarded; set STARYIELD_MAIL_DRIVER=cloudflare"
+			if cfg.IsProduction() {
+				log.Error(msg)
+			} else {
+				log.Warn(msg)
+			}
 		}
 	}
 	// Keyed hashes identify e-mail addresses and push endpoints without
@@ -548,7 +553,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Cfg: service.ReportSettings{FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret,
 			UnsubscribeKey: security.Keyed(string(key), "staryield:marketing-unsubscribe:v1", 0),
 			AddressRule:    service.ReportAddressRule.Scaled(cfg.RateLimit.Scale)}})
-	authSvc.SetRegistrationHook(reportSvc.LinkRegistration)
+	authSvc.AddRegistrationHook(reportSvc.LinkRegistration)
 	purgeCalcLead := service.PurgeAll(calculatorSvc, reportSvc) // account erasure also deletes the user's e-mail lead
 	// end revisions 6.0 (§26.4)
 	eraser := service.NewAccountEraser(service.EraserDeps{Tx: txm, Users: users, Tokens: tokens, Psychics: psychics, Hasher: hasher,
@@ -593,6 +598,19 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		service.RevenueSettings{Currency: cfg.Payments.Currency, PayoutCentsPerCredit: cfg.Billing.PayoutCentsPerCredit})
 	// revisions 6.0 (§26.4): the calculators' e-mail report
 	services.CalculatorReport = reportSvc
+
+	// --- growth: e-mail verification ---
+	// --- end growth: e-mail verification ---
+
+	// --- growth: referrals ---
+	// --- end growth: referrals ---
+
+	// --- growth: lifecycle and onboarding ---
+	// --- end growth: lifecycle and onboarding ---
+
+	// --- growth: cross-stream hooks ---
+	// --- end growth: cross-stream hooks ---
+
 	cookieNames := api.CookieNamesFor(cfg.Security)
 	health := func(r *http.Request) map[string]error {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -676,6 +694,12 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	// revisions 3.0: support desk
 	scheduler.WithJobs(worker.Job{Name: service.SupportJob, Every: time.Hour, Run: supportSvc.RunMaintenance})
 	// end revisions 3.0: support desk
+
+	// --- growth jobs: referrals ---
+	// --- end growth jobs: referrals ---
+
+	// --- growth jobs: lifecycle and onboarding ---
+	// --- end growth jobs: lifecycle and onboarding ---
 
 	return &App{
 		Config: cfg, Log: log, DB: db, Redis: rdb, Router: router, Services: services, Hub: hub, Realtime: rtServer,

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -101,14 +102,69 @@ type GormTxManager struct{ db *gorm.DB }
 // NewTxManager returns a TxManager bound to db.
 func NewTxManager(db *gorm.DB) *GormTxManager { return &GormTxManager{db: db} }
 
-// WithinTx implements TxManager.
+// WithinTx implements TxManager. Work registered with AfterCommit inside fn
+// runs once the outermost transaction has committed (and never when it rolls
+// back).
 func (m *GormTxManager) WithinTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	if InTx(ctx) {
 		return fn(ctx)
 	}
-	return m.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return fn(context.WithValue(ctx, txKey{}, tx))
+	hooks := &txHooks{}
+	err := m.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(context.WithValue(context.WithValue(ctx, txKey{}, tx), hooksKey{}, hooks))
 	})
+	if err == nil {
+		hooks.run(Detach(ctx))
+	}
+	return err
+}
+
+// hooksKey carries the post-commit hooks of the transaction in a context.
+type hooksKey struct{}
+
+// txHooks collects the work to run after one transaction commits.
+type txHooks struct {
+	mu  sync.Mutex
+	fns []func(context.Context)
+}
+
+func (h *txHooks) add(fn func(context.Context)) {
+	h.mu.Lock()
+	h.fns = append(h.fns, fn)
+	h.mu.Unlock()
+}
+
+// run executes the hooks in registration order. A panicking hook is logged
+// and never stops the others (the transaction is already committed).
+func (h *txHooks) run(ctx context.Context) {
+	h.mu.Lock()
+	fns := h.fns
+	h.fns = nil
+	h.mu.Unlock()
+	for _, fn := range fns {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.FromContext(ctx).Error("database: post-commit hook panicked", zap.Any("panic", r), zap.Stack("stack"))
+				}
+			}()
+			fn(ctx)
+		}()
+	}
+}
+
+// AfterCommit runs fn once the transaction carried by ctx has committed, with
+// a context detached from it: realtime events, wake-ups of background workers
+// and other side effects that must not observe (or announce) uncommitted
+// rows. Outside a transaction, or under a TxManager that does not track hooks
+// (test doubles), fn runs immediately. A transaction that rolls back drops
+// its hooks.
+func AfterCommit(ctx context.Context, fn func(ctx context.Context)) {
+	if h, ok := ctx.Value(hooksKey{}).(*txHooks); ok && h != nil && InTx(ctx) {
+		h.add(fn)
+		return
+	}
+	fn(Detach(ctx))
 }
 
 // Conn returns the transaction stored in ctx, or base bound to ctx. Every

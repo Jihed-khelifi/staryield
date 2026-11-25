@@ -109,20 +109,29 @@ func TestCloudflareReportsPermanentBounces(t *testing.T) {
 }
 
 func TestCloudflareClassifiesErrors(t *testing.T) {
+	// Account and configuration failures (credentials, entitlement, plan,
+	// sending domain) are retried and flagged for the operator: the message
+	// goes out once the account is fixed. Failures of the message itself are
+	// permanent.
 	cases := []struct {
 		name      string
 		status    int
 		body      string
 		retryable bool
 		code      int
+		config    bool
 	}{
-		{"throttled", http.StatusTooManyRequests, `{"success":false,"errors":[{"code":10004,"message":"email.sending.error.throttled"}]}`, true, 10004},
-		{"internal", http.StatusInternalServerError, `{"success":false,"errors":[{"code":10002,"message":"email.sending.error.internal_server"}]}`, true, 10002},
-		{"upstream", http.StatusServiceUnavailable, `{"success":false,"errors":[{"code":10100,"message":"email.sending.error.authentication.upstream"}]}`, true, 10100},
-		{"schema", http.StatusBadRequest, `{"success":false,"errors":[{"code":10001,"message":"email.sending.error.invalid_request_schema"}]}`, false, 10001},
-		{"unauthorized", http.StatusUnauthorized, `{"success":false,"errors":[{"code":10101,"message":"email.sending.error.authentication.unauthorized"}]}`, false, 10101},
-		{"not entitled", http.StatusForbidden, `{"success":false,"errors":[{"code":10105,"message":"email.sending.error.authentication.not_entitled"}]}`, false, 10105},
-		{"garbage", http.StatusBadGateway, `<html>bad gateway</html>`, true, 0},
+		{"throttled", http.StatusTooManyRequests, `{"success":false,"errors":[{"code":10004,"message":"email.sending.error.throttled"}]}`, true, 10004, false},
+		{"internal", http.StatusInternalServerError, `{"success":false,"errors":[{"code":10002,"message":"email.sending.error.internal_server"}]}`, true, 10002, false},
+		{"upstream", http.StatusServiceUnavailable, `{"success":false,"errors":[{"code":10100,"message":"email.sending.error.authentication.upstream"}]}`, true, 10100, false},
+		{"schema", http.StatusBadRequest, `{"success":false,"errors":[{"code":10001,"message":"email.sending.error.invalid_request_schema"}]}`, false, 10001, false},
+		{"too big", http.StatusBadRequest, `{"success":false,"errors":[{"code":10200,"message":"email.sending.error.email.too_big"}]}`, false, 10200, false},
+		{"unauthorized", http.StatusUnauthorized, `{"success":false,"errors":[{"code":10101,"message":"email.sending.error.authentication.unauthorized"}]}`, true, 10101, true},
+		{"not entitled", http.StatusForbidden, `{"success":false,"errors":[{"code":10105,"message":"email.sending.error.authentication.not_entitled"}]}`, true, 10105, true},
+		{"plan restricted", http.StatusForbidden, `{"success":false,"errors":[{"code":10208,"message":"email.sending.error.email.recipient_plan_restricted"}]}`, true, 10208, true},
+		{"sending disabled", http.StatusForbidden, `{"success":false,"errors":[{"code":10203,"message":"email.sending.error.email.sending_disabled"}]}`, true, 10203, true},
+		{"unknown account", http.StatusNotFound, `{"success":false,"errors":[{"code":10000,"message":"email.sending.error.not_found"}]}`, true, 10000, true},
+		{"garbage", http.StatusBadGateway, `<html>bad gateway</html>`, true, 0, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -132,11 +141,14 @@ func TestCloudflareClassifiesErrors(t *testing.T) {
 			if !errors.As(err, &se) {
 				t.Fatalf("want SendError, got %v", err)
 			}
-			if se.Retryable != tc.retryable || se.Code != tc.code || se.Status != tc.status {
+			if se.Retryable != tc.retryable || se.Code != tc.code || se.Status != tc.status || se.Config != tc.config {
 				t.Fatalf("classification: %+v", se)
 			}
-			if IsRetryable(err) != tc.retryable {
-				t.Fatal("IsRetryable disagrees")
+			if IsRetryable(err) != tc.retryable || IsConfigError(err) != tc.config {
+				t.Fatal("IsRetryable or IsConfigError disagrees")
+			}
+			if tc.config && (HintOf(err) == "" || strings.Contains(HintOf(err), "secret-token")) {
+				t.Fatalf("config errors carry a safe operator hint: %q", HintOf(err))
 			}
 			if strings.Contains(err.Error(), "secret-token") {
 				t.Fatal("error leaks the API token")

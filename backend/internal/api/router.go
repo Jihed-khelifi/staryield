@@ -310,6 +310,15 @@ func NewRouter(d Deps) *echo.Echo {
 	me.GET("/notifications/unread-count", h.UnreadNotifications)
 	me.POST("/notifications/read", h.MarkNotificationsRead, writeRL)
 
+	// --- growth: e-mail verification ---
+	// --- end growth: e-mail verification ---
+
+	// --- growth: referrals ---
+	// --- end growth: referrals ---
+
+	// --- growth: lifecycle and onboarding ---
+	// --- end growth: lifecycle and onboarding ---
+
 	// --- Web Push (M0 delivery channels) ---
 	// Public VAPID key for browsers; per-user browser subscriptions.
 	pushRL := mw.RateLimit(limiter, rule("push", cfg.RateLimit.Push, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
@@ -682,6 +691,18 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.PUT("/billing/policies", h.AdminUpdatePaymentPolicies, stepUp, adminRL)
 	ad.GET("/reports/revenue", h.AdminRevenue)
 	// end revisions 5.0: refund requests
+
+	// --- growth admin: e-mail delivery ---
+	// --- end growth admin: e-mail delivery ---
+
+	// --- growth admin: e-mail verification ---
+	// --- end growth admin: e-mail verification ---
+
+	// --- growth admin: referrals ---
+	// --- end growth admin: referrals ---
+
+	// --- growth admin: lifecycle and onboarding ---
+	// --- end growth admin: lifecycle and onboarding ---
 
 	return e
 }

@@ -158,10 +158,13 @@ func newEnv(t *testing.T, opts ...option) *env {
 	store := storage.NewMemory("https://assets.test")
 	advisors := storage.NewMemory("https://advisors.test")
 	chatImages := storage.NewMemory("")
+	// Personal-data export archives stay in memory too: the suite must never
+	// reach a real bucket, whatever STARYIELD_STORAGE_* the shell exports.
+	exports := storage.NewMemory("")
 	pushes := &fakePush{}
 	ctx := context.Background()
 	a, err := app.New(ctx, cfg, log, app.Overrides{Clock: fake, Mailer: rec, Storage: store, AdvisorStorage: advisors, ChatStorage: chatImages,
-		PushSender: pushes})
+		ExportStorage: exports, PushSender: pushes})
 	if err != nil {
 		t.Fatalf("app: %v", err)
 	}

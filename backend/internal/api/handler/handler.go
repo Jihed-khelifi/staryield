@@ -92,6 +92,15 @@ type Services struct {
 	Invoices *service.InvoiceService
 	// revisions 6.0 (§26.4): the calculators' e-mail report and its leads.
 	CalculatorReport *service.CalculatorReportService
+
+	// --- growth: e-mail verification ---
+	// --- end growth: e-mail verification ---
+
+	// --- growth: referrals ---
+	// --- end growth: referrals ---
+
+	// --- growth: lifecycle and onboarding ---
+	// --- end growth: lifecycle and onboarding ---
 }
 
 // Limits bounds request bodies per upload type.

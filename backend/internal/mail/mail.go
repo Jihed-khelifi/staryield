@@ -74,6 +74,10 @@ type Result struct {
 	Suppressed []string
 	// Queued reports the provider accepted the message for later delivery.
 	Queued bool
+	// Discarded reports a driver that accepted the message without delivering
+	// it (the no-op driver): the outbox records it as cancelled with reason
+	// no_provider, never as sent.
+	Discarded bool
 }
 
 // Mailer sends one message.
@@ -97,6 +101,29 @@ type SendError struct {
 	Reason     string        // short machine-readable reason, never secrets
 	Retryable  bool          // safe to retry
 	RetryAfter time.Duration // provider-requested delay (0 = unknown)
+	// Config marks a failure of the provider account rather than of the
+	// message (credentials, entitlement, plan restrictions): the operator must
+	// act, and the message is retried so it goes out once that is fixed.
+	Config bool
+	// Hint tells the operator what to check (logged and shown in the admin
+	// console; never contains secrets).
+	Hint string
+}
+
+// IsConfigError reports whether err is a provider account or configuration
+// failure (see SendError.Config).
+func IsConfigError(err error) bool {
+	var se *SendError
+	return errors.As(err, &se) && se.Config
+}
+
+// HintOf returns the operator hint carried by err, if any.
+func HintOf(err error) string {
+	var se *SendError
+	if errors.As(err, &se) {
+		return se.Hint
+	}
+	return ""
 }
 
 func (e *SendError) Error() string {
@@ -140,7 +167,9 @@ func (l LogMailer) Send(ctx context.Context, m Message) (Result, error) {
 	return Result{}, nil
 }
 
-// NoopMailer discards e-mails.
+// NoopMailer discards e-mails. The outbox records each one as cancelled
+// (reason no_provider), so a deployment without a provider is visible in the
+// outbox and in the admin console instead of looking delivered.
 type NoopMailer struct{}
 
 // Name implements the provider name convention.
@@ -150,7 +179,7 @@ func (NoopMailer) Name() string { return "noop" }
 func (NoopMailer) Send(ctx context.Context, m Message) (Result, error) {
 	logger.FromContext(ctx).Warn("mail: no provider configured; message discarded",
 		append([]zap.Field{zap.String("category", m.Category)}, attachmentSummary(m.Attachments)...)...)
-	return Result{}, nil
+	return Result{Discarded: true}, nil
 }
 
 // Recorder captures messages (tests). Fail, when set, decides the outcome
