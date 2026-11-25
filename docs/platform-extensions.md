@@ -3980,4 +3980,41 @@ _(slice A)_
 
 ### 27.5 Funnel visit stitching
 
-_(slice B)_
+Admin console funnel (`GET /admin/analytics/funnel`, `repository/analytics.go`
+`Funnel`): a visitor who browsed before signing up used to count as two actors,
+because the pre-sign-up events carry only the browser id and the server event
+`user.registered` carries only the account, so the funnel lost every visitor
+at the sign-up step. The contract (request and response, `steps`, `from`, `to`,
+`{items: [{name, actors}]}`) is unchanged; the console needs no change.
+
+* **Actor rule.** An event belongs to `COALESCE(user_id, <account its browser
+  is linked to in web_visitors>, anonymous_id)`: its own account; else, for
+  anonymous events, the account `web_visitors.user_id` of that browser (linked
+  at sign-up by the register body's `attribution.anonymous_id`, or by a later
+  signed-in event from that browser; the first link wins, §17); else the
+  browser id. A user who browsed from two browsers, one of them linked, counts
+  once; a browser that never signed in or was never linked stays its own
+  anonymous actor.
+* **Resolved at query time.** Nothing is written or back-filled
+  (`analytics_events` is append-only), so history is stitched too: events
+  stored before the link existed count for the account as soon as the browser
+  is linked, and the first occurrence of a step is the earliest across all of
+  the actor's browsers (so "page view, then sign-up" holds for the account).
+* **Query.** The browser lookup is a correlated subquery on the
+  `web_visitors` primary key, evaluated only for events without an account
+  (not a join: with a join the planner hashed the whole of `web_visitors`).
+  Steps 2 and later also bound their events by `from`, so each step reads
+  `analytics_events` through `analytics_events_name_time_idx`. A later step
+  cannot precede step 1, so counts are unchanged by that bound.
+* **Tests.** `tests/e2e/analytics_funnel_test.go`
+  `TestFunnelStitchesVisitorsToAccounts` (browser A links at sign-up, browser
+  C by a signed-in event, browser B never: `[web.page_view, user.registered]`
+  counts the account once plus B, and the sign-up converts);
+  `tests/load/explain_funnel_test.go` `TestExplainFunnelPopulated` (needs
+  `LOAD_DATABASE_DSN`; inserts 40,000 clients, 120,000 browsers and about
+  290,000 events in a rolled-back transaction; asserts no sequential scan on
+  `analytics_events` or `web_visitors`, `web_visitors_pkey` read, and 1.5 s per
+  funnel). Measured on a 120,000-browser synthetic set on the development
+  machine (to be re-measured on the 200k-user load database): 30-day 3-step
+  funnel 132 ms, 7-day 2-step 31 ms, 90-day 3-step 424 ms (the join form of
+  the same stitching: 449 / 244 / 717 ms with sequential scans).
