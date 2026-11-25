@@ -271,7 +271,7 @@ func (r *memReferralRepo) PendingGrants(_ context.Context) (int64, int64, error)
 	defer r.mu.Unlock()
 	var rows, minutes int64
 	for _, x := range r.refs {
-		if x.Status == domain.ReferralQualified && !x.Flagged {
+		if x.Status == domain.ReferralQualified && !x.Flagged && r.active[x.ReferrerID] {
 			rows, minutes = rows+1, minutes+int64(x.RewardMinutes)
 		}
 	}
@@ -1003,7 +1003,14 @@ func TestGrantsSkipFlaggedRowsAndInactiveInviters(t *testing.T) {
 		f.readingBy(fr)
 	}
 	f.repo.active[bea] = false // banned after the reading
-	f.launch()
+	// Neither reward is promised to the admin: one is held, the other's
+	// inviter is no longer active (the grant job would skip it).
+	if res := f.launch(); res.Rewards != 0 || res.Minutes != 0 {
+		t.Fatalf("launch result: %+v", res)
+	}
+	if sum, err := f.svc.Summary(f.ctx); err != nil || sum.ReadyRewards != 0 || sum.ReadyMinutes != 0 || sum.Qualified != 2 {
+		t.Fatalf("summary: %+v %v", sum, err)
+	}
 	if err := f.svc.RunGrants(f.ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -1056,6 +1063,78 @@ func TestGrantsLoopOverManyBatchesAndInviters(t *testing.T) {
 	for _, r := range f.repo.refs {
 		if r.Status != domain.ReferralGranted {
 			t.Fatalf("left behind: %+v", r)
+		}
+	}
+}
+
+// userNotes records who received which notification.
+type userNotes struct {
+	mu   sync.Mutex
+	sent map[uuid.UUID][]NotificationSpec
+}
+
+func (n *userNotes) Notify(_ context.Context, spec NotificationSpec, ids ...uuid.UUID) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	for _, id := range ids {
+		n.sent[id] = append(n.sent[id], spec)
+	}
+}
+
+func TestGrantsAnnounceOncePerInviterPerRunAcrossBatches(t *testing.T) {
+	f := newReferralFixture(t)
+	f.setProgram(true, 3, 500)
+	const inviters, perInviter = 3, 150 // 450 rewards: three batches of 200
+	owners := make([]uuid.UUID, inviters)
+	codes := make([]string, inviters)
+	for i := range owners {
+		owners[i], codes[i] = f.client(fmt.Sprintf("Inviter %d", i))
+	}
+	// Friends of every inviter qualify in turn, so each inviter's rewards are
+	// spread over every batch (claimed oldest first).
+	for j := 0; j < perInviter; j++ {
+		for i := range owners {
+			fr := f.friend(codes[i], AttributionInput{})
+			f.repo.refs[f.repo.byReferee(fr).ID].Flagged = false // many legitimate friends over time
+			f.repo.refs[f.repo.byReferee(fr).ID].Flags = nil
+			f.clk.Advance(time.Second)
+			f.verify(fr)
+			f.readingBy(fr)
+		}
+	}
+	f.launch()
+	notes := &userNotes{sent: map[uuid.UUID][]NotificationSpec{}}
+	f.svc.d.Notifier = notes
+	if err := f.svc.RunGrants(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range owners {
+		if got := f.freeMinutes(id); got != perInviter*3 {
+			t.Fatalf("inviter %s: %d minutes", id, got)
+		}
+		got := notes.sent[id]
+		if len(got) != 1 || got[0].Kind != NotifyReferralRewardGranted || got[0].Data["minutes"] != perInviter*3 ||
+			got[0].Data["friends"] != perInviter {
+			t.Fatalf("inviter %s: one notice with the run's total expected, got %+v", id, got)
+		}
+		var balances []int
+		for _, e := range f.events.events {
+			if e.typ == "wallet.updated" && e.user == id {
+				balances = append(balances, e.wallet.FreeMinutes)
+			}
+		}
+		// Live balances follow every batch; the last one is the total.
+		if len(balances) != 3 || balances[2] != perInviter*3 {
+			t.Fatalf("inviter %s balances: %v", id, balances)
+		}
+	}
+	// A second run has nothing left to grant and announces nothing.
+	if err := f.svc.RunGrants(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range owners {
+		if n := len(notes.sent[id]); n != 1 {
+			t.Fatalf("inviter %s: %d notices after an empty run", id, n)
 		}
 	}
 }

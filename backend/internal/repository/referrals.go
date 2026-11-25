@@ -103,8 +103,8 @@ type ReferralRepository interface {
 	// MarkGranted sets the claimed referrals to granted; it returns how many
 	// were still qualified.
 	MarkGranted(ctx context.Context, ids []uuid.UUID, at time.Time) (int64, error)
-	// PendingGrants totals the qualified, unflagged referrals waiting for
-	// launch: rows and minutes.
+	// PendingGrants totals the referrals the grant job will claim (qualified,
+	// unflagged, inviter active): rows and minutes.
 	PendingGrants(ctx context.Context) (rows, minutes int64, err error)
 
 	// List returns one page of referrals (admin), newest first.
@@ -331,12 +331,16 @@ func (r *GormReferralRepository) MarkGranted(ctx context.Context, ids []uuid.UUI
 	return res.RowsAffected, res.Error
 }
 
-// PendingGrants implements ReferralRepository (referrals_grant_idx, index only
-// apart from reward_minutes).
+// PendingGrants implements ReferralRepository: exactly the rows ClaimGrantable
+// will claim (qualified, not held, active inviter), so the admin is never
+// promised a grant the job skips (referrals_grant_idx, then the users
+// primary key per row).
 func (r *GormReferralRepository) PendingGrants(ctx context.Context) (int64, int64, error) {
 	var row struct{ Rows, Minutes int64 }
 	err := r.conn(ctx).Model(&domain.Referral{}).Select("count(*) AS rows, COALESCE(sum(reward_minutes), 0) AS minutes").
-		Where("status = ? AND NOT flagged", domain.ReferralQualified).Scan(&row).Error
+		Where("status = ? AND NOT flagged", domain.ReferralQualified).
+		Where("EXISTS (SELECT 1 FROM users u WHERE u.id = referrals.referrer_id AND u.status = ?)", domain.UserActive).
+		Scan(&row).Error
 	return row.Rows, row.Minutes, err
 }
 

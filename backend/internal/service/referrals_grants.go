@@ -41,13 +41,21 @@ const (
 // one transaction, so a row is granted exactly once and a crash grants
 // nothing. Rows are claimed oldest first; wallets are locked in id order so
 // two instances never wait on each other in a cycle.
+//
+// Each committed batch publishes the inviters' new balances at once; the
+// run then tells each inviter once what it added in total (one
+// referral.reward_granted per inviter per run, however many batches their
+// friends were spread over), including when a later batch fails or the
+// budget ends the run.
 func (s *ReferralService) RunGrants(ctx context.Context) error {
 	if !s.d.Program(ctx).Launched() {
 		return nil
 	}
+	run := grantRun{}
+	defer database.AfterCommit(ctx, func(ctx context.Context) { s.announceGrants(context.WithoutCancel(ctx), run) })
 	deadline := time.Now().Add(grantBudget)
 	for time.Now().Before(deadline) && ctx.Err() == nil {
-		n, err := s.grantBatch(ctx)
+		n, err := s.grantBatch(ctx, run)
 		if err != nil {
 			return err
 		}
@@ -66,8 +74,23 @@ type inviterGrant struct {
 	wallet  *domain.Wallet
 }
 
-// grantBatch runs one batch and returns how many rows it claimed.
-func (s *ReferralService) grantBatch(ctx context.Context) (int, error) {
+// grantRun adds up, per inviter, what the committed batches of one run
+// granted. Batch hooks run one after the other on the job's goroutine.
+type grantRun map[uuid.UUID]*inviterGrant
+
+func (r grantRun) add(inviter uuid.UUID, g *inviterGrant) {
+	t := r[inviter]
+	if t == nil {
+		t = &inviterGrant{}
+		r[inviter] = t
+	}
+	t.minutes += g.minutes
+	t.friends += g.friends
+}
+
+// grantBatch runs one batch and returns how many rows it claimed. Once it
+// commits, the new balances are published and its grants added to run.
+func (s *ReferralService) grantBatch(ctx context.Context, run grantRun) (int, error) {
 	var claimed int
 	var grants map[uuid.UUID]*inviterGrant
 	err := s.d.Tx.WithinTx(ctx, func(ctx context.Context) error {
@@ -118,7 +141,7 @@ func (s *ReferralService) grantBatch(ctx context.Context) (int, error) {
 		if _, err := s.d.Repo.MarkGranted(ctx, granted, now); err != nil {
 			return err
 		}
-		database.AfterCommit(ctx, func(ctx context.Context) { s.announceGrants(ctx, grants) })
+		database.AfterCommit(ctx, func(ctx context.Context) { s.publishGrants(ctx, grants, run) })
 		return nil
 	})
 	if err != nil {
@@ -147,11 +170,19 @@ func (s *ReferralService) rejectAll(ctx context.Context, rows []domain.Referral,
 	return nil
 }
 
-// announceGrants publishes each inviter's new balance and tells them how many
-// minutes were added (one notification per inviter per batch).
-func (s *ReferralService) announceGrants(ctx context.Context, grants map[uuid.UUID]*inviterGrant) {
+// publishGrants publishes the new balance of each inviter of a committed
+// batch and adds the batch to the run's totals.
+func (s *ReferralService) publishGrants(ctx context.Context, grants map[uuid.UUID]*inviterGrant, run grantRun) {
 	for inviter, g := range grants {
 		warnErr(ctx, "referrals: publish wallet", s.d.Events.Publish(ctx, realtime.EventWalletUpdated, walletView(g.wallet), inviter))
+		run.add(inviter, g)
+	}
+}
+
+// announceGrants tells each inviter how many minutes the run added (one
+// notification per inviter per run).
+func (s *ReferralService) announceGrants(ctx context.Context, run grantRun) {
+	for inviter, g := range run {
 		s.d.Notifier.Notify(ctx, NotificationSpec{Kind: NotifyReferralRewardGranted,
 			Data: map[string]any{"minutes": g.minutes, "friends": g.friends}, Link: referralLink}, inviter)
 		s.d.Tracker.Track(ctx, "referral.granted", map[string]any{"referrer_id": inviter, "minutes": g.minutes, "friends": g.friends})

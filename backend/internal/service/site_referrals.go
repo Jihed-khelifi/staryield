@@ -180,8 +180,11 @@ func referralAudit(p ReferralProgram) map[string]any {
 }
 
 // LaunchReferralRewards stamps launched_at, once. The typed confirmation is
-// enforced here; launching again is a 409. It returns the new setting.
-func (s *SiteService) LaunchReferralRewards(ctx context.Context, confirmation string) (*ReferralProgramSetting, error) {
+// enforced here; launching again is a 409. inTx (optional) runs in the launch
+// transaction while the setting row is locked, before the launch is visible
+// to anyone: the referral service counts there what the launch releases. It
+// returns the new setting.
+func (s *SiteService) LaunchReferralRewards(ctx context.Context, confirmation string, inTx func(ctx context.Context) error) (*ReferralProgramSetting, error) {
 	if confirmation != ReferralLaunchConfirmation {
 		return nil, apperror.Validation(map[string]string{"confirmation": msgReferralLaunchConfirm})
 	}
@@ -196,7 +199,13 @@ func (s *SiteService) LaunchReferralRewards(ctx context.Context, confirmation st
 			return apperror.Conflict(CodeReferralLaunched, msgReferralLaunched)
 		}
 		p.LaunchedAt = &now
-		return s.d.Repo.SaveSetting(ctx, domain.SiteSettingReferralProgram, p.toMap(), st.Version+1, actor(ctx), now)
+		if err := s.d.Repo.SaveSetting(ctx, domain.SiteSettingReferralProgram, p.toMap(), st.Version+1, actor(ctx), now); err != nil {
+			return err
+		}
+		if inTx != nil {
+			return inTx(ctx)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, mapRepoErr(err, "Setting")

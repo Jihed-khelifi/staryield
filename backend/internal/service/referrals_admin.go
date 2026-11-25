@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"time"
 	"unicode/utf8"
 
@@ -271,16 +270,18 @@ type ReferralLaunchResult struct {
 // Launch stamps the launch date once (a typed confirmation is enforced; a
 // second launch is a 409) and wakes the grant job.
 func (s *ReferralService) Launch(ctx context.Context, confirmation string) (*ReferralLaunchResult, error) {
-	set, err := s.d.Launch(ctx, confirmation)
+	out := &ReferralLaunchResult{}
+	set, err := s.d.Launch(ctx, confirmation, func(ctx context.Context) error {
+		// Counted before the launch commits, so the grant job cannot have
+		// granted any of these rewards yet.
+		var err error
+		out.Rewards, out.Minutes, err = s.d.Repo.PendingGrants(ctx)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
 	s.signal()
-	rewards, minutes, err := s.d.Repo.PendingGrants(ctx)
-	if err != nil && !errors.Is(err, repository.ErrNotFound) {
-		warnErr(ctx, "referrals: count the rewards of the launch", err)
-	}
-	out := &ReferralLaunchResult{Rewards: rewards, Minutes: minutes}
 	if set.LaunchedAt != nil {
 		out.LaunchedAt = *set.LaunchedAt
 	}

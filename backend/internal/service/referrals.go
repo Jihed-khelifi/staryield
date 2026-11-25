@@ -76,7 +76,7 @@ type ReferralDeps struct {
 	// Program reads the program setting (SiteService.ReferralProgram).
 	Program func(ctx context.Context) ReferralProgram
 	// Launch stamps the launch date, once (SiteService.LaunchReferralRewards).
-	Launch   func(ctx context.Context, confirmation string) (*ReferralProgramSetting, error)
+	Launch   func(ctx context.Context, confirmation string, inTx func(ctx context.Context) error) (*ReferralProgramSetting, error)
 	Notifier Notifier
 	Events   EventPublisher
 	Tracker  analytics.Tracker
