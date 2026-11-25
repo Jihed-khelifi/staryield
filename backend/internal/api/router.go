@@ -317,6 +317,11 @@ func NewRouter(d Deps) *echo.Echo {
 	// --- end growth: referrals ---
 
 	// --- growth: lifecycle and onboarding ---
+	// The onboarding checklist is the client's own data (never age gated: it
+	// holds no client action); writes are limited like other profile writes.
+	me.GET("/onboarding", h.MyOnboarding, client)
+	me.POST("/onboarding/dismiss", h.DismissOnboarding, client, writeRL)
+	me.DELETE("/onboarding/dismiss", h.RestoreOnboarding, client, writeRL)
 	// --- end growth: lifecycle and onboarding ---
 
 	// --- Web Push (M0 delivery channels) ---
@@ -702,6 +707,11 @@ func NewRouter(d Deps) *echo.Echo {
 	// --- end growth admin: referrals ---
 
 	// --- growth admin: lifecycle and onboarding ---
+	// Lifecycle messaging: the journeys' setting (versioned; writes need a
+	// fresh step-up and are audited), their statistics and the activation funnel.
+	ad.GET("/lifecycle", h.AdminLifecycle)
+	ad.PUT("/lifecycle", h.AdminUpdateLifecycle, stepUp, adminRL)
+	ad.GET("/lifecycle/funnel", h.AdminLifecycleFunnel)
 	// --- end growth admin: lifecycle and onboarding ---
 
 	return e

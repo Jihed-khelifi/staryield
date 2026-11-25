@@ -60,6 +60,14 @@ var ageExempt = []ageExemption{
 	{"POST /api/v1/calculators/report-email", "public calculators' e-mail report (no account needed)"},
 	{"POST /api/v1/marketing/unsubscribe", "public unsubscribe link (never gated)"},
 
+	// growth: lifecycle and onboarding. The "Get started" checklist states the
+	// client's own progress and only hides or shows a card: no client action,
+	// so an account without an adult date of birth still sees it (its first
+	// step leads to the settings where the date is entered).
+	{"GET /api/v1/me/onboarding", "the client's own onboarding checklist (read-only account facts)"},
+	{"POST /api/v1/me/onboarding/dismiss", "hiding the onboarding checklist (no client action)"},
+	{"DELETE /api/v1/me/onboarding/dismiss", "showing the onboarding checklist again (no client action)"},
+
 	// The signed-in person's own data and rights.
 	{"* /api/v1/me", "profile, birth data, settings, notifications, support, devices, exports, deactivation, closure (never gated: privacy rights)"},
 	{"GET /api/v1/custom-requests", "reading requests (the profile overview lists them), already placed"},

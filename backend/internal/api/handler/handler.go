@@ -100,6 +100,7 @@ type Services struct {
 	// --- end growth: referrals ---
 
 	// --- growth: lifecycle and onboarding ---
+	Lifecycle *service.LifecycleService
 	// --- end growth: lifecycle and onboarding ---
 }
 
