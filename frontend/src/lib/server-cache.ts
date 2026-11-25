@@ -15,8 +15,23 @@ export type ServerCache<T> = {
   clear(): void;
 };
 
-export function createServerCache<T>({ ttlMs, failureTtlMs }: { ttlMs: number; failureTtlMs: number }): ServerCache<T> {
+export function createServerCache<T>({
+  ttlMs,
+  failureTtlMs,
+  maxEntries = Infinity,
+}: {
+  ttlMs: number;
+  failureTtlMs: number;
+  /** Most keys kept at once (default: unbounded, for caches with a fixed key set). */
+  maxEntries?: number;
+}): ServerCache<T> {
   const memory = new Map<string, Entry<T>>();
+  /** Store an entry as the newest one, dropping the oldest beyond `maxEntries`. */
+  function store(key: string, entry: Entry<T>) {
+    memory.delete(key);
+    memory.set(key, entry);
+    while (memory.size > maxEntries) memory.delete(memory.keys().next().value as string);
+  }
   return {
     clear: () => memory.clear(),
     async get(key, load, now = Date.now) {
@@ -28,10 +43,10 @@ export function createServerCache<T>({ ttlMs, failureTtlMs }: { ttlMs: number; f
       const pending = load().then((fresh) => {
         // A failed refresh keeps the last good copy and is retried soon.
         const value = fresh ?? stale;
-        memory.set(key, { value, expires: now() + (fresh ? ttlMs : failureTtlMs) });
+        store(key, { value, expires: now() + (fresh ? ttlMs : failureTtlMs) });
         return value;
       });
-      memory.set(key, { value: stale, expires: 0, pending });
+      store(key, { value: stale, expires: 0, pending });
       return stale ?? pending;
     },
   };

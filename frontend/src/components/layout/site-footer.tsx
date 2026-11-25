@@ -8,6 +8,7 @@ import { visibleSocialLinks } from "@/config/social";
 import { TrustpilotReviewCollector } from "@/components/reviews/trustpilot-review-collector";
 import { AcceptedCards } from "@/components/billing/accepted-cards"; // revisions 5.1
 import { COMPANY, supportMailto } from "@/config/company"; // revisions 5.1
+import { HUB_KEYS, HUB_LABELS, HUB_ROUTES } from "@/content/seo/hubs"; // growth (seo)
 const groups = [
   {
     name: "Platform",
@@ -19,6 +20,11 @@ const groups = [
       ["Tarot birth card", "/calculators/tarot-birth-card"],
       ["Sign Up | Sign In", "/signup"],
     ],
+  },
+  // growth (seo): the search hubs (Life Path numbers, tarot birth cards, sign compatibility).
+  {
+    name: "Explore",
+    links: HUB_KEYS.map((key) => [HUB_LABELS[key], HUB_ROUTES[key]]),
   },
   {
     name: "Support",

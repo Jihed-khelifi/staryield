@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ComponentType } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import About from "@/components/content/about";
 import Reviews from "@/components/content/reviews";
@@ -36,10 +37,15 @@ import RefundPolicy from "@/components/content/refund-policy";
 import { PricingScreen } from "@/components/pricing/pricing-screen";
 import { isLocale } from "@/i18n/config";
 import { isRefundAlias } from "@/lib/legal/refund-aliases"; // revisions 5.1
-import advisors from "@/data/advisors.json";
 import { getDictionary } from "@/i18n/dictionaries";
-import { createTranslateCopy } from "@/i18n/translate-copy";
-import { localePath, locales } from "@/i18n/config";
+import { createTranslateCopy, type TranslateCopy } from "@/i18n/translate-copy";
+import type { Locale } from "@/i18n/config";
+// growth (seo): page metadata, link previews and structured data.
+import { ADVISOR_SLUG, fetchAdvisor } from "@/lib/psychics/server";
+import { JsonLd } from "@/lib/seo/json-ld";
+import { screenJsonLd } from "@/lib/seo/screen-json-ld";
+import { ADVISOR_DESCRIPTION, AUTH_ROUTES, DEFAULT_IMAGE_ALT, pageSeo } from "@/lib/seo/pages";
+import { NOINDEX, NOINDEX_FOLLOW, pageAlternates, pageMetadata } from "@/lib/seo/site";
 
 const content = {
   about: About,
@@ -80,6 +86,17 @@ const calculatorKinds: CalculatorKind[] = [
 type RouteProps = { params: Promise<{ lang: string; screen: string[] }> };
 
 const supportReference = /^SY-[A-Za-z0-9]{4,16}$/;
+/** The advisor slug of a profile route (`/psychics/<slug>`), else null. */
+function advisorRoute(screen: string[]): string | null {
+  return screen.length === 2 && screen[0] === "psychics" && ADVISOR_SLUG.test(screen[1]) ? screen[1] : null;
+}
+/**
+ * `map[key]` only when the map itself defines `key`: a route such as
+ * "constructor" or "toString" must never resolve to Object.prototype.
+ */
+function own<T>(map: Record<string, T>, key: string): T | undefined {
+  return Object.hasOwn(map, key) ? map[key] : undefined;
+}
 /** revisions 6.0 (§26.6): `/profile/invoices/<id>` (ids are UUIDs). */
 const invoiceId = /^[A-Za-z0-9-]{8,64}$/;
 function invoiceRoute(screen: string[]): string | null {
@@ -102,18 +119,9 @@ export async function generateMetadata({
   if (!isLocale(lang)) return {};
   const text = createTranslateCopy((await getDictionary(lang)).copy);
   const route = screen.join("/");
-  if (screen.length === 1 && isRefundAlias(screen[0])) return { robots: { index: false, follow: false } }; // revisions 5.1: redirect only
+  if (screen.length === 1 && isRefundAlias(screen[0])) return { robots: NOINDEX }; // revisions 5.1: redirect only
+  // Pages that are not indexed keep a plain title (the indexable ones are described by PAGE_SEO).
   const titles: Record<string, string> = {
-    about: "About",
-    reviews: "Reviews",
-    standards: "Standards",
-    faq: "FAQ",
-    disclaimer: "Disclaimer",
-    terms: "Terms of Use",
-    privacy: "Privacy Policy",
-    pricing: "Pricing", // revisions 5.0
-    "refund-policy": "Refund Policy", // revisions 5.0
-    contact: "Contact",
     psychics: "Psychics",
     profile: "Profile",
     "profile/chart": "Natal Chart",
@@ -129,10 +137,6 @@ export async function generateMetadata({
     login: "Log in",
     "forgot-password": "Forgot password",
     "reset-password": "Choose a new password",
-    "calculators/natal-chart": "Natal Chart",
-    "calculators/path-of-life": "Life Path",
-    "calculators/astrology": "Astrology",
-    "calculators/tarot-birth-card": "Tarot Birth Card Calculator",
     "auth/google": "Log in",
     "confirm-email": "Confirm your email",
     "cancel-email-change": "Email change",
@@ -142,66 +146,94 @@ export async function generateMetadata({
     "support/requests": "Support requests",
     "age-restricted": "Account restricted", // revisions 5.0
   };
-  const advisor =
-    screen[0] === "psychics"
-      ? advisors.find((item) => item.slug === screen[1])
-      : undefined;
-  const title =
-    advisor?.name ?? text(titles[route.replace(/\/results$/, "")] ?? "Home");
+  const base = route.replace(/\/results$/, "");
+  const title = text(pageSeo(base)?.title ?? own(titles, base) ?? "Home");
   // revisions 6.0: the invoice and the payment return page are private.
-  if (invoiceRoute(screen)) return { title: text("Invoice"), robots: { index: false, follow: false }, referrer: "no-referrer" };
-  if (route === "credits/return") return { title, robots: { index: false, follow: false }, referrer: "no-referrer" };
+  if (invoiceRoute(screen)) return { title: text("Invoice"), robots: NOINDEX, referrer: "no-referrer" };
+  if (route === "credits/return") return { title, robots: NOINDEX, referrer: "no-referrer" };
   // One-time links: never indexed, and the URL (with its token) is never
   // sent as a referrer.
-  if (route in emailLinks || route === "verify-email" || route === "auth/google" || route === "age-restricted" || route === "unsubscribe")
-    return { title, referrer: "no-referrer", robots: { index: false, follow: false } };
+  if (Object.hasOwn(emailLinks, route) || route === "verify-email" || route === "auth/google" || route === "age-restricted" || route === "unsubscribe")
+    return { title, referrer: "no-referrer", robots: NOINDEX };
   // Support desk (requester side): signed-in pages and the private link are never indexed;
   // the private link also never leaks its URL as a referrer.
   const support = supportRoute(screen);
   if (support) {
     const title = text(support.kind === "list" ? "Support requests" : "Support request");
     return support.kind === "link"
-      ? { title, referrer: "no-referrer", robots: { index: false, follow: false } }
-      : { title, robots: { index: false, follow: false } };
+      ? { title, referrer: "no-referrer", robots: NOINDEX }
+      : { title, robots: NOINDEX };
   }
   // The directory is for signed-in customers (visitors are redirected home).
   if (route === "psychics") return { title, robots: { index: false } };
-  // revisions 5.0: the public pricing and refund pages are indexed and described.
-  const description =
-    route === "pricing"
-      ? text("Simple, transparent pricing: start with free minutes, then choose a one-time credit pack. No subscriptions and no automatic top-ups.")
-      : route === "refund-policy"
-        ? text("How refunds work for Staryield credit packs, promotional credits and readings, and how to request one.")
-        : route.replace(/\/results$/, "") === "calculators/tarot-birth-card"
-          ? text("Find your tarot birth card from your date of birth: your personality and soul cards from the Major Arcana, how the numbers add up and what they mean. Free, for entertainment.")
-          : undefined;
-  return {
-    ...(description ? { description } : {}),
-    title:
-      screen.at(-1) === "results" ? `${title} — ${text("Results")}` : title,
-    alternates: {
-      languages: Object.fromEntries(
-        locales.map((locale) => [locale, localePath(`/${route}`, locale)]),
-      ),
-    },
-  };
+  const slug = advisorRoute(screen);
+  if (slug) return advisorMetadata(lang, route, slug, text);
+  // growth (seo): the account, the sign-in steps and the design's sample results are not indexed.
+  if (Object.hasOwn(accounts, route) || route === "credits" || AUTH_ROUTES.has(route)) return { title, robots: NOINDEX_FOLLOW };
+  if (screen[0] === "calculators" && screen.at(-1) === "results")
+    return { title: `${title} — ${text("Results")}`, robots: NOINDEX_FOLLOW };
+  // growth (seo): indexable pages get a keyword-aware title and description, a canonical URL,
+  // absolute hreflang alternates (with x-default) and a link preview.
+  const seo = pageSeo(route);
+  if (seo)
+    return pageMetadata({ locale: lang, route: `/${route}`, title, description: text(seo.description), imageAlt: text(DEFAULT_IMAGE_ALT) });
+  return { title, alternates: pageAlternates(`/${route}`, lang) };
 }
+
+/**
+ * growth (seo): an advisor profile is described only with what the API
+ * confirms (never words taken from the URL): the advisor's own name, and
+ * their photo as the link preview. A slug the API does not know is a 404;
+ * when the API cannot answer, the page stays out of the index until it can.
+ */
+async function advisorMetadata(lang: Locale, route: string, slug: string, text: TranslateCopy): Promise<Metadata> {
+  const lookup = await fetchAdvisor(slug);
+  if (lookup?.found === false) notFound();
+  if (!lookup) return { title: text("Advisor profile"), robots: NOINDEX_FOLLOW };
+  const { advisor } = lookup;
+  const photo = /^https:\/\//.test(advisor.image_url) ? { url: advisor.image_url } : undefined;
+  return pageMetadata({
+    locale: lang,
+    route: `/${route}`,
+    title: advisor.name,
+    description: text(ADVISOR_DESCRIPTION, { value0: advisor.name }),
+    image: photo,
+    imageAlt: photo ? advisor.name : text(DEFAULT_IMAGE_ALT),
+  });
+}
+
 export default async function ScreenPage({ params }: RouteProps) {
   const { lang, screen } = await params;
   if (!isLocale(lang)) notFound();
   const route = screen.join("/");
+  // growth (seo): a profile the API does not know is a real 404, decided before anything streams.
+  const slug = advisorRoute(screen);
+  if (slug && (await fetchAdvisor(slug))?.found === false) notFound();
+  const page = screenPage(lang, screen, route);
+  const data = pageSeo(route) ? screenJsonLd(route, lang, createTranslateCopy((await getDictionary(lang)).copy)) : [];
+  return data.length ? (
+    <>
+      <JsonLd data={data} />
+      {page}
+    </>
+  ) : (
+    page
+  );
+}
+
+function screenPage(lang: Locale, screen: string[], route: string) {
   // revisions 5.1: fallback for the refund aliases (the proxy normally redirects them first), §25.6.
   if (screen.length === 1 && isRefundAlias(screen[0])) permanentRedirect(`/${lang}/refund-policy`);
-  if (route in content) {
-    const Content = content[route as keyof typeof content];
+  const Content = own<ComponentType>(content, route);
+  if (Content) {
     return (
       <PublicFrame>
         <Content />
       </PublicFrame>
     );
   }
-  if (route in legal) {
-    const Legal = legal[route as keyof typeof legal];
+  const Legal = own<ComponentType<{ locale: Locale }>>(legal, route);
+  if (Legal) {
     return (
       <PublicFrame>
         <Legal locale={lang} />
@@ -210,9 +242,12 @@ export default async function ScreenPage({ params }: RouteProps) {
   }
   // revisions 5.0: server-rendered from GET /pricing.
   if (route === "pricing") return <PricingScreen locale={lang} />;
-  if (route in auth) return <AuthFlow key={route} step={auth[route]} />;
-  if (route in accounts) return <Account key={route} view={accounts[route]} />;
-  if (route in emailLinks) return <EmailLinkPage key={route} action={emailLinks[route]} />;
+  const step = own(auth, route);
+  if (step) return <AuthFlow key={route} step={step} />;
+  const view = own(accounts, route);
+  if (view) return <Account key={route} view={view} />;
+  const action = own(emailLinks, route);
+  if (action) return <EmailLinkPage key={route} action={action} />;
   if (route === "verify-email") return <VerifyEmailPage key={route} />; // growth: e-mail verification
   // Google sign-in: where the API sends the browser back (result in the query, read client-side).
   if (route === "auth/google") return <GoogleReturn key={route} />;
@@ -228,13 +263,8 @@ export default async function ScreenPage({ params }: RouteProps) {
   if (route === "psychics") return <PsychicsBrowse />;
   // Advisors come from the API; any well-formed slug is resolved client-side
   // (unknown slugs render the not-found state).
-  if (
-    screen[0] === "psychics" &&
-    screen.length === 2 &&
-    /^[a-z0-9]+(-[a-z0-9]+)*$/.test(screen[1]) &&
-    screen[1].length <= 64
-  )
-    return <PsychicProfile key={route} slug={screen[1]} />;
+  const advisor = advisorRoute(screen);
+  if (advisor) return <PsychicProfile key={route} slug={advisor} />;
   const invoice = invoiceRoute(screen);
   if (invoice) return <InvoicePage key={invoice} id={invoice} />;
   if (route === "credits/return") return <CreditsReturn key={route} />;

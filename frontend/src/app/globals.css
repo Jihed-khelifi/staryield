@@ -403,8 +403,9 @@ input[type="checkbox"] {
 }
 .footer-columns {
   display: grid;
-  grid-template-columns: minmax(240px, 2fr) 1fr 1fr 1.2fr;
-  gap: 44px;
+  /* growth (seo): brand + four link groups (Platform, Explore, Support, Staryield). */
+  grid-template-columns: minmax(220px, 1.8fr) 1fr 1fr 1fr 1.2fr;
+  gap: 40px;
 }
 .mobile-navigation {
   display: none;
@@ -3511,7 +3512,7 @@ html {
     gap: 12px;
   }
 }
-/* Tablets: the four-column footer only fits from 1024px. */
+/* Tablets: the five-column footer only fits from 1024px. */
 @media (min-width: 768px) and (max-width: 1023px) {
   .site-footer {
     padding: 40px 32px;

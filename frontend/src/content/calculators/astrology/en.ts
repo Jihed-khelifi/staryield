@@ -28,6 +28,11 @@ const content: ArticleContent = {
             "Rising Sign (Ascendant): The filter, physical appearance, and primary perspective through which you navigate the outer world.",
           ],
         },
+        {
+          type: "p",
+          weight: "light",
+          text: "Curious how your sun sign gets along with someone else’s? Compare any two signs, from the angle between them to their elements and ruling planets, in our [zodiac compatibility guide](/compatibility) of all 78 pairings.",
+        },
       ],
     },
     {
