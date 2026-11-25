@@ -104,9 +104,15 @@ func referralPlans(s referralSample) []referralPlan {
 		{"referrals: invited anyone (onboarding checklist)", func(ctx context.Context, r repository.ReferralRepository) {
 			_, _ = r.HasInvited(ctx, s.inviter)
 		}, "referrals", "referrals_referrer_status_idx", 5 * time.Millisecond},
+		// One index-only probe of referrals_referrer_status_idx per account of
+		// the cohort, so the cost follows the sign-up rate, never the size of
+		// referrals (a hash of every referral took 374 ms at 200k users). The
+		// populated check's cohort is about 47,000 sign-ups in 30 days (12x the
+		// load dataset's) on rows not yet all-visible, about 300 ms; the load
+		// dataset's real cohort (3,857) takes 12 ms warm. Admin-only and cached.
 		{"referrals: inviters among a 30-day sign-up cohort (lifecycle funnel)", func(ctx context.Context, r repository.ReferralRepository) {
 			_, _ = r.InvitersAmong(ctx, now.AddDate(0, 0, -30), now)
-		}, "referrals", "", 250 * time.Millisecond},
+		}, "referrals", "referrals_referrer_status_idx", 500 * time.Millisecond},
 		{"referrals: rewarded friends (cap)", func(ctx context.Context, r repository.ReferralRepository) {
 			_, _ = r.Rewarded(ctx, s.inviter)
 		}, "referrals", "referrals_referrer_status_idx", 10 * time.Millisecond},

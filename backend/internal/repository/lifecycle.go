@@ -170,6 +170,16 @@ const (
 		AND m.created_at > @floor)`
 )
 
+// readerAccount joins each reader of the band to its account, which must pass
+// dueUser (plus cond), with one users_pkey probe per reader in band order, so
+// the batch stops after @limit rows. OFFSET 0 keeps the subquery a per-reader
+// probe: as a plain join the planner over-estimates the accounts that pass
+// dueUser and hashes the band against a sequential scan of users (1.3 s on
+// the 200k-user load dataset for win_back, 6 ms this way).
+func readerAccount(cond string) string {
+	return `CROSS JOIN LATERAL (SELECT u.id FROM users u WHERE u.id = r.user_id AND ` + dueUser + cond + ` OFFSET 0) u`
+}
+
 // dueRange is the lower bound of a due query on (event column, user id): the
 // floor of the window for the first batch, then strictly after the cursor
 // (keyset), so a batch never comes back within a run whether its users were
@@ -214,9 +224,9 @@ func (r *GormLifecycleRepository) Due(ctx context.Context, q LifecycleDueQuery) 
 			ORDER BY u.created_at, u.id LIMIT @limit`
 	case domain.JourneyAfterFirstReading:
 		query = `SELECT u.id AS user_id, r.first_reading_at AS event_at, 1 AS cycle, 0 AS free_minutes
-			FROM lifecycle_readers r JOIN users u ON u.id = r.user_id
+			FROM lifecycle_readers r ` + readerAccount("") + `
 			WHERE r.first_reading_at <= @cutoff AND ` + dueRange("r.first_reading_at", "r.user_id", after) + `
-			  AND ` + dueUser + ` AND ` + dueOnce + ` AND ` + dueCap + `
+			  AND ` + dueOnce + ` AND ` + dueCap + `
 			ORDER BY r.first_reading_at, r.user_id LIMIT @limit`
 	case domain.JourneyWinBack:
 		// A lapsed reader: the last reading is in the band and neither a
@@ -226,10 +236,9 @@ func (r *GormLifecycleRepository) Due(ctx context.Context, q LifecycleDueQuery) 
 		query = `SELECT u.id AS user_id, r.last_reading_at AS event_at,
 				(SELECT COALESCE(max(m.cycle), 0) + 1 FROM lifecycle_messages m WHERE m.user_id = u.id AND m.journey = @journey) AS cycle,
 				0 AS free_minutes
-			FROM lifecycle_readers r JOIN users u ON u.id = r.user_id
+			FROM lifecycle_readers r ` + readerAccount(" AND COALESCE(u.last_login_at, u.created_at) <= @inactive") + `
 			WHERE r.last_reading_at <= @cutoff AND ` + dueRange("r.last_reading_at", "r.user_id", after) + `
-			  AND COALESCE(u.last_login_at, u.created_at) <= @inactive
-			  AND ` + dueUser + ` AND ` + dueCap + `
+			  AND ` + dueCap + `
 			  AND NOT EXISTS (SELECT 1 FROM refresh_tokens t WHERE t.user_id = u.id AND t.revoked_at IS NULL
 			        AND GREATEST(t.created_at, COALESCE(t.last_used_at, t.created_at)) > @inactive)
 			  AND NOT EXISTS (SELECT 1 FROM lifecycle_messages m WHERE m.user_id = u.id AND m.journey = @journey AND m.created_at > @cycle_since)

@@ -329,12 +329,15 @@ func (r *GormReferralRepository) HasInvited(ctx context.Context, referrerID uuid
 
 // InvitersAmong implements ReferralRepository: an index range of
 // users_role_created_idx (the cohort), then one probe of
-// referrals_referrer_status_idx per account, so the cost follows the cohort.
+// referrals_referrer_status_idx per account, so the cost follows the cohort
+// and not the (ever growing) referrals table. OFFSET 0 keeps the EXISTS a
+// per-account probe: PostgreSQL does not turn it into a semi-join, which it
+// otherwise plans as a hash of every referral (374 ms at 200k users).
 func (r *GormReferralRepository) InvitersAmong(ctx context.Context, from, to time.Time) (int64, error) {
 	var n int64
 	err := r.conn(ctx).Model(&domain.User{}).
 		Where("role = ? AND created_at >= ? AND created_at < ?", domain.RoleClient, from, to).
-		Where("EXISTS (SELECT 1 FROM referrals r WHERE r.referrer_id = users.id)").
+		Where("EXISTS (SELECT 1 FROM referrals r WHERE r.referrer_id = users.id OFFSET 0)").
 		Count(&n).Error
 	return n, err
 }
