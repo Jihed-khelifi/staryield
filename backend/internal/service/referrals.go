@@ -329,7 +329,8 @@ func (s *ReferralService) Evaluate(ctx context.Context, refereeID uuid.UUID) {
 		}
 		now := s.d.Clock.Now()
 		if rewarded >= int64(prog.MaxRewardsPerReferrer) {
-			r.Status, r.RejectReason = domain.ReferralRejected, domain.ReferralRejectCap
+			// Closed: no longer waits for a review (the flags stay as history).
+			r.Status, r.RejectReason, r.Flagged = domain.ReferralRejected, domain.ReferralRejectCap, false
 		} else {
 			r.Status, r.RewardMinutes, r.QualifiedAt, r.FirstSessionID = domain.ReferralQualified, prog.RewardMinutes, &now, session
 		}

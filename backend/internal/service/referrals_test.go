@@ -814,6 +814,14 @@ func TestPerInviterCap(t *testing.T) {
 	if f.status(extra).Status != domain.ReferralRejected {
 		t.Fatal("granted rewards must count toward the cap")
 	}
+	// A held friend over the cap is closed, and no longer waits for a review.
+	f.repo.networks[inviter] = security.Keyed("test-secret-0123456789", "203.0.113.9", 32)
+	held := f.friend(code, AttributionInput{})
+	f.verify(held)
+	f.readingBy(held)
+	if r := f.status(held); r.Status != domain.ReferralRejected || r.Flagged || len(r.Flags) != 1 {
+		t.Fatalf("held friend over the cap: %+v", r)
+	}
 }
 
 func TestRewardsPauseWhileTheProgramIsDisabledAndTheSweepResumesThem(t *testing.T) {
@@ -1202,6 +1210,16 @@ func TestAdminListSummaryApproveAndReject(t *testing.T) {
 	approved, err := f.svc.Approve(f.site.ctx, f.status(held).ID)
 	if err != nil || approved.Flagged || approved.DecidedBy == nil || approved.Status != "joined" {
 		t.Fatalf("approve: %+v %v", approved, err)
+	}
+	// Rejecting a held referral ends the hold; its flags stay as history.
+	f.repo.networks[inviter] = security.Keyed("test-secret-0123456789", "203.0.113.9", 32)
+	heldAgain := f.friend(code, AttributionInput{})
+	f.repo.networks[inviter] = ""
+	if rj, err := f.svc.Reject(f.site.ctx, f.status(heldAgain).ID, "Same household"); err != nil || rj.Flagged || len(rj.Flags) != 1 {
+		t.Fatalf("reject a held referral: %+v %v", rj, err)
+	}
+	if still, _ := f.svc.List(f.site.ctx, "", &yes, "", 10); len(still.Items) != 0 {
+		t.Fatalf("decided referrals are not held: %+v", still)
 	}
 	for _, bad := range []string{"", "no", strings.Repeat("x", 201)} {
 		if _, err := f.svc.Reject(f.site.ctx, f.status(open).ID, bad); err == nil {

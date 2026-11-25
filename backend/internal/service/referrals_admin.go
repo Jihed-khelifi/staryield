@@ -236,7 +236,9 @@ func (s *ReferralService) Approve(ctx context.Context, id uuid.UUID) (*AdminRefe
 	return s.view(ctx, r)
 }
 
-// Reject closes a joined or qualified referral with the administrator's reason.
+// Reject closes a joined or qualified referral with the administrator's
+// reason. "Flagged" means "waiting for a decision", so it is cleared; the
+// flags that caused the hold stay on the row.
 func (s *ReferralService) Reject(ctx context.Context, id uuid.UUID, reason string) (*AdminReferral, error) {
 	reason = CleanLine(reason)
 	if n := utf8.RuneCountInString(reason); n < 3 || n > domain.ReferralRejectReasonMaxLen {
@@ -246,7 +248,8 @@ func (s *ReferralService) Reject(ctx context.Context, id uuid.UUID, reason strin
 		if r.Status != domain.ReferralJoined && r.Status != domain.ReferralQualified {
 			return apperror.InvalidState(msgReferralNotOpen)
 		}
-		r.Status, r.RejectReason = domain.ReferralRejected, reason
+		// Decided: it no longer waits for a review (the flags stay as history).
+		r.Status, r.RejectReason, r.Flagged = domain.ReferralRejected, reason, false
 		return nil
 	})
 	if err != nil {
