@@ -16,7 +16,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { expectNoA11yViolations } from "./a11y";
-import { expectNoHorizontalScroll } from "./helpers";
+import { enterBirthDate, expectNoHorizontalScroll } from "./helpers";
 
 const PASSWORD = "E2e!Secure#2026x";
 const unique = (tag: string) => `e2e+${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@staryield.test`;
@@ -38,20 +38,6 @@ async function signUpToBirthStep(page: Page, tag: string): Promise<string> {
   return email;
 }
 
-/** Enter a date of birth (no time) and submit the birth step. */
-async function enterBirthDate(page: Page, date: { day: string; month: string; year: string }) {
-  const form = page.getByTestId("birth-info-form");
-  // The dev server may not have hydrated the form yet: retry until the control reacts.
-  const unknownTime = form.getByRole("checkbox", { name: "I don't know my time" });
-  await expect(async () => {
-    if ((await unknownTime.getAttribute("aria-checked")) !== "true") await unknownTime.click();
-    expect(await unknownTime.getAttribute("aria-checked")).toBe("true");
-  }).toPass({ timeout: 20_000 });
-  await form.getByRole("textbox", { name: /Day$/ }).fill(date.day);
-  await form.getByRole("textbox", { name: "Month", exact: true }).fill(date.month);
-  await form.getByRole("textbox", { name: "Year", exact: true }).fill(date.year);
-  await submit(page).click();
-}
 
 const chatroom = (page: Page) => page.locator("main.chat-workspace, [data-testid=chat-header]").filter({ visible: true }).first();
 

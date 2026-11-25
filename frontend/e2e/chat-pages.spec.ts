@@ -121,12 +121,12 @@ test.describe("inbox pages @responsive", () => {
 });
 
 test.describe("waiting list @responsive", () => {
-  test("a visitor is asked to sign in first", async ({ page }) => {
+  test("a visitor is asked to sign up first, coming back to the profile", async ({ page }) => {
     await page.goto(`/en/psychics/${SOLOMON.slug}`);
-    const join = page.getByTestId("profile-ctas").getByRole("button", { name: "Join Waiting List" });
+    const join = page.getByTestId("profile-ctas").getByRole("link", { name: /Notify me when online/ });
     await expect(join).toBeVisible();
     await join.click();
-    await page.waitForURL(/\/en\/login\?next=/);
+    await page.waitForURL(/\/en\/signup\?next=/);
     expect(new URL(page.url()).searchParams.get("next")).toBe(`/en/psychics/${SOLOMON.slug}`);
   });
 
@@ -135,14 +135,13 @@ test.describe("waiting list @responsive", () => {
     // Start clean whatever an earlier run left.
     await page.goto(`/en/psychics/${SOLOMON.slug}`);
     const ctas = page.getByTestId("profile-ctas");
-    await expect(ctas.getByRole("link", { name: /Start live chat/ })).toBeVisible();
-    const button = ctas.getByTestId("waitlist-button");
+    const button = ctas.getByTestId("book-button");
     await expect(button).toBeEnabled();
-    if ((await button.getAttribute("data-joined")) === "true") {
+    if ((await button.getAttribute("data-action")) === "leave_waitlist") {
       await button.click();
-      await expect(button).not.toHaveAttribute("data-joined", "true");
+      await expect(button).toHaveAttribute("data-action", "join_waitlist");
     }
-    await expect(button).toHaveText("Join Waiting List");
+    await expect(button).toContainText("Notify me when online");
     await expect(button).toHaveAttribute("data-variant", "glass");
     // The button is disabled (dimmed) while a join/leave request is in flight: check the settled state.
     await expect(button).toBeEnabled();
@@ -151,25 +150,26 @@ test.describe("waiting list @responsive", () => {
     const joined = page.waitForResponse((r) => r.url().endsWith(`/psychics/${SOLOMON.slug}/waitlist`) && r.request().method() === "POST" && r.ok());
     await button.click();
     await joined;
-    await expect(button).toHaveAttribute("data-joined", "true");
+    await expect(button).toHaveAttribute("data-action", "leave_waitlist");
     await expect(button).toContainText("On the waiting list");
 
     // Joined state comes from GET /me/waitlist after a reload.
     await page.reload();
-    await expect(page.getByTestId("profile-ctas").getByTestId("waitlist-button")).toHaveAttribute("data-joined", "true");
+    await expect(page.getByTestId("profile-ctas").getByTestId("book-button")).toHaveAttribute("data-action", "leave_waitlist");
     await expectNoHorizontalScroll(page);
 
     // The chatroom offers the same action instead of a dead end.
     await page.goto(`/en/chatroom?reader=${SOLOMON.slug}`);
     const card = page.getByTestId("chat-waitlist-card");
     await expect(card).toContainText("Solomon is offline right now.");
-    const inRoom = card.getByTestId("waitlist-button");
-    await expect(inRoom).toHaveAttribute("data-joined", "true");
+    const inRoom = card.getByTestId("book-button");
+    await expect(inRoom).toHaveAttribute("data-action", "leave_waitlist");
     await expectNoA11yViolations(page, ["[data-testid=chat-waitlist-card]"]);
     const left = page.waitForResponse((r) => r.url().endsWith(`/psychics/${SOLOMON.slug}/waitlist`) && r.request().method() === "DELETE");
     await inRoom.click();
     expect((await left).status()).toBe(204);
-    await expect(inRoom).toHaveText("Join Waiting List");
+    await expect(inRoom).toHaveAttribute("data-action", "join_waitlist");
+    await expect(inRoom).toContainText("Notify me when online");
   });
 
   test("an advisor who turns out to be online switches the profile to 'Start chat'", async ({ page }) => {
@@ -187,9 +187,8 @@ test.describe("waiting list @responsive", () => {
     );
     await page.goto(`/en/psychics/${SOLOMON.slug}`);
     const ctas = page.getByTestId("profile-ctas");
-    await ctas.getByRole("button", { name: "Join Waiting List" }).click();
+    await ctas.getByRole("button", { name: /Notify me when online|Join the waiting list/ }).click();
     await expect(page.getByText("Solomon is online now. Start your chat.")).toBeVisible();
-    await expect(ctas.getByTestId("waitlist-button")).toHaveCount(0);
-    await expect(ctas.getByRole("link", { name: /Start live chat/ })).toBeVisible();
+    await expect(ctas.getByRole("link", { name: /Chat now/ })).toBeVisible();
   });
 });
