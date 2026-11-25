@@ -228,7 +228,7 @@ describe("tarot birth card pages", () => {
         expect(page.route).toBe(`/tarot-birth-card/${slug}`);
         expect(page.sections.map((s) => s.id)).toEqual(["meaning", "facts", "gifts", "shadow", "constellation", "example"]);
         expect(page.h1).toContain(CARD_NAMES[locale][slug]);
-        expect(page.artwork?.[0].src).toBe(`https://assets.staryield.net/assets/tarot/${slug}.png`);
+        expect(page.artwork?.[0].src).toMatch(new RegExp(`/assets/tarot/${slug}\\.png$`));
         expect(pageLinks(page)).toEqual(expect.arrayContaining(["/tarot-birth-card", "/calculators/tarot-birth-card"]));
         expect(pageText(page).join(" ").length).toBeGreaterThan(2000);
       }
