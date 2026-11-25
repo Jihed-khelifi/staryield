@@ -3657,4 +3657,12 @@ html {
   .psychic-profile.has-booking-bar {
     padding-bottom: calc(26px + 64px);
   }
+  /* Public frame (visitors): no bottom navigation pill, so the bar sits at the screen edge and the room
+     for it goes under the footer, which follows the profile (§27.2). */
+  .public-frame .booking-bar {
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .public-frame:has(> .psychic-profile.has-booking-bar) {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
 }

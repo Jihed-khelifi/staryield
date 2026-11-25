@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import { ApiError } from "@/lib/api/errors";
 import type { AdvisorCard, DirectoryPage, DirectoryQuery, Page, PresenceStatus, WaitlistEntry } from "@/lib/api/types";
@@ -98,6 +98,21 @@ describe("PsychicsBrowse", () => {
     expect(screen.getByRole("button", { name: "Go to page 1" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Go to page 2" }).getAttribute("aria-current")).toBe("page");
     expect(await axeViolations()).toEqual([]);
+  });
+
+  it("labels an advisor with no reviews \"New advisor\" and leaves the rated ones as they were", async () => {
+    browse.mockResolvedValue(page(1, [{ ...advisor("ada"), rating: 5, reviews_count: 0 }, { ...advisor("bea"), rating: 4.5, reviews_count: 4 }], 2));
+    const { container } = renderWithI18n(<PsychicsBrowse />);
+    await screen.findByRole("heading", { name: /Ada/ });
+    const [fresh, rated] = Array.from(container.querySelectorAll<HTMLElement>(".advisor-card"));
+    expect(within(fresh).getByText("New advisor")).toBeTruthy();
+    expect(fresh.textContent).not.toContain("5.0");
+    expect(fresh.textContent).not.toContain("0 reviews");
+    expect(fresh.querySelector(".advisor-card-star")).toBeNull();
+    expect(rated.textContent).toContain("4.5");
+    expect(rated.textContent).toContain("(4 reviews)");
+    expect(rated.querySelector(".advisor-card-star")).not.toBeNull();
+    expect(within(rated).queryByText("New advisor")).toBeNull();
   });
 
   it("puts the standard book button on every card, with one waiting-list read", async () => {

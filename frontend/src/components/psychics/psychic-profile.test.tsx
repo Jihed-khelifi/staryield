@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
+import { ApiError } from "@/lib/api/errors";
 import type { ChatSession, Page, PresenceStatus, Psychic, WaitlistEntry } from "@/lib/api/types";
 import { axeViolations, renderWithI18n } from "@/test/render";
 
@@ -26,7 +27,16 @@ vi.mock("@/lib/auth/session-provider", () => ({
     if (type === "psychic.status_changed") handlers.set(new Error().stack?.split("\n")[2] ?? "x", handler);
   },
 }));
-vi.mock("@/components/layout/site-header", () => ({ SiteHeader: () => null, MobileNavigation: () => null }));
+// The frames are told apart by markers: the public header carries the menu trigger, the app frame the bottom bar.
+vi.mock("@/components/layout/site-header", () => ({
+  SiteHeader: ({ publicSite }: { publicSite?: boolean }) => (
+    <header data-testid="site-header" data-public={publicSite ? "1" : "0"}>
+      {publicSite ? <button type="button" data-testid="mobile-menu-trigger" aria-label="Open menu" /> : null}
+    </header>
+  ),
+  MobileNavigation: () => <nav className="mobile-navigation" aria-label="Main navigation" />,
+}));
+vi.mock("@/components/layout/site-footer", () => ({ SiteFooter: () => <footer data-testid="site-footer" /> }));
 vi.mock("@/components/reviews/psychic-reviews", () => ({ PsychicReviews: () => null }));
 vi.mock("@/components/psychics/service-order-form", () => ({ ServiceOrderForm: () => null }));
 vi.mock("@/components/feedback/toast-provider", () => ({ useToast: () => ({ show: vi.fn(), showError: vi.fn() }) }));
@@ -159,5 +169,88 @@ describe("PsychicProfile booking", () => {
     expect(screen.queryByTestId("booking-bar")).toBeNull();
     expect(document.querySelector("main")?.className).not.toContain("has-booking-bar");
     expect(mine).not.toHaveBeenCalled();
+  });
+});
+
+describe("PsychicProfile new advisor label", () => {
+  it("shows \"New advisor\" with no rating, star or review count when nobody has reviewed yet", async () => {
+    get.mockResolvedValue({ ...theo("online"), rating: 5, reviews_count: 0 });
+    renderWithI18n(<PsychicProfile slug="theo" />);
+    const tile = (await screen.findByText("Rating")).closest(".stat-tile") as HTMLElement;
+    expect(tile.textContent).toContain("New advisor");
+    expect(tile.textContent).not.toContain("5.0");
+    expect(tile.textContent).not.toContain("★");
+    expect(tile.textContent).not.toContain("0 reviews");
+  });
+
+  it("keeps the rating and the review count once there are reviews", async () => {
+    get.mockResolvedValue({ ...theo("online"), rating: 4.5, reviews_count: 4 });
+    renderWithI18n(<PsychicProfile slug="theo" />);
+    const tile = (await screen.findByText("Rating")).closest(".stat-tile") as HTMLElement;
+    expect(tile.textContent).toContain("4.5 ★");
+    expect(tile.textContent).toContain("4 reviews");
+    expect(tile.textContent).not.toContain("New advisor");
+  });
+});
+
+describe("PsychicProfile frame", () => {
+  const publicFrame = () => {
+    expect(screen.getByTestId("site-header").getAttribute("data-public")).toBe("1");
+    expect(screen.getByTestId("mobile-menu-trigger")).toBeTruthy();
+    expect(screen.getByTestId("site-footer")).toBeTruthy();
+    expect(document.querySelector(".mobile-navigation")).toBeNull();
+    expect(document.querySelector(".public-frame")).not.toBeNull();
+    // One main landmark: the profile is the main of the public frame, not nested in another.
+    expect(document.querySelectorAll("main")).toHaveLength(1);
+  };
+  const appFrame = () => {
+    expect(screen.getByTestId("site-header").getAttribute("data-public")).toBe("0");
+    expect(screen.queryByTestId("site-footer")).toBeNull();
+    expect(document.querySelector(".mobile-navigation")).not.toBeNull();
+    expect(document.querySelector(".dashboard-page")).not.toBeNull();
+  };
+
+  it("gives a signed-out visitor the public header with its menu and the footer, and no bottom bar", async () => {
+    get.mockResolvedValue(theo("online"));
+    renderWithI18n(<PsychicProfile slug="theo" />);
+    await screen.findByTestId("profile-ctas");
+    publicFrame();
+    expect(document.querySelector("main")?.className).toContain("psychic-profile");
+    expect(await axeViolations()).toEqual([]);
+  });
+
+  it("keeps the app frame for a signed-in user", async () => {
+    session = { status: "authenticated", user: { id: "u1", role: "client", age_status: "adult" } };
+    get.mockResolvedValue(theo("online"));
+    renderWithI18n(<PsychicProfile slug="theo" />);
+    await screen.findByTestId("profile-ctas");
+    appFrame();
+  });
+
+  it("follows the same rule while the profile loads, and when it fails", async () => {
+    let resolve: (p: Psychic) => void = () => {};
+    get.mockReturnValue(new Promise<Psychic>((r) => (resolve = r)));
+    renderWithI18n(<PsychicProfile slug="theo" />);
+    publicFrame();
+    await act(async () => resolve(theo("online")));
+    await screen.findByTestId("profile-ctas");
+    cleanup();
+
+    get.mockRejectedValue(new ApiError({ code: "not_found", message: "No such advisor", status: 404 }));
+    renderWithI18n(<PsychicProfile slug="ghost" />);
+    await screen.findByText("This advisor could not be found.");
+    publicFrame();
+    cleanup();
+
+    session = { status: "authenticated", user: { id: "u1", role: "client", age_status: "adult" } };
+    get.mockReturnValue(new Promise<Psychic>(() => {}));
+    renderWithI18n(<PsychicProfile slug="theo" />);
+    appFrame();
+    cleanup();
+
+    get.mockRejectedValue(new ApiError({ code: "not_found", message: "No such advisor", status: 404 }));
+    renderWithI18n(<PsychicProfile slug="ghost" />);
+    await screen.findByText("This advisor could not be found.");
+    appFrame();
   });
 });

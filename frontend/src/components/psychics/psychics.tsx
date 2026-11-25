@@ -1,12 +1,14 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/i18n-provider";
 import { zodiacIconUrl } from "@/lib/astro-icons";
 import { formatRating } from "@/lib/format";
 import { SiteHeader, MobileNavigation } from "@/components/layout/site-header";
+import { PublicFrame } from "@/components/layout/public-frame";
+import { readAuthHint } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { FreeChatBadge } from "@/components/billing/free-chat-badge";
 import { useFreeMode } from "@/lib/site-config/site-config-provider";
@@ -143,13 +145,20 @@ function AdvisorCardView({ advisor, onAvailable }: { advisor: AdvisorCard; onAva
           </ul>
         ) : null}
         <div className="advisor-card-meta">
-          <span>
-            <img className="advisor-card-star" src="https://assets.staryield.net/assets/figma/d9e90.svg" alt="" aria-hidden />
-            <strong>{formatRating(advisor.rating, locale)}</strong>{" "}
-            <span className="advisor-card-reviews">
-              {text("({value0} reviews)", { value0: advisor.reviews_count.toLocaleString(locale) })}
+          {/* No reviews yet: the default 5.0 would be a rating nobody gave. */}
+          {advisor.reviews_count > 0 ? (
+            <span>
+              <img className="advisor-card-star" src="https://assets.staryield.net/assets/figma/d9e90.svg" alt="" aria-hidden />
+              <strong>{formatRating(advisor.rating, locale)}</strong>{" "}
+              <span className="advisor-card-reviews">
+                {text("({value0} reviews)", { value0: advisor.reviews_count.toLocaleString(locale) })}
+              </span>
             </span>
-          </span>
+          ) : (
+            <span>
+              <strong>{text("New advisor")}</strong>
+            </span>
+          )}
           <span className="font-extralight">
             {advisor.rate_per_minute} {text("credits/min ")}
           </span>
@@ -316,6 +325,42 @@ export function PsychicsBrowse() {
   );
 }
 
+const subscribeNone = () => () => {};
+
+/**
+ * Whether to dress the page for a signed-in member. While the session loads, the browser's remembered
+ * session decides (false on the server), so a member does not see the visitor frame flash by and the
+ * server-rendered page, which search engines read, is the visitor one (same rule as the promo banner).
+ */
+function useSignedInFrame(): boolean {
+  const { status } = useSession();
+  const hint = useSyncExternalStore(subscribeNone, readAuthHint, () => false);
+  return status === "loading" ? hint : status === "authenticated";
+}
+
+/**
+ * Frame of an advisor's profile (§27.2). Visitors get the public site's frame (header with menu,
+ * footer, no bottom bar); signed-in users keep the app frame. `extras` are the fixed or portalled
+ * pieces (phone booking bar, order sheet): after <main> in the app frame, inside it in the public one.
+ */
+function ProfileFrame({ className, extras, children }: { className: string; extras?: ReactNode; children: ReactNode }) {
+  if (!useSignedInFrame())
+    return (
+      <PublicFrame mainClassName={className}>
+        {children}
+        {extras}
+      </PublicFrame>
+    );
+  return (
+    <div className="dashboard-page">
+      <SiteHeader />
+      <main className={className}>{children}</main>
+      {extras}
+      <MobileNavigation />
+    </div>
+  );
+}
+
 /** One waiting-list read serves the hero button and the phone bar. */
 export function PsychicProfile({ slug }: { slug: string }) {
   return (
@@ -353,28 +398,24 @@ function PsychicProfileView({ slug }: { slug: string }) {
 
   if (!advisor) {
     return (
-      <div className="dashboard-page">
-        <SiteHeader />
-        <main className="psychic-profile">
-          {error?.code === "not_found" ? (
-            <div className="py-16 text-center">
-              <h1 className="font-display text-3xl">{text("This advisor could not be found.")}</h1>
-              <Link className="mt-4 inline-block underline" href={psychicsHref}>
-                {text("Browse all advisors")}
-              </Link>
-            </div>
-          ) : (
-            <LoadState
-              error={error}
-              onRetry={() => {
-                setError(null);
-                load();
-              }}
-            />
-          )}
-        </main>
-        <MobileNavigation />
-      </div>
+      <ProfileFrame className="psychic-profile">
+        {error?.code === "not_found" ? (
+          <div className="py-16 text-center">
+            <h1 className="font-display text-3xl">{text("This advisor could not be found.")}</h1>
+            <Link className="mt-4 inline-block underline" href={psychicsHref}>
+              {text("Browse all advisors")}
+            </Link>
+          </div>
+        ) : (
+          <LoadState
+            error={error}
+            onRetry={() => {
+              setError(null);
+              load();
+            }}
+          />
+        )}
+      </ProfileFrame>
     );
   }
 
@@ -383,159 +424,163 @@ function PsychicProfileView({ slug }: { slug: string }) {
   const returnHere = encodeURIComponent(`/${locale}/psychics/${slug}`);
 
   return (
-    <div className="dashboard-page">
-      <SiteHeader />
-      <main className={barVisible ? "psychic-profile has-booking-bar" : "psychic-profile"}>
-        <div className="mb-8 flex items-center justify-between text-sm">
-          <div>
-            <Link href={psychicsHref}>{text("Psychics")}</Link>{" "}
-            <span className="mx-2">›</span> <strong>{text(advisor.name)}</strong>
-          </div>
-          <span className={`status-pill ${canChat ? "online" : ""}`}>
-            {text(canChat ? "● Online now" : statusCopy[advisor.status])}
-          </span>
-        </div>
-        <section className="profile-hero">
-          <div className="relative overflow-hidden rounded-2xl">
-            <img className="h-full w-full object-cover" src={advisor.image_url} alt={text(advisor.name)} />
-            {/* revisions 5.1: no "Verified Master Advisor" badge: Staryield does not verify advisors (Terms 2.2). */}
-          </div>
-          <div className="flex flex-col justify-center gap-6">
-            <h1 className="flex items-center gap-4 font-display text-4xl lg:text-[56px]">
-              {zodiacIconUrl(advisor.zodiac) ? (
-                <img src={zodiacIconUrl(advisor.zodiac)} alt={text(advisor.zodiac)} className="h-12 w-12 object-contain" />
-              ) : null}
-              {text(advisor.name)}
-            </h1>
-            <div className="flex flex-wrap gap-2">
-              {advisor.skills.map((skill) => (
-                <span className="status-pill" key={skill}>
-                  {text(skill)}
-                </span>
-              ))}
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                [`${formatRating(advisor.rating, locale)} ★`, "Rating", text("{count} reviews", { count: advisor.reviews_count })],
-                [`${advisor.readings_count.toLocaleString(locale)}+`, "Readings", "Completed"],
-                [text("{count} years", { count: advisor.years_experience }), "Experience", "Active practice"],
-              ].map(([value, label, detail]) => (
-                <div className="stat-tile" key={label}>
-                  <p className="font-display text-lg lg:text-[28px]">{text(value)}</p>
-                  <p className="mt-2 text-xs uppercase">{text(label)}</p>
-                  <p className="text-[11px]">{text(detail)}</p>
-                </div>
-              ))}
-            </div>
-            <div className="rounded-2xl border border-gold p-6">
-              <div className="flex justify-between gap-3">
-                <div>
-                  <p className="text-sm uppercase">{text("Consultation rate")}</p>
-                  {freeMode ? (
-                    <p data-testid="profile-free-rate">
-                      <span className="font-display text-[32px]">{text("Free for a limited time")}</span>{" "}
-                      <s className="text-sm" aria-label={text("List rate: {value0} credits per minute", { value0: advisor.rate_per_minute })}>
-                        {advisor.rate_per_minute} {text("Credits / minute")}
-                      </s>
-                    </p>
-                  ) : (
-                    <p>
-                      <span className="font-display text-[32px]">{advisor.rate_per_minute}</span>{" "}
-                      <strong className="text-sm">{text("Credits / minute")}</strong>
-                    </p>
-                  )}
-                </div>
-                <p className="self-center text-right text-xs">
-                  {text(canChat ? "● Instant Connection " : statusCopy[advisor.status])}
-                  <br />
-                  {text(canChat ? "No waiting queue " : "Live chat opens when this advisor is online.")}
-                </p>
-              </div>
-              <FreeChatBadge className="mt-4" />
-              {/* One standard action for every status: chat, sign up, or the waiting list. */}
-              <div className="mt-5" data-testid="profile-ctas">
-                <BookButton advisor={advisor} placement="profile_hero" size="lg" className="w-full" onAvailable={markOnline} inReading={inReading} />
-              </div>
-            </div>
-          </div>
-        </section>
-        <section className="profile-details">
-          <div>
-            <h2 className="font-display text-[32px]">{text("About")}</h2>
-            {advisor.about.map((paragraph, index) => (
-              <p className="mt-6 font-extralight leading-[1.8]" key={index}>
-                {text(paragraph)}
-              </p>
-            ))}
-            {advisor.philosophy ? (
-              <div className="mt-6 rounded-2xl bg-warm-gray/55 p-6">
-                <h3 className="font-display text-xl">{text("My philosophy")}</h3>
-                <p className="mt-4 text-sm font-light">{text(advisor.philosophy)}</p>
-              </div>
-            ) : null}
-          </div>
-          <div>
-            <h2 className="mb-6 text-[32px]">{text("Orders / Services")}</h2>
-            <div className="space-y-4">
-              {advisor.services.map((item) => (
-                <article className="rounded-2xl border border-gold p-6" key={item.id}>
-                  <div className="flex justify-between gap-3">
-                    <div>
-                      <h3 className="text-xl">{text(item.name)}</h3>
-                      <p className="text-xs font-light">{text(item.subtitle)}</p>
-                      {item.kind === "custom" && item.delivery_days ? (
-                        <p className="text-xs font-light" data-testid="service-delivery">
-                          {text("Custom request · delivered in about {value0} days", { value0: item.delivery_days })}
-                        </p>
-                      ) : null}
-                    </div>
-                    <span className="status-pill self-start">
-                      {text("{value0} Credits", { value0: item.price_credits.toLocaleString(locale) })}
-                    </span>
-                  </div>
-                  <p className="my-4 text-sm font-extralight leading-relaxed">{text(item.description)}</p>
-                  <Button
-                    className="h-10 w-full bg-gold"
-                    onClick={() => {
-                      setService(item);
-                      track("service_viewed", { slug, credits: item.price_credits });
-                    }}
-                  >
-                    {text("Order service › ")}
+    <ProfileFrame
+      className={barVisible ? "psychic-profile has-booking-bar" : "psychic-profile"}
+      extras={
+        <>
+          <BookingBar advisor={advisor} onAvailable={markOnline} inReading={inReading} />
+          <Sheet
+            open={Boolean(service)}
+            onOpenChange={(open) => {
+              if (!open) setService(null);
+            }}
+          >
+            <SheetContent className="overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>{text(service?.name)}</SheetTitle>
+              </SheetHeader>
+              {sessionStatus !== "authenticated" ? (
+                <div className="space-y-4 p-6">
+                  <p>{text("Sign in to place a request with this advisor.")}</p>
+                  <Button asChild className="gold-button w-full">
+                    <Link href={`/${locale}/login?next=${returnHere}`}>{text("Log In")}</Link>
                   </Button>
-                </article>
-              ))}
+                </div>
+              ) : user?.role !== "client" ? (
+                <p className="p-6">{text("Only client accounts can place requests.")}</p>
+              ) : service ? (
+                <ServiceOrderForm key={service.id} service={service} advisorName={advisor.name} slug={slug} returnHere={returnHere} />
+              ) : null}
+            </SheetContent>
+          </Sheet>
+        </>
+      }
+    >
+      <div className="mb-8 flex items-center justify-between text-sm">
+        <div>
+          <Link href={psychicsHref}>{text("Psychics")}</Link>{" "}
+          <span className="mx-2">›</span> <strong>{text(advisor.name)}</strong>
+        </div>
+        <span className={`status-pill ${canChat ? "online" : ""}`}>
+          {text(canChat ? "● Online now" : statusCopy[advisor.status])}
+        </span>
+      </div>
+      <section className="profile-hero">
+        <div className="relative overflow-hidden rounded-2xl">
+          <img className="h-full w-full object-cover" src={advisor.image_url} alt={text(advisor.name)} />
+          {/* revisions 5.1: no "Verified Master Advisor" badge: Staryield does not verify advisors (Terms 2.2). */}
+        </div>
+        <div className="flex flex-col justify-center gap-6">
+          <h1 className="flex items-center gap-4 font-display text-4xl lg:text-[56px]">
+            {zodiacIconUrl(advisor.zodiac) ? (
+              <img src={zodiacIconUrl(advisor.zodiac)} alt={text(advisor.zodiac)} className="h-12 w-12 object-contain" />
+            ) : null}
+            {text(advisor.name)}
+          </h1>
+          <div className="flex flex-wrap gap-2">
+            {advisor.skills.map((skill) => (
+              <span className="status-pill" key={skill}>
+                {text(skill)}
+              </span>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              advisor.reviews_count > 0
+                ? [`${formatRating(advisor.rating, locale)} ★`, "Rating", text("{count} reviews", { count: advisor.reviews_count })]
+                : [text("New advisor"), "Rating", text("No reviews yet")],
+              [`${advisor.readings_count.toLocaleString(locale)}+`, "Readings", "Completed"],
+              [text("{count} years", { count: advisor.years_experience }), "Experience", "Active practice"],
+            ].map(([value, label, detail]) => (
+              <div className="stat-tile" key={label}>
+                <p className="font-display text-lg lg:text-[28px]">{text(value)}</p>
+                <p className="mt-2 text-xs uppercase">{text(label)}</p>
+                <p className="text-[11px]">{text(detail)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-2xl border border-gold p-6">
+            <div className="flex justify-between gap-3">
+              <div>
+                <p className="text-sm uppercase">{text("Consultation rate")}</p>
+                {freeMode ? (
+                  <p data-testid="profile-free-rate">
+                    <span className="font-display text-[32px]">{text("Free for a limited time")}</span>{" "}
+                    <s className="text-sm" aria-label={text("List rate: {value0} credits per minute", { value0: advisor.rate_per_minute })}>
+                      {advisor.rate_per_minute} {text("Credits / minute")}
+                    </s>
+                  </p>
+                ) : (
+                  <p>
+                    <span className="font-display text-[32px]">{advisor.rate_per_minute}</span>{" "}
+                    <strong className="text-sm">{text("Credits / minute")}</strong>
+                  </p>
+                )}
+              </div>
+              <p className="self-center text-right text-xs">
+                {text(canChat ? "● Instant Connection " : statusCopy[advisor.status])}
+                <br />
+                {text(canChat ? "No waiting queue " : "Live chat opens when this advisor is online.")}
+              </p>
+            </div>
+            <FreeChatBadge className="mt-4" />
+            {/* One standard action for every status: chat, sign up, or the waiting list. */}
+            <div className="mt-5" data-testid="profile-ctas">
+              <BookButton advisor={advisor} placement="profile_hero" size="lg" className="w-full" onAvailable={markOnline} inReading={inReading} />
             </div>
           </div>
-        </section>
-        <PsychicReviews slug={slug} total={advisor.reviews_count} />
-      </main>
-      <BookingBar advisor={advisor} onAvailable={markOnline} inReading={inReading} />
-      <MobileNavigation />
-      <Sheet
-        open={Boolean(service)}
-        onOpenChange={(open) => {
-          if (!open) setService(null);
-        }}
-      >
-        <SheetContent className="overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{text(service?.name)}</SheetTitle>
-          </SheetHeader>
-          {sessionStatus !== "authenticated" ? (
-            <div className="space-y-4 p-6">
-              <p>{text("Sign in to place a request with this advisor.")}</p>
-              <Button asChild className="gold-button w-full">
-                <Link href={`/${locale}/login?next=${returnHere}`}>{text("Log In")}</Link>
-              </Button>
+        </div>
+      </section>
+      <section className="profile-details">
+        <div>
+          <h2 className="font-display text-[32px]">{text("About")}</h2>
+          {advisor.about.map((paragraph, index) => (
+            <p className="mt-6 font-extralight leading-[1.8]" key={index}>
+              {text(paragraph)}
+            </p>
+          ))}
+          {advisor.philosophy ? (
+            <div className="mt-6 rounded-2xl bg-warm-gray/55 p-6">
+              <h3 className="font-display text-xl">{text("My philosophy")}</h3>
+              <p className="mt-4 text-sm font-light">{text(advisor.philosophy)}</p>
             </div>
-          ) : user?.role !== "client" ? (
-            <p className="p-6">{text("Only client accounts can place requests.")}</p>
-          ) : service ? (
-            <ServiceOrderForm key={service.id} service={service} advisorName={advisor.name} slug={slug} returnHere={returnHere} />
           ) : null}
-        </SheetContent>
-      </Sheet>
-    </div>
+        </div>
+        <div>
+          <h2 className="mb-6 text-[32px]">{text("Orders / Services")}</h2>
+          <div className="space-y-4">
+            {advisor.services.map((item) => (
+              <article className="rounded-2xl border border-gold p-6" key={item.id}>
+                <div className="flex justify-between gap-3">
+                  <div>
+                    <h3 className="text-xl">{text(item.name)}</h3>
+                    <p className="text-xs font-light">{text(item.subtitle)}</p>
+                    {item.kind === "custom" && item.delivery_days ? (
+                      <p className="text-xs font-light" data-testid="service-delivery">
+                        {text("Custom request · delivered in about {value0} days", { value0: item.delivery_days })}
+                      </p>
+                    ) : null}
+                  </div>
+                  <span className="status-pill self-start">
+                    {text("{value0} Credits", { value0: item.price_credits.toLocaleString(locale) })}
+                  </span>
+                </div>
+                <p className="my-4 text-sm font-extralight leading-relaxed">{text(item.description)}</p>
+                <Button
+                  className="h-10 w-full bg-gold"
+                  onClick={() => {
+                    setService(item);
+                    track("service_viewed", { slug, credits: item.price_credits });
+                  }}
+                >
+                  {text("Order service › ")}
+                </Button>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+      <PsychicReviews slug={slug} total={advisor.reviews_count} />
+    </ProfileFrame>
   );
 }

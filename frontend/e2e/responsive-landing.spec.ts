@@ -112,3 +112,28 @@ test.describe("responsive landing page and footer @responsive", () => {
     await expectNoA11yViolations(page, [".site-footer", '[data-name="Control / Get started"]', '[data-name="Layout / How To Start / 02"]']);
   });
 });
+
+// §27.2: a signed-out visitor on a phone keeps the call to action in the bar and can reach Pricing.
+test.describe("public header on a phone @responsive", () => {
+  test("Sign up sits in the bar, Pricing is in the menu, and nothing scrolls sideways", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/en");
+    const header = page.locator("header.site-header");
+    await expect(header.getByTestId("header-signup-compact")).toBeVisible();
+    await expect(header.getByTestId("header-signup-compact")).toHaveAttribute("href", "/en/signup");
+    await expectNoHorizontalScroll(page);
+    await header.getByTestId("mobile-menu-trigger").click();
+    const drawer = page.getByRole("dialog");
+    await expect(drawer.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/en/pricing");
+    await expectNoHorizontalScroll(page);
+  });
+
+  for (const locale of ["fr", "es"]) {
+    test(`the bar still fits with the longer ${locale} labels`, async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 800 });
+      await page.goto(`/${locale}`);
+      await expect(page.locator("header.site-header").getByTestId("header-signup-compact")).toBeVisible();
+      await expectNoHorizontalScroll(page);
+    });
+  }
+});

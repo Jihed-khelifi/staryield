@@ -45,6 +45,7 @@ export function SiteHeader({
         ["Path of Life", "/calculators/path-of-life"],
         ["Astrology", "/calculators/astrology"],
         ["Tarot Birth Card", "/calculators/tarot-birth-card"],
+        ["Pricing", "/pricing"],
       ]
     : advisor
       ? [
@@ -116,6 +117,12 @@ export function SiteHeader({
               <UserMenu className="user-menu-trigger hidden md:flex" />
             </>
           )}
+          {/* Phones and tablets hide the desktop pair above: keep the call to action in the bar (§27.2). */}
+          {!signedIn && publicSite ? (
+            <Button asChild className="gold-button h-9 px-4 text-xs lg:hidden" data-testid="header-signup-compact">
+              <Link href={`/${locale}/signup`}>{text("Sign Up")}</Link>
+            </Button>
+          ) : null}
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button

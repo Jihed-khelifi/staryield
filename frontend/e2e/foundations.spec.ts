@@ -52,10 +52,10 @@ test.describe("site foundations", { tag: "@responsive" }, () => {
   });
 
   test("small logos are the faceless sun", async ({ page }) => {
-    // Public frame (header + footer) and app frame (header only).
+    // Public frame (header + footer): the home page and, for visitors, an advisor's profile (§27.2).
     for (const [path, regions] of [
       ["/en", ["header", "footer"]],
-      ["/en/psychics/ramone", ["header"]],
+      ["/en/psychics/ramone", ["header", "footer"]],
     ] as const) {
       await page.goto(path);
       for (const region of regions) {

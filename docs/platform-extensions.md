@@ -3968,7 +3968,40 @@ _(slice E)_
 
 ### 27.2 New advisor label, public header and advisor profile frame
 
-_(slice C)_
+Frontend only; no API or data change.
+
+- **New advisor label.** New advisors default to `rating` 5.0 with
+  `reviews_count` 0, which read as "5.0 (0 reviews)". The directory card and
+  the profile's rating tile (`components/psychics/psychics.tsx`) now show the
+  existing "New advisor" text, with no star, no number and no count, when
+  `reviews_count` is 0 (the profile tile's detail line reads "No reviews yet").
+  Advisors with reviews are unchanged. The home cards and the chat reader panel
+  already followed this rule.
+- **Public header** (`components/layout/site-header.tsx`). "Pricing"
+  (`/<lang>/pricing`) is a public navigation item: desktop nav and menu drawer.
+  Below `lg` the desktop Log In / Sign Up pair is hidden, so a signed-out
+  visitor gets a compact Sign Up button (`data-testid="header-signup-compact"`,
+  `lg:hidden`) in the bar, next to the menu trigger. It links to
+  `/<lang>/signup` exactly like the desktop button (neither carries a `?next=`;
+  the existing sign-up link has none). Signed-in users see neither.
+- **Profile frame.** `PsychicProfileView` (main, loading and error states) is
+  wrapped by `ProfileFrame`. Visitors get `PublicFrame` (public header with the
+  drawer, `SiteFooter`, no `.mobile-navigation` bottom pill); signed-in users
+  keep `dashboard-page` + `SiteHeader` + `MobileNavigation`. `PublicFrame`
+  gained an optional `mainClassName` so the profile's `<main class="psychic-profile">`
+  is the frame's only `<main>`. The phone booking bar and the order sheet are
+  rendered inside `<main>` for visitors and after it for members.
+- **Which frame while the session loads.** `status === "loading"` follows the
+  browser's remembered session (`readAuthHint`, false on the server), the same
+  rule as the promo banner: the server-rendered page that search engines read is
+  the visitor frame, and a returning member does not see it flash. Otherwise
+  `authenticated` selects the app frame.
+- **Phone spacing.** Visitors have no bottom pill, so `.booking-bar` sits at the
+  screen edge under `.public-frame` and the frame reserves room under the footer
+  (`globals.css`, phones only, `:has(> .psychic-profile.has-booking-bar)`).
+- **Tests.** vitest: `psychics.test.tsx`, `psychic-profile.test.tsx`,
+  `site-header.test.tsx`. Playwright: `responsive-landing.spec.ts` (phone
+  header), `psychics-gating.spec.ts` (phone visitor on a profile).
 
 ### 27.3 Report next step, footnote, e-mail UTM tags, alternative advisors
 
