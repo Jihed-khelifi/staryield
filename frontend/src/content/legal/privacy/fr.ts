@@ -205,7 +205,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Listes d’attente. Si vous rejoignez la liste d’attente d’un conseiller, nous enregistrons votre demande et vous prévenons une seule fois, dans l’application et via les canaux que vous avez activés, lorsque ce conseiller se connecte. Les demandes expirent au bout de 7 jours et vous pouvez quitter une liste d’attente à tout moment."
+          "text": "Listes d’attente. Si vous rejoignez la liste d’attente d’un conseiller, nous enregistrons votre demande et vous prévenons une seule fois, dans l’application et via les canaux que vous avez activés, lorsque ce conseiller se connecte. Les demandes expirent au bout de 7 jours et vous pouvez quitter une liste d’attente à tout moment. Si vous demandez à rejoindre la liste d’attente d’un conseiller avant d’avoir un compte, votre navigateur mémorise ce choix dans le même onglet pendant 1 heure au maximum (voir [Cookies et technologies similaires](#cookies)), et nous ne vous ajoutons à la liste d’attente de ce conseiller qu’une fois que vous êtes inscrit et connecté en tant que client."
         },
         {
           "type": "p",
@@ -370,6 +370,170 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Si vous demandez un rapport, vous pouvez choisir de recevoir par e-mail des horoscopes, des offres et des actualités de Staryield. Nous n’envoyons ces e-mails qu’avec votre consentement. Lorsque la loi le permet, par exemple aux États-Unis, la case peut déjà être cochée lorsque vous la voyez ; vous pouvez la décocher avant d’envoyer, et nous enregistrons si elle était précochée. Dans les autres pays, la case est décochée au départ et nous ne vous envoyons rien si vous ne la cochez pas. Chaque e-mail marketing contient un lien de désabonnement, et vous pouvez aussi désactiver les mises à jour marketing dans les [paramètres de votre compte](/profile/settings). Nous ne vendons jamais votre adresse e-mail et ne la transmettons à personne pour son propre marketing. Les e-mails marketing sont envoyés pour notre compte par un prestataire d’e-mails qui agit selon nos instructions et reçoit votre adresse e-mail, votre langue et votre pays."
+        },
+        {
+          "type": "h3",
+          "id": "email-address-verification",
+          "n": "2.16",
+          "title": "Confirmation de votre adresse e-mail"
+        },
+        {
+          "type": "p",
+          "text": "Lorsque vous créez un compte avec une adresse e-mail et un mot de passe, nous vous envoyons un e-mail de bienvenue contenant un lien pour confirmer que cette adresse vous appartient. Nous le faisons pour sécuriser votre compte et pour nous assurer que les reçus, les alertes de sécurité et les autres avis concernant votre compte vous parviennent, sur la base de notre contrat avec vous et de notre intérêt légitime à sécuriser les comptes. Cet e-mail est un message transactionnel : il ne contient aucune publicité et il est envoyé quels que soient vos choix en matière de marketing. Les comptes créés avec la connexion Google sont marqués comme confirmés dès leur création, car Google nous indique qu’il a vérifié l’adresse (voir la [section 2.2](#data-we-receive-from-third-parties)). Lorsque vous changez d’adresse e-mail, le lien que nous envoyons à la nouvelle adresse la confirme également."
+        },
+        {
+          "type": "p",
+          "text": "Ce que nous conservons. Nous enregistrons si votre adresse a été confirmée et à quelle date. Pour chaque lien envoyé, nous ne conservons qu’un hachage unidirectionnel de son code secret, jamais le code lui-même, ainsi qu’une copie chiffrée de l’adresse à laquelle il a été envoyé, afin que le lien ne fonctionne que pour cette adresse. Un lien ne peut servir qu’une fois et expire au bout de 48 heures, et la demande d’un nouveau lien annule le précédent. Nous envoyons à un même compte au plus un lien par minute et 5 liens sur toute période de 24 heures, et aucun à une adresse figurant sur notre liste d’exclusion (par exemple après un rejet définitif ou un signalement comme spam). Nous conservons une trace dans notre journal d’audit chaque fois qu’une adresse est confirmée et chaque fois qu’un de nos administrateurs envoie un nouveau lien (le compte concerné, l’auteur de l’action, la date et un hachage à clé de l’adresse IP), et nos statistiques internes enregistrent qu’une adresse a été confirmée ou qu’un nouveau lien a été demandé."
+        },
+        {
+          "type": "p",
+          "text": "Fonctionnement du lien. Le code secret se trouve dans la partie du lien située après le « # », que les navigateurs n’envoient ni aux serveurs ni aux autres sites : il n’apparaît donc ni dans les journaux de nos serveurs ni dans les en-têtes de provenance (referrer). La page de confirmation lit le code, le retire de la barre d’adresse et nous l’envoie une seule fois. Une fois votre adresse confirmée, tous les onglets ouverts où vous êtes connecté sont mis à jour et nous ajoutons une notification dans l’application. Vous pouvez demander un nouveau lien depuis votre compte. Nos administrateurs peuvent voir si votre adresse a été confirmée et à quelle date, et peuvent vous envoyer un nouveau lien, mais ils ne voient jamais le lien lui-même. Si vous recevez un e-mail de confirmation pour un compte que vous n’avez pas créé, vous pouvez l’ignorer : l’adresse reste non confirmée."
+        },
+        {
+          "type": "p",
+          "text": "Durée de conservation. La date de confirmation de votre adresse est conservée tant que votre compte existe et supprimée lors de l’effacement de votre compte. Les enregistrements des liens sont supprimés automatiquement environ un jour après l’expiration du lien, ainsi qu’avec votre compte. La confirmation de votre adresse n’est pas nécessaire pour utiliser les Services ou pour payer ; un ami invité doit en revanche confirmer son adresse pour que la personne qui l’a invité puisse obtenir une récompense de parrainage (voir la [section 2.17](#referral-program))."
+        },
+        {
+          "type": "h3",
+          "id": "referral-program",
+          "n": "2.17",
+          "title": "Invitations et récompenses de parrainage"
+        },
+        {
+          "type": "p",
+          "text": "Les clients peuvent inviter des amis sur Staryield grâce à un lien d’invitation personnel. Pour chaque ami invité qui crée un compte via ce lien, confirme son adresse e-mail et termine une consultation en direct, la personne qui l’a invité gagne des minutes de chat offertes, selon les règles présentées dans l’application et dans nos [Conditions d’utilisation](/terms). Pour gérer ce programme, nous traitons les données suivantes, sur la base de notre contrat avec vous (les règles du programme) et de notre intérêt légitime à prévenir les abus :"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "Votre code personnel : un code de 8 caractères créé la première fois que vous affichez votre lien d’invitation. Votre lien est l’adresse de notre site suivie de ce code ; une personne qui ouvre votre lien peut donc être rattachée à votre invitation.",
+            "Les enregistrements de parrainage : pour chaque ami qui s’inscrit avec un lien, un enregistrement reliant le compte de la personne qui invite et celui de l’ami, son statut et ses dates (inscription, qualification, récompense ou refus), le nombre de minutes de récompense, la première consultation qualifiante de l’ami, un hachage à clé de l’adresse IP depuis laquelle l’ami s’est inscrit (jamais l’adresse elle-même), les éventuels signalements pour examen et, si notre équipe l’a examiné, la décision, son motif et l’administrateur qui l’a prise.",
+            "Les contrôles anti-abus : lorsqu’un ami s’inscrit, nous comparons le hachage à clé de son adresse IP aux hachages à clé des adresses IP des appareils connectés de la personne qui invite vus au cours des 30 derniers jours, et nous comptons combien d’amis ont rejoint la même personne au cours des 24 dernières heures. Si les statistiques d’audience sont autorisées dans le navigateur de l’ami, nous vérifions aussi si l’identifiant aléatoire du navigateur décrit à la [section 2.10](#calculator-usage-measurement) est déjà rattaché à un compte. Une inscription depuis un navigateur déjà rattaché à la personne qui invite n’est pas prise en compte. Une inscription depuis le même réseau que l’un des appareils de la personne qui invite, depuis un navigateur rattaché à un autre compte, ou lorsque 10 amis ou plus ont déjà rejoint la même personne au cours des 24 dernières heures, est mise en attente pour qu’un membre de notre équipe l’examine et l’approuve ou la refuse. Ces contrôles n’utilisent jamais de noms, d’adresses e-mail ni de messages."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Ce que chacun voit. Les personnes qui invitent ne voient que des totaux : combien d’amis se sont inscrits, combien ont terminé une consultation et combien de minutes offertes sont en attente ou ont été ajoutées. Nous n’indiquons jamais à une personne qui invite qui s’est inscrit ni qui a eu une consultation, et nos notifications sur les invitations ne nomment jamais un ami. Le personnel autorisé peut voir qui a invité qui dans notre console d’administration, afin d’examiner les inscriptions mises en attente et de répondre aux questions sur les récompenses. Si vous partagez votre lien via le menu de partage de votre appareil, le lien est transmis à l’application que vous choisissez, qui le traite selon ses propres conditions et sa propre politique de confidentialité."
+        },
+        {
+          "type": "p",
+          "text": "Messages. Nous prévenons la personne qui invite, dans l’application et, si les notifications push sont activées, par notification push, lorsqu’un ami s’inscrit ou termine une consultation, et par e-mail lorsque des minutes offertes sont ajoutées à son portefeuille, selon ses paramètres de notification. Il s’agit de messages de service liés au programme, et non de marketing."
+        },
+        {
+          "type": "p",
+          "text": "Dans votre navigateur. Lorsque vous ouvrez un lien d’invitation, notre site conserve le code et l’heure à laquelle vous l’avez ouvert pour la première fois dans le stockage local de votre navigateur pendant 30 jours au maximum, retire le code de la barre d’adresse, envoie le code avec votre inscription pour que l’ami qui vous a invité puisse être crédité, puis le supprime une fois votre inscription terminée. Un lien d’invitation ouvert plus tard ne remplace pas un code encore valable. Nos statistiques enregistrent qu’un lien d’invitation a été ouvert, jamais le code lui-même, et, lorsqu’une personne copie ou partage son lien, uniquement la méthode utilisée (voir la [section 2.21](#feature-usage-measurement))."
+        },
+        {
+          "type": "p",
+          "text": "Durée de conservation. Votre code et les enregistrements de parrainage sont conservés tant que le compte de la personne qui invite existe. Lorsque le compte d’une personne qui invite est effacé, son code et les enregistrements des amis qu’elle a invités sont supprimés. Lorsque le compte d’un ami invité est effacé, un parrainage non abouti est supprimé ; un parrainage récompensé, refusé ou en attente de sa récompense est conservé sans aucun lien avec le compte de l’ami et sans le hachage de l’adresse IP, pour nos registres comptables et de prévention de la fraude. Votre export de données contient un fichier (referrals.json) avec votre code, vos totaux et l’indication que vous vous êtes inscrit ou non grâce à une invitation, mais jamais l’identité de la personne qui vous a invité ni celle des personnes que vous avez invitées."
+        },
+        {
+          "type": "h3",
+          "id": "lifecycle-messages",
+          "n": "2.18",
+          "title": "Rappels et liste « Commencer »"
+        },
+        {
+          "type": "p",
+          "text": "Pour aider les nouveaux clients à démarrer et les clients qui reviennent à retrouver leurs repères, nous pouvons vous envoyer quelques rappels et suggestions : confirmer votre adresse e-mail, faire votre première consultation, inviter un ami après une consultation (tant que le programme de parrainage est actif) et revenir après une pause. Votre compte affiche également une liste « Commencer » : confirmer votre adresse e-mail, renseigner vos données de naissance, faire votre première consultation et, tant que le programme de parrainage est actif, inviter un ami."
+        },
+        {
+          "type": "p",
+          "text": "Données utilisées. Votre date d’inscription, le fait que votre adresse e-mail soit confirmée ou non, le fait que vos date et lieu de naissance soient renseignés ou non, les dates et le nombre de vos consultations terminées, votre dernière connexion et le nombre de minutes offertes dans votre portefeuille. Un message peut aussi mentionner un fait exact au moment de son envoi, par exemple le nombre de conseillers en ligne ; cela peut avoir changé lorsque vous le lisez."
+        },
+        {
+          "type": "p",
+          "text": "Modes d’envoi et bases juridiques. Les rappels dans l’application et la liste font partie des Services et reposent sur notre intérêt légitime à vous aider à les utiliser (voir la [section 3](#legitimate-interests)). Le rappel de confirmation de votre adresse e-mail est un message transactionnel accompagné d’un nouveau lien de confirmation (voir la [section 2.16](#email-address-verification)). Les rappels concernant votre première consultation, l’invitation d’un ami et votre retour sont promotionnels : nous ne les envoyons par e-mail ou par notification push que si vous avez activé « Actualités marketing » dans les [paramètres de votre compte](/profile/settings), et par notification push uniquement si les notifications push sont également activées. Vous pouvez désactiver « Actualités marketing » à tout moment. Chaque e-mail promotionnel indique le nom et l’adresse postale de notre société et renvoie vers vos paramètres de notification."
+        },
+        {
+          "type": "p",
+          "text": "Limites. Nous vous envoyons au plus un de ces messages toutes les 48 heures. Chaque rappel n’est envoyé qu’une fois, sauf le rappel de retour, envoyé au plus une fois tous les 30 jours et au maximum 3 fois après votre dernière consultation. Nous n’en envoyons aucun aux comptes restreints par la vérification de l’âge, aux comptes en cours de fermeture, aux comptes désactivés ou suspendus, ni aux conseillers et aux administrateurs."
+        },
+        {
+          "type": "p",
+          "text": "Enregistrements et mesure. Pour chaque rappel, nous conservons un enregistrement indiquant de quel rappel il s’agit, quand il a été envoyé ou écarté (et pourquoi), les canaux utilisés et si vous avez terminé une consultation pendant la période de mesure qui a suivi (7 jours, sauf si notre équipe fixe une autre durée, de 30 jours au plus). Cet enregistrement garantit qu’un rappel n’est jamais envoyé deux fois et nous permet de voir, de manière agrégée, si les rappels sont utiles ; notre console d’administration n’affiche que des totaux et des taux. Si vous masquez la liste, nous enregistrons à quelle date. Ces enregistrements sont conservés tant que votre compte existe ; lors de l’effacement de votre compte, ils restent rattachés uniquement au compte anonymisé. Les clics sur la liste et sur son bouton « Masquer » sont mesurés comme décrit à la [section 2.21](#feature-usage-measurement)."
+        },
+        {
+          "type": "h3",
+          "id": "free-calculators-and-search-pages",
+          "n": "2.19",
+          "title": "Calculateurs gratuits et pages de recherche"
+        },
+        {
+          "type": "p",
+          "text": "Thème natal. Notre calculateur gratuit de thème natal affiche le thème complet (roue, positions, maisons et aspects) à tous les visiteurs. Pour le calculer, vos date, heure et lieu de naissance sont envoyés à nos serveurs dans le corps de la requête, et non dans l’adresse web. Ils servent uniquement à calculer le thème et ne sont pas conservés, sauf si vous nous demandez de vous envoyer le rapport par e-mail (voir la [section 2.14](#calculator-report-emails)). Changer de système de maisons renvoie les mêmes données pour recalculer le thème."
+        },
+        {
+          "type": "p",
+          "text": "Carte de naissance du tarot. Le calculateur de carte de naissance du tarot détermine vos cartes dans votre navigateur : la date de naissance que vous saisissez ne nous est pas envoyée et n’est pas conservée."
+        },
+        {
+          "type": "p",
+          "text": "Pages de recherche. Nos pages sur les nombres du chemin de vie, les cartes de naissance du tarot et la compatibilité astrologique se consultent sans fournir aucune donnée personnelle. Lorsque vous saisissez une date de naissance sur une page consacrée au chemin de vie ou à une carte de naissance du tarot, elle est transmise au calculateur dans la partie de l’adresse web située après le « # », que les navigateurs n’envoient ni aux serveurs, ni aux journaux, ni aux autres sites."
+        },
+        {
+          "type": "p",
+          "text": "Calculateur de compatibilité. Pour déterminer les deux signes solaires, le calculateur de compatibilité envoie à nos serveurs chacune des deux dates de naissance que vous saisissez (la date seule, sans nom ni heure). Elles servent uniquement à déterminer les signes et ne sont pas conservées, et la page qui s’affiche ensuite ne mentionne que les deux signes. Vous pouvez saisir la date de naissance d’une autre personne : ne le faites qu’avec son accord. Nous ne l’utilisons que pour déterminer son signe, sur la base de notre intérêt légitime à fournir l’outil que vous utilisez, et nous ne la conservons pas. Si une date tombe à la limite entre deux signes, vous pouvez choisir le signe ou ouvrir notre calculateur de signe astrologique, qui reçoit la date dans la partie de l’adresse située après le « # »."
+        },
+        {
+          "type": "p",
+          "text": "Mesure. Pour ces calculateurs et ces pages, nous enregistrons le même type d’événements d’utilisation que pour nos autres calculateurs (le lancement ou l’aboutissement d’un calcul, le calculateur concerné et le fait qu’il ait été lancé depuis une page de recherche), jamais les dates que vous saisissez (voir la [section 2.10](#calculator-usage-measurement) et la [section 2.21](#feature-usage-measurement))."
+        },
+        {
+          "type": "h3",
+          "id": "share-images",
+          "n": "2.20",
+          "title": "Images de partage"
+        },
+        {
+          "type": "p",
+          "text": "Sur un résultat de calculateur, vous pouvez créer une image de votre résultat à partager, au format 9:16 et portant l’adresse staryield.net (par exemple « Ma carte de naissance du tarot est L’Étoile »). L’image est dessinée sur votre appareil ; nous ne la recevons pas et ne la conservons pas. Pour la dessiner, votre navigateur charge les illustrations et notre logo depuis nos serveurs, comme pour n’importe quelle autre page. L’image ne montre que le résultat, par exemple une carte, un nombre ou vos signes, et jamais vos date, heure ou lieu de naissance ni votre nom."
+        },
+        {
+          "type": "p",
+          "text": "Lorsque vous choisissez « Partager », le menu de partage de votre appareil transmet l’image, un court texte et un lien à l’application que vous choisissez (par exemple une messagerie ou un réseau social), qui les traite selon ses propres conditions et sa propre politique de confidentialité. « Télécharger l’image » enregistre l’image sur votre appareil et « Copier le lien » copie le lien. Le lien mène à la page du calculateur dans votre langue et ne contient jamais vos données de naissance. Ce que vous partagez, et avec qui, relève de votre choix."
+        },
+        {
+          "type": "p",
+          "text": "Nous enregistrons que la fenêtre de partage a été ouverte et, si vous avez partagé, la méthode (menu de partage, téléchargement ou copie du lien) et le calculateur concerné (voir la [section 2.21](#feature-usage-measurement))."
+        },
+        {
+          "type": "h3",
+          "id": "feature-usage-measurement",
+          "n": "2.21",
+          "title": "Mesure de l’utilisation des fonctionnalités"
+        },
+        {
+          "type": "p",
+          "text": "Nos statistiques internes (voir la [section 2.3](#data-we-collect-automatically)) enregistrent également les événements suivants dans votre navigateur :"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "Bouton de réservation : le bouton du conseiller que vous avez sélectionné (identifié par l’adresse de son profil), le statut du conseiller à ce moment-là, l’emplacement du bouton sur la page et l’action effectuée (démarrer un chat, s’inscrire, rejoindre ou quitter une liste d’attente).",
+            "Images de partage : l’ouverture de la fenêtre de partage, le calculateur concerné et, si vous avez partagé, la méthode.",
+            "Liste « Commencer » : l’étape que vous avez sélectionnée et le fait que vous avez masqué la liste.",
+            "Invitations : l’ouverture d’un lien d’invitation et le fait que son code a été conservé ou non (jamais le code lui-même) et, lorsqu’une personne copie ou partage son lien, uniquement la méthode.",
+            "Calculateurs et pages de recherche : le lancement ou l’aboutissement d’un calcul, le calculateur concerné, le fait qu’il ait été lancé depuis une page de recherche et le lien vers les conseillers que vous avez suivi depuis une page de recherche (identifié par son emplacement sur la page)."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Comme nos autres événements statistiques, chaque événement est enregistré avec les identifiants aléatoires de navigateur et de visite listés dans [Cookies et technologies similaires](#cookies), le chemin de la page (jamais la partie après le « # »), la page de provenance, votre langue, un hachage de votre adresse IP, l’agent utilisateur de votre navigateur et, si vous êtes connecté, votre compte. Aucun de ces événements ne contient vos données de naissance, le contenu de vos messages ni l’identité d’un ami que vous avez invité. Nous les utilisons de manière agrégée pour comprendre quelles fonctionnalités aident les visiteurs et les clients, sur la base de notre intérêt légitime et, lorsque la loi l’exige, de votre consentement. Rien n’est enregistré si votre navigateur envoie un signal Do Not Track ou Global Privacy Control, ou si vous désactivez les statistiques dans vos [préférences de confidentialité](/profile/settings)."
+        },
+        {
+          "type": "h3",
+          "id": "email-delivery-records",
+          "n": "2.22",
+          "title": "Enregistrements de distribution des e-mails"
+        },
+        {
+          "type": "p",
+          "text": "Pour chaque e-mail que nous envoyons, notre file d’envoi conserve un enregistrement de distribution : le type d’e-mail et sa catégorie (par exemple sécurité, compte ou marketing), sa langue, un hachage à clé de l’adresse du destinataire, le compte auquel il se rapporte (le cas échéant), son statut, le nombre de tentatives, ainsi que la réponse du prestataire d’e-mails et la référence du message. L’adresse du destinataire et le contenu de l’e-mail sont stockés chiffrés, et uniquement jusqu’à ce que l’e-mail ait été envoyé ou ait définitivement échoué. L’enregistrement de distribution est supprimé 30 jours plus tard."
+        },
+        {
+          "type": "p",
+          "text": "Nos administrateurs peuvent consulter une vue d’ensemble des envois : pour chaque type d’e-mail, combien ont été envoyés, sont en attente, ont échoué ou ont été annulés, ainsi que les problèmes les plus récents avec le code d’erreur du prestataire. Cette vue n’affiche jamais l’adresse des destinataires ni le contenu des e-mails. Les administrateurs peuvent aussi envoyer un e-mail de test à l’adresse de leur choix pour vérifier que l’envoi fonctionne ; le test est envoyé immédiatement et n’est pas conservé dans notre file d’envoi, et notre journal d’audit l’enregistre avec l’adresse partiellement masquée. Nous utilisons ces enregistrements, sur la base de notre intérêt légitime, pour nous assurer que nos e-mails vous parviennent et pour détecter et corriger les problèmes de distribution."
         }
       ]
     },
@@ -496,6 +660,46 @@ const content: LegalDocumentContent = {
               "Intérêt légitime (voir la description) ; Obligation légale le cas échéant"
             ],
             [
+              "Confirmer que vous contrôlez votre adresse e-mail et envoyer un nouveau lien de confirmation lorsque vous ou notre équipe le demandez",
+              "Identifiants (adresse e-mail) ; Enregistrements de confirmation d’e-mail ; Données relatives à l’appareil et à la localisation (hachage à clé de l’adresse IP dans les journaux d’audit)",
+              "Exécution d’un contrat avec vous ; Intérêt légitime (sécurité des comptes, voir la description)"
+            ],
+            [
+              "Gérer le programme de parrainage : créer les liens d’invitation, prendre en compte les invitations, ajouter les minutes offertes gagnées et en informer les personnes qui invitent",
+              "Identifiants ; Enregistrements de parrainage ; Données d’activité en ligne (consultations terminées)",
+              "Exécution d’un contrat avec vous (les règles du programme)"
+            ],
+            [
+              "Contrôler les invitations pour prévenir les abus et examiner les inscriptions mises en attente",
+              "Enregistrements de parrainage ; Données relatives à l’appareil et à la localisation (hachages à clé d’adresses IP) ; Données d’activité en ligne (identifiant aléatoire du navigateur, lorsque les statistiques sont autorisées)",
+              "Intérêt légitime (voir la description)"
+            ],
+            [
+              "Envoyer des rappels dans l’application, afficher la liste « Commencer » et mesurer de manière agrégée l’utilité des rappels",
+              "Identifiants ; Données d’inscription et de profil ; Données d’activité en ligne (consultations, dernière connexion) ; Compte, appareils et préférences ; Enregistrements des rappels",
+              "Intérêt légitime (voir la description)"
+            ],
+            [
+              "Envoyer des rappels promotionnels par e-mail et par notification push (première consultation, invitation d’un ami, retour après une pause)",
+              "Identifiants ; Compte, appareils et préférences ; Enregistrements des rappels",
+              "Votre consentement (Actualités marketing)"
+            ],
+            [
+              "Déterminer les signes dans le calculateur de compatibilité, y compris à partir de la date de naissance d’une autre personne que vous saisissez",
+              "Données de naissance (dates de naissance uniquement, non conservées)",
+              "Exécution d’un contrat avec vous (l’outil que vous utilisez) ; Intérêt légitime (date de naissance d’une autre personne, voir la description)"
+            ],
+            [
+              "Mesurer l’utilisation du bouton de réservation, des images de partage, de la liste « Commencer » et des liens d’invitation",
+              "Données d’activité en ligne ; Cookies et technologies similaires",
+              "Intérêt légitime (voir la description) ; Votre consentement pour les statistiques lorsque la loi l’exige"
+            ],
+            [
+              "Conserver les enregistrements de distribution de nos e-mails, montrer à notre équipe une vue d’ensemble des envois et envoyer des e-mails de test",
+              "Identifiants (hachage à clé de l’adresse e-mail) ; Enregistrements de distribution des e-mails",
+              "Intérêt légitime (voir la description)"
+            ],
+            [
               "Conserver la preuve des conditions acceptées lors de chaque achat et répondre aux litiges de paiement et aux rétrofacturations",
               "Registre de consentement à l’achat ; Registres de facturation et lots de crédits ; Données du moyen de paiement et règles des réseaux de cartes",
               "Intérêt légitime (voir la description)"
@@ -544,6 +748,30 @@ const content: LegalDocumentContent = {
           "text": "Lorsque nous affichons le widget d’avis Trustpilot : permettre aux personnes de lire et de laisser des avis indépendants sur les Services. Le widget n’est chargé que lorsqu’il apparaît à l’écran et jamais lorsque votre navigateur envoie un signal Global Privacy Control ou Do Not Track ; vous pouvez toujours utiliser le simple lien à la place."
         },
         {
+          "type": "p",
+          "text": "Lorsque nous confirmons les adresses e-mail : pour nous assurer que les reçus, les alertes de sécurité et les avis concernant le compte parviennent à la personne titulaire du compte, pour rendre plus difficile l’utilisation d’une adresse appartenant à quelqu’un d’autre et pour garder une trace des liens envoyés par notre équipe."
+        },
+        {
+          "type": "p",
+          "text": "Lorsque nous contrôlons les invitations pour prévenir les abus : pour ne récompenser que les invitations authentiques et protéger le programme de parrainage contre l’auto-parrainage, les comptes multiples ou fictifs et les inscriptions automatisées. Les contrôles utilisent des hachages à clé et des identifiants aléatoires, jamais de noms, d’adresses e-mail ni de messages, et une inscription qui semble suspecte est mise en attente pour qu’un membre de notre équipe l’examine."
+        },
+        {
+          "type": "p",
+          "text": "Lorsque nous envoyons des rappels dans l’application et affichons la liste « Commencer » : pour aider les nouveaux clients à voir la prochaine étape utile et les clients qui reviennent à retrouver leurs repères, tout en limitant la fréquence de nos messages (au plus un rappel toutes les 48 heures) et en ne mesurant que de manière agrégée l’utilité des rappels."
+        },
+        {
+          "type": "p",
+          "text": "Lorsque nous déterminons un signe à partir de la date de naissance d’une autre personne : pour fournir l’outil de compatibilité que vous utilisez. Nous n’utilisons la date que pour ce calcul, ne la conservons pas et vous demandons de ne la saisir qu’avec l’accord de cette personne."
+        },
+        {
+          "type": "p",
+          "text": "Lorsque nous mesurons l’utilisation du bouton de réservation, des images de partage, de la liste et des liens d’invitation : pour comprendre quelles fonctionnalités aident les visiteurs à trouver un conseiller et lesquelles ne les aident pas, au moyen d’événements pseudonymisés et de rapports agrégés."
+        },
+        {
+          "type": "p",
+          "text": "Lorsque nous conservons les enregistrements de distribution des e-mails : pour nous assurer que nos e-mails vous parviennent, détecter et corriger les problèmes de distribution et cesser d’écrire aux adresses qui rejettent nos messages."
+        },
+        {
           "type": "h3",
           "id": "automated-decisions",
           "title": "Informations importantes"
@@ -575,7 +803,7 @@ const content: LegalDocumentContent = {
           "type": "ul",
           "items": [
             "Hébergement, stockage et diffusion : nous utilisons Cloudflare pour héberger notre site web, stocker les images téléversées et les exports de données dans le stockage d’objets Cloudflare R2, diffuser les contenus et protéger les Services contre les attaques malveillantes. Nos serveurs d’applications et nos bases de données fonctionnent sur Railway.",
-            "Envoi d’e-mails : nous utilisons Cloudflare Email Service pour envoyer des e-mails transactionnels, tels que les messages de sécurité du compte, les reçus et leurs factures, les rapports des calculateurs que vous demandez et les notifications d’export de données. Nous ne l’utilisons pas pour envoyer des e-mails marketing.",
+            "Envoi d’e-mails : nous utilisons Cloudflare Email Service pour envoyer des e-mails transactionnels, tels que les messages de sécurité du compte, les reçus et leurs factures, les rapports des calculateurs que vous demandez et les notifications d’export de données. Nous ne l’utilisons pas pour envoyer des e-mails marketing. Il envoie aussi le lien de confirmation de votre adresse e-mail et l’e-mail qui vous informe que des minutes de parrainage ont été ajoutées à votre portefeuille.",
             "Envoi d’e-mails marketing : si vous choisissez de recevoir des e-mails marketing (voir la [section 2.15](#marketing-emails)), votre adresse e-mail, votre langue et votre pays sont transmis au prestataire d’e-mails qui les envoie pour notre compte.",
             "Notifications push : si vous activez les notifications push, elles sont distribuées par le service push de votre navigateur (par exemple Google, Mozilla, Apple ou Microsoft). Le contenu de chaque notification est chiffré afin que le service push ne puisse pas le lire.",
             "Traitement des paiements : les paiements par carte des crédits sont traités par Stripe (Stripe, Inc. et ses sociétés affiliées). Vous saisissez les données de votre carte directement auprès de Stripe, y compris lorsque vous utilisez Apple Pay ou Google Pay, de sorte que nous ne voyons jamais le numéro complet de votre carte ni son code de sécurité. Nous transmettons à Stripe votre adresse e-mail, votre nom, le montant et la devise, ainsi qu’une référence de votre achat. Pendant que vous payez, Stripe.js, qui se charge dans votre navigateur depuis js.stripe.com, collecte aussi des données d’appareil et de réseau (telles que votre adresse IP, des informations sur votre navigateur et votre appareil et la manière dont vous interagissez avec le formulaire de paiement) pour prévenir la fraude. Stripe traite ces données en tant que notre prestataire de services et, pour prévenir la fraude et respecter ses propres obligations légales, en tant que responsable de traitement indépendant ; consultez la politique de confidentialité de Stripe à l’adresse https://stripe.com/privacy. Si nous acheminons un paiement vers un autre prestataire de cartes, celui-ci reçoit les mêmes types de données conformément à sa propre politique de confidentialité. Les retraits des conseillers sont versés par virement bancaire ou PayPal.",
@@ -681,7 +909,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Pour retirer votre consentement aux statistiques, à l’attribution marketing ou à la personnalisation, ou pour cesser de partager votre ville de naissance avec les conseillers, utilisez Préférences de confidentialité dans les [paramètres de votre compte](/profile/settings). Pour ne plus recevoir de communications commerciales, utilisez le lien « Se désabonner » du message, désactivez Actualités commerciales dans les paramètres de votre compte ou envoyez votre demande via ce [formulaire de demande](/contact?topic=privacy)."
+          "text": "Pour retirer votre consentement aux statistiques, à l’attribution marketing ou à la personnalisation, ou pour cesser de partager votre ville de naissance avec les conseillers, utilisez Préférences de confidentialité dans les [paramètres de votre compte](/profile/settings). Pour ne plus recevoir de communications commerciales, utilisez le lien « Se désabonner » du message, désactivez Actualités commerciales dans les paramètres de votre compte ou envoyez votre demande via ce [formulaire de demande](/contact?topic=privacy). Désactiver « Actualités marketing » met aussi fin aux rappels promotionnels par e-mail et par notification push (voir la [section 2.18](#lifecycle-messages))."
         },
         {
           "type": "h4",
@@ -694,7 +922,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Vous pouvez télécharger une copie de vos données personnelles à tout moment dans les [paramètres de votre compte](/profile/settings), rubrique Données et confidentialité. Nous préparons un fichier ZIP contenant votre compte et votre profil, vos préférences et consentements, vos appareils connectés, vos modes de connexion (par exemple l’adresse e-mail d’un compte Google associé), vos achats et vos transactions, l’historique de vos crédits, vos conversations (avec les réponses et les mentions « J’aime », ainsi que les réponses du conseiller qui vous ont été masquées pendant une mise en attente) et les images que vous avez téléversées, vos messages enregistrés, vos notifications et vos évaluations. Lorsqu’il est prêt, nous vous prévenons dans l’application et par e-mail ; le lien de téléchargement ne peut être utilisé qu’une fois et le fichier est supprimé au bout de 7 jours. Les notes que les conseillers ont rédigées à votre sujet ne figurent pas dans cet export, car elles contiennent les observations propres aux conseillers ; vous pouvez les demander via ce [formulaire de demande](/contact?topic=privacy) et notre équipe vous les communiquera après examen de votre demande."
+          "text": "Vous pouvez télécharger une copie de vos données personnelles à tout moment dans les [paramètres de votre compte](/profile/settings), rubrique Données et confidentialité. Nous préparons un fichier ZIP contenant votre compte et votre profil, vos préférences et consentements, vos appareils connectés, vos modes de connexion (par exemple l’adresse e-mail d’un compte Google associé), vos achats et vos transactions, l’historique de vos crédits, vos conversations (avec les réponses et les mentions « J’aime », ainsi que les réponses du conseiller qui vous ont été masquées pendant une mise en attente) et les images que vous avez téléversées, vos messages enregistrés, vos notifications et vos évaluations. Lorsqu’il est prêt, nous vous prévenons dans l’application et par e-mail ; le lien de téléchargement ne peut être utilisé qu’une fois et le fichier est supprimé au bout de 7 jours. Les notes que les conseillers ont rédigées à votre sujet ne figurent pas dans cet export, car elles contiennent les observations propres aux conseillers ; vous pouvez les demander via ce [formulaire de demande](/contact?topic=privacy) et notre équipe vous les communiquera après examen de votre demande. L’export contient aussi un fichier avec votre code de parrainage et les totaux de vos invitations (referrals.json), qui n’indique jamais qui vous a invité ni qui vous avez invité."
         },
         {
           "type": "h4",
@@ -807,6 +1035,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Les demandes d’assistance et leurs messages sont supprimés 24 mois après la clôture de la demande. Les enregistrements d’utilisation des calculateurs, avec leur identifiant de navigateur aléatoire et les données de campagne de la première visite, sont supprimés après 25 mois. Les brouillons de chat restent sur votre appareil pendant 7 jours au plus."
+        },
+        {
+          "type": "p",
+          "text": "Confirmation d’e-mail, invitations, rappels et enregistrements de distribution. Les enregistrements des liens de confirmation d’e-mail sont supprimés environ un jour après l’expiration du lien ; la date de confirmation de votre adresse est conservée tant que votre compte existe. Les codes et enregistrements de parrainage sont conservés tant que le compte de la personne qui invite existe ; lorsque le compte d’un ami invité est effacé, un parrainage non abouti est supprimé et un parrainage déjà tranché est conservé sans aucun lien avec l’ami (voir la [section 2.17](#referral-program)). Les enregistrements des rappels sont conservés tant que votre compte existe (voir la [section 2.18](#lifecycle-messages)). Les enregistrements de distribution des e-mails sont supprimés 30 jours après l’envoi ou l’échec définitif de l’e-mail. Les dates de naissance saisies dans les calculateurs de carte de naissance du tarot et de compatibilité ne sont pas conservées, et le code d’invitation gardé dans votre navigateur est supprimé au bout de 30 jours ou dès votre inscription."
         }
       ]
     },
@@ -1117,12 +1349,37 @@ const content: LegalDocumentContent = {
               "Mémorise la campagne qui vous a amené (paramètres UTM et code du clic)",
               "30 jours",
               "Attribution marketing"
+            ],
+            [
+              "staryield.referral",
+              "Stockage local",
+              "Conserve le code d’invitation du lien qui vous a amené, et l’heure à laquelle vous l’avez ouvert pour la première fois, afin que l’ami qui vous a invité puisse être crédité si vous vous inscrivez ; supprimé lors de votre inscription",
+              "Jusqu’à 30 jours",
+              "Invitations"
+            ],
+            [
+              "staryield.referral.welcome-dismissed",
+              "Stockage de session",
+              "Mémorise que vous avez fermé le bandeau « Un ami vous invite sur Staryield »",
+              "Jusqu’à la fermeture de l’onglet",
+              "Essentiel"
+            ],
+            [
+              "staryield.booking.intent",
+              "Stockage de session",
+              "Mémorise que vous avez demandé à rejoindre la liste d’attente d’un conseiller avant d’avoir un compte, afin que vous puissiez y être ajouté après votre inscription",
+              "Jusqu’à 1 heure, ou jusqu’à la fermeture de l’onglet",
+              "Essentiel"
             ]
           ]
         },
         {
           "type": "p",
           "text": "Le personnel qui utilise notre console d’administration reçoit également un cookie de sécurité distinct (sy_adm), valable uniquement sur ce site. Le widget d’avis Trustpilot (voir la [section 4](#how-we-share-your-personal-data)) s’exécute dans le cadre propre à Trustpilot ; tout stockage qu’il y utilise relève de Trustpilot et non du présent tableau."
+        },
+        {
+          "type": "p",
+          "text": "L’élément d’invitation (staryield.referral) est conservé que les statistiques soient autorisées ou non, car il est nécessaire pour créditer l’ami qui vous a invité si vous vous inscrivez. Il ne contient que le code d’invitation et l’heure à laquelle vous avez ouvert le lien pour la première fois, il n’est pas utilisé pour les statistiques, et vous pouvez le supprimer à tout moment en effaçant les données du site dans votre navigateur."
         }
       ]
     },
@@ -1133,7 +1390,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "Les Services peuvent contenir des liens vers d'autres sites Web ou applications et d'autres sites Web ou applications peuvent faire référence ou créer un lien vers nos Services. Ces services tiers ne sont pas contrôlés par nous. Nous encourageons nos utilisateurs à lire les politiques de confidentialité de chaque site Web et application avec lesquels ils interagissent. Nous n'approuvons pas, ne sélectionnons pas, n'approuvons pas, et ne sommes pas responsables des pratiques de confidentialité ou du contenu de ces autres sites Web ou applications. La visite de ces autres sites Web ou applications se fait à vos propres risques. Cela inclut Google (États-Unis), si vous choisissez de vous connecter avec votre compte Google, et Trustpilot (Danemark), si vous suivez notre lien d’avis vers le site de Trustpilot ou y rédigez un avis."
+          "text": "Les Services peuvent contenir des liens vers d'autres sites Web ou applications et d'autres sites Web ou applications peuvent faire référence ou créer un lien vers nos Services. Ces services tiers ne sont pas contrôlés par nous. Nous encourageons nos utilisateurs à lire les politiques de confidentialité de chaque site Web et application avec lesquels ils interagissent. Nous n'approuvons pas, ne sélectionnons pas, n'approuvons pas, et ne sommes pas responsables des pratiques de confidentialité ou du contenu de ces autres sites Web ou applications. La visite de ces autres sites Web ou applications se fait à vos propres risques. Cela inclut Google (États-Unis), si vous choisissez de vous connecter avec votre compte Google, et Trustpilot (Danemark), si vous suivez notre lien d’avis vers le site de Trustpilot ou y rédigez un avis. Les images, textes et liens que vous partagez via le menu de partage de votre appareil sont transmis à l’application ou au service que vous choisissez, qui les traite selon ses propres conditions et sa propre politique de confidentialité."
         }
       ]
     },

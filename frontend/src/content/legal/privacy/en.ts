@@ -205,7 +205,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Waiting lists. If you join an advisor’s waiting list, we store your request and notify you once, in the app and through the channels you have enabled, when that advisor comes online. Entries expire after 7 days, and you can leave a waiting list at any time."
+          "text": "Waiting lists. If you join an advisor’s waiting list, we store your request and notify you once, in the app and through the channels you have enabled, when that advisor comes online. Entries expire after 7 days, and you can leave a waiting list at any time. If you ask to join an advisor’s waiting list before you have an account, your browser remembers that choice in the same tab for up to 1 hour (see [Cookies and similar technologies](#cookies)), and we add you to that advisor’s waiting list only once you have signed up and are signed in as a client."
         },
         {
           "type": "p",
@@ -370,6 +370,170 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "If you ask for a report, you can choose to receive horoscopes, offers and news from Staryield by email. We send these emails only with your consent. Where the law allows it, for example in the United States, the box may already be ticked when you see it; you can untick it before you submit, and we record whether it was pre-ticked. In other countries the box starts unticked and we send you nothing unless you tick it. Every marketing email contains an unsubscribe link, and you can also switch marketing updates off in your [account settings](/profile/settings). We never sell your email address or give it to anyone for their own marketing. Marketing emails are sent for us by an email service provider that acts on our instructions and receives your email address, language and country."
+        },
+        {
+          "type": "h3",
+          "id": "email-address-verification",
+          "n": "2.16",
+          "title": "Confirming your email address"
+        },
+        {
+          "type": "p",
+          "text": "When you create an account with an email address and a password, we send you a welcome email with a link to confirm that the address is yours. We do this to keep your account secure and to make sure that receipts, security alerts and other account notices reach you, on the basis of our contract with you and our legitimate interest in account security. This email is a transactional message: it contains no advertising and is sent whatever your marketing choices. Accounts created with Google sign-in are marked as confirmed when they are created, because Google tells us that it has verified the address (see [Section 2.2](#data-we-receive-from-third-parties)). When you change your email address, the link we send to the new address also confirms it."
+        },
+        {
+          "type": "p",
+          "text": "What we keep. We record whether and when your address was confirmed. For each link we send, we store only a one-way hash of its secret code, never the code itself, together with an encrypted copy of the address it was sent to, so that the link works only for that address. A link can be used once and expires after 48 hours, and asking for a new link cancels the previous one. We send an account at most one link a minute and 5 links in any 24 hours, and none to an address on our do-not-email list (for example after a permanent bounce or a spam complaint). We keep an audit record each time an address is confirmed and each time one of our administrators sends a new link (the account, who acted, when, and a keyed hash of the IP address), and our first-party analytics record that an address was confirmed or that a new link was requested."
+        },
+        {
+          "type": "p",
+          "text": "How the link works. The secret code sits in the part of the link after the “#”, which browsers do not send to servers or to other websites, so it does not appear in our server logs or in referrer headers. The confirmation page reads the code, removes it from the address bar and sends it to us once. When your address is confirmed, every open tab where you are signed in is updated, and we add a notification in the app. You can ask for a new link in your account. Our administrators can see whether and when your address was confirmed and can send you a new link, but they never see the link itself. If you receive a confirmation email for an account you did not create, you can ignore it: the address stays unconfirmed."
+        },
+        {
+          "type": "p",
+          "text": "How long. The date your address was confirmed is kept for as long as your account exists and is removed when your account is erased. Link records are deleted automatically about a day after the link expires, and with your account. Confirming your address is not required to use the Services or to pay; an invited friend must, however, confirm their address before the person who invited them can earn a referral reward (see [Section 2.17](#referral-program))."
+        },
+        {
+          "type": "h3",
+          "id": "referral-program",
+          "n": "2.17",
+          "title": "Invitations and referral rewards"
+        },
+        {
+          "type": "p",
+          "text": "Clients can invite friends to Staryield with a personal invitation link. For each invited friend who creates an account through that link, confirms their email address and completes a live reading, the person who invited them earns free chat minutes, under the rules shown in the app and in our [Terms of Use](/terms). To run the program we process the following data, on the basis of our contract with you (the program’s rules) and of our legitimate interest in preventing abuse:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "Your personal code: an 8-character code created the first time you view your invitation link. Your link is our website’s address followed by that code, so a person who opens your link can be connected to your invitation.",
+            "Referral records: for each friend who signs up with a link, a record connecting the inviter’s account and the friend’s account, its status and dates (joined, qualified, rewarded or rejected), the number of reward minutes, the friend’s first qualifying reading, a keyed hash of the IP address the friend signed up from (never the address itself), any review flags and, if our team reviewed it, the decision, its reason and the administrator who took it.",
+            "Abuse checks: when a friend signs up, we compare the keyed hash of their IP address with the keyed hashes of the IP addresses of the inviter’s signed-in devices seen in the last 30 days, and we count how many friends joined the same inviter in the last 24 hours. If analytics are allowed in the friend’s browser, we also check whether the random browser identifier described in [Section 2.10](#calculator-usage-measurement) is already linked to an account. A sign-up from a browser already linked to the inviter is not credited. A sign-up from the same network as one of the inviter’s devices, from a browser linked to another account, or when 10 or more friends have already joined the same inviter in the last 24 hours, is held for a person on our team to review, who approves or rejects it. These checks never use names, email addresses or messages."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "What each person sees. Inviters see only totals: how many friends joined, how many completed a reading, and how many free minutes are pending or have been added. We never tell an inviter who signed up or who had a reading, and our notifications about invitations never name a friend. Authorised staff can see who invited whom in our administration console, to review held sign-ups and answer questions about rewards. If you share your link through your device’s share sheet, the link goes to the app you choose, which handles it under its own terms and privacy policy."
+        },
+        {
+          "type": "p",
+          "text": "Messages. We tell the inviter, in the app and by push if push notifications are on, when a friend joins or completes a reading, and by email when free minutes are added to their wallet, according to their notification settings. These are service messages about the program, not marketing."
+        },
+        {
+          "type": "p",
+          "text": "In your browser. When you open an invitation link, our website keeps the code and the time you first opened it in your browser’s local storage for up to 30 days, removes the code from the address bar, sends the code with your sign-up so that the friend who invited you can be credited, and deletes it once you have signed up. A later invitation link does not replace a code that is still valid. Our analytics record that an invitation link was opened, never the code itself, and, when an inviter copies or shares their link, only the method used (see [Section 2.21](#feature-usage-measurement))."
+        },
+        {
+          "type": "p",
+          "text": "How long. Your code and the referral records are kept while the inviter’s account exists. When an inviter’s account is erased, their code and the records of the friends they invited are deleted. When an invited friend’s account is erased, an unfinished referral is deleted; a referral that was rewarded, rejected or is waiting for its reward is kept without any link to the friend’s account and without the IP hash, for our accounting and fraud-prevention records. Your data export includes a file (referrals.json) with your code, your totals and whether you joined through an invitation, but never who invited you or whom you invited."
+        },
+        {
+          "type": "h3",
+          "id": "lifecycle-messages",
+          "n": "2.18",
+          "title": "Reminders and the “Get started” checklist"
+        },
+        {
+          "type": "p",
+          "text": "To help new clients get started and returning clients find their way back, we may send you a few reminders and suggestions: to confirm your email address, about your first reading, to invite a friend after a reading (while the referral program is running), and to come back after a break. Your account also shows a “Get started” checklist: confirm your email address, add your birth details, have your first reading and, while the referral program is running, invite a friend."
+        },
+        {
+          "type": "p",
+          "text": "Data we use. Your sign-up date, whether your email address is confirmed, whether your date and place of birth are filled in, the dates and number of your completed readings, when you last signed in, and the number of free minutes in your wallet. A message may also mention something that is true when it is sent, such as how many advisors are online; this may have changed by the time you read it."
+        },
+        {
+          "type": "p",
+          "text": "How we send them, and on what basis. Reminders in the app and the checklist are part of the Services and rely on our legitimate interest in helping you use them (see [Section 3](#legitimate-interests)). The reminder to confirm your email address is a transactional message that comes with a new confirmation link (see [Section 2.16](#email-address-verification)). The reminders about your first reading, inviting a friend and coming back are promotional: we send them by email or push only if you have turned on Marketing updates in your [account settings](/profile/settings), and by push only if push notifications are also on. You can turn Marketing updates off at any time. Each promotional email shows our company name and postal address and links to your notification settings."
+        },
+        {
+          "type": "p",
+          "text": "Limits. We send you at most one of these messages every 48 hours. Each reminder is sent only once, except the reminder to come back, which is sent at most once every 30 days and no more than 3 times after your last reading. We send none to accounts that are restricted by the age check, being closed, deactivated or suspended, or to advisors and administrators."
+        },
+        {
+          "type": "p",
+          "text": "Records and measurement. For each reminder we keep a record of which reminder it was, when it was sent or skipped (and why), the channels we tried and whether you completed a reading within the measurement period that followed (7 days unless our team sets another period, of up to 30 days). This record makes sure that a reminder is never sent twice and lets us see, in aggregate, whether reminders help; our administration console shows only totals and rates. If you hide the checklist, we record when you did so. These records are kept for as long as your account exists; when your account is erased, they stay attached only to the anonymised account. Clicks on the checklist and on its “Hide” button are measured as described in [Section 2.21](#feature-usage-measurement)."
+        },
+        {
+          "type": "h3",
+          "id": "free-calculators-and-search-pages",
+          "n": "2.19",
+          "title": "Free calculators and search pages"
+        },
+        {
+          "type": "p",
+          "text": "Natal chart. Our free natal chart calculator shows the full chart (wheel, placements, houses and aspects) to every visitor. To calculate it, your date, time and place of birth are sent to our servers in the body of the request, not in the web address. They are used only to calculate the chart and are not stored, unless you ask us to email you the report (see [Section 2.14](#calculator-report-emails)). Changing the house system sends the same details again to recalculate the chart."
+        },
+        {
+          "type": "p",
+          "text": "Tarot birth card. The tarot birth card calculator works out your cards in your browser: the date of birth you enter is not sent to us and is not stored."
+        },
+        {
+          "type": "p",
+          "text": "Search pages. Our pages about life path numbers, tarot birth cards and zodiac compatibility can be read without giving any personal data. When you enter a date of birth on a life path or tarot birth card page, it is passed to the calculator in the part of the web address after the “#”, which browsers do not send to servers, logs or other websites."
+        },
+        {
+          "type": "p",
+          "text": "Compatibility calculator. To find the two sun signs, the compatibility calculator sends each of the two dates of birth you enter (the date only, without a name or a time) to our servers. They are used only to work out the signs and are not stored, and the page you are then shown names only the two signs. You may enter another person’s date of birth: please do so only with that person’s agreement. We use it only to work out their sign, on the basis of our legitimate interest in providing the tool you use, and we do not keep it. If a date falls on the boundary between two signs, you can choose the sign or open our zodiac sign calculator, which receives the date in the part of the address after the “#”."
+        },
+        {
+          "type": "p",
+          "text": "Measurement. For these calculators and pages we record the same kind of usage events as for our other calculators (that a calculation was started or completed, which calculator, and whether it was started from a search page), never the dates you enter (see [Section 2.10](#calculator-usage-measurement) and [Section 2.21](#feature-usage-measurement))."
+        },
+        {
+          "type": "h3",
+          "id": "share-images",
+          "n": "2.20",
+          "title": "Share images"
+        },
+        {
+          "type": "p",
+          "text": "On a calculator result you can create an image of your result to share, in a 9:16 format with the staryield.net address on it (for example “My tarot birth card is The Star”). The image is drawn on your device; we do not receive or keep it. To draw it, your browser loads the artwork and our logo from our servers, as for any other page. The image shows the result only, such as a card, a number or your signs, and never your date, time or place of birth or your name."
+        },
+        {
+          "type": "p",
+          "text": "When you choose “Share”, your device’s share sheet passes the image, a short text and a link to the app you pick (for example a messaging or social media app), which handles them under its own terms and privacy policy. “Download image” saves the image on your device and “Copy link” copies the link. The link leads to the calculator page in your language and never contains your birth details. What you share, and with whom, is your choice."
+        },
+        {
+          "type": "p",
+          "text": "We record that the share window was opened and, if you shared, the method (share sheet, download or copy link) and the calculator concerned (see [Section 2.21](#feature-usage-measurement))."
+        },
+        {
+          "type": "h3",
+          "id": "feature-usage-measurement",
+          "n": "2.21",
+          "title": "Measuring how features are used"
+        },
+        {
+          "type": "p",
+          "text": "Our first-party analytics (see [Section 2.3](#data-we-collect-automatically)) also record the following events in your browser:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "Booking button: which advisor’s button you selected (identified by the advisor’s profile address), the advisor’s status at that moment, where the button was on the page and what it did (start a chat, sign up, or join or leave a waiting list).",
+            "Share images: that the share window was opened, for which calculator and, if you shared, the method.",
+            "“Get started” checklist: which step you selected, and that you hid the checklist.",
+            "Invitations: that an invitation link was opened and whether its code was kept (never the code itself) and, when an inviter copies or shares their link, the method only.",
+            "Calculators and search pages: that a calculation was started or completed, which calculator, whether it was started from a search page, and which link to the advisors you followed from a search page (identified by its place on the page)."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Like our other analytics events, each event is stored with the random browser and visit identifiers listed in [Cookies and similar technologies](#cookies), the page path (never the part after “#”), the referring page, your language, a hashed IP address, your browser’s user agent and, if you are signed in, your account. None of these events contains your birth details, the content of your messages or the identity of a friend you invited. We use them in aggregate to understand which features help visitors and clients, on the basis of our legitimate interest and, where the law requires it, your consent. Nothing is recorded if your browser sends a Do Not Track or Global Privacy Control signal, or if you switch analytics off in your [privacy preferences](/profile/settings)."
+        },
+        {
+          "type": "h3",
+          "id": "email-delivery-records",
+          "n": "2.22",
+          "title": "Email delivery records"
+        },
+        {
+          "type": "p",
+          "text": "For every email we send, our sending queue keeps a delivery record: the type of email and its category (for example security, account or marketing), its language, a keyed hash of the recipient’s address, the account it belongs to (if any), its status, the number of attempts, and the email provider’s answer and message reference. The recipient’s address and the content of the email are stored encrypted, and only until the email has been sent or has finally failed. The delivery record is deleted 30 days after that."
+        },
+        {
+          "type": "p",
+          "text": "Our administrators can see a delivery overview: for each type of email, how many were sent, are waiting, failed or were cancelled, and the most recent problems with the provider’s error code. This overview never shows recipients’ addresses or the content of emails. Administrators can also send a test email to an address they choose, to check that sending works; the test is sent at once and is not kept in our sending queue, and our audit log records it with the address partly masked. We use these records, on the basis of our legitimate interest, to make sure our emails reach you and to find and fix delivery problems."
         }
       ]
     },
@@ -496,6 +660,46 @@ const content: LegalDocumentContent = {
               "Legitimate interest (check the description); Legal obligation where applicable"
             ],
             [
+              "To confirm that you control your email address, and to send a new confirmation link when you or our team ask for one",
+              "Identifiers (email address); Email confirmation records; Device and location data (keyed hash of the IP address in audit records)",
+              "Performance of a contract with you; Legitimate interest (account security, check the description)"
+            ],
+            [
+              "To run the referral program: create invitation links, credit invitations, add earned free minutes and tell inviters about them",
+              "Identifiers; Referral records; Online activity data (completed readings)",
+              "Performance of a contract with you (the program’s rules)"
+            ],
+            [
+              "To check invitations for abuse and review held sign-ups",
+              "Referral records; Device and location data (keyed hashes of IP addresses); Online activity data (random browser identifier, where analytics are allowed)",
+              "Legitimate interest (check the description)"
+            ],
+            [
+              "To send reminders in the app, show the “Get started” checklist and measure in aggregate whether reminders help",
+              "Identifiers; Onboarding and profile data; Online activity data (readings, last sign-in); Account, devices and preferences; Reminder records",
+              "Legitimate interest (check the description)"
+            ],
+            [
+              "To send promotional reminders by email and push (your first reading, inviting a friend, coming back after a break)",
+              "Identifiers; Account, devices and preferences; Reminder records",
+              "Your consent (Marketing updates)"
+            ],
+            [
+              "To work out the signs in the compatibility calculator, including from another person’s date of birth that you enter",
+              "Birth data (dates of birth only, not stored)",
+              "Performance of a contract with you (the tool you use); Legitimate interest (another person’s date of birth, check the description)"
+            ],
+            [
+              "To measure how the booking button, share images, the “Get started” checklist and invitation links are used",
+              "Online activity data; Cookies and similar technologies",
+              "Legitimate interest (check the description); Your consent for analytics where the law requires it"
+            ],
+            [
+              "To keep delivery records of our emails, show our team a delivery overview and send test emails",
+              "Identifiers (keyed hash of the email address); Email delivery records",
+              "Legitimate interest (check the description)"
+            ],
+            [
               "To keep proof of the terms accepted with each purchase and to respond to payment disputes and chargebacks",
               "Purchase consent record; Billing records and credit lots; Payment-method data and card-network rules",
               "Legitimate interest (check the description)"
@@ -544,6 +748,30 @@ const content: LegalDocumentContent = {
           "text": "When showing the Trustpilot review widget: to let people read and leave independent reviews of the Services. The widget is loaded only when it comes into view and never when your browser sends a Global Privacy Control or Do Not Track signal; you can always use the plain link instead."
         },
         {
+          "type": "p",
+          "text": "When confirming email addresses: to make sure that receipts, security alerts and account notices reach the person who holds the account, to make it harder to use an address that belongs to someone else, and to keep a record of the links our team sends."
+        },
+        {
+          "type": "p",
+          "text": "When checking invitations for abuse: to reward genuine invitations only and to protect the referral program against self-referrals, multiple or fake accounts and automated sign-ups. The checks use keyed hashes and random identifiers, never names, email addresses or messages, and a sign-up that looks suspicious is held for a person on our team to review."
+        },
+        {
+          "type": "p",
+          "text": "When sending reminders in the app and showing the “Get started” checklist: to help new clients see the next useful step and returning clients find their way back, while limiting how often we write (at most one reminder every 48 hours) and measuring only in aggregate whether reminders help."
+        },
+        {
+          "type": "p",
+          "text": "When working out a sign from another person’s date of birth: to provide the compatibility tool you use. We use the date only for that calculation, do not keep it, and ask you to enter it only with that person’s agreement."
+        },
+        {
+          "type": "p",
+          "text": "When measuring how the booking button, share images, the checklist and invitation links are used: to understand which features help visitors find an advisor and which do not, using pseudonymous events and aggregate reports."
+        },
+        {
+          "type": "p",
+          "text": "When keeping email delivery records: to make sure our emails reach you, to find and fix delivery problems, and to stop writing to addresses that bounce."
+        },
+        {
           "type": "h3",
           "id": "automated-decisions",
           "title": "Important information"
@@ -575,7 +803,7 @@ const content: LegalDocumentContent = {
           "type": "ul",
           "items": [
             "Hosting, storage and delivery: We use Cloudflare to host our website, to store uploaded images and data exports in Cloudflare R2 object storage, to deliver content and to protect the Services from malicious attacks. Our application servers and databases run on Railway.",
-            "Email delivery: We use Cloudflare Email Service to send transactional emails, such as account security messages, receipts with their invoices, the calculator reports you ask for and data-export notifications. We do not use it to send marketing emails.",
+            "Email delivery: We use Cloudflare Email Service to send transactional emails, such as account security messages, receipts with their invoices, the calculator reports you ask for and data-export notifications. We do not use it to send marketing emails. It also sends the link to confirm your email address and the email telling you that referral minutes were added to your wallet.",
             "Marketing email delivery: If you choose to receive marketing emails (see [Section 2.15](#marketing-emails)), your email address, language and country are given to the email service provider that sends them for us.",
             "Push notifications: If you enable push notifications, they are delivered through your browser’s push service (for example Google, Mozilla, Apple or Microsoft). The content of each notification is encrypted so that the push service cannot read it.",
             "Payment processing: Card payments for credits are processed by Stripe (Stripe, Inc. and its affiliates). You enter your card details directly with Stripe, including when you use Apple Pay or Google Pay, so we never see your full card number or security code. We send Stripe your email address, your name, the amount and currency, and a reference to your purchase. While you pay, Stripe.js, which loads in your browser from js.stripe.com, also collects device and network data (such as your IP address, browser and device details and how you interact with the payment form) for fraud prevention. Stripe processes this data as our service provider and, for fraud prevention and to meet its own legal obligations, as an independent controller; see Stripe’s privacy policy at https://stripe.com/privacy. If we route a payment to another card processor instead, that processor receives the same kinds of data under its own privacy policy. Advisor withdrawals are paid by bank transfer or PayPal.",
@@ -681,7 +909,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "To withdraw your consent to analytics, marketing attribution or personalisation, or to stop sharing your birth city with advisors, use Privacy preferences in your [account settings](/profile/settings). To stop marketing communications, use the “Unsubscribe” link in the message, turn off Marketing updates in your account settings, or submit your request using this [request form](/contact?topic=privacy)."
+          "text": "To withdraw your consent to analytics, marketing attribution or personalisation, or to stop sharing your birth city with advisors, use Privacy preferences in your [account settings](/profile/settings). To stop marketing communications, use the “Unsubscribe” link in the message, turn off Marketing updates in your account settings, or submit your request using this [request form](/contact?topic=privacy). Turning off Marketing updates also stops promotional reminders by email and push (see [Section 2.18](#lifecycle-messages))."
         },
         {
           "type": "h4",
@@ -694,7 +922,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "You can download a copy of your personal data at any time in your [account settings](/profile/settings), under Data & privacy. We prepare a ZIP file containing your account and profile, preferences and consents, signed-in devices, sign-in methods (such as the email address of a connected Google account), purchases and transactions, credit history, conversations (including replies and likes, and the advisor’s replies that were hidden from you while a reading was on hold) and the images you uploaded, saved messages, notifications and ratings. When it is ready, we notify you in the app and by email; the download link can be used once and the file is deleted after 7 days. Notes that advisors wrote about you are not part of this export because they contain the advisors’ own observations; you can request them through this [request form](/contact?topic=privacy), and our staff will provide them after reviewing your request."
+          "text": "You can download a copy of your personal data at any time in your [account settings](/profile/settings), under Data & privacy. We prepare a ZIP file containing your account and profile, preferences and consents, signed-in devices, sign-in methods (such as the email address of a connected Google account), purchases and transactions, credit history, conversations (including replies and likes, and the advisor’s replies that were hidden from you while a reading was on hold) and the images you uploaded, saved messages, notifications and ratings. When it is ready, we notify you in the app and by email; the download link can be used once and the file is deleted after 7 days. Notes that advisors wrote about you are not part of this export because they contain the advisors’ own observations; you can request them through this [request form](/contact?topic=privacy), and our staff will provide them after reviewing your request. The export also includes a file with your referral code and invitation totals (referrals.json), which never shows who invited you or whom you invited."
         },
         {
           "type": "h4",
@@ -807,6 +1035,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Support requests and their messages are deleted 24 months after the request is closed. Calculator usage records, with their random browser identifier and first-visit campaign data, are deleted after 25 months. Chat drafts stay on your device for up to 7 days."
+        },
+        {
+          "type": "p",
+          "text": "Email confirmation, invitations, reminders and delivery records. Email confirmation link records are deleted about a day after the link expires; the date your address was confirmed is kept for as long as your account exists. Referral codes and records are kept while the inviter’s account exists; when an invited friend’s account is erased, an unfinished referral is deleted and a decided one is kept without any link to the friend (see [Section 2.17](#referral-program)). Reminder records are kept for as long as your account exists (see [Section 2.18](#lifecycle-messages)). Email delivery records are deleted 30 days after the email was sent or finally failed. The dates of birth you enter in the tarot birth card and compatibility calculators are not stored, and the invitation code kept in your browser is removed after 30 days or once you sign up."
         }
       ]
     },
@@ -1117,12 +1349,37 @@ const content: LegalDocumentContent = {
               "Remembers the campaign that brought you (UTM parameters and click code)",
               "30 days",
               "Marketing attribution"
+            ],
+            [
+              "staryield.referral",
+              "Local storage",
+              "Keeps the invitation code of the link that brought you, and when you first opened it, so that the friend who invited you can be credited if you sign up; removed when you sign up",
+              "Up to 30 days",
+              "Invitations"
+            ],
+            [
+              "staryield.referral.welcome-dismissed",
+              "Session storage",
+              "Remembers that you closed the “A friend invited you to Staryield” banner",
+              "Until you close the tab",
+              "Essential"
+            ],
+            [
+              "staryield.booking.intent",
+              "Session storage",
+              "Remembers that you asked to join an advisor’s waiting list before you had an account, so that you can be added to it after you sign up",
+              "Up to 1 hour, or until the tab is closed",
+              "Essential"
             ]
           ]
         },
         {
           "type": "p",
           "text": "Staff who use our administration console also receive a separate security cookie (sy_adm) that is valid only on that site. The Trustpilot review widget (see [Section 4](#how-we-share-your-personal-data)) runs in Trustpilot’s own frame; any storage it uses there is governed by Trustpilot, not by this table."
+        },
+        {
+          "type": "p",
+          "text": "The invitation item (staryield.referral) is kept whether or not analytics are allowed, because it is needed to credit the friend who invited you if you sign up. It holds only the invitation code and the time you first opened the link, it is not used for analytics, and you can remove it at any time by clearing your browser’s site data."
         }
       ]
     },
@@ -1133,7 +1390,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "The Services may contain links to other websites or applications and other websites or applications may reference or link to our Services. These third-party services are not controlled by us. We encourage our users to read the privacy policies of each website and application with which they interact. We do not endorse, screen or approve, and are not responsible for, the privacy practices or content of such other websites or applications. Visiting these other websites or applications is at your own risk. This includes Google (United States), if you choose to sign in with your Google account, and Trustpilot (Denmark), if you follow our review link to Trustpilot’s website or write a review there."
+          "text": "The Services may contain links to other websites or applications and other websites or applications may reference or link to our Services. These third-party services are not controlled by us. We encourage our users to read the privacy policies of each website and application with which they interact. We do not endorse, screen or approve, and are not responsible for, the privacy practices or content of such other websites or applications. Visiting these other websites or applications is at your own risk. This includes Google (United States), if you choose to sign in with your Google account, and Trustpilot (Denmark), if you follow our review link to Trustpilot’s website or write a review there. Images, text and links that you share through your device’s share sheet go to the app or service you choose, which handles them under its own terms and privacy policy."
         }
       ]
     },

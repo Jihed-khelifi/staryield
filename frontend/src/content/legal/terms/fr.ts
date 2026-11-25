@@ -149,6 +149,28 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Les thèmes natals, horoscopes, nombres de numérologie et tirages de tarot sont générés automatiquement par notre propre logiciel à partir des informations que vous fournissez. Leur exactitude dépend de celle de votre date, de votre heure et de votre lieu de naissance ; si vous ne connaissez pas votre heure de naissance, certains résultats, comme votre ascendant et vos maisons, ne peuvent pas être calculés. D’autres sites peuvent utiliser des méthodes différentes (par exemple d’autres systèmes de maisons), de sorte que leurs résultats peuvent différer des nôtres. Comme le reste du Service, ces résultats sont fournis uniquement à des fins de divertissement (voir la section 2.1)."
+        },
+        {
+          "type": "h3",
+          "id": "free-calculators-and-guides",
+          "n": "2.5",
+          "title": "Calculateurs et guides gratuits"
+        },
+        {
+          "type": "p",
+          "text": "Notre calculateur de thème natal, qui affiche le thème complet (la roue, les planètes, les maisons, les aspects et leurs interprétations), nos calculateurs de chemin de vie, de signe du zodiaque, de carte de naissance du tarot et de compatibilité des signes, ainsi que nos pages de guide consacrées aux chemins de vie, aux cartes de naissance du tarot et aux associations de signes du zodiaque, sont gratuits et utilisables sans Compte. Ils décrivent des traditions, comme la numérologie pythagoricienne, l’astrologie occidentale et la méthode des cartes de naissance du tarot décrite par Mary K. Greer (avec la numérotation Rider–Waite–Smith et les attributions de la Golden Dawn), et ce que ces traditions associent à un nombre, à une carte ou à un signe. Ce ne sont pas des prédictions, ni des conseils psychologiques, médicaux, financiers, juridiques, relationnels ou professionnels d’aucune autre sorte. Comme le reste du Service, ils sont fournis uniquement à des fins de divertissement (voir la section 2.1), et la section 2.4 s’applique également à leurs résultats."
+        },
+        {
+          "type": "p",
+          "text": "Scores de compatibilité. Les scores d’amour, d’amitié et de travail affichés pour deux signes du zodiaque sont produits par une règle fixe à partir de l’angle entre les deux signes, de leurs éléments, de leurs modalités et de leurs planètes maîtresses ; deux mêmes signes obtiennent donc toujours les mêmes scores. Il s’agit d’une heuristique de l’astrologie traditionnelle, proposée pour le divertissement, et non d’une mesure : ces scores ne reposent sur aucune donnée concernant de vrais couples et ne peuvent pas dire si une relation fonctionnera."
+        },
+        {
+          "type": "p",
+          "text": "Date de naissance d’une autre personne. Le calculateur de compatibilité demande deux dates de naissance. N’indiquez la date de naissance d’une autre personne qu’avec son accord. Elle sert uniquement à déterminer son signe du zodiaque et n’est pas conservée ; consultez notre [Politique de confidentialité](/privacy)."
+        },
+        {
+          "type": "p",
+          "text": "Conseillers présentés avec les résultats gratuits. À côté de certains résultats et sur les pages de guide, nous pouvons présenter des conseillers et des boutons de réservation ([section 4.17](#booking-a-reading)). L’utilisation d’un calculateur ou d’une page gratuits ne vous engage jamais à une consultation : les consultations ne sont facturées que dans les conditions de la section 6. Nous pouvons modifier, limiter ou retirer tout calculateur ou toute page gratuits à tout moment (voir la section 1.3)."
         }
       ]
     },
@@ -242,6 +264,28 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Vous pouvez également désactiver temporairement votre compte depuis les paramètres de votre compte. Pendant sa désactivation, vous êtes déconnecté de tous vos appareils, votre profil est masqué et, si vous êtes conseiller, vous êtes retiré de l’annuaire ; vos données, vos Crédits et vos paramètres sont conservés. Pour réactiver votre compte, reconnectez-vous et confirmez. Un compte désactivé par nos soins en application de la section 3.4 ne peut être réactivé que par nous."
+        },
+        {
+          "type": "h3",
+          "id": "email-address-and-confirmation",
+          "n": "3.8",
+          "title": "Votre adresse e-mail et sa confirmation"
+        },
+        {
+          "type": "p",
+          "text": "Vous devez vous inscrire avec une adresse e-mail dont vous avez le contrôle et la tenir à jour dans les paramètres de votre compte. Nous l’utilisons pour identifier votre Compte et pour vous envoyer des messages concernant votre Compte et vos achats, comme les alertes de sécurité, les reçus et les factures, ainsi que les réponses à vos demandes d’assistance. Il s’agit de messages de service, et non de marketing (voir la [section 4.13](#notifications))."
+        },
+        {
+          "type": "p",
+          "text": "Confirmation de votre adresse. Lorsque vous vous inscrivez avec une adresse e-mail et un mot de passe, nous vous envoyons un e-mail de bienvenue contenant un lien qui permet de confirmer que l’adresse vous appartient. Le lien ne fonctionne qu’une seule fois, expire au bout de 48 heures et n’est valable que pour l’adresse à laquelle il a été envoyé ; vous pouvez l’ouvrir sur n’importe quel appareil, même si vous n’êtes pas connecté. Si le lien a expiré ou ne vous est pas parvenu, vous pouvez en demander un nouveau depuis votre compte, dans certaines limites de fréquence ; un nouveau lien annule les précédents. Si vous vous inscrivez avec Google, votre adresse est considérée comme confirmée, car Google nous l’a confirmée. Lorsque vous changez d’adresse, la nouvelle adresse est confirmée par le lien que nous y envoyons."
+        },
+        {
+          "type": "p",
+          "text": "La confirmation de votre adresse n’est actuellement pas nécessaire pour utiliser le Service ni pour acheter des Crédits. Elle fait partie des conditions pour qu’un ami invité soit pris en compte dans le programme de parrainage ([section 4.20.2](#referral-how-rewards-are-earned)), et nous pouvons vous rappeler de l’effectuer ([section 4.18](#reminders-and-getting-started)). Si votre adresse est erronée, non confirmée ou ne peut pas recevoir d’e-mails, vous risquez de ne pas recevoir les reçus et les avis concernant votre Compte (voir aussi la section 3.2)."
+        },
+        {
+          "type": "p",
+          "text": "Si vous recevez un e-mail de confirmation pour un compte que vous n’avez pas créé, vous pouvez l’ignorer et ne devez pas ouvrir le lien : l’adresse n’est confirmée que si le lien est utilisé. Si cela se reproduit, contactez notre [centre d’assistance](/contact)."
         }
       ]
     },
@@ -425,6 +469,10 @@ const content: LegalDocumentContent = {
           "text": "Nous vous envoyons des notifications concernant votre compte et votre activité — par exemple les demandes de chat, la fin d’une lecture et l’invitation à l’évaluer, le suivi des commandes, les achats effectués et les incidents de paiement, les ajustements de crédits, les alertes de liste d’attente et, pour les conseillers, les nouvelles évaluations et le suivi des paiements — ainsi que des annonces occasionnelles de Staryield. Les notifications apparaissent dans le menu en forme de cloche du site, dans la langue choisie, et peuvent être marquées comme lues ; nous les conservons jusqu’à 180 jours. Selon vos paramètres de notification, nous vous les envoyons également par e-mail et sous forme de notifications push du navigateur. Les messages qui protègent votre compte, comme la confirmation d’un changement d’adresse e-mail, sont toujours envoyés par e-mail. Les notifications dans l’application font partie du Service ; il ne s’agit pas d’e-mails marketing, et nous ne vous envoyons des communications commerciales que si vous y avez consenti. La déconnexion arrête les notifications push sur cet appareil."
         },
         {
+          "type": "p",
+          "text": "Les rappels et suggestions, ainsi que le consentement requis pour les rappels promotionnels par e-mail ou par notification push, sont décrits à la [section 4.18](#reminders-and-getting-started)."
+        },
+        {
           "type": "h3",
           "id": "client-notes",
           "n": "4.14",
@@ -445,6 +493,10 @@ const content: LegalDocumentContent = {
           "text": "Lorsqu’un conseiller est occupé ou hors ligne, vous pouvez rejoindre sa liste d’attente. Nous vous préviendrons une seule fois, dans l’application et via les canaux que vous avez activés, lorsque le conseiller se connectera . Rejoindre une liste d’attente ne réserve pas le conseiller et ne garantit pas une lecture ; les demandes expirent au bout de 7 jours et vous pouvez quitter une liste d’attente à tout moment."
         },
         {
+          "type": "p",
+          "text": "« Me prévenir dès sa connexion ». L’inscription à une liste d’attente depuis le bouton de réservation figurant sur le profil, la fiche ou la page d’un conseiller est un service fourni sans garantie de résultat. Si vous n’êtes pas connecté, il vous est d’abord demandé de vous connecter ou de créer un Compte ; vous rejoignez ensuite automatiquement la liste d’attente, à condition de terminer dans le même onglet du navigateur dans l’heure. Nous n’envoyons l’alerte qu’une seule fois, et uniquement si le conseiller est toujours en ligne au moment de l’envoi ; le conseiller peut être de nouveau occupé ou hors ligne lorsque vous la lisez. L’alerte ne vous réserve aucune place, et nous ne sommes pas responsables d’une alerte qui arrive en retard ou n’arrive pas en raison de vos paramètres de notification, de votre appareil ou de votre fournisseur de messagerie."
+        },
+        {
           "type": "h3",
           "id": "messages-outside-live-readings",
           "n": "4.16",
@@ -461,6 +513,206 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Ces messages sont conservés comme les autres messages de chat et ne sont visibles que par vous et le conseiller. Le personnel autorisé de Staryield ne peut les consulter que dans les conditions décrites dans notre [Politique de confidentialité](/privacy#messages-outside-live-readings), par exemple pour traiter un litige, un signalement de sécurité ou une obligation légale. L’autre participant est averti dans l’application et par notification push, sans le texte du message."
+        },
+        {
+          "type": "h3",
+          "id": "booking-a-reading",
+          "n": "4.17",
+          "title": "Réserver une consultation"
+        },
+        {
+          "type": "p",
+          "text": "Les profils et fiches des conseillers affichent un bouton de réservation pour chaque conseiller, et certaines pages de calculateurs et de guides peuvent également l’afficher. Ce qu’il propose dépend du statut en direct du conseiller : lorsque le conseiller est en ligne, « Discuter maintenant » envoie une demande de chat en direct ; lorsqu’il est en consultation, absent ou hors ligne, vous pouvez rejoindre sa liste d’attente ([section 4.15](#advisor-waiting-lists)). Le statut d’un conseiller peut changer à tout moment : être affiché comme en ligne ne garantit pas que le conseiller acceptera votre demande ni qu’il sera encore disponible lorsque vous l’enverrez."
+        },
+        {
+          "type": "p",
+          "text": "Qui peut réserver. Seuls les Comptes clients d’utilisateurs âgés de 18 ans ou plus peuvent réserver des consultations ([section 3.3](#age-restriction)). Si vous n’êtes pas connecté, il vous est d’abord demandé de créer un Compte ou de vous connecter, puis vous êtes ramené vers le conseiller. Si votre Compte doit encore passer la vérification de l’âge, il vous est demandé de le faire d’abord. Les Comptes de conseiller et d’administrateur ne peuvent pas réserver de consultations."
+        },
+        {
+          "type": "p",
+          "text": "Prix et offres affichés sous le bouton. Sous le bouton, nous affichons soit le tarif par minute du conseiller en Crédits, soit une offre gratuite : les minutes offertes de bienvenue aux nouveaux membres, vos propres minutes offertes, ou « Gratuit pour une durée limitée » pendant le mode gratuit. Ces mentions résument les offres décrites à la [section 6.1.4](#free-trials-and-promotional-offers), qui en fixe aussi les conditions : les minutes offertes de bienvenue sont réservées aux nouveaux comptes, une seule fois par personne, dans la quantité fixée par Staryield à ce moment-là ; les minutes offertes n’ont aucune valeur monétaire ; et Staryield peut modifier ou retirer une offre, ou mettre fin au mode gratuit, à tout moment. Lorsqu’une consultation n’est pas gratuite, vous payez le tarif par minute du conseiller affiché au début du chat ([section 6.1.1](#account-balance)) ; les minutes offertes sont toujours utilisées en premier."
+        },
+        {
+          "type": "h3",
+          "id": "reminders-and-getting-started",
+          "n": "4.18",
+          "title": "Rappels et liste « Commencer »"
+        },
+        {
+          "type": "p",
+          "text": "Premiers pas. Si vous êtes client, l’aperçu de votre compte affiche une liste « Commencer » d’étapes suggérées : confirmer votre adresse e-mail, ajouter vos informations de naissance, faire votre première consultation et, tant que le programme de parrainage est actif, inviter un ami. La suivre est facultatif, et vous pouvez la masquer."
+        },
+        {
+          "type": "p",
+          "text": "Rappels. Pour vous aider à bien démarrer et à revenir, nous pouvons vous envoyer des rappels et des suggestions à certains moments : pour confirmer votre adresse e-mail, pour faire une première consultation après votre inscription, pour inviter un ami après une consultation (uniquement tant que le programme de parrainage est actif) et pour revenir après un certain temps sans consultation. Ils apparaissent sous forme de notifications dans l’application, qui font partie du Service ([section 4.13](#notifications)). Un rappel de confirmation de votre adresse peut aussi vous parvenir par e-mail avec un nouveau lien de confirmation, en tant que message concernant votre Compte."
+        },
+        {
+          "type": "p",
+          "text": "Rappels promotionnels par e-mail ou push. Nous n’envoyons les rappels concernant une première consultation, l’invitation d’un ami ou un retour sur le Service par e-mail ou par notification push que si vous avez activé « Actualités marketing » (conseils, offres et rappels) dans vos [paramètres de notification](/profile/settings#notifications) ; les notifications push doivent en outre être activées pour votre navigateur. Vous pouvez les désactiver à tout moment au même endroit, et chaque e-mail promotionnel contient un lien vers vos paramètres de notification."
+        },
+        {
+          "type": "p",
+          "text": "Limites. Nous limitons la fréquence de ces rappels, et nous ne les envoyons ni aux Comptes de conseiller ou d’administrateur, ni aux Comptes restreints, désactivés, bannis ou en cours de fermeture."
+        },
+        {
+          "type": "p",
+          "text": "Contenu des rappels. Les chiffres indiqués dans un rappel, comme vos minutes offertes ou le nombre de conseillers en ligne, correspondent au moment de son envoi. La disponibilité des conseillers, votre solde et nos offres peuvent changer avant que vous le lisiez, et les minutes offertes restent soumises à la [section 6.1.4](#free-trials-and-promotional-offers). Les messages tels que « votre horoscope du jour est prêt » sont informatifs et, comme le reste du Service, fournis uniquement à des fins de divertissement (section 2.1)."
+        },
+        {
+          "type": "h3",
+          "id": "sharing-your-results",
+          "n": "4.19",
+          "title": "Partager vos résultats"
+        },
+        {
+          "type": "p",
+          "text": "Vous pouvez enregistrer ou partager le résultat de nos calculateurs de thème natal, de chemin de vie, de signe du zodiaque et de carte de naissance du tarot sous forme d’image au format 9:16, créée sur votre appareil. L’image présente votre résultat avec son illustration, le nom et le logo de Staryield et l’adresse staryield.net. Elle n’indique ni votre date, ni votre heure, ni votre lieu de naissance, ni votre nom, et le lien partagé avec elle ouvre la page du calculateur sans vos données de naissance. Nous ne recevons ni ne conservons les images que vous créez."
+        },
+        {
+          "type": "p",
+          "text": "Ce que vous pouvez en faire. Vous pouvez enregistrer l’image et la partager, sans la modifier, à des fins personnelles et non commerciales, par exemple avec des amis, dans des messages ou sur vos propres comptes de réseaux sociaux. Vous ne pouvez pas modifier l’image (notamment en supprimant ou en masquant le nom ou le logo de Staryield, ou en changeant le résultat), l’utiliser pour laisser entendre que Staryield vous recommande, vous, une autre personne, un produit ou un service, ni l’utiliser dans de la publicité ou à toute autre fin commerciale. Cette autorisation est personnelle, non exclusive, non transférable et révocable."
+        },
+        {
+          "type": "p",
+          "text": "Propriété. Le nom et le logo de Staryield, la conception de l’image et les illustrations dont nous sommes propriétaires ou que nous utilisons sous licence restent la propriété de Staryield ou de ses concédants ([section 4.1](#ownership-and-intellectual-property)). Le partage d’une image ne transfère aucun de ces droits, ni à vous ni à quiconque."
+        },
+        {
+          "type": "p",
+          "text": "Votre responsabilité. Vous êtes responsable de ce que vous publiez et de l’endroit où vous le publiez. Lorsque vous utilisez le menu de partage de votre appareil, l’image et son texte sont transmis à l’application que vous choisissez, dont les propres conditions et politique de confidentialité s’appliquent (voir la [section 5](#third-party-services-materials-and-advertising)). Un résultat partagé n’est ni une prédiction ni un conseil ; il est fourni uniquement à des fins de divertissement (section 2.1)."
+        },
+        {
+          "type": "h3",
+          "id": "referral-program",
+          "n": "4.20",
+          "title": "Inviter des amis (programme de parrainage)"
+        },
+        {
+          "type": "p",
+          "text": "Les clients peuvent inviter des amis sur Staryield au moyen d’un lien d’invitation personnel et gagner des minutes de chat offertes lorsqu’un ami invité remplit les conditions ci-dessous. La récompense, la limite et l’état de lancement en vigueur du programme sont indiqués sur la page [Inviter des amis](/profile/invite) de votre compte. Le programme ne dépend en aucune façon des évaluations ou des avis."
+        },
+        {
+          "type": "h4",
+          "id": "referral-who-can-take-part",
+          "n": "4.20.1",
+          "title": "Qui peut participer"
+        },
+        {
+          "type": "p",
+          "text": "Vous pouvez inviter des amis et gagner des récompenses si vous disposez d’un Compte client actif et avez 18 ans ou plus. Les conseillers, les Comptes d’administrateur ainsi que les salariés et prestataires de Staryield ne peuvent pas participer, y compris au moyen d’un Compte client distinct. Votre lien d’invitation est personnel et ne peut être ni vendu ni cédé."
+        },
+        {
+          "type": "h4",
+          "id": "referral-how-rewards-are-earned",
+          "n": "4.20.2",
+          "title": "Comment une récompense est obtenue"
+        },
+        {
+          "type": "p",
+          "text": "Vous obtenez une récompense pour chaque ami invité qui :"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "crée un nouveau Compte Staryield, avec une adresse e-mail ou avec Google, dans le navigateur où il a ouvert votre lien d’invitation et au plus tard 30 jours après l’avoir ouvert pour la première fois (s’il a ouvert plusieurs liens d’invitation, seul le premier est pris en compte) ;",
+            "confirme son adresse e-mail ([section 3.8](#email-address-and-confirmation)) ; une adresse confirmée lors d’une inscription avec Google est prise en compte ; et",
+            "effectue une consultation par chat en direct d’au moins une minute avec n’importe quel conseiller, payante ou gratuite (avec des Crédits, avec des minutes offertes ou pendant le mode gratuit). Une minute compte dès qu’elle a commencé, et la consultation compte une fois terminée."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Ces étapes peuvent avoir lieu dans n’importe quel ordre. Les comptes existants, vos propres autres comptes et les amis qui s’inscrivent sans votre lien ne sont pas pris en compte. L’ami invité bénéficie uniquement de l’offre de bienvenue standard proposée à tout nouveau client ([section 6.1.4](#free-trials-and-promotional-offers)) ; être invité ne donne droit à aucune récompense supplémentaire."
+        },
+        {
+          "type": "p",
+          "text": "Pour protéger la vie privée de vos amis, nous ne vous montrons que des chiffres (le nombre d’amis inscrits, le nombre d’amis ayant effectué une consultation et les minutes en attente ou ajoutées), jamais qui s’est inscrit ni qui a effectué une consultation, et nos notifications ne nomment jamais un ami."
+        },
+        {
+          "type": "h4",
+          "id": "referral-reward-size-and-limits",
+          "n": "4.20.3",
+          "title": "Montant de la récompense et limites"
+        },
+        {
+          "type": "p",
+          "text": "La récompense pour chaque ami remplissant les conditions est un nombre de minutes de chat offertes fixé par Staryield, actuellement 5. Une récompense conserve le montant en vigueur au moment où votre ami a rempli la dernière condition, même si ce montant change ensuite. Chaque ami ne peut donner lieu qu’à une seule récompense, pour un seul parrain. Vous pouvez être récompensé pour un nombre limité d’amis, actuellement 20 ; les amis qui remplissent les conditions alors que vous avez atteint cette limite ne donnent droit à aucune récompense. Le montant et la limite en vigueur sont indiqués sur la page Inviter des amis."
+        },
+        {
+          "type": "h4",
+          "id": "referral-beta-and-launch",
+          "n": "4.20.4",
+          "title": "Bêta et lancement"
+        },
+        {
+          "type": "p",
+          "text": "Staryield est en version bêta. Les récompenses obtenues avant le lancement des récompenses de parrainage sont affichées comme en attente et sont ajoutées à votre Compte lors de ce lancement, à une date que nous choisissons ; nous vous prévenons lorsque des minutes sont ajoutées. Après le lancement, une récompense est ajoutée automatiquement peu après que votre ami a rempli les conditions. Les minutes ne sont ajoutées que tant que votre Compte est actif : tant qu’il est désactivé, suspendu ou en cours de fermeture, elles restent en attente. Une récompense retenue pour examen ([section 4.20.7](#referral-fraud-and-review)) n’est ajoutée que si nous l’approuvons."
+        },
+        {
+          "type": "h4",
+          "id": "referral-free-minutes",
+          "n": "4.20.5",
+          "title": "Vos minutes de récompense"
+        },
+        {
+          "type": "p",
+          "text": "Les minutes de récompense sont des minutes de chat offertes à titre promotionnel. Elles s’ajoutent à vos minutes offertes et s’utilisent de la même manière : uniquement pour des consultations par chat en direct sur Staryield, avant tout Crédit de votre Solde ([section 6.1.1](#account-balance)). Elles n’ont aucune valeur monétaire et ne peuvent être ni vendues, ni transférées, ni échangées contre de l’argent ou des Crédits, ni remboursées (voir notre [Politique de remboursement](/refund-policy)). Un remboursement ou une contestation de paiement ultérieurs de la part de votre ami ne modifient pas les minutes déjà ajoutées à votre Compte."
+        },
+        {
+          "type": "h4",
+          "id": "referral-sharing-your-link",
+          "n": "4.20.6",
+          "title": "Partager votre lien"
+        },
+        {
+          "type": "p",
+          "text": "Vous êtes responsable de la manière dont vous partagez votre lien d’invitation et des endroits où vous le faites, et vous devez alors respecter la loi, notamment les règles relatives au spam et à la publicité. En particulier :"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "ne le partagez qu’avec des personnes que vous connaissez ou là où vous êtes autorisé à le publier, et ne l’envoyez pas dans des messages non sollicités ou en masse (par e-mail, SMS, messagerie, commentaire ou message sur un forum) ;",
+            "lorsque vous le partagez publiquement, par exemple sur les réseaux sociaux, dans une vidéo, sur un blog ou dans un forum, indiquez clairement que vous recevez des minutes offertes lorsque des personnes s’inscrivent et effectuent une consultation grâce à votre lien ;",
+            "ne faites pas d’allégations trompeuses : ne promettez ni prédictions, ni résultats, ni exactitude, ne présentez pas la récompense ou l’offre de bienvenue autrement que dans les présentes Conditions, et ne vous présentez pas comme Staryield ou comme agissant pour son compte ;",
+            "n’achetez pas de publicités, de publications sponsorisées ou de mots-clés de recherche utilisant le nom ou la marque Staryield pour promouvoir votre lien ; et",
+            "ne payez ni ne récompensez personne pour qu’il s’inscrive ou effectue une consultation."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Nous ne sommes pas responsables de ce que vous écrivez ou publiez lorsque vous partagez votre lien."
+        },
+        {
+          "type": "h4",
+          "id": "referral-fraud-and-review",
+          "n": "4.20.7",
+          "title": "Fraude, examen et abus"
+        },
+        {
+          "type": "p",
+          "text": "Il vous est interdit de vous inviter vous-même, de créer plusieurs comptes ou de faux comptes, d’utiliser l’identité d’une autre personne, de créer des inscriptions au moyen d’outils automatisés ou en masse, ou de tenter de toute autre manière d’obtenir des récompenses sans qu’un véritable nouveau client effectue une consultation. Pour protéger le programme, nous vérifions automatiquement les inscriptions. Une inscription depuis un navigateur déjà associé à votre propre Compte ne donne lieu à aucune récompense. D’autres parrainages peuvent être retenus pour examen, par exemple lorsque votre ami s’inscrit depuis le même réseau que l’une de vos sessions récentes ou depuis un navigateur déjà associé à un autre compte, ou lorsqu’un nombre inhabituel d’amis s’inscrit grâce à votre lien en peu de temps ; notre équipe les approuve ou les rejette ensuite."
+        },
+        {
+          "type": "p",
+          "text": "Nous pouvons rejeter ou retenir une récompense lorsque nous estimons raisonnablement qu’elle enfreint ces règles ou les présentes Conditions, et nous pouvons suspendre ou fermer les Comptes qui abusent du programme ([section 3.4](#account-suspension-or-termination)) ; lorsqu’un Compte est suspendu ou fermé pour abus, ses récompenses en attente et ses minutes offertes peuvent être perdues. Si vous pensez qu’une décision est erronée, contactez notre [centre d’assistance](/contact)."
+        },
+        {
+          "type": "h4",
+          "id": "referral-changes-and-ending",
+          "n": "4.20.8",
+          "title": "Modifications, pause et fin du programme"
+        },
+        {
+          "type": "p",
+          "text": "Nous pouvons modifier le programme, notamment la récompense, la limite et ces règles, ou le suspendre ou y mettre fin, à tout moment. Pendant que le programme est suspendu ou après sa fin, les nouvelles inscriptions par des liens d’invitation ne sont pas enregistrées, et les amis inscrits auparavant ne peuvent remplir les conditions que si le programme reprend. Une modification, une suspension ou la fin du programme ne vous retire ni les minutes déjà ajoutées à votre Compte, ni les récompenses déjà obtenues : les récompenses obtenues encore en attente sont ajoutées comme indiqué à la [section 4.20.4](#referral-beta-and-launch), sauf si elles sont rejetées en application de la [section 4.20.7](#referral-fraud-and-review)."
+        },
+        {
+          "type": "h4",
+          "id": "referral-closing-your-account",
+          "n": "4.20.9",
+          "title": "Fermeture de votre compte"
+        },
+        {
+          "type": "p",
+          "text": "Tant que votre Compte est désactivé ou que sa fermeture est en cours, votre lien d’invitation ne fonctionne pas et aucune minute n’est ajoutée. Lorsque la fermeture devient définitive ([section 3.6](#account-deletion)), votre code d’invitation et l’historique des amis que vous avez invités sont supprimés, les récompenses non encore ajoutées sont perdues, et les minutes offertes de votre Compte sont perdues, comme les Crédits non utilisés. Si le Compte d’un ami invité est définitivement fermé avant qu’il ait rempli les conditions, son invitation n’est plus prise en compte."
         }
       ]
     },
@@ -618,6 +870,18 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Pause lorsque vos minutes offertes ou vos Crédits sont épuisés (la « mise en attente »). Si vos minutes offertes sont épuisées pendant une consultation en direct (ou, lorsque nous l’activons, si vos Crédits sont épuisés), la consultation ne s’arrête pas aussitôt : elle est mise en attente pour une courte durée, actuellement une minute, afin que vous puissiez ajouter des Crédits. Le temps d’attente n’est pas facturé. Pendant la mise en attente, le conseiller peut continuer à écrire, mais ces réponses vous restent masquées jusqu’à la fin de l’attente. Si vous ajoutez des Crédits pendant la mise en attente, la consultation reprend, les réponses s’affichent et la minute suivante est facturée au tarif par minute du conseiller. Si un achat que vous avez lancé est encore en cours de confirmation à la fin de la mise en attente, nous pouvons la prolonger brièvement. Si vous n’ajoutez pas de Crédits, la consultation prend fin, rien n’est facturé, et vous pouvez ensuite révéler les réponses masquées pour le prix d’une minute au tarif de ce conseiller. Le prix vous est toujours indiqué avant que vous payiez, et rien n’est facturé tant que vous n’avez pas confirmé. Les minutes offertes ne se transforment jamais en prélèvement : vous ne payez que si vous ajoutez des Crédits pour continuer ou si vous choisissez de révéler les réponses masquées. Staryield fixe la durée de la mise en attente et peut la modifier, ou la désactiver, à tout moment."
+        },
+        {
+          "type": "p",
+          "text": "Minutes offertes du programme de parrainage. Les minutes offertes gagnées en invitant des amis ([section 4.20](#referral-program)) s’ajoutent à vos minutes offertes et suivent les mêmes règles d’utilisation : elles sont utilisées avant tout Crédit, n’ont aucune valeur monétaire et ne peuvent être ni transférées, ni échangées, ni remboursées."
+        },
+        {
+          "type": "p",
+          "text": "Une seule offre de bienvenue par personne. Les minutes offertes de bienvenue sont limitées à un seul Compte par personne. Créer des Comptes supplémentaires pour les recevoir à nouveau est interdit et constitue une violation des présentes Conditions ([section 3.4](#account-suspension-or-termination))."
+        },
+        {
+          "type": "p",
+          "text": "Offres affichées sur les boutons, les pages et les messages. Les mentions telles que « minutes gratuites pour les nouveaux membres » ou « Gratuit pour une durée limitée » figurant sur les boutons de réservation, les pages et les rappels décrivent l’offre en vigueur au moment de leur affichage. L’offre applicable est celle en vigueur lors de la création de votre Compte (minutes offertes de bienvenue) ou lors de votre demande de chat (mode gratuit)."
         },
         {
           "type": "h3",

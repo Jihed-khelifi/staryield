@@ -2,6 +2,8 @@
 // Keep section and block ids identical across locales (npm run test:content).
 // Acknowledgement (2 business days), refund submission (5 business days) and the card-statement descriptor
 // (STARYIELD MEDIA LLC) were confirmed by the business on 2026-11-13 (docs/legal-review-checklist.md row 65).
+// Growth release: §2 describes the configured sign-up offer (admin setting, no fixed number of minutes: checklist row 74),
+// free mode and the free tools; §6 adds free minutes and referral reward minutes; §12 adds their forfeiture on closure.
 import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
@@ -21,7 +23,7 @@ const content: LegalDocumentContent = {
   "intro": [
     {
       "type": "p",
-      "text": "This policy explains refunds for credit packs, psychic readings, and promotional credits purchased through Staryield, operated by Staryield Media LLC."
+      "text": "This policy explains refunds for credit packs, psychic readings, and promotional credits purchased through Staryield, operated by Staryield Media LLC. It also explains how free minutes, including referral rewards, and our free features are treated."
     },
     {
       "type": "p",
@@ -47,11 +49,33 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "Eligible new users receive four free reading minutes without providing a payment method. The trial requires no purchase, does not convert into a subscription, and does not result in a charge. Free trial minutes have no cash or refund value."
+          "text": "When our sign-up offer is available, new accounts receive a number of free reading minutes without providing a payment method. Staryield sets the number of minutes and shows it on our [Pricing](/pricing) page and during sign-up. We may change the offer or switch it off at any time; a change applies only to accounts created afterwards, so you receive the offer in force when your account is created. The offer is for new accounts only, one per person. The trial requires no purchase, does not convert into a subscription, and does not result in a charge. Free trial minutes have no cash or refund value."
         },
         {
           "type": "p",
           "text": "If your free minutes run out during a live reading, the reading is put on hold for a short time instead of ending (see [Terms of Use](/terms#free-trials-and-promotional-offers)). Nothing is charged for the hold: you pay only if you add Credits to continue, or later choose to reveal the replies hidden during the hold, and you are shown the price first."
+        },
+        {
+          "type": "p",
+          "text": "Offers shown on booking buttons, pages or reminders, such as “free minutes for new members”, describe the offer in force when they were shown and follow the same rules."
+        },
+        {
+          "type": "h4",
+          "id": "refund-free-mode",
+          "title": "Free chats for everyone (“free mode”):"
+        },
+        {
+          "type": "p",
+          "text": "From time to time we may make live chats free for everyone for a limited period, and booking buttons may then show “Free for a limited time”. A chat requested while free mode is on uses no free minutes or Credits and involves no payment, so there is nothing to refund. Credits you buy during free mode are covered by this policy as usual. See [Terms of Use, Section 6.1.4](/terms#free-trials-and-promotional-offers)."
+        },
+        {
+          "type": "h4",
+          "id": "refund-free-tools",
+          "title": "Free calculators, result images and guide pages:"
+        },
+        {
+          "type": "p",
+          "text": "Our calculators (including the full natal chart, the tarot birth card calculator and the zodiac compatibility calculator), the result images you can create and share from them, the calculator report sent by e-mail, and our guide pages about life path numbers, tarot birth cards and zodiac sign pairings are free ([Terms of Use, Section 2.5](/terms#free-calculators-and-guides)). Using them involves no payment and uses no Credits or free minutes, so there is nothing to refund for them."
         }
       ]
     },
@@ -144,6 +168,28 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Bonus, free, referral, loyalty, and courtesy credits have no independent cash value, cannot be exchanged for cash, and are not independently refundable, except where required by law."
+        },
+        {
+          "type": "h4",
+          "id": "refund-free-minutes",
+          "title": "Free minutes:"
+        },
+        {
+          "type": "p",
+          "text": "Free reading minutes are promotional, whether they come from the sign-up offer (Section 2), the referral program or another promotion. They can be used only for live chat readings on Staryield and are used before any Credits in your balance. They have no cash value and cannot be refunded, exchanged for money or Credits, sold or transferred to another account, except where required by law."
+        },
+        {
+          "type": "p",
+          "text": "Reading time covered by free minutes involves no payment, so there is nothing to refund in money. Free minutes used in a reading do not reduce the refundable amount of a credit pack, because only purchased credits already used are deducted (Section 4). If something went wrong in a reading that used free minutes, you can still contact us (Section 8); any courtesy remedy we offer is not a cash refund."
+        },
+        {
+          "type": "h4",
+          "id": "refund-referral-rewards",
+          "title": "Referral reward minutes:"
+        },
+        {
+          "type": "p",
+          "text": "Minutes earned by inviting friends ([Terms of Use, Section 4.20](/terms#referral-program)) are free minutes and follow the rules above. Rewards earned before we launch the referral rewards are shown as pending and are added to your account at launch, on a date we choose; a pending reward cannot be used, refunded or exchanged. Once minutes are added, a later refund or payment dispute by the friend you invited does not change them, and changing, pausing or ending the program does not take them away. Before a reward is added, we may withhold or reject it if we reasonably believe it breaks the program rules or our Terms. If we suspend or close an account for abusing the program, its pending rewards and free minutes may be forfeited."
         }
       ]
     },
@@ -258,6 +304,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "To request account closure, contact [support@staryield.net](mailto:support@staryield.net). If credits remain, contact us before closure so we can explain available options. Account closure does not eliminate applicable refund rights."
+        },
+        {
+          "type": "p",
+          "text": "Free minutes, including referral reward minutes, are not refunded or paid out when an account is closed. When the closure becomes final ([Terms of Use, Section 3.6](/terms#account-deletion)), the free minutes left in the account and any referral rewards not yet added are forfeited. This does not affect the refund rights for purchased credit packs described in this policy."
         }
       ]
     },
