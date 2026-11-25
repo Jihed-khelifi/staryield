@@ -11,9 +11,9 @@ import (
 
 // revisions 3.0: calculator analytics
 
-// calculatorPath matches the three calculators (and their results page) in
+// calculatorPath matches the calculators (and their results page) in
 // every locale. Query strings are stripped before matching.
-var calculatorPath = regexp.MustCompile(`^/(en|fr|es)/calculators/(natal-chart|path-of-life|astrology)(/results)?$`)
+var calculatorPath = regexp.MustCompile(`^/(en|fr|es)/calculators/(natal-chart|path-of-life|astrology|tarot-birth-card)(/results)?$`)
 
 // clickIDPattern is the accepted form of the sy_click value.
 var clickIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)

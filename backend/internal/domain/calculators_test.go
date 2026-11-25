@@ -120,6 +120,9 @@ func TestResolveLanding(t *testing.T) {
 }
 
 func TestCalculatorKindAndLocaleValidation(t *testing.T) {
+	if !ValidCalculatorKind(CalcTarotBirth) {
+		t.Error("tarot-birth-card rejected")
+	}
 	for _, k := range CalculatorKinds {
 		if !ValidCalculatorKind(k) {
 			t.Errorf("%s rejected", k)

@@ -224,8 +224,8 @@ func TestCalculatorVisitorsAcrossLocalesAndKinds(t *testing.T) {
 	if en, fr, es := localeTotals(r, "en"), localeTotals(r, "fr"), localeTotals(r, "es"); en.Visitors != 2 || fr.Visitors != 2 || es.Visitors != 1 || fr.Tried != 2 {
 		t.Fatalf("by locale: %+v %+v %+v", en, fr, es)
 	}
-	if len(r.ByKind) != 3 || len(r.ByLocale) != 3 {
-		t.Fatal("by_kind and by_locale always list all three values")
+	if len(r.ByKind) != 4 || len(r.ByLocale) != 3 {
+		t.Fatal("by_kind lists every calculator and by_locale all three languages")
 	}
 	if len(r.BySource) != 1 || r.BySource[0].Source != "(direct)" || r.BySource[0].Visitors != 5 || r.BySource[0].Tried != 3 {
 		t.Fatalf("direct visitors: %+v", r.BySource)
@@ -247,7 +247,7 @@ func TestCalculatorVisitorsAcrossLocalesAndKinds(t *testing.T) {
 	}
 	// A window without traffic is all zeros, never an error.
 	empty := calcReport(t, admin, "from="+ds(today, -40)+"&to="+ds(today, -34))
-	if empty.Totals.Visitors != 0 || empty.Totals.TryRate != 0 || len(empty.Series) != 7 || len(empty.ByKind) != 3 || empty.BySource == nil {
+	if empty.Totals.Visitors != 0 || empty.Totals.TryRate != 0 || len(empty.Series) != 7 || len(empty.ByKind) != 4 || empty.BySource == nil {
 		t.Fatalf("empty window: %+v", empty)
 	}
 	// Row-level: one row per (day, visitor, kind, locale), counts add up.
@@ -497,6 +497,37 @@ func TestCalculatorSignupsAndExistingUsers(t *testing.T) {
 	}
 }
 
+// The tarot birth card calculator is stored (migration 0038 widens the kind
+// CHECK) and reported like the other calculators, and can be filtered on.
+func TestCalculatorTarotBirthCardIsCounted(t *testing.T) {
+	e := newEnv(t)
+	today := e.calcStart()
+	admin := e.createAdmin()
+	c := e.client()
+
+	e.calcView(c, "tarot-visitor-1", "en", "tarot-birth-card")
+	e.calcTry(c, "tarot-visitor-1", "en", "tarot-birth-card")
+	e.calcResult(c, "tarot-visitor-1", "en", "tarot-birth-card")
+	e.calcView(c, "tarot-visitor-2", "fr", "tarot-birth-card")
+	e.calcView(c, "tarot-visitor-3", "es", "natal-chart")
+
+	q := "from=" + ds(today, -6) + "&to=" + ds(today, 0)
+	r := calcReport(t, admin, q)
+	if tarot := kindTotals(r, "tarot-birth-card"); tarot.Visitors != 2 || tarot.Tried != 1 || tarot.Completed != 1 {
+		t.Fatalf("tarot totals: %+v", tarot)
+	}
+	if natal := kindTotals(r, "natal-chart"); natal.Visitors != 1 {
+		t.Fatalf("natal totals: %+v", natal)
+	}
+	if f := calcReport(t, admin, q+"&kind=tarot-birth-card"); f.Totals.Visitors != 2 {
+		t.Fatalf("filtered totals: %+v", f.Totals)
+	}
+	var count int64
+	if err := e.app.DB.Raw("SELECT count(*) FROM calculator_visits WHERE kind = 'tarot-birth-card'").Scan(&count).Error; err != nil || count != 2 {
+		t.Fatalf("stored tarot rows: %d (%v)", count, err)
+	}
+}
+
 func TestCalculatorBucketsFiltersAndValidation(t *testing.T) {
 	e := newEnv(t)
 	today := e.calcStart()
@@ -621,7 +652,7 @@ func TestCalculatorBucketsFiltersAndValidation(t *testing.T) {
 	// Messages are localized.
 	admin.locale = "fr"
 	r := admin.call(http.MethodGet, "/api/v1/admin/analytics/calculators?kind=tarot", nil)
-	if !strings.Contains(string(r.body), "Utilisez natal-chart, path-of-life ou astrology.") {
+	if !strings.Contains(string(r.body), "Utilisez natal-chart, path-of-life, astrology ou tarot-birth-card.") {
 		t.Fatalf("french message: %s", r.body)
 	}
 	admin.locale = "es"
