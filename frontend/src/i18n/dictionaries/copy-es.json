@@ -343,9 +343,9 @@
   "LEO": "LEO",
   "LIBRA": "LIBRA",
   "Language": "Idioma",
-  "Leo": "León",
+  "Leo": "Leo",
   "Leo, 25°4′2″": "Leo, 25°4′2″",
-  "Libra": "libra",
+  "Libra": "Libra",
   "Libra, 14°55′9″": "Libra, 14°55′9″",
   "Life Path": "Camino de vida",
   "Life path": "Camino de vida",
@@ -2654,5 +2654,7 @@
   "Add a birth time in the zodiac sign calculator": "Añadir una hora de nacimiento en la calculadora de signo zodiacal",
   "See our compatibility": "Ver nuestra compatibilidad",
   "Read your compatibility": "Leer la compatibilidad",
-  "Life Path Number Calculator": "Calculadora del número del camino de vida"
+  "Life Path Number Calculator": "Calculadora del número del camino de vida",
+  "Enter their date of birth.": "Introduce su fecha de nacimiento.",
+  "More free tools": "Más herramientas gratuitas"
 }

@@ -47,7 +47,7 @@ const content: LifePathContent = {
     purpose:
       "El propósito vinculado al camino de vida 2 es la armonía sin borrarse a sí mismo: entender que la paz que vale la pena incluye la propia voz y que la cooperación es más fuerte cuando ambas partes son sinceras.",
     compatibleNote:
-      "Los numerólogos emparejan tradicionalmente el 2 con el 4, el 6 y el 8, números estables que ofrecen la fiabilidad y el reconocimiento que busca.",
+      "Los numerólogos emparejan tradicionalmente el 2 con el 4, el 6, el 8 y el número maestro 11, números estables que ofrecen la fiabilidad y el reconocimiento que busca.",
   },
   3: {
     title: "El Comunicador",
@@ -95,7 +95,7 @@ const content: LifePathContent = {
     purpose:
       "El propósito que se atribuye al camino de vida 4 es construir algo duradero, como un hogar, un negocio o una obra, y mantenerse lo bastante flexible para dejarlo crecer.",
     compatibleNote:
-      "Los numerólogos emparejan tradicionalmente el 4 con el 2, el 6 y el 8, números que valoran el compromiso, la practicidad y un plan compartido a largo plazo.",
+      "Los numerólogos emparejan tradicionalmente el 4 con el 2, el 6, el 8 y el número maestro 22, números que valoran el compromiso, la practicidad y un plan compartido a largo plazo.",
   },
   5: {
     title: "El Buscador de libertad",
@@ -143,7 +143,7 @@ const content: LifePathContent = {
     purpose:
       "El propósito que se atribuye al camino de vida 6 es el servicio con límites: cuidar de los demás de un modo que también proteja su propia energía y confiar en que el amor no tiene que ganarse con sacrificio.",
     compatibleNote:
-      "Los numerólogos emparejan tradicionalmente el 6 con el 2, el 4, el 8 y el 9, números que valoran el compromiso, la lealtad o la generosidad.",
+      "Los numerólogos emparejan tradicionalmente el 6 con el 2, el 4, el 8 y el 9, y con los números maestros 11 y 33, números que valoran el compromiso, la lealtad o la generosidad.",
   },
   7: {
     title: "El Buscador de verdad",
@@ -191,7 +191,7 @@ const content: LifePathContent = {
     purpose:
       "El propósito que se atribuye al camino de vida 8 es el dominio del poder: usar la influencia y los recursos con generosidad y justicia, y medir el éxito por algo más que el dinero o el estatus.",
     compatibleNote:
-      "Los numerólogos emparejan tradicionalmente el 8 con el 2, el 4 y el 6, números firmes y de apoyo que equilibran su empuje.",
+      "Los numerólogos emparejan tradicionalmente el 8 con el 2, el 4, el 6 y el número maestro 22, números firmes y de apoyo que equilibran su empuje.",
   },
   9: {
     title: "El Humanitario",
@@ -215,7 +215,7 @@ const content: LifePathContent = {
     purpose:
       "El propósito que se atribuye al camino de vida 9 es soltar: aprender a dar sin llevar la cuenta, dejar ir lo que ha terminado y convertir la compasión en una ayuda constante y práctica.",
     compatibleNote:
-      "Los numerólogos emparejan tradicionalmente el 9 con el 3, el 6 y el 7, números que comparten su calidez, su curiosidad o su sentido del cuidado.",
+      "Los numerólogos emparejan tradicionalmente el 9 con el 3, el 6, el 7 y el número maestro 33, números que comparten su calidez, su curiosidad o su sentido del cuidado.",
   },
   11: {
     title: "El Iluminador intuitivo",
@@ -239,7 +239,7 @@ const content: LifePathContent = {
     purpose:
       "El propósito que se atribuye al camino de vida 11 es la iluminación: confiar en su intuición y desarrollarla, anclarla en hábitos prácticos y usarla para animar a otros sin perderse a sí mismo.",
     compatibleNote:
-      "Los numerólogos emparejan tradicionalmente el 11 con el 2, el 6 y el 22, números que ofrecen estabilidad, cuidado o un sentido compartido de misión.",
+      "Los numerólogos emparejan tradicionalmente el 11 con el 2, el 6, el 22 y el 33, números que ofrecen estabilidad, cuidado o un sentido compartido de misión.",
   },
   22: {
     title: "El Maestro constructor",
@@ -394,6 +394,6 @@ export const frame: LifePathFrame = {
     tile: (n) => `Camino de vida ${n}`,
   },
   breadcrumb: { hub: "Caminos de vida", item: (n) => `Camino de vida ${n}` },
-  imageAlt: "Cartas de tarot extendidas sobre una mesa de lectura",
+  imageAlt: "Rayos de sol atravesando las nubes al amanecer",
 };
 

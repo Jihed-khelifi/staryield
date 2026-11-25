@@ -7,7 +7,7 @@ import type { Locale } from "@/i18n/config";
 import type { ZodiacSign } from "@/lib/api/astrology";
 import { SIGNS } from "@/lib/astro/zodiac";
 import { zodiacIconUrl } from "@/lib/astro-icons";
-import { DEFAULT_SEO_IMAGE } from "@/lib/seo/site";
+import { SKY_SEO_IMAGE } from "@/lib/seo/site";
 import {
   ALL_PAIRS,
   ASPECTS,
@@ -27,7 +27,7 @@ import type { CompatibilityCopy, PairFacts } from "@/content/seo/compatibility/t
 import en from "@/content/seo/compatibility/en";
 import fr from "@/content/seo/compatibility/fr";
 import es from "@/content/seo/compatibility/es";
-import { ELEMENT_NAMES, MODALITY_NAMES, PLANET_NAMES, SEO_COMMON, SIGN_NAMES, signOf } from "@/content/seo/names";
+import { ELEMENT_NAMES, MODALITY_NAMES, PLANET_NAMES, SEO_COMMON, SEO_TEXT, SIGN_NAMES, signOf } from "@/content/seo/names";
 import type { SeoPage } from "@/content/seo/types";
 import { HUB_ROUTES, hubRelated } from "@/content/seo/hubs";
 
@@ -184,7 +184,7 @@ export function compatibilityPage(locale: Locale, slug: string): SeoPage | null 
       { name: frame.breadcrumb.hub, route: COMPATIBILITY_HUB },
       { name: frame.h1(facts.a, facts.b, facts.same), route },
     ],
-    image: DEFAULT_SEO_IMAGE,
+    image: SKY_SEO_IMAGE,
     imageAlt: frame.imageAlt,
     updated: COMPATIBILITY_UPDATED,
   };
@@ -231,12 +231,12 @@ export function compatibilityHubPage(locale: Locale): SeoPage {
       })),
     },
     faq: hub.faq,
-    related: hubRelated(locale, "compatibility", { label: frame.calculatorLink, href: SIGN_CALCULATOR }),
+    related: hubRelated(SEO_TEXT[locale], "compatibility", { label: frame.calculatorLink, href: SIGN_CALCULATOR }),
     breadcrumbs: [
       { name: SEO_COMMON[locale].home, route: "" },
       { name: frame.breadcrumb.hub, route: COMPATIBILITY_HUB },
     ],
-    image: DEFAULT_SEO_IMAGE,
+    image: SKY_SEO_IMAGE,
     imageAlt: frame.imageAlt,
     updated: COMPATIBILITY_UPDATED,
   };

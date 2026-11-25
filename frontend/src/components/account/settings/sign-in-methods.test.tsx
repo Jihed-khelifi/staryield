@@ -173,7 +173,8 @@ describe("disconnecting Google", () => {
     await u.type(within(dialog).getByLabelText("Confirm your password"), "Secret!1");
     await u.click(within(dialog).getByTestId("disconnect-google-confirm"));
     await waitFor(() => expect(m.methods.disconnectGoogle).toHaveBeenCalledWith("Secret!1"));
-    expect(await screen.findByText("Google has been disconnected.")).toBeTruthy();
+    // The toast shows it and the live region announces it 50 ms later: either may be found first, or both.
+    expect((await screen.findAllByText("Google has been disconnected.")).length).toBeGreaterThan(0);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(await screen.findByTestId("connect-google")).toBeTruthy();
     expect(m.methods.get).toHaveBeenCalledTimes(2);

@@ -395,7 +395,7 @@ const copy: CompatibilityCopy = {
       ],
     },
     breadcrumb: { hub: "Compatibilité des signes" },
-    imageAlt: "Cartes de tarot étalées sur une table de lecture",
+    imageAlt: "Des rayons de soleil perçant les nuages au lever du jour",
     signAlt: (sign) => `Symbole du signe ${sign}`,
   },
 };

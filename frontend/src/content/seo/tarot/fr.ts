@@ -229,9 +229,9 @@ const content: TarotContent = {
   death: {
     keywords: "fins, transformation, renouveau",
     intro:
-      "La Mort est la carte de naissance du tarot des fins et de la transformation. C’est la carte numéro 13 et, malgré son nom, elle ne se lit pas comme une mort littérale.",
+      "L’Arcane sans nom, que l’on appelle aussi La Mort, est la carte de naissance du tarot des fins et de la transformation. C’est la carte numéro 13 et, malgré ce surnom, elle ne se lit pas comme une mort littérale.",
     meaning:
-      "En carte de naissance, la Mort décrit quelqu’un dont la vie est rythmée par des cycles de changement : laisser partir ce qui est terminé pour que quelque chose de nouveau puisse grandir. La tradition relie la carte au Scorpion, à la profondeur et au renouveau qui suit une perte.",
+      "En carte de naissance, l’Arcane sans nom décrit quelqu’un dont la vie est rythmée par des cycles de changement : laisser partir ce qui est terminé pour que quelque chose de nouveau puisse grandir. La tradition relie la carte au Scorpion, à la profondeur et au renouveau qui suit une perte.",
     gifts: [
       "La capacité de se transformer et de repartir.",
       "Le courage de regarder les vérités difficiles en face.",
@@ -242,7 +242,7 @@ const content: TarotContent = {
       "La peur du changement.",
       "Une intensité qui peut mettre les autres mal à l’aise.",
     ],
-    note: "Dans certains jeux anciens, cette carte n’a pas de nom, ce qui explique qu’on l’appelle parfois l’Arcane sans nom.",
+    note: "Dans le tarot de Marseille, la carte XIII ne porte pas de nom : d’où son appellation d’Arcane sans nom, même si on l’appelle couramment La Mort.",
   },
   temperance: {
     keywords: "équilibre, mesure, harmonie",

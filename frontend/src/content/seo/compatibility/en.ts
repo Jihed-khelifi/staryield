@@ -381,7 +381,7 @@ const copy: CompatibilityCopy = {
       ],
     },
     breadcrumb: { hub: "Zodiac compatibility" },
-    imageAlt: "Tarot cards spread on a reading table",
+    imageAlt: "Rays of sunlight breaking through clouds at sunrise",
     signAlt: (sign) => `${sign} zodiac symbol`,
   },
 };

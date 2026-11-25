@@ -5,11 +5,16 @@ import copyEs from "@/i18n/dictionaries/copy-es.json";
 import copyFr from "@/i18n/dictionaries/copy-fr.json";
 import { FAMILY_COPY } from "@/components/seo/copy";
 import { buildRobots, DISALLOWED_PATHS } from "@/lib/seo/robots";
-import { buildSitemap, sitemapEntries } from "@/lib/seo/sitemap";
+import { ADVISOR_SITEMAP_PATH, buildAdvisorSitemap, buildSitemap, sitemapEntries } from "@/lib/seo/sitemap";
+import { screenJsonLd } from "@/lib/seo/screen-json-ld";
+import { createTranslateCopy } from "@/i18n/translate-copy";
+import { LIVE_READINGS_FAQ } from "@/content/faq/live-readings";
 import { breadcrumbJsonLd, faqJsonLd, organizationJsonLd, plainText, serializeJsonLd, webSiteJsonLd } from "@/lib/seo/jsonld";
 import { ADVISOR_DESCRIPTION, AUTH_ROUTES, CALCULATOR_ROUTES, DEFAULT_IMAGE_ALT, HOME_SEO, PAGE_SEO } from "@/lib/seo/pages";
-import { DEFAULT_SEO_IMAGE, SITE_URL, languageAlternates, localeUrl, pageAlternates, pageMetadata } from "@/lib/seo/site";
+import { DEFAULT_SEO_IMAGE, SITE_URL, SKY_SEO_IMAGE, languageAlternates, localeUrl, pageAlternates, pageMetadata, tarotSeoImage, twitterCardFor } from "@/lib/seo/site";
 import { calculatorResultHref } from "@/lib/seo/calculator-links";
+import { HUB_LABELS, HUB_MORE } from "@/content/seo/hubs";
+import { SIGNS, TAROT_CARDS } from "@/lib/astro/zodiac";
 
 describe("site URLs", () => {
   it("builds absolute locale URLs, alternates and x-default", () => {
@@ -40,6 +45,15 @@ describe("site URLs", () => {
       images: [{ url: DEFAULT_SEO_IMAGE.url, width: 640, height: 427, alt: "Alt" }],
     });
     expect(metadata.twitter).toMatchObject({ card: "summary_large_image", title: "Chemin de vie 7 — Staryield" });
+    // A picture narrower than X's large card (the 210 px tarot card) gets the small "summary" card.
+    expect(twitterCardFor(tarotSeoImage("the-star"))).toBe("summary");
+    expect(twitterCardFor(SKY_SEO_IMAGE)).toBe("summary_large_image");
+    const card = pageMetadata({ locale: "en", route: "/tarot-birth-card/the-star", title: "t", description: "d", imageAlt: "a", image: tarotSeoImage("the-star") });
+    expect(card.twitter).toMatchObject({ card: "summary" });
+    // An image without known dimensions (an advisor's photo) is described without them.
+    const photo = pageMetadata({ locale: "en", route: "/psychics/theo", title: "Theo", description: "d", imageAlt: "Theo", image: { url: "https://assets.staryield.net/p/theo.webp" } });
+    expect(photo.openGraph?.images).toEqual([{ url: "https://assets.staryield.net/p/theo.webp", alt: "Theo" }]);
+    expect(photo.twitter).toMatchObject({ card: "summary_large_image" });
     expect(pageMetadata({ locale: "en", route: "", title: "Home title", description: "d", imageAlt: "a", absoluteTitle: true }).title).toEqual({ absolute: "Home title" });
   });
 
@@ -87,7 +101,7 @@ describe("sitemap", () => {
 describe("robots.txt", () => {
   it("allows public pages, blocks private and utility paths, and points to the sitemap", () => {
     const robots = buildRobots();
-    expect(robots.sitemap).toBe("https://staryield.net/sitemap.xml");
+    expect(robots.sitemap).toEqual(["https://staryield.net/sitemap.xml", `https://staryield.net${ADVISOR_SITEMAP_PATH}`]);
     const rules = Array.isArray(robots.rules) ? robots.rules[0] : robots.rules;
     expect(rules.userAgent).toBe("*");
     expect(rules.allow).toBe("/");
@@ -98,6 +112,8 @@ describe("robots.txt", () => {
     const blocked = (path: string) =>
       DISALLOWED_PATHS.some((rule) => new RegExp(`^${rule.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]+")}`).test(path));
     for (const entry of sitemapEntries()) expect(blocked(`/en${entry.route}`), entry.route).toBe(false);
+    expect(blocked("/en/psychics/theo")).toBe(false);
+    expect(blocked(ADVISOR_SITEMAP_PATH)).toBe(false);
     expect(blocked("/en/profile/chart")).toBe(true);
     expect(blocked("/fr/signup/password")).toBe(true);
   });
@@ -152,6 +168,14 @@ describe("page copy", () => {
     ADVISOR_DESCRIPTION,
     ...Object.values(PAGE_SEO).flatMap((seo) => [seo.title, seo.description]),
     ...Object.values(FAMILY_COPY).flatMap((family) => [family.cta.heading, family.cta.body, family.note, family.calculator.heading, family.calculator.intro]),
+    // Hub labels (footer "Explore" group and the hubs' related links), the advisor fallbacks.
+    ...Object.values(HUB_LABELS),
+    HUB_MORE,
+    "Advisor profile",
+    // Names the search pages take from the dictionaries.
+    ...SIGNS,
+    ...Object.values(TAROT_CARDS),
+    "Home",
   ];
 
   it("has every title, description and interface string in English, French and Spanish", () => {
@@ -165,5 +189,46 @@ describe("page copy", () => {
     expect(new Set(titles).size).toBe(titles.length);
     expect(new Set(descriptions).size).toBe(descriptions.length);
     for (const seo of Object.values(PAGE_SEO)) expect(seo.updated).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe("advisors' sitemap", () => {
+  it("lists every advisor profile in the three locales with alternates and no invented date", () => {
+    const sitemap = buildAdvisorSitemap(["ramone", "theo"]);
+    expect(sitemap.map((entry) => entry.url)).toEqual([
+      "https://staryield.net/en/psychics/ramone",
+      "https://staryield.net/fr/psychics/ramone",
+      "https://staryield.net/es/psychics/ramone",
+      "https://staryield.net/en/psychics/theo",
+      "https://staryield.net/fr/psychics/theo",
+      "https://staryield.net/es/psychics/theo",
+    ]);
+    expect(sitemap[1].alternates?.languages).toEqual(languageAlternates("/psychics/ramone"));
+    expect(sitemap.every((entry) => entry.lastModified === undefined)).toBe(true);
+    expect(buildAdvisorSitemap([])).toEqual([]);
+  });
+});
+
+describe("structured data of the existing pages", () => {
+  const text = createTranslateCopy(copyFr);
+
+  it("describes a calculator's visible FAQ, without breadcrumbs the page does not show", () => {
+    const data = screenJsonLd("calculators/path-of-life", "fr", text);
+    expect(data.map((item) => item["@type"])).toEqual(["FAQPage"]);
+  });
+
+  it("describes the FAQ page's answered questions, translated", () => {
+    const [faq] = screenJsonLd("faq", "fr", text) as { "@type": string; mainEntity: { name: string }[] }[];
+    expect(faq["@type"]).toBe("FAQPage");
+    expect(faq.mainEntity.map((item) => item.name)).toEqual(LIVE_READINGS_FAQ.map((item) => (copyFr as Record<string, string>)[item.q]));
+  });
+
+  it("gives breadcrumbs only to the legal pages, which show a trail", () => {
+    // The refund policy's layout shows "Home / Refund policy"; the other pages show no trail.
+    const [crumbs] = screenJsonLd("refund-policy", "fr", text) as { "@type": string; itemListElement: { item: string }[] }[];
+    expect(crumbs["@type"]).toBe("BreadcrumbList");
+    expect(crumbs.itemListElement.map((item) => item.item)).toEqual(["https://staryield.net/fr", "https://staryield.net/fr/refund-policy"]);
+    for (const route of ["about", "pricing", "contact", "reviews", "privacy", "terms", "calculators/natal-chart", "constructor", "__proto__"])
+      expect(screenJsonLd(route, "fr", text).some((item) => item["@type"] === "BreadcrumbList"), route).toBe(false);
   });
 });

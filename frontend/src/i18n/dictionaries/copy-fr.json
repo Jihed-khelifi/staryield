@@ -1834,7 +1834,7 @@
   "Inner world": "Monde intérieur",
   "The Magician": "Le Bateleur",
   "The Hanged Man": "Le Pendu",
-  "Death": "L'Arcane sans nom",
+  "Death": "L’Arcane sans nom",
   "Temperance": "Tempérance",
   "The Devil": "Le Diable",
   "The Tower": "La Maison Dieu",
@@ -2654,5 +2654,7 @@
   "Add a birth time in the zodiac sign calculator": "Ajouter une heure de naissance dans le calculateur de signe astrologique",
   "See our compatibility": "Voir notre compatibilité",
   "Read your compatibility": "Lire votre compatibilité",
-  "Life Path Number Calculator": "Calculateur du chemin de vie"
+  "Life Path Number Calculator": "Calculateur du chemin de vie",
+  "Enter their date of birth.": "Saisissez sa date de naissance.",
+  "More free tools": "Plus d’outils gratuits"
 }

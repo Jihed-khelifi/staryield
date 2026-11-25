@@ -5,7 +5,7 @@
  */
 import type { Locale } from "@/i18n/config";
 import { lifePathReduction, romanNumeral } from "@/lib/calculators";
-import { DEFAULT_SEO_IMAGE } from "@/lib/seo/site";
+import { SKY_SEO_IMAGE } from "@/lib/seo/site";
 import {
   LIFE_PATH_COMPATIBLE,
   LIFE_PATH_EXAMPLE_DATE,
@@ -19,7 +19,7 @@ import type { LifePathContent, LifePathFrame, WorkedExample } from "@/content/se
 import en, { frame as frameEn } from "@/content/seo/life-path/en";
 import fr, { frame as frameFr } from "@/content/seo/life-path/fr";
 import es, { frame as frameEs } from "@/content/seo/life-path/es";
-import { SEO_COMMON, labelled, longDate, spacedSum } from "@/content/seo/names";
+import { SEO_COMMON, SEO_TEXT, labelled, longDate, spacedSum } from "@/content/seo/names";
 import type { SeoPage } from "@/content/seo/types";
 import { HUB_ROUTES, hubRelated } from "@/content/seo/hubs";
 
@@ -140,7 +140,7 @@ export function lifePathPage(locale: Locale, n: LifePathNumber): SeoPage {
       { name: frame.breadcrumb.hub, route: LIFE_PATH_HUB },
       { name: frame.breadcrumb.item(n), route },
     ],
-    image: DEFAULT_SEO_IMAGE,
+    image: SKY_SEO_IMAGE,
     imageAlt: frame.imageAlt,
     updated: LIFE_PATH_UPDATED,
   };
@@ -171,12 +171,12 @@ export function lifePathHubPage(locale: Locale): SeoPage {
       })),
     },
     faq: hub.faq,
-    related: hubRelated(locale, "lifePath", { label: frame.calculatorLink, href: LIFE_PATH_CALCULATOR }),
+    related: hubRelated(SEO_TEXT[locale], "lifePath", { label: frame.calculatorLink, href: LIFE_PATH_CALCULATOR }),
     breadcrumbs: [
       { name: SEO_COMMON[locale].home, route: "" },
       { name: frame.breadcrumb.hub, route: LIFE_PATH_HUB },
     ],
-    image: DEFAULT_SEO_IMAGE,
+    image: SKY_SEO_IMAGE,
     imageAlt: frame.imageAlt,
     updated: LIFE_PATH_UPDATED,
   };

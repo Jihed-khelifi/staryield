@@ -6,7 +6,7 @@ import { SIGNS } from "@/lib/astro/zodiac";
 import { birthCardsOf, birthNumberOfSlug, constellationOf } from "@/lib/astro/tarot-birth-card";
 import registry from "@/data/r2-images.json";
 import { LIFE_PATH_COMPATIBLE, LIFE_PATH_EXAMPLE_DATE, LIFE_PATH_NUMBERS, lifePathNeighbours, parseLifePathSlug } from "@/content/seo/life-path/data";
-import { lifePathHubPage, lifePathPage, lifePathWorkedExample } from "@/content/seo/life-path";
+import { lifePathContent, lifePathHubPage, lifePathPage, lifePathWorkedExample } from "@/content/seo/life-path";
 import { GOLDEN_DAWN, TAROT_EXAMPLE_DATE, TAROT_SLUGS, tarotCardFacts } from "@/content/seo/tarot/data";
 import { tarotHubPage, tarotPage } from "@/content/seo/tarot";
 import {
@@ -123,6 +123,14 @@ describe("Life Path pages", () => {
       for (const other of LIFE_PATH_COMPATIBLE[n]) {
         expect(LIFE_PATH_NUMBERS).toContain(other);
         expect(other).not.toBe(n);
+        // A page never names a match that the other number's page leaves out.
+        expect(LIFE_PATH_COMPATIBLE[other], `${n} ↔ ${other}`).toContain(n);
+      }
+      // The written note (FAQ answer and FAQPage data) names exactly the listed numbers.
+      for (const locale of locales) {
+        const note = lifePathContent[locale][n].compatibleNote;
+        const named = (note.match(/\b\d{1,2}\b/g) ?? []).map(Number).filter((value) => value !== n);
+        expect(new Set(named), `${locale} ${n}`).toEqual(new Set(LIFE_PATH_COMPATIBLE[n]));
       }
     }
     expect(lifePathNeighbours(1)).toEqual([2]);

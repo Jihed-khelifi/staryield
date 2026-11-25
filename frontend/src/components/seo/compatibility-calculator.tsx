@@ -7,7 +7,6 @@ import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { ExternalLink, LockKeyhole } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
-import type { Locale } from "@/i18n/config";
 import { track } from "@/lib/analytics";
 import { astroApi, type SunSignResult, type ZodiacSign } from "@/lib/api/astrology";
 import { ApiError } from "@/lib/api/errors";
@@ -24,7 +23,6 @@ import {
 } from "@/lib/schemas/compatibility";
 import { calculatorResultHref } from "@/lib/seo/calculator-links";
 import { pairSlug } from "@/content/seo/compatibility/data";
-import { SIGN_NAMES } from "@/content/seo/names";
 import { BIRTH_DATA_NOTICE } from "@/components/calculators/birth-data-notice";
 import { announce } from "@/components/feedback/live-region";
 import { Button } from "@/components/ui/button";
@@ -88,7 +86,6 @@ export function CompatibilityCalculator({ current, id }: { current?: string; id:
   const [here, setHere] = React.useState<[ZodiacSign, ZodiacSign] | null>(null);
   const inFlight = React.useRef<AbortController | null>(null);
   const resultRef = React.useRef<HTMLDivElement>(null);
-  const names = SIGN_NAMES[locale as Locale];
 
   React.useEffect(() => {
     const requests = inFlight;
@@ -101,13 +98,13 @@ export function CompatibilityCalculator({ current, id }: { current?: string; id:
       if (slug === current) {
         setFound(null);
         setHere([a, b]);
-        announce(text("Your signs are {value0} and {value1}: this is your pairing.", { value0: names[a], value1: names[b] }));
+        announce(text("Your signs are {value0} and {value1}: this is your pairing.", { value0: text(a), value1: text(b) }));
         window.requestAnimationFrame(() => resultRef.current?.focus());
         return;
       }
       startTransition(() => router.push(`/${locale}/compatibility/${slug}`));
     },
-    [current, locale, names, router, text],
+    [current, locale, router, text],
   );
 
   async function submit(raw: FieldValues) {
@@ -235,7 +232,7 @@ export function CompatibilityCalculator({ current, id }: { current?: string; id:
                   {cuspOptions(found[person]).map((sign) => (
                     <label key={sign} className="flex cursor-pointer items-center gap-2 rounded-lg border border-warm-gray bg-cream px-3 py-2 text-sm font-semibold">
                       <RadioGroupItem value={sign} data-testid={`cusp-${person}-${sign.toLowerCase()}`} />
-                      {names[sign]}
+                      {text(sign)}
                     </label>
                   ))}
                 </RadioGroup>
@@ -276,7 +273,7 @@ export function CompatibilityCalculator({ current, id }: { current?: string; id:
           data-testid="compatibility-here"
         >
           <p className="text-base leading-normal">
-            {text("Your signs are {value0} and {value1}: this is your pairing.", { value0: names[here[0]], value1: names[here[1]] })}
+            {text("Your signs are {value0} and {value1}: this is your pairing.", { value0: text(here[0]), value1: text(here[1]) })}
           </p>
           <a href="#overview" className="mt-3 inline-block text-sm font-semibold text-[#6b4f1d] underline decoration-[#c29a3d] underline-offset-2 hover:text-ink">
             {text("Read your compatibility")}

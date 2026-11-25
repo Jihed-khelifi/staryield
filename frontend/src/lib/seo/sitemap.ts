@@ -35,19 +35,36 @@ export function sitemapEntries(): Entry[] {
   ];
 }
 
-/**
- * The sitemap: every indexable URL in every locale, each with its hreflang
- * alternates (en, fr, es and x-default). `lastModified` is the content's own
- * date (a build-time constant), never the request time.
- */
-export function buildSitemap(): MetadataRoute.Sitemap {
-  return sitemapEntries().flatMap((entry) =>
+/** One entry per locale of each page, with its hreflang alternates (en, fr, es and x-default). */
+function inEveryLocale(entries: (Omit<Entry, "updated"> & { updated?: string })[]): MetadataRoute.Sitemap {
+  return entries.flatMap((entry) =>
     locales.map((locale) => ({
       url: localeUrl(entry.route, locale),
-      lastModified: entry.updated,
+      ...(entry.updated ? { lastModified: entry.updated } : {}),
       changeFrequency: entry.changeFrequency,
       priority: entry.priority,
       alternates: { languages: languageAlternates(entry.route) },
     })),
   );
+}
+
+/**
+ * The sitemap: every indexable URL in every locale, each with its hreflang
+ * alternates. `lastModified` is the content's own date (a build-time
+ * constant), never the request time. Advisor profiles have their own
+ * sitemap (`buildAdvisorSitemap`), listed in robots.txt next to this one.
+ */
+export function buildSitemap(): MetadataRoute.Sitemap {
+  return inEveryLocale(sitemapEntries());
+}
+
+/** Where the advisors' sitemap is served (src/app/psychics/sitemap.ts). */
+export const ADVISOR_SITEMAP_PATH = "/psychics/sitemap.xml";
+
+/**
+ * The advisors' sitemap: every public profile (`/psychics/<slug>`) in every
+ * locale. The directory gives no modification date, so none is claimed.
+ */
+export function buildAdvisorSitemap(slugs: readonly string[]): MetadataRoute.Sitemap {
+  return inEveryLocale(slugs.map((slug) => ({ route: `/psychics/${slug}`, changeFrequency: "daily", priority: 0.7 })));
 }

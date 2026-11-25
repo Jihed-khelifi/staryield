@@ -707,7 +707,7 @@
   "The Chariot": "The Chariot",
   "Strength": "Strength",
   "The Hermit": "The Hermit",
-  "Wheel Of Fortune": "Wheel Of Fortune",
+  "Wheel Of Fortune": "Wheel of Fortune",
   "Justice": "Justice",
   "A reason (up to 300 characters) is required.": "A reason (up to 300 characters) is required.",
   "A valid idempotency key is required.": "A valid idempotency key is required.",
@@ -2654,5 +2654,7 @@
   "Add a birth time in the zodiac sign calculator": "Add a birth time in the zodiac sign calculator",
   "See our compatibility": "See our compatibility",
   "Read your compatibility": "Read your compatibility",
-  "Life Path Number Calculator": "Life Path Number Calculator"
+  "Life Path Number Calculator": "Life Path Number Calculator",
+  "Enter their date of birth.": "Enter their date of birth.",
+  "More free tools": "More free tools"
 }

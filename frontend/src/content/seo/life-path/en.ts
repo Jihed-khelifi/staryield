@@ -47,7 +47,7 @@ const content: LifePathContent = {
     purpose:
       "The purpose linked to Life Path 2 is harmony without self-erasure: learning that a peace worth having includes their own voice, and that cooperation is strongest when both sides are honest.",
     compatibleNote:
-      "Numerologists traditionally pair a 2 with 4, 6 and 8, steady numbers that offer the reliability and appreciation a 2 looks for.",
+      "Numerologists traditionally pair a 2 with 4, 6, 8 and the master number 11, steady numbers that offer the reliability and appreciation a 2 looks for.",
   },
   3: {
     title: "The Communicator",
@@ -95,7 +95,7 @@ const content: LifePathContent = {
     purpose:
       "The purpose attributed to Life Path 4 is to build something that lasts, such as a home, a business or a body of work, while staying flexible enough to let it grow.",
     compatibleNote:
-      "Numerologists traditionally pair a 4 with 2, 6 and 8, numbers that value commitment, practicality and a shared long-term plan.",
+      "Numerologists traditionally pair a 4 with 2, 6, 8 and the master number 22, numbers that value commitment, practicality and a shared long-term plan.",
   },
   5: {
     title: "The Freedom Seeker",
@@ -143,7 +143,7 @@ const content: LifePathContent = {
     purpose:
       "The purpose attributed to Life Path 6 is service with boundaries: caring for others in ways that also protect their own energy, and trusting that love does not have to be earned through sacrifice.",
     compatibleNote:
-      "Numerologists traditionally pair a 6 with 2, 4, 8 and 9, numbers that value commitment, loyalty or generosity.",
+      "Numerologists traditionally pair a 6 with 2, 4, 8 and 9, and with the master numbers 11 and 33, numbers that value commitment, loyalty or generosity.",
   },
   7: {
     title: "The Seeker",
@@ -191,7 +191,7 @@ const content: LifePathContent = {
     purpose:
       "The purpose attributed to Life Path 8 is mastery of power: learning to use influence and resources generously and fairly, and to measure success by more than money or status.",
     compatibleNote:
-      "Numerologists traditionally pair an 8 with 2, 4 and 6, supportive, steady numbers that balance its drive.",
+      "Numerologists traditionally pair an 8 with 2, 4, 6 and the master number 22, supportive, steady numbers that balance its drive.",
   },
   9: {
     title: "The Humanitarian",
@@ -215,7 +215,7 @@ const content: LifePathContent = {
     purpose:
       "The purpose attributed to Life Path 9 is release: learning to give without keeping score, to let go of what has finished, and to turn compassion into steady, practical help.",
     compatibleNote:
-      "Numerologists traditionally pair a 9 with 3, 6 and 7, numbers that share its warmth, curiosity or sense of care.",
+      "Numerologists traditionally pair a 9 with 3, 6, 7 and the master number 33, numbers that share its warmth, curiosity or sense of care.",
   },
   11: {
     title: "The Intuitive Illuminator",
@@ -239,7 +239,7 @@ const content: LifePathContent = {
     purpose:
       "The purpose attributed to Life Path 11 is illumination: to trust and develop their intuition, to ground it in practical habits, and to use it to encourage others without losing themselves.",
     compatibleNote:
-      "Numerologists traditionally pair an 11 with 2, 6 and 22, numbers that offer steadiness, care or a shared sense of purpose.",
+      "Numerologists traditionally pair an 11 with 2, 6, 22 and 33, numbers that offer steadiness, care or a shared sense of purpose.",
   },
   22: {
     title: "The Master Builder",
@@ -394,6 +394,6 @@ export const frame: LifePathFrame = {
     tile: (n) => `Life Path ${n}`,
   },
   breadcrumb: { hub: "Life Path numbers", item: (n) => `Life Path ${n}` },
-  imageAlt: "Tarot cards spread on a reading table",
+  imageAlt: "Rays of sunlight breaking through clouds at sunrise",
 };
 

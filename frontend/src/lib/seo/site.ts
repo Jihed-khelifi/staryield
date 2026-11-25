@@ -17,11 +17,29 @@ export const OG_LOCALE: Record<Locale, string> = { en: "en_US", fr: "fr_FR", es:
 
 const ASSETS = "https://assets.staryield.net/assets";
 
-/** Public R2 artwork used for link previews (dimensions as stored on R2). */
-export type SeoImage = { url: string; width: number; height: number };
+/**
+ * Public R2 artwork used for link previews (dimensions as stored on R2; an
+ * advisor's photo comes from the API without them).
+ */
+export type SeoImage = { url: string; width?: number; height?: number };
 
 /** Tarot cards on a reading table (landscape, used by the calculator articles): the default preview. */
 export const DEFAULT_SEO_IMAGE: SeoImage = { url: `${ASSETS}/articles/natal/twelve-houses-intro-0cf68eb2.png`, width: 640, height: 427 };
+
+/**
+ * A sunrise sky through the clouds (square, 1024 px): the preview of the Life
+ * Path and sign compatibility pages, where tarot cards would be off topic.
+ * Dedicated 1200 × 630 previews per family can replace it here once on R2.
+ */
+export const SKY_SEO_IMAGE: SeoImage = { url: `${ASSETS}/figma/f7e76.png`, width: 1024, height: 1024 };
+
+/**
+ * X's large-image card needs a picture at least 300 px wide (2:1 crop); a
+ * smaller one (the 210 px tarot card) is shown with the small "summary" card.
+ */
+export function twitterCardFor(image: SeoImage): "summary" | "summary_large_image" {
+  return image.width !== undefined && image.width < 300 ? "summary" : "summary_large_image";
+}
 
 /** The sun mark (logo) used by the Organization structured data. */
 export const LOGO_URL = `${ASSETS}/brand/sun-mark-192-c139a00d54.png`;
@@ -75,7 +93,10 @@ export function fullTitle(title: string): string {
   return `${title} — ${SITE_NAME}`;
 }
 
-/** Title, description, canonical, hreflang, Open Graph and Twitter card for an indexable page. */
+/**
+ * Title, description, canonical, hreflang, Open Graph and Twitter card for an
+ * indexable page (the large-image card unless the picture is too small for it).
+ */
 export function pageMetadata({
   locale,
   route,
@@ -87,7 +108,7 @@ export function pageMetadata({
   absoluteTitle = false,
 }: PageMetadataInput): Metadata {
   const shown = absoluteTitle ? title : fullTitle(title);
-  const images = [{ url: image.url, width: image.width, height: image.height, alt: imageAlt }];
+  const images = [{ url: image.url, ...(image.width && image.height ? { width: image.width, height: image.height } : {}), alt: imageAlt }];
   return {
     title: absoluteTitle ? { absolute: title } : title,
     description,
@@ -102,7 +123,7 @@ export function pageMetadata({
       url: localeUrl(route, locale),
       images,
     },
-    twitter: { card: "summary_large_image", title: shown, description, images },
+    twitter: { card: twitterCardFor(image), title: shown, description, images },
   };
 }
 

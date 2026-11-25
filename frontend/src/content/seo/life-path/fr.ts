@@ -47,7 +47,7 @@ const content: LifePathContent = {
     purpose:
       "La mission liée au chemin de vie 2 est l’harmonie sans effacement de soi : comprendre qu’une paix qui vaut la peine inclut sa propre voix, et que la coopération est la plus solide quand chacun est sincère.",
     compatibleNote:
-      "Les numérologues associent traditionnellement le 2 aux nombres 4, 6 et 8, des nombres stables qui offrent la fiabilité et la reconnaissance qu’il recherche.",
+      "Les numérologues associent traditionnellement le 2 aux nombres 4, 6 et 8 et au nombre maître 11, des nombres stables qui offrent la fiabilité et la reconnaissance qu’il recherche.",
   },
   3: {
     title: "Le Communicant",
@@ -95,7 +95,7 @@ const content: LifePathContent = {
     purpose:
       "La mission attribuée au chemin de vie 4 est de bâtir quelque chose de durable, comme un foyer, une entreprise ou une œuvre, tout en restant assez souple pour le laisser grandir.",
     compatibleNote:
-      "Les numérologues associent traditionnellement le 4 aux nombres 2, 6 et 8, qui valorisent l’engagement, le sens pratique et un projet commun à long terme.",
+      "Les numérologues associent traditionnellement le 4 aux nombres 2, 6 et 8 et au nombre maître 22, qui valorisent l’engagement, le sens pratique et un projet commun à long terme.",
   },
   5: {
     title: "Le Chercheur de liberté",
@@ -143,7 +143,7 @@ const content: LifePathContent = {
     purpose:
       "La mission attribuée au chemin de vie 6 est le service avec des limites : prendre soin des autres d’une manière qui préserve aussi son énergie, et croire que l’amour n’a pas à se mériter par le sacrifice.",
     compatibleNote:
-      "Les numérologues associent traditionnellement le 6 aux nombres 2, 4, 8 et 9, qui valorisent l’engagement, la loyauté ou la générosité.",
+      "Les numérologues associent traditionnellement le 6 aux nombres 2, 4, 8 et 9 et aux nombres maîtres 11 et 33, qui valorisent l’engagement, la loyauté ou la générosité.",
   },
   7: {
     title: "Le Chercheur de vérité",
@@ -191,7 +191,7 @@ const content: LifePathContent = {
     purpose:
       "La mission attribuée au chemin de vie 8 est la maîtrise du pouvoir : utiliser son influence et ses ressources avec générosité et équité, et mesurer la réussite à autre chose que l’argent ou le statut.",
     compatibleNote:
-      "Les numérologues associent traditionnellement le 8 aux nombres 2, 4 et 6, des nombres solides et soutenants qui équilibrent son élan.",
+      "Les numérologues associent traditionnellement le 8 aux nombres 2, 4 et 6 et au nombre maître 22, des nombres solides et soutenants qui équilibrent son élan.",
   },
   9: {
     title: "L’Humaniste",
@@ -215,7 +215,7 @@ const content: LifePathContent = {
     purpose:
       "La mission attribuée au chemin de vie 9 est le lâcher-prise : apprendre à donner sans compter, à laisser partir ce qui est terminé et à transformer la compassion en aide régulière et concrète.",
     compatibleNote:
-      "Les numérologues associent traditionnellement le 9 aux nombres 3, 6 et 7, qui partagent sa chaleur, sa curiosité ou son sens du soin.",
+      "Les numérologues associent traditionnellement le 9 aux nombres 3, 6 et 7 et au nombre maître 33, qui partagent sa chaleur, sa curiosité ou son sens du soin.",
   },
   11: {
     title: "L’Illuminateur intuitif",
@@ -239,7 +239,7 @@ const content: LifePathContent = {
     purpose:
       "La mission attribuée au chemin de vie 11 est l’éclairage : faire confiance à son intuition et la développer, l’ancrer dans des habitudes concrètes et s’en servir pour encourager les autres sans se perdre.",
     compatibleNote:
-      "Les numérologues associent traditionnellement le 11 aux nombres 2, 6 et 22, qui offrent stabilité, attention ou un sens partagé de la mission.",
+      "Les numérologues associent traditionnellement le 11 aux nombres 2, 6, 22 et 33, qui offrent stabilité, attention ou un sens partagé de la mission.",
   },
   22: {
     title: "Le Maître bâtisseur",
@@ -394,6 +394,6 @@ export const frame: LifePathFrame = {
     tile: (n) => `Chemin de vie ${n}`,
   },
   breadcrumb: { hub: "Chemins de vie", item: (n) => `Chemin de vie ${n}` },
-  imageAlt: "Cartes de tarot étalées sur une table de lecture",
+  imageAlt: "Des rayons de soleil perçant les nuages au lever du jour",
 };
 

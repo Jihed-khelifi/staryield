@@ -1,74 +1,73 @@
 /**
  * Names used by the programmatic pages, in every locale. Slugs stay English
  * everywhere (like the rest of the site's routes); only the display names change.
+ *
+ * Signs, elements, modalities, planets, Major Arcana and "Home" are not
+ * written here: they come from the site's dictionaries (copy-{en,fr,es}.json,
+ * the copy every other screen shows through `text()`), so a card or a sign is
+ * named the same on a search page and in a calculator result. Only grammar
+ * the dictionaries cannot give lives here (articles, "du Bélier").
+ *
+ * Server and content modules only: this file bundles the three dictionaries.
+ * Client components translate the same names with `useI18n().text`.
  */
-import type { Locale } from "@/i18n/config";
+import { locales, type Locale } from "@/i18n/config";
+import copyEn from "@/i18n/dictionaries/copy-en.json";
+import copyEs from "@/i18n/dictionaries/copy-es.json";
+import copyFr from "@/i18n/dictionaries/copy-fr.json";
+import { createTranslateCopy, type TranslateCopy } from "@/i18n/translate-copy";
 import type { ZodiacSign } from "@/lib/api/astrology";
+import { SIGNS, TAROT_CARDS } from "@/lib/astro/zodiac";
 
 export type Element = "Fire" | "Earth" | "Air" | "Water";
 export type Modality = "Cardinal" | "Fixed" | "Mutable";
 export type Planet = "Sun" | "Moon" | "Mercury" | "Venus" | "Mars" | "Jupiter" | "Saturn" | "Uranus" | "Neptune" | "Pluto";
 
-export const SIGN_NAMES: Record<Locale, Record<ZodiacSign, string>> = {
-  en: {
-    Aries: "Aries", Taurus: "Taurus", Gemini: "Gemini", Cancer: "Cancer", Leo: "Leo", Virgo: "Virgo",
-    Libra: "Libra", Scorpio: "Scorpio", Sagittarius: "Sagittarius", Capricorn: "Capricorn", Aquarius: "Aquarius", Pisces: "Pisces",
-  },
-  fr: {
-    Aries: "Bélier", Taurus: "Taureau", Gemini: "Gémeaux", Cancer: "Cancer", Leo: "Lion", Virgo: "Vierge",
-    Libra: "Balance", Scorpio: "Scorpion", Sagittarius: "Sagittaire", Capricorn: "Capricorne", Aquarius: "Verseau", Pisces: "Poissons",
-  },
-  es: {
-    Aries: "Aries", Taurus: "Tauro", Gemini: "Géminis", Cancer: "Cáncer", Leo: "Leo", Virgo: "Virgo",
-    Libra: "Libra", Scorpio: "Escorpio", Sagittarius: "Sagitario", Capricorn: "Capricornio", Aquarius: "Acuario", Pisces: "Piscis",
-  },
+/** The site's display-copy translator of each locale (English source → that locale). */
+export const SEO_TEXT: Record<Locale, TranslateCopy> = {
+  en: createTranslateCopy(copyEn),
+  fr: createTranslateCopy(copyFr),
+  es: createTranslateCopy(copyEs),
 };
 
-export const ELEMENT_NAMES: Record<Locale, Record<Element, string>> = {
-  en: { Fire: "Fire", Earth: "Earth", Air: "Air", Water: "Water" },
-  fr: { Fire: "Feu", Earth: "Terre", Air: "Air", Water: "Eau" },
-  es: { Fire: "Fuego", Earth: "Tierra", Air: "Aire", Water: "Agua" },
+/** `{ locale: { key: text(source(key)) } }` for every locale. */
+function translated<K extends string>(keys: readonly K[], source: (key: K) => string = (key) => key): Record<Locale, Record<K, string>> {
+  return Object.fromEntries(
+    locales.map((locale) => [locale, Object.fromEntries(keys.map((key) => [key, SEO_TEXT[locale](source(key))]))]),
+  ) as Record<Locale, Record<K, string>>;
+}
+
+export const SIGN_NAMES: Record<Locale, Record<ZodiacSign, string>> = translated(SIGNS);
+
+export const ELEMENT_NAMES: Record<Locale, Record<Element, string>> = translated(["Fire", "Earth", "Air", "Water"]);
+
+export const MODALITY_NAMES: Record<Locale, Record<Modality, string>> = translated(["Cardinal", "Fixed", "Mutable"]);
+
+const PLANETS: readonly Planet[] = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"];
+
+/** The article the Sun and the Moon take inside a sentence ("the Sun", "le Soleil", "la Luna"). */
+const PLANET_ARTICLE: Record<Locale, Partial<Record<Planet, string>>> = {
+  en: { Sun: "the", Moon: "the" },
+  fr: { Sun: "le", Moon: "la" },
+  es: { Sun: "el", Moon: "la" },
 };
 
-export const MODALITY_NAMES: Record<Locale, Record<Modality, string>> = {
-  en: { Cardinal: "Cardinal", Fixed: "Fixed", Mutable: "Mutable" },
-  fr: { Cardinal: "Cardinal", Fixed: "Fixe", Mutable: "Mutable" },
-  es: { Cardinal: "Cardinal", Fixed: "Fijo", Mutable: "Mutable" },
-};
+/** Planet names as they read inside a sentence: "the Sun", "Vénus", "la Luna". */
+export const PLANET_NAMES: Record<Locale, Record<Planet, string>> = Object.fromEntries(
+  locales.map((locale) => [
+    locale,
+    Object.fromEntries(
+      PLANETS.map((planet) => {
+        const article = PLANET_ARTICLE[locale][planet];
+        const name = SEO_TEXT[locale](planet);
+        return [planet, article ? `${article} ${name}` : name];
+      }),
+    ),
+  ]),
+) as Record<Locale, Record<Planet, string>>;
 
-export const PLANET_NAMES: Record<Locale, Record<Planet, string>> = {
-  en: { Sun: "the Sun", Moon: "the Moon", Mercury: "Mercury", Venus: "Venus", Mars: "Mars", Jupiter: "Jupiter", Saturn: "Saturn", Uranus: "Uranus", Neptune: "Neptune", Pluto: "Pluto" },
-  fr: { Sun: "le Soleil", Moon: "la Lune", Mercury: "Mercure", Venus: "Vénus", Mars: "Mars", Jupiter: "Jupiter", Saturn: "Saturne", Uranus: "Uranus", Neptune: "Neptune", Pluto: "Pluton" },
-  es: { Sun: "el Sol", Moon: "la Luna", Mercury: "Mercurio", Venus: "Venus", Mars: "Marte", Jupiter: "Júpiter", Saturn: "Saturno", Uranus: "Urano", Neptune: "Neptuno", Pluto: "Plutón" },
-};
-
-/** Major Arcana display names by slug. */
-export const CARD_NAMES: Record<Locale, Record<string, string>> = {
-  en: {
-    "the-fool": "The Fool", "the-magician": "The Magician", "the-high-priestess": "The High Priestess", "the-empress": "The Empress",
-    "the-emperor": "The Emperor", "the-hierophant": "The Hierophant", "the-lovers": "The Lovers", "the-chariot": "The Chariot",
-    strength: "Strength", "the-hermit": "The Hermit", "wheel-of-fortune": "Wheel of Fortune", justice: "Justice",
-    "the-hanged-man": "The Hanged Man", death: "Death", temperance: "Temperance", "the-devil": "The Devil",
-    "the-tower": "The Tower", "the-star": "The Star", "the-moon": "The Moon", "the-sun": "The Sun",
-    judgement: "Judgement", "the-world": "The World",
-  },
-  fr: {
-    "the-fool": "Le Mat", "the-magician": "Le Bateleur", "the-high-priestess": "La Papesse", "the-empress": "L’Impératrice",
-    "the-emperor": "L’Empereur", "the-hierophant": "Le Pape", "the-lovers": "L’Amoureux", "the-chariot": "Le Chariot",
-    strength: "La Force", "the-hermit": "L’Hermite", "wheel-of-fortune": "La Roue de Fortune", justice: "La Justice",
-    "the-hanged-man": "Le Pendu", death: "La Mort", temperance: "La Tempérance", "the-devil": "Le Diable",
-    "the-tower": "La Maison Dieu", "the-star": "L’Étoile", "the-moon": "La Lune", "the-sun": "Le Soleil",
-    judgement: "Le Jugement", "the-world": "Le Monde",
-  },
-  es: {
-    "the-fool": "El Loco", "the-magician": "El Mago", "the-high-priestess": "La Sacerdotisa", "the-empress": "La Emperatriz",
-    "the-emperor": "El Emperador", "the-hierophant": "El Hierofante", "the-lovers": "Los Enamorados", "the-chariot": "El Carro",
-    strength: "La Fuerza", "the-hermit": "El Ermitaño", "wheel-of-fortune": "La Rueda de la Fortuna", justice: "La Justicia",
-    "the-hanged-man": "El Colgado", death: "La Muerte", temperance: "La Templanza", "the-devil": "El Diablo",
-    "the-tower": "La Torre", "the-star": "La Estrella", "the-moon": "La Luna", "the-sun": "El Sol",
-    judgement: "El Juicio", "the-world": "El Mundo",
-  },
-};
+/** Major Arcana display names by slug (the names `TAROT_CARDS` gives the rest of the site). */
+export const CARD_NAMES: Record<Locale, Record<string, string>> = translated(Object.keys(TAROT_CARDS), (slug) => TAROT_CARDS[slug]);
 
 /** The sign after "of" in French: the contracted article it needs ("du Bélier", "de la Vierge", "des Gémeaux"). */
 const SIGN_OF_FR: Record<ZodiacSign, string> = {
@@ -83,11 +82,9 @@ export function signOf(locale: Locale, sign: ZodiacSign): string {
 }
 
 /** Words every programmatic page shares (breadcrumbs). */
-export const SEO_COMMON: Record<Locale, { home: string }> = {
-  en: { home: "Home" },
-  fr: { home: "Accueil" },
-  es: { home: "Inicio" },
-};
+export const SEO_COMMON: Record<Locale, { home: string }> = Object.fromEntries(
+  locales.map((locale) => [locale, { home: SEO_TEXT[locale]("Home") }]),
+) as Record<Locale, { home: string }>;
 
 /** "3, 5 and 7" in the page's language. */
 export function listOf(locale: Locale, items: string[]): string {

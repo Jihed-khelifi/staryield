@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { SITE_URL } from "@/lib/seo/site";
+import { ADVISOR_SITEMAP_PATH } from "@/lib/seo/sitemap";
 
 /**
  * Private and utility paths crawlers should not fetch (every locale: `/*`).
@@ -29,10 +30,10 @@ export const DISALLOWED_PATHS = [
   "/go/",
 ] as const;
 
-/** /robots.txt: public pages are open, private and utility paths are not; points to the sitemap. */
+/** /robots.txt: public pages are open, private and utility paths are not; points to the sitemaps (pages, advisors). */
 export function buildRobots(): MetadataRoute.Robots {
   return {
     rules: { userAgent: "*", allow: "/", disallow: [...DISALLOWED_PATHS] },
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}${ADVISOR_SITEMAP_PATH}`],
   };
 }

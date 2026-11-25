@@ -1,6 +1,6 @@
 /**
  * Interface copy of the search pages per family (English source, translated
- * with `text()`; `copy.test.ts` checks every string is in copy-{en,fr,es}).
+ * with `text()`; `lib/seo/seo.test.ts` checks every string is in copy-{en,fr,es}).
  * The long-form content lives in src/content/seo.
  */
 export type SeoFamily = "life-path" | "tarot" | "compatibility";

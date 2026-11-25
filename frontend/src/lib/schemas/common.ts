@@ -77,8 +77,13 @@ export type BirthParts = { day: string; month: string; year: string; time?: stri
 /**
  * Birth date as separate DD / MM / YYYY parts (DatePartsInput). Rejects
  * impossible and future dates; `adult` additionally requires 18+.
+ * `requiredMessage` replaces "Enter your date of birth." when the date is
+ * someone else's (e.g. "Enter their date of birth.").
  */
-export function birthPartsRule(text: TranslateCopy, { adult = false }: { adult?: boolean } = {}) {
+export function birthPartsRule(
+  text: TranslateCopy,
+  { adult = false, requiredMessage }: { adult?: boolean; requiredMessage?: string } = {}
+) {
   return yup
     .object({
       day: yup.string().default(""),
@@ -86,7 +91,7 @@ export function birthPartsRule(text: TranslateCopy, { adult = false }: { adult?:
       year: yup.string().default(""),
       time: yup.string().default(""),
     })
-    .test("complete", text("Enter your date of birth."), (value) =>
+    .test("complete", requiredMessage ?? text("Enter your date of birth."), (value) =>
       Boolean(value?.day && value?.month && value?.year)
     )
     .test("valid", text("Enter a valid date."), (value) => {

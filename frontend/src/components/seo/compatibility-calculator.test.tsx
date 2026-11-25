@@ -44,7 +44,14 @@ describe("CompatibilityCalculator", () => {
   it("validates both dates on their own fields", async () => {
     renderWithI18n(<CompatibilityCalculator id="calc" />);
     submit();
-    expect(await screen.findAllByText("Enter your date of birth.")).toHaveLength(2);
+    // Each date says whose it is: "your" under the visitor's, "their" under the partner's.
+    const groups = screen.getByTestId("compatibility-form").querySelectorAll<HTMLElement>("[data-slot=date-parts-input]");
+    await screen.findByText("Enter their date of birth.");
+    const described = (group: HTMLElement) =>
+      (group.getAttribute("aria-describedby") ?? "").split(" ").map((id) => document.getElementById(id)?.textContent ?? "").join(" ");
+    expect(described(groups[0])).toContain("Enter your date of birth.");
+    expect(described(groups[1])).toContain("Enter their date of birth.");
+    expect(screen.getAllByText("Enter your date of birth.")).toHaveLength(1);
     fill(0, "10", "04", "1990");
     fill(1, "30", "02", "1988");
     submit();

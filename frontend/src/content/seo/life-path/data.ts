@@ -42,19 +42,20 @@ export const MASTER_ROOT = { 11: 2, 22: 4, 33: 6 } as const;
 
 /**
  * Numbers that numerologists traditionally pair with each Life Path. Schools
- * differ; the pages present these as a starting point for reflection.
+ * differ; the pages present these as a starting point for reflection. The
+ * table is symmetric (a page never names a match the other page leaves out).
  */
 export const LIFE_PATH_COMPATIBLE: Record<LifePathNumber, readonly LifePathNumber[]> = {
   1: [3, 5],
-  2: [4, 6, 8],
+  2: [4, 6, 8, 11],
   3: [1, 5, 9],
-  4: [2, 6, 8],
+  4: [2, 6, 8, 22],
   5: [1, 3, 7],
-  6: [2, 4, 8, 9],
+  6: [2, 4, 8, 9, 11, 33],
   7: [5, 9],
-  8: [2, 4, 6],
-  9: [3, 6, 7],
-  11: [2, 6, 22],
+  8: [2, 4, 6, 22],
+  9: [3, 6, 7, 33],
+  11: [2, 6, 22, 33],
   22: [4, 8, 11],
   33: [6, 9, 11],
 };

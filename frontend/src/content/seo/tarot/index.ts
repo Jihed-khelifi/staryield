@@ -12,7 +12,7 @@ import type { ChainRole, TarotContent, TarotFrame } from "@/content/seo/tarot/ty
 import en, { frame as frameEn } from "@/content/seo/tarot/en";
 import fr, { frame as frameFr } from "@/content/seo/tarot/fr";
 import es, { frame as frameEs } from "@/content/seo/tarot/es";
-import { CARD_NAMES, ELEMENT_NAMES, PLANET_NAMES, SEO_COMMON, SIGN_NAMES, labelled, listOf, longDate, spacedSum } from "@/content/seo/names";
+import { CARD_NAMES, ELEMENT_NAMES, PLANET_NAMES, SEO_COMMON, SEO_TEXT, SIGN_NAMES, labelled, listOf, longDate, spacedSum } from "@/content/seo/names";
 import type { SeoPage } from "@/content/seo/types";
 import { HUB_ROUTES, hubRelated } from "@/content/seo/hubs";
 
@@ -203,7 +203,7 @@ export function tarotHubPage(locale: Locale): SeoPage {
       })),
     },
     faq: hub.faq,
-    related: hubRelated(locale, "tarot", { label: frame.calculatorLink, href: TAROT_CALCULATOR }),
+    related: hubRelated(SEO_TEXT[locale], "tarot", { label: frame.calculatorLink, href: TAROT_CALCULATOR }),
     breadcrumbs: [
       { name: SEO_COMMON[locale].home, route: "" },
       { name: frame.breadcrumb.hub, route: TAROT_HUB },
