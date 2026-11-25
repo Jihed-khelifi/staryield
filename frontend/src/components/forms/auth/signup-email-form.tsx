@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { track } from "@/lib/analytics";
+import { nextForApi } from "@/lib/auth/google";
+import { useSafeNext } from "@/lib/auth/use-safe-next";
+import { keepNext, withNext } from "@/lib/navigation";
 import { applyApiError } from "@/lib/forms/server-errors";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { signupEmailSchema, type SignupEmailValues } from "@/lib/schemas/auth";
@@ -24,6 +27,8 @@ export function SignupEmailForm() {
   const router = useRouter();
   const form = useSchemaForm(signupEmailSchema, { defaultValues: { email: "", terms: false } });
   const googleAvailable = useGoogleAvailable();
+  // Someone who already has an account signs in and still lands where they were heading.
+  const next = useSafeNext(locale);
 
   React.useEffect(() => {
     track("signup_step_viewed", { step: "email" });
@@ -34,7 +39,8 @@ export function SignupEmailForm() {
   function submit(values: SignupEmailValues) {
     writeSignupEmail(values.email.trim());
     track("signup_step_completed", { step: "email" });
-    router.push(`/${locale}/signup/password`);
+    // A visitor who came from a book button continues to the chat afterwards (`?next=`).
+    router.push(keepNext(`/${locale}/signup/password`, window.location.search, locale));
   }
 
   return (
@@ -64,6 +70,7 @@ export function SignupEmailForm() {
             <AuthDivider />
             <GoogleButton
               intent="signup"
+              next={() => nextForApi(window.location.search, locale)}
               // Same message as the e-mail path when the terms box is still empty.
               beforeStart={() => form.trigger("terms", { shouldFocus: true })}
               onError={(error) => {
@@ -74,7 +81,7 @@ export function SignupEmailForm() {
           </>
         ) : null}
         <p className="mt-4 text-sm text-cream-light">
-          <Link className="underline" href={`/${locale}/login`}>
+          <Link className="underline" href={withNext(`/${locale}/login`, next)}>
             {text("Already have an account? Log in")}
           </Link>
         </p>

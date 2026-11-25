@@ -10,6 +10,8 @@ import { attributionForSignup } from "@/lib/attribution";
 import { authApi } from "@/lib/api/endpoints";
 import { toApiError } from "@/lib/api/errors";
 import { useSession } from "@/lib/auth/session-provider";
+import { useSafeNext } from "@/lib/auth/use-safe-next";
+import { keepNext, signupUrl, withNext } from "@/lib/navigation";
 import { applyApiError } from "@/lib/forms/server-errors";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { newPasswordSchema, type NewPasswordValues } from "@/lib/schemas/auth";
@@ -23,20 +25,22 @@ export function SignupPasswordForm() {
   const { text, locale } = useI18n();
   const router = useRouter();
   const { setUser } = useSession();
+  // The way back to step 1 or to the sign-in keeps where the person was heading.
+  const next = useSafeNext(locale);
   const form = useSchemaForm(newPasswordSchema, { defaultValues: { password: "", confirm: "" } });
   // The email belongs to step 1, so its problems get a way back there.
   const [emailProblem, setEmailProblem] = React.useState<"taken" | "invalid" | null>(null);
 
   React.useEffect(() => {
     track("signup_step_viewed", { step: "password" });
-    if (!readSignupEmail()) router.replace(`/${locale}/signup`);
+    if (!readSignupEmail()) router.replace(keepNext(`/${locale}/signup`, window.location.search, locale));
   }, [locale, router]);
 
   async function submit(values: NewPasswordValues) {
     setEmailProblem(null);
     const input = { email: readSignupEmail(), password: values.password, accept_terms: true, locale };
     if (!input.email) {
-      router.replace(`/${locale}/signup`);
+      router.replace(keepNext(`/${locale}/signup`, window.location.search, locale));
       return;
     }
     // First-touch campaign attribution (UTM / short link), when any.
@@ -54,7 +58,8 @@ export function SignupPasswordForm() {
       setUser(res.user);
       clearSignupEmail();
       track("signup_step_completed", { step: "password" });
-      router.push(`/${locale}/signup/birth`);
+      // The birth step ends sign-up and honours `?next=` (the chat the visitor came to book).
+      router.push(keepNext(`/${locale}/signup/birth`, window.location.search, locale));
     } catch (err) {
       const e = toApiError(err);
       if (e.code === "validation_failed" && e.fields.email) {
@@ -79,11 +84,11 @@ export function SignupPasswordForm() {
         >
           <FormRootError className="mt-4">
             {emailProblem === "taken" ? (
-              <Link className="font-semibold underline" href={`/${locale}/login`}>
+              <Link className="font-semibold underline" href={withNext(`/${locale}/login`, next)}>
                 {text("Log In")}
               </Link>
             ) : emailProblem === "invalid" ? (
-              <Link className="font-semibold underline" href={`/${locale}/signup`}>
+              <Link className="font-semibold underline" href={signupUrl(locale, next)}>
                 {text("Change email")}
               </Link>
             ) : null}

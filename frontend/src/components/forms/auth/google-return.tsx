@@ -20,6 +20,7 @@ import {
 import { ageLanding } from "@/lib/auth/age-status"; // revisions 5.0: 18+ age gate (§24.6)
 import { useSession } from "@/lib/auth/session-provider";
 import { applyApiError } from "@/lib/forms/server-errors";
+import { withNext } from "@/lib/navigation";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { googleConsentSchema } from "@/lib/schemas/auth";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -52,7 +53,7 @@ type Phase =
   | { kind: "session_failed"; error: ApiError; result: string }
   | { kind: "loading_pending" }
   | { kind: "pending_failed"; error: ApiError }
-  | { kind: "consent"; email: string }
+  | { kind: "consent"; email: string; next: string | null }
   | { kind: "reactivation"; offer: Reactivation }
   | { kind: "error"; code: string };
 
@@ -88,7 +89,8 @@ export function GoogleReturn() {
         setUser(me);
         forgetGoogleIntent();
         const next = landing.current?.next ?? null;
-        if (result === "signed_up") return goTo(`/${locale}/signup/birth`);
+        // A new account finishes sign-up at the birth step, which then honours `next` (a book button's chat).
+        if (result === "signed_up") return goTo(withNext(`/${locale}/signup/birth`, next));
         if (result === "linked") {
           toast.show({ tone: "success", message: text("Google is now connected.") });
           return goTo(next ?? `/${locale}/profile/settings#security`);
@@ -116,7 +118,7 @@ export function GoogleReturn() {
       return;
     }
     if (pending.kind === "signup_consent") {
-      setPhase({ kind: "consent", email: pending.email });
+      setPhase({ kind: "consent", email: pending.email, next: landing.current?.next ?? null });
     } else if (pending.kind === "link_password") {
       // /login explains it and prefills the e-mail; the password sign-in links Google.
       writeSignupEmail(pending.email);
@@ -157,7 +159,13 @@ export function GoogleReturn() {
   const titleId = React.useId();
 
   if (phase.kind === "consent") {
-    return <ConsentCard email={phase.email} onExpired={() => setPhase({ kind: "error", code: "google_state_invalid" })} />;
+    return (
+      <ConsentCard
+        email={phase.email}
+        next={phase.next}
+        onExpired={() => setPhase({ kind: "error", code: "google_state_invalid" })}
+      />
+    );
   }
 
   let icon: React.ReactNode = <Loader2 aria-hidden className="email-link-icon animate-spin motion-reduce:animate-none" />;
@@ -277,7 +285,7 @@ function ErrorActions({ code }: { code: string }) {
 }
 
 /** "Create your Staryield account": a Google identity with no account yet, until the terms are accepted. */
-function ConsentCard({ email, onExpired }: { email: string; onExpired: () => void }) {
+function ConsentCard({ email, next, onExpired }: { email: string; next: string | null; onExpired: () => void }) {
   const { text, locale } = useI18n();
   const router = useRouter();
   const { setUser } = useSession();
@@ -296,7 +304,7 @@ function ConsentCard({ email, onExpired }: { email: string; onExpired: () => voi
       setUser(res.user);
       forgetGoogleIntent();
       track("signup_step_completed", { step: "google_consent" });
-      router.replace(`/${locale}/signup/birth`);
+      router.replace(withNext(`/${locale}/signup/birth`, next));
     } catch (err) {
       const e = toApiError(err);
       if (e.code === "google_state_invalid" || e.code === "not_found") {

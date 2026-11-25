@@ -83,6 +83,29 @@ describe("SignupEmailForm", () => {
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/en/signup/password"));
     expect(sessionStorage.getItem("staryield.signup.email")).toBe("jane@example.com");
   });
+
+  it("keeps a safe ?next= (from a book button) for the next step and the sign-in link", async () => {
+    const u = userEvent.setup();
+    const next = encodeURIComponent("/en/chatroom?reader=theo");
+    window.history.replaceState(null, "", `/en/signup?next=${next}`);
+    renderWithI18n(<SignupEmailForm />);
+    expect(screen.getByRole("link", { name: "Already have an account? Log in" }).getAttribute("href")).toBe(`/en/login?next=${next}`);
+    await u.type(screen.getByRole("textbox", { name: "Email Address" }), "jane@example.com");
+    await u.click(screen.getByRole("checkbox"));
+    await u.click(submitButton());
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/en/signup/password?next=${next}`));
+  });
+
+  it("drops an unsafe ?next=", async () => {
+    const u = userEvent.setup();
+    window.history.replaceState(null, "", `/en/signup?next=${encodeURIComponent("https://evil.example/en")}`);
+    renderWithI18n(<SignupEmailForm />);
+    expect(screen.getByRole("link", { name: "Already have an account? Log in" }).getAttribute("href")).toBe("/en/login");
+    await u.type(screen.getByRole("textbox", { name: "Email Address" }), "jane@example.com");
+    await u.click(screen.getByRole("checkbox"));
+    await u.click(submitButton());
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/en/signup/password"));
+  });
 });
 
 describe("SignupPasswordForm", () => {
@@ -116,6 +139,17 @@ describe("SignupPasswordForm", () => {
     expect(sessionStorage.getItem("staryield.signup.email")).toBeNull();
   });
 
+  it("moves on to the birth step with the ?next= the visitor came with", async () => {
+    const u = userEvent.setup();
+    window.history.replaceState(null, "", `/en/signup/password?next=${encodeURIComponent("/en/chatroom?reader=theo")}`);
+    api.register.mockResolvedValue({ user });
+    renderWithI18n(<SignupPasswordForm />);
+    await u.type(screen.getByLabelText("New password"), "Longenough1!");
+    await u.type(screen.getByLabelText("Confirm password"), "Longenough1!");
+    await u.click(submitButton());
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(`/en/signup/birth?next=${encodeURIComponent("/en/chatroom?reader=theo")}`));
+  });
+
   it("maps email_taken to a form error with a Log In link", async () => {
     const u = userEvent.setup();
     api.register.mockRejectedValue(new ApiError({ code: "email_taken", message: "taken", status: 409 }));
@@ -126,6 +160,19 @@ describe("SignupPasswordForm", () => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("An account with this email already exists.");
     expect(within(alert).getByRole("link", { name: "Log In" }).getAttribute("href")).toBe("/en/login");
+  });
+
+  it("keeps where the person was heading on the Log In link of a taken e-mail", async () => {
+    const u = userEvent.setup();
+    const next = encodeURIComponent("/en/chatroom?reader=theo");
+    window.history.replaceState(null, "", `/en/signup/password?next=${next}`);
+    api.register.mockRejectedValue(new ApiError({ code: "email_taken", message: "taken", status: 409 }));
+    renderWithI18n(<SignupPasswordForm />);
+    await u.type(screen.getByLabelText("New password"), "Longenough1!");
+    await u.type(screen.getByLabelText("Confirm password"), "Longenough1!");
+    await u.click(submitButton());
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByRole("link", { name: "Log In" }).getAttribute("href")).toBe(`/en/login?next=${next}`);
   });
 
   it("sends an invalid email back to step 1", async () => {
@@ -325,6 +372,17 @@ describe("LoginForm", () => {
     expect((screen.getByLabelText("Password") as HTMLInputElement).value).toBe("");
     expect(screen.getByRole("textbox", { name: "Email Address" }).getAttribute("aria-invalid")).toBe("false");
     expect(await axeViolations()).toEqual([]);
+  });
+
+  it("keeps a safe ?next= on the link to create an account", () => {
+    const next = encodeURIComponent("/en/chatroom?reader=theo");
+    window.history.replaceState(null, "", `/en/login?next=${next}`);
+    renderWithI18n(<LoginForm />);
+    expect(screen.getByRole("link", { name: "Create an account" }).getAttribute("href")).toBe(`/en/signup?next=${next}`);
+    cleanup();
+    window.history.replaceState(null, "", "/en/login?next=%2F%2Fevil.example");
+    renderWithI18n(<LoginForm />);
+    expect(screen.getByRole("link", { name: "Create an account" }).getAttribute("href")).toBe("/en/signup");
   });
 
   it("counts down a lock-out and blocks the form meanwhile", async () => {
