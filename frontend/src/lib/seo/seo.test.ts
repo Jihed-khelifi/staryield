@@ -8,7 +8,7 @@ import { buildRobots, DISALLOWED_PATHS } from "@/lib/seo/robots";
 import { ADVISOR_SITEMAP_PATH, buildAdvisorSitemap, buildSitemap, sitemapEntries } from "@/lib/seo/sitemap";
 import { screenJsonLd } from "@/lib/seo/screen-json-ld";
 import { createTranslateCopy } from "@/i18n/translate-copy";
-import { LIVE_READINGS_FAQ } from "@/content/faq/live-readings";
+import { FAQ_PAGE_ENTRIES } from "@/content/faq";
 import { breadcrumbJsonLd, faqJsonLd, organizationJsonLd, plainText, serializeJsonLd, webSiteJsonLd } from "@/lib/seo/jsonld";
 import { ADVISOR_DESCRIPTION, AUTH_ROUTES, CALCULATOR_ROUTES, DEFAULT_IMAGE_ALT, HOME_SEO, PAGE_SEO } from "@/lib/seo/pages";
 import { DEFAULT_SEO_IMAGE, SITE_URL, SKY_SEO_IMAGE, languageAlternates, localeUrl, pageAlternates, pageMetadata, tarotSeoImage, twitterCardFor } from "@/lib/seo/site";
@@ -220,7 +220,23 @@ describe("structured data of the existing pages", () => {
   it("describes the FAQ page's answered questions, translated", () => {
     const [faq] = screenJsonLd("faq", "fr", text) as { "@type": string; mainEntity: { name: string }[] }[];
     expect(faq["@type"]).toBe("FAQPage");
-    expect(faq.mainEntity.map((item) => item.name)).toEqual(LIVE_READINGS_FAQ.map((item) => (copyFr as Record<string, string>)[item.q]));
+    expect(faq.mainEntity.map((item) => item.name)).toEqual(FAQ_PAGE_ENTRIES.map((item) => (copyFr as Record<string, string>)[item.q]));
+  });
+
+  // Conversion follow-ups, slice E (docs/platform-extensions.md §27.1): one Question per answered item of the page.
+  it("has one Question per answered FAQ item: the 22 support answers, the live readings and the account group", () => {
+    const [faq] = screenJsonLd("faq", "en", createTranslateCopy(copyEn)) as { mainEntity: { "@type": string; name: string; acceptedAnswer: { text: string } }[] }[];
+    expect(faq.mainEntity).toHaveLength(FAQ_PAGE_ENTRIES.length);
+    expect(faq.mainEntity.length).toBeGreaterThanOrEqual(26);
+    expect(faq.mainEntity.every((item) => item["@type"] === "Question")).toBe(true);
+    expect(new Set(faq.mainEntity.map((item) => item.name)).size).toBe(faq.mainEntity.length);
+    // Answers are plain text: the content links are reduced to their labels.
+    for (const item of faq.mainEntity) {
+      expect(item.acceptedAnswer.text.length).toBeGreaterThan(80);
+      expect(item.acceptedAnswer.text).not.toMatch(/\]\(|^For help with this question/);
+    }
+    const reset = faq.mainEntity.find((item) => /reset staryield Website account/.test(item.name))!;
+    expect(reset.acceptedAnswer.text).toContain("reset link");
   });
 
   it("gives breadcrumbs only to the legal pages, which show a trail", () => {

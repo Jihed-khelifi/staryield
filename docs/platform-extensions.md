@@ -3964,7 +3964,68 @@ subsection is owned by one slice of the work.
 
 ### 27.1 FAQ answers
 
-_(slice E)_
+`/[lang]/faq` (`components/content/faq.tsx`, Figma-derived) used to answer each
+of its 22 expandable questions with "contact our support team". Every question
+now has a real answer, and a new group "Free minutes, invites and your account"
+follows "Live readings". No backend, API or migration change.
+
+* **Data** (`frontend/src/content/faq/`): `support-answers.ts` holds the 22
+  answers in four lists (`WEBSITE_FAQ` 6, `CHATTING_FAQ` 6, `ASTROLOGERS_FAQ` 8,
+  `BILLING_FAQ` 2) and `ACCOUNT_FAQ` (5: free sign-up minutes, earning invite
+  minutes, when they are added, whether confirming the e-mail address is
+  required, the free calculators). `index.ts` exports `SUPPORT_FAQ`,
+  `FAQ_PAGE_ENTRIES` (support answers, then `LIVE_READINGS_FAQ`, then
+  `ACCOUNT_FAQ`, in page order) and `faqAnswerForLabel(label)`. An entry is
+  `{ q, a }`: English source text, which is the key of
+  `copy-{en,fr,es}.json`; `a` may use the content modules' inline markup
+  (`[label](/path)`), rendered with `InlineText` and reduced to the label in the
+  structured data (`plainText`).
+* **Rendering.** The 20 Figma questions of the three first groups keep their
+  markup: `ContentLink` (`data-name="Instance / State=Collapsed…"`) renders the
+  `<details>` and now looks the answer up with `faqAnswerForLabel(label)` (the
+  design's label is "<symbol> <question> <tag words>"); it keeps the placeholder
+  only when no answer matches. The two Billing questions were plain `<div>`s in
+  the design (not expandable at all); they are now `ContentLink`s with a label.
+  "Live readings" and the new group render through `FaqAnswerBlock`
+  (`components/content/faq-answer-block.tsx`), anchors `#live-readings` and
+  `#account-and-offers`. `.faq-item` sets `white-space: normal` (the Figma
+  columns are `nowrap`, which clipped long questions).
+* **Structured data.** `screenJsonLd("faq")` builds the FAQPage from
+  `FAQ_PAGE_ENTRIES`: one `Question` per answered item (32 today), names equal
+  to the visible question text.
+* **Where the facts come from.** Credits and per-minute billing: Terms 6.1.1 and
+  6.1.4 (per started minute, free minutes first, then purchased, then bonus
+  credits, the hold is not charged), the pricing page and the chat session
+  panel (billing starts when the chat starts, the request countdown); refunds:
+  Refund Policy 4, 7–10 and the "Request a refund" action of Settings, Billing;
+  password reset: `AuthService.ForgotPassword`/`ResetPassword` (single-use link,
+  a new link cancels earlier ones, other devices are signed out; the expiry is
+  `PasswordResetTTL`, so the answer says "the time stated in the e-mail");
+  e-mail confirmation: Terms 3.8 (single use, 48 hours, resend limits, a new link
+  cancels the earlier ones, Google sign-ups count as confirmed; not required to
+  use the service); invites: Terms 4.20 (a friend counts after signing up with
+  the link, confirming their e-mail address and completing a reading of at least
+  one minute; rewards pending until launch, added "on a date we choose"; reviews
+  can hold a sign-up); free calculators: Terms 2.5; settings and account menu:
+  `components/account/settings`.
+* **Amounts.** The sign-up free minutes (admin setting, 1–60, may be off) are
+  never written down: the answer points to the Pricing page and sign-up. The
+  invite reward is "currently 5 free chat minutes" like Terms 4.20.3, with the
+  Invite friends page named as the place that shows the reward and limit in
+  force. If an administrator changes the default, update that sentence (and the
+  Terms) together; the dictionary keys are the English sentences.
+* **Wording rules.** `faq.test.tsx` bans audit/assurance/verification wording and
+  memberships; the payment-processor claim list
+  (`i18n/marketing-claims.test.ts`, `e2e/merchant-readiness.spec.ts`) bans, among
+  others, "accurate", "guarantee", "certified", "therapy" on the public pages.
+  Confirmation is "confirm your e-mail address"; no answer mentions
+  subscriptions or memberships.
+* **Tests.** `content/faq/faq-answers.test.ts` (22 + group, three languages,
+  links, banned wording, label lookup), `components/content/faq.test.tsx`
+  (no placeholder left, each answer under its question, the group),
+  `lib/seo/seo.test.ts` (one Question per item), and `e2e/faq.spec.ts`
+  (reset-password answer, group, JSON-LD with at least 26 questions, fr/es, no
+  sideways scroll on a phone).
 
 ### 27.2 New advisor label, public header and advisor profile frame
 

@@ -1835,6 +1835,8 @@ html {
 }
 .faq-item {
   display: block;
+  /* The Figma columns are nowrap; questions and answers wrap. */
+  white-space: normal;
 }
 .faq-item > summary {
   list-style: none;

@@ -4,6 +4,8 @@ import type { ComponentProps } from "react";
 import { useI18n } from "@/i18n/i18n-provider";
 import { usePathname } from "next/navigation";
 import { usePsychicsPath } from "@/lib/psychics-link";
+import { InlineText } from "@/components/content/legal/inline-text";
+import { faqAnswerForLabel } from "@/content/faq";
 
 export function headingAnchor(label: string) {
   return label
@@ -62,16 +64,24 @@ export function ContentLink({
       "Instance / State=Collapsed",
     )
   ) {
+    const answer = faqAnswerForLabel(label);
     return (
       <details className={`faq-item ${props.className ?? ""}`}>
         <summary>{children}</summary>
-        <p className="mt-4 text-sm font-serif normal-case tracking-normal">
-          {text("For help with this question,")}{" "}
-          <Link href={`/${locale}/contact`} className="underline">
-            {text("contact our support team ")}
-          </Link>
-          .
-        </p>
+        {answer ? (
+          // conversion follow-ups (§27.1): the answer of the question, with its links.
+          <p className="mt-4 text-sm font-serif leading-[22px] normal-case tracking-normal whitespace-normal">
+            <InlineText text={text(answer)} locale={locale} />
+          </p>
+        ) : (
+          <p className="mt-4 text-sm font-serif normal-case tracking-normal whitespace-normal">
+            {text("For help with this question,")}{" "}
+            <Link href={`/${locale}/contact`} className="underline">
+              {text("contact our support team ")}
+            </Link>
+            .
+          </p>
+        )}
       </details>
     );
   }

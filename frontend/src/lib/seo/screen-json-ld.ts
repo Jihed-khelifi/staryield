@@ -1,12 +1,12 @@
 /**
  * growth (seo): the structured data of the `[...screen]` routes, limited to
  * what each page visibly shows: FAQPage for a calculator's article and for
- * the FAQ page's answered questions, and BreadcrumbList where the page shows
+ * the FAQ page's answered questions (the support answers, the live readings and the account group), and BreadcrumbList where the page shows
  * a breadcrumb trail (the legal policy layout). Pages without a visible
  * trail get no BreadcrumbList.
  */
 import { articleKindForCalculator, getCalculatorArticle, type CalculatorRouteKind } from "@/content/calculators";
-import { LIVE_READINGS_FAQ } from "@/content/faq/live-readings";
+import { FAQ_PAGE_ENTRIES } from "@/content/faq";
 import { getLegalDocument } from "@/content/legal";
 import type { LegalDocumentId } from "@/content/legal/types";
 import type { Locale } from "@/i18n/config";
@@ -24,7 +24,7 @@ export function screenJsonLd(route: string, lang: Locale, text: TranslateCopy): 
       .flatMap((block) => (block.type === "faq" ? block.items : []));
     return faq.length ? [faqJsonLd(faq)] : [];
   }
-  if (route === "faq") return [faqJsonLd(LIVE_READINGS_FAQ.map((item) => ({ q: text(item.q), a: text(item.a) })))];
+  if (route === "faq") return [faqJsonLd(FAQ_PAGE_ENTRIES.map((item) => ({ q: text(item.q), a: text(item.a) })))];
   const legalId = Object.hasOwn(LEGAL_IDS, route) ? LEGAL_IDS[route] : undefined;
   const trail = legalId ? getLegalDocument(legalId, lang).policy?.breadcrumb : undefined;
   if (trail)
