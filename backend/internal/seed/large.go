@@ -235,11 +235,29 @@ func (d *Dataset) insert(table string, rows any, n int, selectAll bool) error {
 		// column defaults.
 		q = q.Select("*")
 	}
-	if err := q.CreateInBatches(rows, d.Opts.BatchSize).Error; err != nil {
+	if err := q.CreateInBatches(rows, d.batchFor(rows)).Error; err != nil {
 		return fmt.Errorf("insert %s: %w", table, err)
 	}
 	d.Counts[table] += n
 	return nil
+}
+
+// maxBindParams is PostgreSQL's limit of bind parameters per statement
+// (the extended protocol counts them in 16 bits).
+const maxBindParams = 65535
+
+// batchFor caps the insert batch so rows × columns stays within
+// maxBindParams: wide tables (support tickets) overflow it at the default
+// batch size.
+func (d *Dataset) batchFor(rows any) int {
+	batch := d.Opts.BatchSize
+	stmt := &gorm.Statement{DB: d.DB}
+	if err := stmt.Parse(rows); err == nil && stmt.Schema != nil {
+		if cols := len(stmt.Schema.DBNames); cols > 0 {
+			batch = min(batch, maxBindParams/cols)
+		}
+	}
+	return max(batch, 1)
 }
 
 var (
