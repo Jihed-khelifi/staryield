@@ -2592,5 +2592,15 @@
   "This link is not valid": "This link is not valid",
   "The unsubscribe link may be incomplete, or this address is no longer on our list. If you still receive e-mails from us, write to our support team.": "The unsubscribe link may be incomplete, or this address is no longer on our list. If you still receive e-mails from us, write to our support team.",
   "Unsubscribe": "Unsubscribe",
-  "Unsubscribing…": "Unsubscribing…"
+  "Unsubscribing…": "Unsubscribing…",
+  "Chat now": "Chat now",
+  "Join the waiting list": "Join the waiting list",
+  "Notify me when online": "Notify me when online",
+  "View profile": "View profile",
+  "Advisor accounts can't book readings": "Advisor accounts can't book readings",
+  "Use your free minute": "Use your free minute",
+  "Use your {value0} free minutes": "Use your {value0} free minutes",
+  "1 free minute for new members": "1 free minute for new members",
+  "{value0} free minutes for new members": "{value0} free minutes for new members",
+  "Book a reading": "Book a reading"
 }

@@ -2592,5 +2592,15 @@
   "This link is not valid": "Este enlace no es válido",
   "The unsubscribe link may be incomplete, or this address is no longer on our list. If you still receive e-mails from us, write to our support team.": "Es posible que el enlace de baja esté incompleto, o que esta dirección ya no esté en nuestra lista. Si aún recibes correos nuestros, escribe a nuestro equipo de soporte.",
   "Unsubscribe": "Darme de baja",
-  "Unsubscribing…": "Dando de baja…"
+  "Unsubscribing…": "Dando de baja…",
+  "Chat now": "Chatear ahora",
+  "Join the waiting list": "Unirme a la lista de espera",
+  "Notify me when online": "Avisarme cuando esté en línea",
+  "View profile": "Ver perfil",
+  "Advisor accounts can't book readings": "Las cuentas de asesores no pueden reservar consultas",
+  "Use your free minute": "Usa tu minuto gratis",
+  "Use your {value0} free minutes": "Usa tus {value0} minutos gratis",
+  "1 free minute for new members": "1 minuto gratis para nuevos miembros",
+  "{value0} free minutes for new members": "{value0} minutos gratis para nuevos miembros",
+  "Book a reading": "Reservar una consulta"
 }

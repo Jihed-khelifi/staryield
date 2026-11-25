@@ -3608,3 +3608,50 @@ html {
     white-space: nowrap;
   }
 }
+
+/* Booking: the status dot of the advisor strip and bar, and the sticky phone
+   booking bar of the profile. The bar exists on phones only (this unlayered
+   rule would win over a Tailwind `md:hidden`, so the media query decides). It
+   floats above the mobile tab bar (bottom 12px + 56px + a gap), keeps the
+   safe-area insets, and the page reserves its height (`has-booking-bar`) so
+   the end of the page stays reachable. */
+.booking-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: var(--gold);
+}
+.booking-dot.online {
+  background: var(--amber);
+  box-shadow: 0 0 0 3px rgb(194 154 61 / 0.28);
+}
+.booking-dot.offline {
+  background: transparent;
+  border: 1.5px solid var(--gold);
+}
+.booking-bar {
+  display: none;
+}
+@media (max-width: 767px) {
+  .booking-bar {
+    position: fixed;
+    left: calc(12px + env(safe-area-inset-left));
+    right: calc(12px + env(safe-area-inset-right));
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 8px 8px 14px;
+    border: 1px solid rgb(194 154 61 / 0.45);
+    border-radius: 16px;
+    background: rgb(250 245 233 / 0.97);
+    box-shadow: 0 8px 24px rgb(23 21 15 / 0.14);
+    backdrop-filter: blur(8px);
+  }
+  .psychic-profile.has-booking-bar {
+    padding-bottom: calc(26px + 64px);
+  }
+}
