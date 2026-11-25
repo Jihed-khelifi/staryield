@@ -238,6 +238,14 @@ func Notification(locale, kind string, data map[string]any, link string) (Conten
 			return Content{}, false
 		}
 		c = Content{Subject: title, Paragraphs: nonEmpty(body), Action: &Action{Label: t("Open Staryield"), URL: link}}
+	// --- growth: lifecycle and onboarding ---
+	case "lifecycle.first_reading", "lifecycle.invite_friends", "lifecycle.win_back":
+		lc, found := lifecycleNotification(t, kind, data, link)
+		if !found {
+			return Content{}, false
+		}
+		c = lc
+	// --- end growth: lifecycle and onboarding ---
 	default:
 		return Content{}, false
 	}
