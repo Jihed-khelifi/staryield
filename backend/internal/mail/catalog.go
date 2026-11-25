@@ -232,6 +232,10 @@ func Notification(locale, kind string, data map[string]any, link string) (Conten
 		c = Content{Subject: t("Our team replied to your request"), Paragraphs: []string{p},
 			Action: &Action{Label: t("Read the reply"), URL: link}}
 	// end revisions 3.0: support desk
+	// --- growth: referrals ---
+	case "referral.joined", "referral.qualified", "referral.reward_granted":
+		c, _ = referralNotification(t, kind, data, link)
+	// --- end growth: referrals ---
 	case "broadcast":
 		title, body := localizedPair(locale, data["title"]), localizedPair(locale, data["body"])
 		if title == "" {
