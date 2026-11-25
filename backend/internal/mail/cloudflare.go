@@ -230,6 +230,11 @@ const (
 	cfRecipientPlanRestricted = 10208
 )
 
+// ConfigHint returns the operator hint of a Cloudflare Email Sending failure
+// recorded with its HTTP status and error code (the outbox keeps them in
+// last_error), and whether it is an account or configuration problem.
+func ConfigHint(status, code int) (string, bool) { return cfConfigHint(status, code) }
+
 // cfConfigHint classifies the failures that come from the provider account
 // (credentials, entitlement, plan, sending domain) rather than from the
 // message, with what the operator should check.

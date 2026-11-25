@@ -236,6 +236,7 @@ func TestExplainHotQueries(t *testing.T) {
 	checks = append(checks, invoiceChecks(live)...)
 	// revisions 6.0: free-trial hold
 	checks = append(checks, trialHoldChecks(live, ids)...)
+	checks = append(checks, mailHealthChecks()...) // growth: e-mail delivery
 	// revisions 6.0: card payment operations (webhook log, disputes, fraud warnings)
 	checks = append(checks, paymentOpsChecks(live, ids)...)
 	// revisions 6.0 (§26.4): e-mail leads of the calculators' report

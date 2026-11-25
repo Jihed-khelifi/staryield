@@ -693,6 +693,12 @@ func NewRouter(d Deps) *echo.Echo {
 	// end revisions 5.0: refund requests
 
 	// --- growth admin: e-mail delivery ---
+	// The delivery view is metadata only (no recipients or bodies); the test
+	// send reaches a real inbox, so it needs a fresh step-up and has its own
+	// small budget.
+	mailTestRL := mw.RateLimit(limiter, rule("admin_mail_test", config.Rule{Rate: 10, Period: time.Hour, Burst: 5}, scale), mw.ByUserOrIP, false)
+	ad.GET("/mail/health", h.AdminMailHealth)
+	ad.POST("/mail/test", h.AdminMailTest, stepUp, mailTestRL)
 	// --- end growth admin: e-mail delivery ---
 
 	// --- growth admin: e-mail verification ---

@@ -85,6 +85,9 @@ type MailSettings struct {
 	// SupportEmail is printed in the footer of every e-mail (revisions 5.1,
 	// STARYIELD_MAIL_SUPPORT_INBOX; empty: the built-in support address).
 	SupportEmail string
+	// From is the configured sender, shown by the admin console's delivery
+	// view (growth: e-mail delivery).
+	From string
 }
 
 func (s *MailSettings) defaults() {
@@ -141,6 +144,8 @@ type MailService struct {
 	// resolvers turn attachment references into files, by kind (registered at
 	// start-up with RegisterAttachments, before delivery starts).
 	resolvers map[string]AttachmentResolver
+	// audit records the admin console's test sends (growth: e-mail delivery).
+	audit *mailAudit
 }
 
 // NewMailService wires the outbox.

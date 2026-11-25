@@ -245,7 +245,8 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	mailSvc := service.NewMailService(txm, repository.NewEmailRepository(db), mailer, sealer, clk, log.With(zap.String("component", "mail")),
 		service.MailSettings{FrontendURL: cfg.App.FrontendURL, MaxAttempts: cfg.Mail.MaxAttempts, DailyCap: cfg.Mail.DailyCap,
 			AllowMarketing: cfg.Mail.AllowMarketing, SendTimeout: cfg.Mail.Timeout + 5*time.Second, HashKey: addressHashKey,
-			SupportEmail: cfg.Mail.SupportInbox}) // revisions 5.1: footer of every e-mail (§25.4)
+			SupportEmail: cfg.Mail.SupportInbox, // revisions 5.1: footer of every e-mail (§25.4)
+			From:         cfg.Mail.From})        // growth: e-mail delivery view
 	var pushSender push.Sender
 	pushPublicKey := ""
 	if cfg.Push.Active() {
@@ -601,6 +602,9 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 
 	// --- growth: e-mail verification ---
 	// --- end growth: e-mail verification ---
+
+	// growth: e-mail delivery (the admin console's test sends are audited).
+	mailSvc.WithAudit(audit, cfg.Analytics.IPHashSecret)
 
 	// --- growth: referrals ---
 	// --- end growth: referrals ---

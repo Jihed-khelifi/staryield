@@ -123,6 +123,8 @@ func (m *memEmailRepo) Finish(_ context.Context, id uuid.UUID, f map[string]any)
 			r.LockedUntil = nil
 		case "provider_message_id":
 			r.ProviderMessageID = v.(string)
+		case "provider":
+			r.Provider = v.(string)
 		case "sent_at":
 			t := v.(time.Time)
 			r.SentAt = &t
@@ -132,6 +134,57 @@ func (m *memEmailRepo) Finish(_ context.Context, id uuid.UUID, f map[string]any)
 }
 
 func (m *memEmailRepo) PurgeFinished(context.Context, time.Time) (int64, error) { return 0, nil }
+
+func (m *memEmailRepo) DeliveryStats(_ context.Context, since time.Time) ([]repository.EmailDeliveryStat, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	counts := map[repository.EmailDeliveryStat]int64{}
+	for _, r := range m.rows {
+		if r.CreatedAt.Before(since) {
+			continue
+		}
+		counts[repository.EmailDeliveryStat{Template: r.Template, Status: r.Status, Reason: r.StatusReason}]++
+	}
+	out := make([]repository.EmailDeliveryStat, 0, len(counts))
+	for k, n := range counts {
+		k.Count = n
+		out = append(out, k)
+	}
+	return out, nil
+}
+
+func (m *memEmailRepo) Problems(_ context.Context, since time.Time, limit int) ([]domain.EmailOutbox, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []domain.EmailOutbox
+	for _, r := range m.rows {
+		problem := r.Status == domain.EmailFailed || r.Status == domain.EmailDead || r.Status == domain.EmailCancelled ||
+			r.Status == domain.EmailSuppressed || (r.Status == domain.EmailQueued && r.LastError != "")
+		if problem && !r.CreatedAt.Before(since) && len(out) < limit {
+			out = append(out, *r)
+		}
+	}
+	return out, nil
+}
+
+func (m *memEmailRepo) Backlog(context.Context) (repository.EmailBacklog, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var b repository.EmailBacklog
+	for _, r := range m.rows {
+		if r.Status != domain.EmailQueued {
+			continue
+		}
+		b.Queued++
+		if r.Attempts > 0 {
+			b.Retrying++
+		}
+		if due := r.NextAttemptAt; b.OldestDue == nil || due.Before(*b.OldestDue) {
+			b.OldestDue = &due
+		}
+	}
+	return b, nil
+}
 func (m *memEmailRepo) Get(_ context.Context, id uuid.UUID) (*domain.EmailOutbox, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
