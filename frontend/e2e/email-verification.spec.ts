@@ -2,7 +2,8 @@
  * E-mail verification by secure link, announced live to every open tab.
  *
  * Needs the API's log mail driver (every e-mail body is printed in its log):
- * E2E_API_LOG is the path of that log. Every journey registers its own account.
+ * E2E_API_LOG (or E2E_MAIL_LOG, the name account-settings.spec.ts uses for the
+ * same file) is the path of that log. Every journey registers its own account.
  */
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
@@ -11,7 +12,7 @@ import { expectNoA11yViolations } from "./a11y";
 import { API_URL, expectNoHorizontalScroll } from "./helpers";
 
 const PASSWORD = "E2e!Secure#2026x";
-const LOG = process.env.E2E_API_LOG;
+const LOG = process.env.E2E_API_LOG || process.env.E2E_MAIL_LOG;
 const unique = () => `e2e+verify-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@staryield.test`;
 
 /** The verification links e-mailed to one address, oldest first (the log driver prints one line per e-mail, with its recipient). */
@@ -58,7 +59,7 @@ async function twoTabs(browser: Browser) {
 }
 
 test.describe("e-mail verification", { tag: "@responsive" }, () => {
-  test.skip(!LOG, "needs the API log (E2E_API_LOG) to read the links of the log mail driver");
+  test.skip(!LOG, "needs the API log (E2E_API_LOG or E2E_MAIL_LOG) to read the links of the log mail driver");
 
   test("the link verifies the address on another device and every open tab updates live", async ({ browser }) => {
     const { context, profile, settings, link } = await twoTabs(browser);
