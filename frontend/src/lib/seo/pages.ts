@@ -2,7 +2,7 @@
  * Search metadata of the site's existing indexable pages (the `[...screen]`
  * routes and the home page): keyword-aware titles and descriptions, written
  * as English source copy and translated with `text()` (every string is in
- * `copy-{en,fr,es}.json`; `pages.test.ts` checks it), plus the sitemap
+ * `copy-{en,fr,es}.json`; `lib/seo/seo.test.ts` checks it), plus the sitemap
  * fields. The programmatic pages describe themselves (src/content/seo).
  */
 import { legalDocuments } from "@/content/legal";
@@ -148,6 +148,11 @@ export const PAGE_SEO: Record<string, PageSeo> = {
     priority: 0.3,
   },
 };
+
+/** The search metadata of a route, when PAGE_SEO itself defines it (never an Object.prototype key). */
+export function pageSeo(route: string): PageSeo | undefined {
+  return Object.hasOwn(PAGE_SEO, route) ? PAGE_SEO[route] : undefined;
+}
 
 /** An advisor profile's description ({value0} is the advisor's name). */
 export const ADVISOR_DESCRIPTION =
