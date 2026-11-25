@@ -27,6 +27,11 @@ const content: ArticleContent = {
             "Signe ascendant (Ascendant) : le filtre, l’apparence physique et le point de vue principal à travers lesquels vous évoluez dans le monde extérieur.",
           ],
         },
+        {
+          type: "p",
+          weight: "light",
+          text: "Envie de savoir comment votre signe solaire s’entend avec celui d’un proche ? Comparez deux signes, de l’angle qui les sépare à leurs éléments et à leurs planètes maîtresses, dans notre [guide de compatibilité des signes](/compatibility) et ses 78 associations.",
+        },
       ],
     },
     {

@@ -172,6 +172,11 @@ const content: ArticleContent = {
             "**Maison 4 / Maison 10 (l’axe des origines et du statut) :** Équilibre la vie privée et domestique, la sécurité familiale et les racines psychologiques avec les objectifs de carrière publics, la réputation et le devoir social.",
           ],
         },
+        {
+          type: "p",
+          weight: "light",
+          text: "Vous lisez un thème à deux ? Toute comparaison de thèmes commence par les signes solaires : découvrez comment le vôtre rencontre celui d’un proche dans notre [guide de compatibilité des signes](/compatibility), qui couvre les 78 associations.",
+        },
       ],
     },
   ],

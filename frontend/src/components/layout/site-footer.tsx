@@ -19,6 +19,15 @@ const groups = [
       ["Sign Up | Sign In", "/signup"],
     ],
   },
+  // growth (seo): the search hubs (Life Path numbers, tarot birth cards, sign compatibility).
+  {
+    name: "Explore",
+    links: [
+      ["Life Path numbers", "/life-path-number"],
+      ["Tarot birth cards", "/tarot-birth-card"],
+      ["Zodiac compatibility", "/compatibility"],
+    ],
+  },
   {
     name: "Support",
     links: [

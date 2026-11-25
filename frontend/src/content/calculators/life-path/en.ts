@@ -78,6 +78,10 @@ const content: ArticleContent = {
             { title: "Life Path 9", subtitle: "The Humanitarian", body: ["Universal compassion, artistic maturity, altruism, and completion.", "Letting go of past attachments and establishing healthy boundaries."] },
           ],
         },
+        {
+          type: "p",
+          text: "Read the full meaning of every number, master numbers included, with its strengths, challenges, love life and compatible numbers, in our [guide to the Life Path numbers](/life-path-number).",
+        },
       ],
     },
     {
