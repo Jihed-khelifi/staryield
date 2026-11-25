@@ -80,7 +80,11 @@ CREATE INDEX referrals_joined_idx ON referrals (joined_at) WHERE status = 'joine
 CREATE INDEX referrals_recent_idx ON referrals (created_at DESC, id DESC);
 CREATE INDEX referrals_status_recent_idx ON referrals (status, created_at DESC, id DESC);
 CREATE INDEX referrals_flagged_recent_idx ON referrals (created_at DESC, id DESC) WHERE flagged;
--- The admin summary: counts and minutes per status without touching the table.
+-- The admin summary: counts and minutes per status from this covering index.
+-- The planner reads it index-only once vacuum has marked the pages all-visible
+-- (a sequential scan right after bulk writes); either way it reads every row,
+-- so the admin console polls the summary only while launched rewards are
+-- still being added.
 CREATE INDEX referrals_summary_idx ON referrals (status) INCLUDE (flagged, reward_minutes);
 
 CREATE TRIGGER referrals_touch_updated_at BEFORE UPDATE ON referrals

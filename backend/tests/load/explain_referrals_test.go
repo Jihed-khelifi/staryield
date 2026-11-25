@@ -22,7 +22,9 @@ import (
 // the qualification reads of a friend (their referral, a qualifying reading,
 // the inviter's rewarded count), the grant job's claim, the sweep and the
 // admin console's list. The admin summary aggregates the whole table by
-// design (low traffic); it reads its covering index.
+// design (low traffic: the console polls it only while launched rewards are
+// being added); it reads its covering index index-only once the table is
+// vacuumed, and is an allowed sequential scan right after bulk writes.
 
 // referralSample holds live ids for the checks (random ones when a table is empty).
 type referralSample struct {
