@@ -555,7 +555,16 @@ export type NotificationKind =
   | "refund_request.resolved"
   // revisions 5.1 (§25.5): refunds issued by support or the provider, and the membership confirmation.
   | "payment.refunded"
-  | "subscription.started";
+  | "subscription.started"
+  // --- growth: e-mail verification ---
+  // --- end growth: e-mail verification ---
+
+  // --- growth: referrals ---
+  // --- end growth: referrals ---
+
+  // --- growth: lifecycle and onboarding ---
+  // --- end growth: lifecycle and onboarding ---
+  ;
 
 /** Realtime `notification.read` (§23.6): read state changed in another tab or device. */
 export type NotificationReadEvent = { ids?: string[]; all?: true; unread: number };

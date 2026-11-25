@@ -194,6 +194,15 @@ export function Overview({ name, user, horoscope }: { name: string; user: User; 
         {stats}
       </section>
 
+      {/* --- growth: e-mail verification --- */}
+      {/* --- end growth: e-mail verification --- */}
+
+      {/* --- growth: lifecycle and onboarding --- */}
+      {/* --- end growth: lifecycle and onboarding --- */}
+
+      {/* --- growth: referrals --- */}
+      {/* --- end growth: referrals --- */}
+
       {/* Phones read the horoscope before the calendar (867:16324). */}
       <section className="rounded-[12px] bg-[rgb(251_246_233/0.2)] p-[18px] shadow-[0_10px_28px_rgb(23_21_15/0.09)] md:hidden" aria-labelledby="horoscope-title-mobile">
         <div className="flex items-center justify-between gap-3 border-b border-[rgb(170_142_98/0.35)] pb-3">

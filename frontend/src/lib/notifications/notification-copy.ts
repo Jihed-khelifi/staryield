@@ -46,6 +46,14 @@ export const NOTIFICATION_KINDS = [
   // revisions 5.1 (§25.5)
   "payment.refunded",
   "subscription.started",
+  // --- growth: e-mail verification ---
+  // --- end growth: e-mail verification ---
+
+  // --- growth: referrals ---
+  // --- end growth: referrals ---
+
+  // --- growth: lifecycle and onboarding ---
+  // --- end growth: lifecycle and onboarding ---
 ] as const satisfies readonly NotificationKind[];
 
 type MissingKinds = Exclude<NotificationKind, (typeof NOTIFICATION_KINDS)[number]>;
@@ -318,6 +326,14 @@ export function notificationText(
       return { title: text(T.refundResolvedTitle), body: text(refundResolvedCopy[str(d.status)] ?? refundResolvedCopy.other, { reference: str(d.reference) }) };
     case "broadcast":
       return { title: pickLocalized(d.title, locale) || text(T.fallbackTitle), body: pickLocalized(d.body, locale) };
+    // --- growth: e-mail verification ---
+    // --- end growth: e-mail verification ---
+
+    // --- growth: referrals ---
+    // --- end growth: referrals ---
+
+    // --- growth: lifecycle and onboarding ---
+    // --- end growth: lifecycle and onboarding ---
     default:
       return { title: text(T.fallbackTitle), body: "" };
   }
@@ -349,6 +365,14 @@ export function notificationFallbackLink(n: AppNotification): string | null {
       return "/profile/settings#billing";
     case "account.reactivated":
       return "/profile";
+    // --- growth: e-mail verification ---
+    // --- end growth: e-mail verification ---
+
+    // --- growth: referrals ---
+    // --- end growth: referrals ---
+
+    // --- growth: lifecycle and onboarding ---
+    // --- end growth: lifecycle and onboarding ---
     default:
       return null;
   }
