@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -21,22 +22,21 @@ func TestAddPurgerKeepsEveryPurgerInOrder(t *testing.T) {
 	var calls []string
 	e := NewAccountEraser(EraserDeps{})
 	e.AddPurger(nil) // ignored
-	e.SetCalculators(namedPurger{"calculators", &calls})
 	e.AddPurger(namedPurger{"referrals", &calls})
 	e.AddPurger(namedPurger{"another feature", &calls})
-	n, err := e.d.Calculators.PurgeForUser(context.Background(), uuid.New())
-	if err != nil || n != 3 {
-		t.Fatalf("purged %d, err %v", n, err)
+	// Wiring a slot afterwards never drops the added purgers.
+	e.SetCalculators(namedPurger{"calculators", &calls})
+	e.SetCalculators(namedPurger{"calculators v2", &calls})
+	if err := e.eraseExtras(context.Background(), uuid.New(), time.Now()); err != nil {
+		t.Fatal(err)
 	}
-	if len(calls) != 3 || calls[0] != "calculators" || calls[1] != "referrals" || calls[2] != "another feature" {
+	want := []string{"calculators v2", "referrals", "another feature"}
+	if len(calls) != len(want) {
 		t.Fatalf("calls: %v", calls)
 	}
-
-	// Without a slot already wired, the first purger takes it.
-	calls = nil
-	e = NewAccountEraser(EraserDeps{})
-	e.AddPurger(namedPurger{"referrals", &calls})
-	if _, err := e.d.Calculators.PurgeForUser(context.Background(), uuid.New()); err != nil || len(calls) != 1 {
-		t.Fatalf("calls: %v %v", calls, err)
+	for i := range want {
+		if calls[i] != want[i] {
+			t.Fatalf("calls: %v, want %v", calls, want)
+		}
 	}
 }

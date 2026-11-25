@@ -2,15 +2,12 @@ package service
 
 // AddPurger makes account erasure also run p, after the purgers already
 // wired, in the same transaction. Growth features add their own rows this
-// way instead of replacing a slot of EraserDeps (several features can add
-// theirs without knowing about each other).
+// way instead of taking a slot of EraserDeps: p goes to its own list, so
+// several features can add theirs without knowing about each other, and a
+// later SetCalculators (or any slot change) never drops it.
 func (e *AccountEraser) AddPurger(p UserDataPurger) {
 	if p == nil {
 		return
 	}
-	if e.d.Calculators == nil {
-		e.d.Calculators = p
-		return
-	}
-	e.d.Calculators = PurgeAll(e.d.Calculators, p)
+	e.d.Extra = append(e.d.Extra, p)
 }
