@@ -225,7 +225,9 @@ func TestExplainLifecyclePopulated(t *testing.T) {
 	const signupIndexes = "users_role_created_idx|users_status_idx"
 	var cases []planCase
 	for name, index := range map[string]string{
-		domain.JourneyVerifyReminder:             signupIndexes,
+		// The verification reminder reads unverified accounts only: the
+		// e-mail verification feature's partial index (0039) fits it best.
+		domain.JourneyVerifyReminder:             signupIndexes + "|users_unverified_created_idx",
 		domain.JourneyFirstReading:               signupIndexes,
 		domain.JourneyAfterFirstReading:          "lifecycle_readers_first_idx",
 		domain.JourneyWinBack:                    "lifecycle_readers_last_idx",
