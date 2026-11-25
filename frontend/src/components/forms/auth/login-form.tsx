@@ -13,7 +13,8 @@ import { useSession } from "@/lib/auth/session-provider";
 import { applyApiError } from "@/lib/forms/server-errors";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { nextForApi } from "@/lib/auth/google";
-import { safeNext } from "@/lib/navigation";
+import { useSafeNext } from "@/lib/auth/use-safe-next";
+import { safeNext, signupUrl } from "@/lib/navigation";
 import { loginSchema, type LoginValues } from "@/lib/schemas/auth";
 import { useToast } from "@/components/feedback/toast-provider";
 import { FieldRow } from "@/components/ui/field";
@@ -34,6 +35,8 @@ export function LoginForm() {
   const { setUser } = useSession();
   const toast = useToast();
   const googleAvailable = useGoogleAvailable();
+  // "Create an account" keeps where the person was heading (a book button, a gated page).
+  const next = useSafeNext(locale);
   const form = useSchemaForm(loginSchema, { defaultValues: { email: "", password: "" } });
   const [lockedFor, setLockedFor] = React.useState<number | undefined>(undefined);
   const left = useCountdown(lockedFor);
@@ -129,7 +132,7 @@ export function LoginForm() {
             )}
           </FieldRow>
           <div className="mt-4 flex justify-between text-xs">
-            <Link className="underline" href={`/${locale}/signup`}>
+            <Link className="underline" href={signupUrl(locale, next)}>
               {text("Create an account")}
             </Link>
             <Link className="underline" href={`/${locale}/forgot-password`}>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { safeNext } from "@/lib/navigation";
+import { keepNext, safeNext, signupUrl } from "@/lib/navigation";
 
 describe("safeNext", () => {
   it("accepts same-locale relative paths", () => {
@@ -18,5 +18,20 @@ describe("safeNext", () => {
     ["missing", ""],
   ])("rejects %s", (_, search) => {
     expect(safeNext(search, "en")).toBeNull();
+  });
+});
+
+describe("signupUrl and keepNext", () => {
+  it("builds the sign-up URL that continues to a path", () => {
+    expect(signupUrl("en")).toBe("/en/signup");
+    expect(signupUrl("fr", "/fr/chatroom?reader=theo")).toBe("/fr/signup?next=%2Ffr%2Fchatroom%3Freader%3Dtheo");
+  });
+
+  it("carries a safe next to the following step and nothing else", () => {
+    const next = encodeURIComponent("/en/chatroom?reader=theo");
+    expect(keepNext("/en/signup/password", `?next=${next}`, "en")).toBe(`/en/signup/password?next=${next}`);
+    expect(keepNext("/en/signup/password", "?utm_source=x", "en")).toBe("/en/signup/password");
+    expect(keepNext("/en/signup/password", "?next=https://evil.example/en", "en")).toBe("/en/signup/password");
+    expect(keepNext("/en/signup/password", `?next=${encodeURIComponent("/fr/x")}`, "en")).toBe("/en/signup/password");
   });
 });

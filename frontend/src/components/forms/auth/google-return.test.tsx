@@ -144,7 +144,7 @@ describe("GoogleReturn: signed in / up / linked", () => {
 
   it("signed_up continues at the birth step and forgets the invite it used", async () => {
     storeInvite();
-    visit("?result=signed_up&next=%2Fprofile");
+    visit("?result=signed_up");
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/en/signup/birth"));
     expect(setUser).toHaveBeenCalledWith(client);
     expect(localStorage.getItem(REFERRAL_KEY)).toBeNull();
@@ -155,6 +155,15 @@ describe("GoogleReturn: signed in / up / linked", () => {
     visit("?result=signed_in");
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/en/profile"));
     expect(localStorage.getItem(REFERRAL_KEY)).not.toBeNull();
+  });
+
+  it("signed_up keeps where the person was heading (a book button's chat) for after the birth step", async () => {
+    visit(`?result=signed_up&next=${encodeURIComponent("/chatroom?reader=theo")}`);
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith(`/en/signup/birth?next=${encodeURIComponent("/en/chatroom?reader=theo")}`));
+    cleanup();
+    router.replace.mockClear();
+    visit("?result=signed_up&next=https%3A%2F%2Fevil.example");
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/en/signup/birth"));
   });
 
   it("linked goes to the settings with a success toast", async () => {
@@ -214,6 +223,15 @@ describe("GoogleReturn: signup_consent", () => {
     expect(api.googleComplete).toHaveBeenCalledWith({ accept_terms: true, locale: "en", attribution: undefined });
     expect(setUser).toHaveBeenCalledWith(client);
     expect(localStorage.getItem(REFERRAL_KEY)).toBeNull(); // the invite was used by this account
+  });
+
+  it("keeps where the person was heading for after the birth step", async () => {
+    const u = userEvent.setup();
+    api.googleComplete.mockResolvedValue({ user: client });
+    visit(`?result=signup_consent&next=${encodeURIComponent("/psychics/theo")}`);
+    await u.click(await screen.findByRole("checkbox"));
+    await u.click(screen.getByRole("button", { name: "Create account" }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith(`/en/signup/birth?next=${encodeURIComponent("/en/psychics/theo")}`));
   });
 
   it("sends the first-touch attribution, and retries without it when the API rejects it", async () => {

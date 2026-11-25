@@ -688,11 +688,14 @@ input[type="checkbox"] {
   margin-top: 44px;
 }
 /* Figma 174:805: no fill — the aged-paper texture in overlay mode
-   (`texture-24` on the element) over the page gradient. */
+   (`texture-24` on the element) over the page gradient. The design's 498px is
+   a minimum: the card grows to hold the book button under the profile bar
+   (cards of a row stretch to one height, the bar and the button stay at the
+   bottom), so nothing is ever cut off by `overflow: hidden`. */
 .advisor-card {
   display: flex;
   flex-direction: column;
-  height: 498px;
+  min-height: 498px;
   border: 1px solid var(--gold);
   border-radius: 16px;
   overflow: hidden;
@@ -717,6 +720,27 @@ input[type="checkbox"] {
 }
 .advisor-card-copy h2 {
   color: #15100b;
+}
+/* The advisor status dot (directory cards on desktop, the booking bar and the
+   advisor strip): gold, amber with a glow when online, hollow when offline,
+   so the status is not told by colour alone. */
+.status-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--gold);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+}
+.status-dot.online {
+  background: var(--amber);
+  box-shadow: 0 0 0 3px rgb(194 154 61 / 0.28);
+}
+.status-dot.offline {
+  background: transparent;
+  border: 1.5px solid var(--gold);
+  box-shadow: none;
 }
 .advisor-status-dot {
   display: none;
@@ -773,22 +797,8 @@ input[type="checkbox"] {
   }
   .advisor-status-dot {
     display: inline-block;
-    width: 8px;
-    height: 8px;
     margin: 0 8px 4px 0;
     vertical-align: middle;
-    border-radius: 4px;
-    background: var(--gold);
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
-  }
-  .advisor-status-dot.online {
-    background: var(--amber);
-    box-shadow: 0 0 0 3px rgb(194 154 61 / 0.28);
-  }
-  .advisor-status-dot.offline {
-    background: transparent;
-    border: 1.5px solid var(--gold);
-    box-shadow: none;
   }
   .advisor-skills li {
     padding: 1px 8px;
@@ -824,7 +834,7 @@ input[type="checkbox"] {
   align-items: center;
   justify-content: center;
   height: 29px;
-  margin: auto -16px 28px -17px;
+  margin: auto -16px 0 -17px;
   text-transform: uppercase;
   letter-spacing: 0.65px;
   font-family: var(--font-display);
@@ -835,6 +845,10 @@ input[type="checkbox"] {
   background-blend-mode: overlay;
   border-top: 0.5px solid rgb(0 0 0 / 0.15);
   box-shadow: var(--shadow-cta-glow);
+}
+/* The book button under the profile bar (desktop: the card's last element). */
+.advisor-card-book {
+  margin: 12px 0 20px;
 }
 .status-pill {
   border: 1px solid var(--gold);
@@ -1169,6 +1183,10 @@ html:not([lang="en"]) .figma-content > .figma-section {
     letter-spacing: normal;
     font-family: var(--font-serif);
     font-size: 11px;
+  }
+  /* Phones: the card's own padding ends it. */
+  .advisor-card-book {
+    margin-bottom: 0;
   }
   .psychic-profile {
     padding: 26px 16px;
@@ -3607,5 +3625,36 @@ html {
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+  }
+}
+
+/* Booking: the sticky phone booking bar of the profile (its status dot is the
+   shared `.status-dot`). The bar exists on phones only (this unlayered
+   rule would win over a Tailwind `md:hidden`, so the media query decides). It
+   floats above the mobile tab bar (bottom 12px + 56px + a gap), keeps the
+   safe-area insets, and the page reserves its height (`has-booking-bar`) so
+   the end of the page stays reachable. */
+.booking-bar {
+  display: none;
+}
+@media (max-width: 767px) {
+  .booking-bar {
+    position: fixed;
+    left: calc(12px + env(safe-area-inset-left));
+    right: calc(12px + env(safe-area-inset-right));
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 8px 8px 14px;
+    border: 1px solid rgb(194 154 61 / 0.45);
+    border-radius: 16px;
+    background: rgb(250 245 233 / 0.97);
+    box-shadow: 0 8px 24px rgb(23 21 15 / 0.14);
+    backdrop-filter: blur(8px);
+  }
+  .psychic-profile.has-booking-bar {
+    padding-bottom: calc(26px + 64px);
   }
 }
