@@ -50,5 +50,8 @@ func emailVerificationChecks(db *gorm.DB) []queryCheck {
 		{"admin users: not verified (page 10)", 25 * time.Millisecond, users(repository.UserFilter{Verified: &no, Limit: 51, Cursor: &cursor})},
 		{"admin users: verified", 25 * time.Millisecond, users(repository.UserFilter{Verified: &yes, Limit: 51})},
 		{"admin users: verified (page 10)", 25 * time.Millisecond, users(repository.UserFilter{Verified: &yes, Limit: 51, Cursor: &cursor})},
+		// The console's usual view: clients only, combined with the verification filter.
+		{"admin users: clients not verified", 25 * time.Millisecond, users(repository.UserFilter{Role: domain.RoleClient, Verified: &no, Limit: 51})},
+		{"admin users: clients verified (page 10)", 25 * time.Millisecond, users(repository.UserFilter{Role: domain.RoleClient, Verified: &yes, Limit: 51, Cursor: &cursor})},
 	}
 }
