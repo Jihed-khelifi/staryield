@@ -422,6 +422,18 @@ func TestReferralAntiAbuse(t *testing.T) {
 		t.Fatalf("a rejected referral is counted: %+v", s)
 	}
 
+	// A browser that already belongs to another account: held for review (one
+	// person opening several accounts with the same link).
+	other := e.registerClient()
+	if err := e.app.DB.Exec(`INSERT INTO web_visitors (anonymous_id, first_seen_at, last_seen_at, user_id, linked_at)
+		VALUES ('other-browser-1', now(), now(), ?, now())`, other.user.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	second := e.registerReferred(code, "other-browser-1")
+	if r := e.referralOf(second.user.ID); r.Status != domain.ReferralJoined || !r.Flagged || !containsFlag(r.Flags, domain.ReferralFlagSharedBrowser) {
+		t.Fatalf("browser of another account: %+v", r)
+	}
+
 	// The inviter's device comes from the same network as the sign-up: held for review.
 	held := e.registerReferred(code, "")
 	r := e.referralOf(held.user.ID)
@@ -484,14 +496,14 @@ func TestReferralAntiAbuse(t *testing.T) {
 		t.Fatalf("approving twice: %d", r.status)
 	}
 
-	// More than ten sign-ups in a day are held. The inviter already has 2 rows
-	// above (rejected and held), so the 9th new sign-up is the 11th in the window.
+	// More than ten sign-ups in a day are held. The inviter already has 3 rows
+	// above (rejected and two held), so the 8th new sign-up is the 11th in the window.
 	for i := 1; i <= 12; i++ {
 		u := e.registerClient()
 		e.app.Services.Referrals.Attribute(ctx, u.user.ID, &service.AttributionInput{ReferralCode: code})
 		got := e.referralOf(u.user.ID)
 		held := len(got.Flags) == 1 && got.Flags[0] == domain.ReferralFlagSignupBurst
-		if held != (i >= 9) || got.Flagged != held {
+		if held != (i >= 8) || got.Flagged != held {
 			t.Fatalf("sign-up %d: %+v", i, got)
 		}
 	}
@@ -568,6 +580,15 @@ func TestReferralCapAndGrantsUnderConcurrency(t *testing.T) {
 	if n := countReferralNotices(t, inviter, service.NotifyReferralRewardGranted); n < 1 || n > 3 {
 		t.Fatalf("%d grant notices", n)
 	}
+}
+
+func containsFlag(flags domain.StringList, flag string) bool {
+	for _, f := range flags {
+		if f == flag {
+			return true
+		}
+	}
+	return false
 }
 
 // settledReading records a finished reading for a client without running a

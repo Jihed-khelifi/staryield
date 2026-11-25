@@ -149,10 +149,10 @@ func (r *memReferralRepo) SharesSessionNetwork(_ context.Context, id uuid.UUID, 
 	return hash != "" && r.networks[id] == hash, nil
 }
 
-func (r *memReferralRepo) VisitorLinkedTo(_ context.Context, anon string, id uuid.UUID) (bool, error) {
+func (r *memReferralRepo) VisitorOwner(_ context.Context, anon string) (uuid.UUID, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.visitors[anon] == id, nil
+	return r.visitors[anon], nil
 }
 
 func (r *memReferralRepo) EmailVerified(_ context.Context, id uuid.UUID) (bool, error) {
@@ -470,8 +470,16 @@ func (f *referralFixture) client(name string) (uuid.UUID, string) {
 // friend signs up with a code and returns the new account.
 func (f *referralFixture) friend(code string, in AttributionInput) uuid.UUID {
 	f.t.Helper()
+	return f.friendWith(code, func(uuid.UUID) AttributionInput { return in })
+}
+
+// friendWith builds the attribution once the new account's id is known (the
+// sign-up links a fresh browser to the account before the referral runs).
+func (f *referralFixture) friendWith(code string, attribution func(id uuid.UUID) AttributionInput) uuid.UUID {
+	f.t.Helper()
 	id := domain.NewID()
 	f.repo.active[id] = true
+	in := attribution(id)
 	in.ReferralCode = code
 	f.svc.Attribute(reqctx.WithMeta(f.ctx, reqctx.Meta{IP: "203.0.113.9"}), id, &in)
 	return id
@@ -651,10 +659,20 @@ func TestAttributeRejectsABrowserAlreadyLinkedToTheInviter(t *testing.T) {
 	if f.status(friend).Status != domain.ReferralRejected {
 		t.Fatal("rejected referral qualified")
 	}
-	// A browser linked to somebody else is fine.
+	// A browser already linked to another account is held for review (one
+	// person, several accounts); a fresh browser (linked to the new account
+	// by the sign-up itself) is fine.
 	f.repo.visitors["ANON-BROWSER-2"] = domain.NewID()
-	if r := f.status(f.friend(code, AttributionInput{AnonymousID: "ANON-BROWSER-2"})); r.Status != domain.ReferralJoined || r.Flagged {
-		t.Fatalf("other browser: %+v", r)
+	if r := f.status(f.friend(code, AttributionInput{AnonymousID: "ANON-BROWSER-2"})); r.Status != domain.ReferralJoined || !r.Flagged ||
+		len(r.Flags) != 1 || r.Flags[0] != domain.ReferralFlagSharedBrowser {
+		t.Fatalf("browser of another account: %+v", r)
+	}
+	fresh := f.friendWith(code, func(id uuid.UUID) AttributionInput {
+		f.repo.visitors["ANON-BROWSER-3"] = id
+		return AttributionInput{AnonymousID: "ANON-BROWSER-3"}
+	})
+	if r := f.status(fresh); r.Status != domain.ReferralJoined || r.Flagged {
+		t.Fatalf("fresh browser: %+v", r)
 	}
 }
 

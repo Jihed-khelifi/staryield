@@ -48,10 +48,13 @@ func (s ReferralStatus) Valid() bool {
 // and flags that hold one for review (Referral.Flags). Admin rejections carry
 // the administrator's own text.
 const (
-	ReferralRejectCap          = "cap_reached"
-	ReferralRejectSelf         = "self_referral"
-	ReferralFlagSameNetwork    = "same_network"
-	ReferralFlagSignupBurst    = "signup_burst"
+	ReferralRejectCap       = "cap_reached"
+	ReferralRejectSelf      = "self_referral"
+	ReferralFlagSameNetwork = "same_network"
+	ReferralFlagSignupBurst = "signup_burst"
+	// ReferralFlagSharedBrowser: the sign-up browser already belongs to
+	// another account (one person opening several accounts).
+	ReferralFlagSharedBrowser  = "shared_browser"
 	ReferralRejectReasonMaxLen = 200
 )
 

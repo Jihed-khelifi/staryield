@@ -214,15 +214,20 @@ func (s *ReferralService) Attribute(ctx context.Context, userID uuid.UUID, in *A
 	ref := &domain.Referral{ID: domain.NewID(), ReferrerID: inviter, RefereeID: &userID, Code: code, Status: domain.ReferralJoined,
 		Flags: domain.StringList{}, SignupIPHash: ipHash, JoinedAt: now, CreatedAt: now, UpdatedAt: now}
 
-	linked := false
+	// The browser the account was created in: first linked to the inviter
+	// (self-referral), or to another account (one person, several accounts).
+	// The sign-up itself links a fresh browser to the new account first.
+	owner := uuid.Nil
 	if ValidAnonymousID(in.AnonymousID) {
-		linked, err = s.d.Repo.VisitorLinkedTo(ctx, in.AnonymousID, inviter)
+		owner, err = s.d.Repo.VisitorOwner(ctx, in.AnonymousID)
 		warnErr(ctx, "referrals: check the browser link", err)
 	}
-	if linked {
-		// The browser this account was created in already belongs to the inviter.
+	if owner == inviter {
 		ref.Status, ref.RejectReason = domain.ReferralRejected, domain.ReferralRejectSelf
 	} else {
+		if owner != uuid.Nil && owner != userID {
+			ref.Flags = append(ref.Flags, domain.ReferralFlagSharedBrowser)
+		}
 		shared, err := s.d.Repo.SharesSessionNetwork(ctx, inviter, ipHash, now.Add(-referralNetworkWindow))
 		warnErr(ctx, "referrals: check the network", err)
 		if shared {

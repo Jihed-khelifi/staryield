@@ -76,9 +76,9 @@ type ReferralRepository interface {
 	// SharesSessionNetwork reports whether the user has an active device
 	// seen since a time from the given keyed IP hash.
 	SharesSessionNetwork(ctx context.Context, userID uuid.UUID, ipHash string, since time.Time) (bool, error)
-	// VisitorLinkedTo reports whether a browser (anonymous id) is already
-	// linked to the user.
-	VisitorLinkedTo(ctx context.Context, anonymousID string, userID uuid.UUID) (bool, error)
+	// VisitorOwner returns the account a browser (anonymous id) was first
+	// linked to; uuid.Nil when the browser is unknown or linked to nobody.
+	VisitorOwner(ctx context.Context, anonymousID string) (uuid.UUID, error)
 
 	// EmailVerified reports whether the user's address is verified.
 	EmailVerified(ctx context.Context, userID uuid.UUID) (bool, error)
@@ -235,11 +235,15 @@ func (r *GormReferralRepository) SharesSessionNetwork(ctx context.Context, userI
 	return n > 0, err
 }
 
-// VisitorLinkedTo implements ReferralRepository (web_visitors primary key).
-func (r *GormReferralRepository) VisitorLinkedTo(ctx context.Context, anonymousID string, userID uuid.UUID) (bool, error) {
-	var n int64
-	err := r.conn(ctx).Table("web_visitors").Where("anonymous_id = ? AND user_id = ?", anonymousID, userID).Count(&n).Error
-	return n > 0, err
+// VisitorOwner implements ReferralRepository (web_visitors primary key).
+func (r *GormReferralRepository) VisitorOwner(ctx context.Context, anonymousID string) (uuid.UUID, error) {
+	var owners []uuid.UUID
+	err := r.conn(ctx).Table("web_visitors").Where("anonymous_id = ? AND user_id IS NOT NULL", anonymousID).
+		Limit(1).Pluck("user_id", &owners).Error
+	if err != nil || len(owners) == 0 {
+		return uuid.Nil, err
+	}
+	return owners[0], nil
 }
 
 // EmailVerified implements ReferralRepository.

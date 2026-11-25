@@ -90,7 +90,7 @@ func referralPlans(s referralSample) []referralPlan {
 			_, _ = r.SharesSessionNetwork(ctx, s.inviter, s.ipHash, now.Add(-30*24*time.Hour))
 		}, "user_sessions", "", 10 * time.Millisecond},
 		{"referrals: browser of the inviter (sign-up)", func(ctx context.Context, r repository.ReferralRepository) {
-			_, _ = r.VisitorLinkedTo(ctx, s.anonymousID, s.inviter)
+			_, _ = r.VisitorOwner(ctx, s.anonymousID)
 		}, "web_visitors", "", 5 * time.Millisecond},
 		{"referrals: referral of a friend", func(ctx context.Context, r repository.ReferralRepository) {
 			_, _ = r.ByReferee(ctx, s.referee)
