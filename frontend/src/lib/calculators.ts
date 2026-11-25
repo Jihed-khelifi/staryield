@@ -170,6 +170,57 @@ export function romanNumeral(value: number): string {
   return out;
 }
 
+/**
+ * Tarot birth cards by Mary K. Greer's method: add the month, the day and the
+ * year of birth as whole numbers, add the digits of that total, and keep
+ * adding digits while the sum is above 22 (22 is The Fool). A two-digit card
+ * leads to the card of its digit sum (19 → 10 → 1), so the cards run from
+ * the "personality" card to the "soul" card; The Fool (22) pairs with The
+ * Emperor (2 + 2 = 4); a single-digit result is one card.
+ * 29 November 1990: 11 + 29 + 1990 = 2030 → 2+0+3+0 = 5 (The Hierophant).
+ * 22 March 1984: 3 + 22 + 1984 = 2009 → 2+0+0+9 = 11 → Justice (11) and The High Priestess (2).
+ */
+export type TarotBirthCards = {
+  /** month + day + year. */
+  total: number;
+  /** Digit sums applied to the total, written out ("2+0+0+9=11"). */
+  steps: string[];
+  /** Birth numbers from the personality card to the soul card, 1–22 (22 is The Fool). */
+  cards: number[];
+};
+
+function digitSum(value: number): number {
+  return String(value)
+    .split("")
+    .reduce((total, digit) => total + Number(digit), 0);
+}
+
+/** The tarot birth cards of a "YYYY-MM-DD" date, or null for an invalid date string. */
+export function tarotBirthCards(date: string): TarotBirthCards | null {
+  const parts = parseIsoDate(date);
+  if (!parts) return null;
+  const [year, month, day] = parts;
+  const total = month + day + year;
+  const steps: string[] = [];
+  let n = total;
+  while (n > 22) {
+    const sum = digitSum(n);
+    steps.push(`${String(n).split("").join("+")}=${sum}`);
+    n = sum;
+  }
+  const cards = [n];
+  if (n === 22) {
+    cards.push(4);
+  } else {
+    let m = n;
+    while (m >= 10) {
+      m = digitSum(m);
+      cards.push(m);
+    }
+  }
+  return { total, steps, cards };
+}
+
 /** "30 / 04 / 1945" for the result's date button. */
 export function formatDateParts(date: string): string {
   const parts = parseIsoDate(date);
