@@ -1,10 +1,13 @@
 package e2e
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
 	"github.com/Jihed-khelifi/staryield/backend/internal/realtime"
@@ -228,27 +231,84 @@ func TestEmailVerificationAdmin(t *testing.T) {
 	}
 	e.clock.Advance(61 * time.Second)
 	adm.must(http.StatusAccepted, http.MethodPost, "/api/v1/admin/users/"+unverified.user.ID.String()+"/email-verification", nil, nil)
+	// The new link works like the welcome one.
 	_, tok = verificationLink(t, e, unverified.user.Email)
 	if e.auditCount("admin.email_verification_resent", unverified.user.ID) != 1 {
 		t.Fatal("the admin resend must be audited")
 	}
-	_ = tok
+	e.client().must(http.StatusOK, http.MethodPost, "/api/v1/auth/email/verify", map[string]any{"token": tok}, nil)
+	adm.must(http.StatusOK, http.MethodGet, "/api/v1/admin/users/"+unverified.user.ID.String(), nil, &detail)
+	if detail.EmailVerifiedAt == nil {
+		t.Fatal("the detail must show the new verification")
+	}
+	// Unknown users are a 404.
+	if r := adm.call(http.MethodPost, "/api/v1/admin/users/"+uuid.NewString()+"/email-verification", nil); r.status != http.StatusNotFound {
+		t.Fatalf("unknown user: %d %s", r.status, r.body)
+	}
 }
 
-func TestEmailVerificationSkippedForAdvisorsAndPrivateAddresses(t *testing.T) {
+func TestEmailVerificationForAdvisors(t *testing.T) {
 	e := newEnv(t)
 	psy := e.createPsychic(40)
-	e.flushMail()
+	// Advisors are created by the team: no welcome link, but they may ask for one.
+	for _, m := range e.mailTo(psy.user.Email) {
+		if strings.Contains(m.Text, "/verify-email#token=") {
+			t.Fatal("an advisor created by the team must not get the welcome link")
+		}
+	}
 	var me verifyMe
 	psy.must(http.StatusOK, http.MethodGet, "/api/v1/me", nil, &me)
-	// Advisors are created by the team: no welcome link, but they may ask for one.
+	if me.EmailVerified {
+		t.Fatal("an advisor account starts unverified")
+	}
 	var u domain.User
 	e.app.DB.First(&u, "id = ?", psy.user.ID)
 	if u.Role != domain.RolePsychic {
 		t.Fatalf("role %s", u.Role)
 	}
+	psy.must(http.StatusAccepted, http.MethodPost, "/api/v1/me/email/verification", nil, nil)
+	_, token := verificationLink(t, e, psy.user.Email)
+	e.client().must(http.StatusOK, http.MethodPost, "/api/v1/auth/email/verify", map[string]any{"token": token}, nil)
+	psy.must(http.StatusOK, http.MethodGet, "/api/v1/me", nil, &me)
 	if !me.EmailVerified {
-		psy.must(http.StatusAccepted, http.MethodPost, "/api/v1/me/email/verification", nil, nil)
-		verificationLink(t, e, psy.user.Email)
+		t.Fatal("the advisor's address must be verified")
+	}
+}
+
+// The OnVerified hooks (referral rewards) and the realtime event only run once
+// the verification committed: another connection already sees the address
+// verified when they run.
+func TestEmailVerificationHooksRunAfterCommit(t *testing.T) {
+	e := newEnv(t)
+	c := e.registerClient()
+	_, token := verificationLink(t, e, c.user.Email)
+	type seen struct {
+		user     uuid.UUID
+		verified bool
+	}
+	got := make(chan seen, 1)
+	e.app.Services.EmailVerification.OnVerified(func(ctx context.Context, userID uuid.UUID) {
+		var at *time.Time
+		// e.app.DB is not the verification's transaction: it only sees committed rows.
+		e.app.DB.Raw("SELECT email_verified_at FROM users WHERE id = ?", userID).Scan(&at)
+		got <- seen{user: userID, verified: at != nil}
+	})
+	e.client().must(http.StatusOK, http.MethodPost, "/api/v1/auth/email/verify", map[string]any{"token": token}, nil)
+	select {
+	case s := <-got:
+		if s.user != c.user.ID || !s.verified {
+			t.Fatalf("the hook ran before the commit or for another user: %+v", s)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the OnVerified hook did not run")
+	}
+	// A second opening of the same link is refused and runs no hook.
+	if r := e.client().call(http.MethodPost, "/api/v1/auth/email/verify", map[string]any{"token": token}); r.errCode(t) != "invalid_token" {
+		t.Fatalf("reuse: %d %s", r.status, r.body)
+	}
+	select {
+	case s := <-got:
+		t.Fatalf("a hook ran for a refused link: %+v", s)
+	case <-time.After(300 * time.Millisecond):
 	}
 }

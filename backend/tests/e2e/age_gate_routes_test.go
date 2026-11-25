@@ -33,6 +33,11 @@ type ageExemption struct {
 var agePending = map[string]bool{}
 
 var ageExempt = []ageExemption{
+	// growth: e-mail verification. Verifying an address must work for everyone
+	// (listed before the wildcards below, which would cover them too).
+	{"POST /api/v1/auth/email/verify", "opening the e-mail verification link (public: it may be opened signed out, on another device)"},
+	{"POST /api/v1/me/email/verification", "resending the verification link: verifying an address must work for everyone"},
+
 	// Sign-in, sign-up and the like: nobody is signed in yet, or may not be.
 	{"* /api/v1/auth/", "authentication, sign-up, sign-in methods and reactivation (never gated)"},
 	{"* /api/v1/webhooks/", "provider webhooks (no principal)"},
