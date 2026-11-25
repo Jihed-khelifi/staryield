@@ -118,7 +118,7 @@ All under `/api/v1/admin`. Every mutation is audit-logged.
 | 🔐 `DELETE /users/:id` | `{reason}` → `204`. Soft delete + anonymisation: email becomes `deleted+<id>@deleted.invalid`, profile PII and avatar removed, sessions revoked, status `deleted`. Ledger/earnings history is kept (append-only). |
 | 🔐 `POST /users/:id/credits` | unchanged body `{amount, reason, idempotency_key}` → `Wallet`. |
 | `POST /users/:id/logout-all` | `204`. Revokes all main-site sessions. |
-| `POST /users/:id/email-verification` | Sends the user a new e-mail verification link (§13.7) → 202 `VerificationSent`. 409 `already_verified`; 429 `rate_limited` with `Retry-After` inside the 60 s cooldown (shared with the user's own resends); 404 unknown user; `invalid_state` for an inactive account. Audited `admin.email_verification_resent`. |
+| `POST /users/:id/email-verification` | Sends the user a new e-mail verification link (§13.7) → 202 `VerificationSent`. 409 `already_verified`, or 409 `email_undeliverable` when the address is on the suppression list; 429 `rate_limited` with `Retry-After` inside the 60 s cooldown or once the account received 5 links in 24 hours (both shared with the user's own resends and the reminders); 404 unknown user; `invalid_state` for an inactive account. Audited `admin.email_verification_resent`. |
 
 ```ts
 type AdminUserRow = {
@@ -999,22 +999,58 @@ Everything is under `/api/v1`. "Sensitive" routes ask for the current password a
   - Token: 32 random bytes; only its SHA-256 is stored (`user_action_tokens`, purpose `email_verify`); expires after 48 h;
     single use; its sealed payload `{email}` is bound to the token row and must match the account's current address.
   - Accounts created by the team (advisors, admin-created users) get no welcome link; they or an admin can request one.
+  - Accounts that existed before this feature are not marked verified (nothing proves they control their address) and were
+    never sent a link: `GET /me` says so (`email_verification: null`) and the clients offer "Send me a link" instead of
+    claiming one is in the inbox. The lifecycle "verify reminder" (`SendReminder`) may send them a first link.
+  - No link is created for an address on the outbox's suppression list (permanent bounce, complaint): the welcome e-mail and
+    reminders are skipped, a resend answers 409 `email_undeliverable`.
 - `POST /auth/email/verify {token}` (public, `auth` rate limit by IP, CSRF as usual) → 200
   `{status: "verified"|"already_verified", email_verified: true}`. Unknown, expired, used, superseded, mismatching (the
-  address changed since) and inactive-account links all answer 400 `invalid_token` with the same message; a consumed link is
-  burnt even when it is refused. On success, after the commit: realtime `account.email_verified`
+  address changed since) and inactive-account links all answer 400 `invalid_token` with the same message; a link refused for
+  its address or account is burnt. On success, after the commit: realtime `account.email_verified`
   `{email_verified: true, email_verified_at}` to every tab and device of the user, in-app notification
   `account.email_verified` (`{}`, link `/profile/settings#account`; the clients show their own toast for the event and do not
   toast this notification a second time), audit `account.email_verified`, analytics `user.email_verified`, and the
-  `OnVerified` hooks (referral rewards).
+  `OnVerified` hooks (referral rewards). Nothing is announced for a refused link or a rolled-back transaction.
 - `POST /me/email/verification` (any role with an unverified address; never age-gated) → 202
   `VerificationSent {status: "sent", email: "m***@example.com", resend_available_at}`. Every previous open link stops working.
-  - 409 `already_verified`; 429 `rate_limited` with `Retry-After` within 60 s of the previous link (the cooldown is checked
-    under a row lock, so concurrent requests cannot race it); its own bucket of 5 per hour per user (fails closed).
-- `GET /me` gains `email_verified: boolean`; `GET /me/settings` already carries `account.email_verified`.
+  - 409 `already_verified`; 409 `email_undeliverable` (the address refuses e-mail: check or change it).
+  - 429 `rate_limited` with `Retry-After`: within 60 s of the previous link, or once the account received 5 links in any 24
+    hours (welcome, resends, console resends and reminders together; `Retry-After` is when the oldest of them leaves the
+    window). The links are security e-mail, which the outbox's daily cap does not cover, and the address is unproven by
+    definition, so this ceiling bounds what anyone can make us send to someone else's address.
+  - Both are checked under the user's row lock; the route also has its own bucket of 5 requests per hour per user (fails
+    closed).
+- Locking: every transaction of the flow locks the user row before touching the user's tokens. Opening a link reads its
+  token without a lock, locks the user, then uses the token, so it queues behind a concurrent resend, console resend or
+  reminder for the same account instead of deadlocking.
+- `GET /me` gains `email_verified: boolean` and `email_verification: {sent_at, resend_available_at} | null`: the newest open
+  link of an unverified address (null when verified, or when no link is waiting: never sent, expired, or the address refuses
+  e-mail). One indexed read, for unverified addresses only. `GET /me/settings` already carries `account.email_verified`.
 - Frontend page `/{lang}/verify-email` (`noindex`, `referrer: no-referrer`) reads the fragment once, strips it from the address
   bar and posts it at once (no extra click). Migration `0039_email_verification.sql` adds the partial indexes behind the admin
-  `verified` filter.
+  `verified` filter and `user_action_tokens (user_id, purpose, created_at DESC)` for the cooldown and the daily limit.
+- Legal text (for the lead's update of the Privacy Policy and Terms of Service):
+  - Privacy Policy: at sign-up we send a one-time e-mail asking the person to confirm their address. Purpose: account
+    security and making sure receipts and account notices reach them. Legal basis: performance of the contract and our
+    legitimate interest in account security. It is a transactional message (no marketing consent needed; marketing stays
+    opt-in and separate).
+  - Data processed: the address; when it was verified (`email_verified_at`, kept for the life of the account, removed when
+    the account is erased); a hashed single-use link token holding a sealed copy of the address it was sent to (valid 48
+    hours, then kept as an expired record until the account is erased; the raw link exists only in the e-mail and is never
+    stored or logged); audit records of each verification and of each link an administrator sends (actor, time, keyed hash
+    of the IP address); internal analytics events when an address is verified or a link is resent.
+  - The link carries its token after the `#`, so it is not sent to our servers' logs or to third parties as a referrer.
+  - Administrators can see whether and when an address was verified and send a new link; they never see the link itself.
+  - The e-mail is sent by the transactional e-mail provider (Cloudflare Email Service), to be listed among processors.
+  - Terms of Service: users must give an address they control and keep it current; we send account, security and receipt
+    communications there and ask users to confirm it. Links work once and expire after 48 hours; new links can be requested
+    within limits (one a minute, five a day). Verification is not required today to use or pay for the service; a feature
+    that comes to depend on it (for example referral rewards granted only once the friend verified) must say so in the Terms
+    or its own rules.
+  - Anyone who receives the e-mail without having signed up can ignore it: nothing is confirmed, and at most five such
+    e-mails can be sent to an address in a day.
+  - Disclaimer and Refund Policy: no change (verification does not affect readings, credits, purchases or refunds).
 
 ---
 
