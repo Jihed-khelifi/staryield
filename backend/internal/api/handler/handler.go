@@ -104,6 +104,10 @@ type Services struct {
 	// --- growth: lifecycle and onboarding ---
 	Lifecycle *service.LifecycleService
 	// --- end growth: lifecycle and onboarding ---
+
+	// --- follow-ups: auto-away ---
+	AutoAway *service.AutoAwayService
+	// --- end follow-ups: auto-away ---
 }
 
 // Limits bounds request bodies per upload type.

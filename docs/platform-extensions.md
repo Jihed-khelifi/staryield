@@ -4076,7 +4076,89 @@ No new API and no migration. Web copy is in en/fr/es; the e-mail change is Go on
 
 ### 27.4 Advisor auto-away after missed requests
 
-_(slice A)_
+An Online advisor whose live-chat requests expire unanswered several times in a
+row is set to Away and told why, so clients stop requesting an advisor who is
+not at the screen. Migration `0041_advisor_auto_away.sql`.
+
+**Rules.**
+
+- Only a `request_timeout` expiry counts as a miss (`ChatService.ExpireDue`,
+  after the commit, next to the `chat.missed` notification). A decline is an
+  answer, a client's cancel says nothing about the advisor, and a request that
+  expires lazily when the advisor tries to accept it late counts as an answer.
+- The threshold is a site setting, default **3**, allowed **2-10**, **enabled by
+  default**. While the feature is off nothing is counted (the counter is reset
+  on every miss), so switching it on never finds a stale count.
+- Only **Online to Away**. An advisor whose stored availability is Away or
+  Offline, or who is in a reading (an open session other than a pending
+  request), is left as they are: no availability change, no notification, the
+  counter is reset to 0. An advisor who simply has the browser closed is still
+  Online in the stored sense and is moved to Away.
+- The counter `psychics.missed_requests_in_row` (`integer NOT NULL DEFAULT 0`,
+  `CHECK (>= 0)`) is reset to 0 on accept, decline, any availability change the
+  advisor makes (`PATCH /psychic/availability`, in the same UPDATE) and on the
+  auto-away itself. It is the reason for a counter rather than "the last 3
+  sessions": after an auto-away the old misses would send a returning advisor
+  Away again at the next single miss.
+
+**Concurrency.** Each miss is one `UPDATE psychics SET missed_requests_in_row =
+missed_requests_in_row + 1 ... RETURNING` (atomic across instances). At the
+threshold the caller claims the reset with `UPDATE ... SET missed_requests_in_row
+= 0 WHERE user_id = ? AND missed_requests_in_row >= threshold`; only the caller
+whose statement changes a row continues, so a burst of expiries (one tick, or
+two API instances) yields exactly one change and one notification. The change
+itself is the conditional `UPDATE ... SET availability = 'away' WHERE availability
+= 'online'`, run in the same transaction; afterwards the advisor's status is
+published like `PsychicService.SetAvailability` does (realtime presence and the
+directory cache) and an `psychic.auto_away` analytics event is tracked.
+
+**Notification.** Kind `availability.auto_away`, data `{"missed": <threshold>}`,
+link `/chatroom` (where the availability menu is). Channels: in-app, Web Push
+and e-mail (category `notification`, so it follows the advisor's e-mail switch;
+push is on the normal lane). Copy: "You were set to Away" / "You were set to Away
+after {n} missed requests. Set yourself Online when you are ready." in en, fr and
+es (`internal/i18n/auto_away.go`, `internal/mail/catalog.go`). The `notifications.kind`
+check is a pattern, not a list, so no migration is needed for the kind.
+
+**Setting.** `site_settings` key `advisor_auto_away` =
+`{"enabled": true, "missed_requests": 3}`, seeded by the migration with a CHECK on
+the shape (boolean, whole number 2-10); the key list constraint gains the key.
+
+**Admin API** (`/api/v1/admin/advisors/auto-away`, admin session):
+
+| Method | Body | Response |
+| --- | --- | --- |
+| `GET` | - | `{"enabled": bool, "missed_requests": int, "version": int, "updated_at": ..., "updated_by"?: {id, name}}` |
+| `PUT` | `{"enabled"?: bool, "missed_requests"?: int, "version"?: int}` (at least one setting) | the same view |
+
+`PUT` needs a fresh step-up and is rate limited like the other settings writes.
+A stale `version` is `409 version_conflict`; `missed_requests` outside 2-10 is
+`422` with the field message "Choose between 2 and 10."; an empty body is `422`
+(`enabled`: "Change at least one setting."); an unchanged value is not a new
+version and not audited. Changes are audited as `advisors.auto_away.updated`
+(`before` and `after`). Reads and writes by a non-admin are refused.
+
+**Admin console.** "Advisor settings" (`/psychics/settings`, People group, after
+Psychics): the Auto-away card with the switch and the number of missed requests,
+saved with the version that was read (conflict text "Someone else changed these
+settings. Reload to see them.").
+
+**Web.** The advisor's notification list renders the kind with a moon icon,
+title "Set to Away automatically", body "You were set to Away after {n} missed
+requests." and leads to `/chatroom` (`frontend/src/lib/notifications/notification-copy.ts`).
+
+**Tests.** Go e2e `backend/tests/e2e/auto_away_test.go`
+(`TestAutoAwayAfterThreeMissedRequests`, `...CountsOnlyMissesInARow`,
+`...AcceptResetsTheCount`, `...ResetsWhenAdvisorSetsAvailability`,
+`...OnlyFromOnline`, `...NotWhileInAReading`, `...OnceUnderConcurrentExpiry`,
+`...DisabledBySetting`, `TestAutoAwayAdminSettings`), unit tests in
+`internal/service/auto_away_test.go`, `internal/mail/catalog_test.go`; the counter
+statements are explained in `backend/tests/load/explain_auto_away_test.go` (every
+statement a primary-key update on `psychics`, no sequential scan beyond
+`seqScanRowLimit`; skips without a load database or before migration 0041).
+Admin console: `src/features/psychics/auto-away-card.test.tsx` and
+`e2e/auto-away.spec.ts`; web: `notification-copy-auto-away.test.ts` and the
+bell test.
 
 ### 27.5 Funnel visit stitching
 

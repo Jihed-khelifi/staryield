@@ -104,6 +104,18 @@ describe("NotificationBell", () => {
     expect(fns.refresh).toHaveBeenCalledTimes(1);
   });
 
+  it("shows the auto-away notification with its own icon (follow-ups: auto-away)", async () => {
+    const items = [note("a", { kind: "availability.auto_away", data: { missed: 3 }, link: "/chatroom" })];
+    set({ items, loaded: true, unread: 1 });
+    renderWithI18n(<NotificationBell />);
+    await userEvent.setup().click(bell());
+    const list = await screen.findByRole("list", { name: "Notifications" });
+    expect(within(list).getByText("Set to Away automatically")).toBeTruthy();
+    expect(within(list).getByText("You were set to Away after 3 missed requests.")).toBeTruthy();
+    const icon = list.querySelector(".notification-icon svg");
+    expect(icon?.getAttribute("class")).toContain("lucide-moon");
+  });
+
   it("lists notifications with their copy, marks unread ones, and opens one on click", async () => {
     const items = [
       note("a", { kind: "export.ready", data: {}, link: "/profile/settings" }),

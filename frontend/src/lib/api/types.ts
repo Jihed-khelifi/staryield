@@ -582,6 +582,10 @@ export type NotificationKind =
   | "lifecycle.invite_friends"
   | "lifecycle.win_back"
   // --- end growth: lifecycle and onboarding ---
+
+  // --- follow-ups: auto-away ---
+  | "availability.auto_away"
+  // --- end follow-ups: auto-away ---
   ;
 
 /** Realtime `notification.read` (§23.6): read state changed in another tab or device. */

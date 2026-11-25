@@ -634,6 +634,16 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	services.Lifecycle = lifecycleSvc
 	// --- end growth: lifecycle and onboarding ---
 
+	// --- follow-ups: auto-away ---
+	// An Online advisor whose live-chat requests expire unanswered N times in a
+	// row is set Away and told why; answers and availability changes reset the count.
+	autoAwaySvc := service.NewAutoAwayService(service.AutoAwayDeps{Tx: txm, Psychics: psychics,
+		Chat: chatRepo, Site: repository.NewSiteRepository(db), Audit: audit, Advisors: psychicSvc, Notifier: dispatcher,
+		Tracker: track, Clock: clk, Log: log.With(zap.String("component", "auto-away")), IPHashSecret: cfg.Analytics.IPHashSecret})
+	autoAwaySvc.Attach(chatSvc)
+	services.AutoAway = autoAwaySvc
+	// --- end follow-ups: auto-away ---
+
 	// --- growth: cross-stream hooks ---
 	// A verified address is one of the two conditions of a referral reward
 	// (the other is a completed reading, observed through OnSessionSettled).

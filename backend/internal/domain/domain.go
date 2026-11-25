@@ -305,9 +305,14 @@ type Psychic struct {
 	// SettingsVersion increments on every save of the advisor-editable
 	// profile (optimistic concurrency for PATCH /psychic/settings).
 	SettingsVersion int `gorm:"not null;default:1"`
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	Services        []PsychicService `gorm:"foreignKey:PsychicID;references:UserID"`
+	// MissedRequestsInRow counts live-chat requests that expired unanswered
+	// since the advisor last answered one, changed their availability or was
+	// set Away automatically (follow-ups: auto-away). Written only by the
+	// auto-away statements; never saved from a loaded copy.
+	MissedRequestsInRow int `gorm:"not null;default:0"`
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	Services            []PsychicService `gorm:"foreignKey:PsychicID;references:UserID"`
 }
 
 func (Psychic) TableName() string { return "psychics" }

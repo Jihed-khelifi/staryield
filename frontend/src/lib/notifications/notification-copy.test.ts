@@ -138,6 +138,8 @@ const samples: Record<NotificationKind, Record<string, unknown>> = {
   "referral.joined": {},
   "referral.qualified": { minutes: 5, launched: false },
   "referral.reward_granted": { minutes: 10, friends: 2 },
+  // follow-ups: auto-away
+  "availability.auto_away": { missed: 3 },
 };
 
 describe("copy for every kind (§23.6)", () => {

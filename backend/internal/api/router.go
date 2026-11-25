@@ -741,6 +741,13 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.GET("/lifecycle/funnel", h.AdminLifecycleFunnel)
 	// --- end growth admin: lifecycle and onboarding ---
 
+	// --- follow-ups admin: auto-away ---
+	// The advisors' auto-away setting (versioned; writes need a fresh step-up
+	// and are audited).
+	ad.GET("/advisors/auto-away", h.AdminAutoAway)
+	ad.PUT("/advisors/auto-away", h.AdminUpdateAutoAway, stepUp, adminRL)
+	// --- end follow-ups admin: auto-away ---
+
 	return e
 }
 

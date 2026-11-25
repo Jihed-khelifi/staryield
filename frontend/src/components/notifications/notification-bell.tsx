@@ -16,6 +16,7 @@ import {
   Megaphone,
   MessageCircle,
   MessageCircleX,
+  Moon,
   ScrollText,
   Sparkles,
   Star,
@@ -64,6 +65,7 @@ const icons: Record<string, LucideIcon> = {
   "lifecycle.first_reading": MessageCircle,
   "lifecycle.invite_friends": UserPlus,
   "lifecycle.win_back": Sparkles,
+  "availability.auto_away": Moon, // follow-ups: auto-away
 };
 
 function useMinuteTick(active: boolean) {

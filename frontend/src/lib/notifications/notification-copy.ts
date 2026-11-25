@@ -64,6 +64,10 @@ export const NOTIFICATION_KINDS = [
   "lifecycle.invite_friends",
   "lifecycle.win_back",
   // --- end growth: lifecycle and onboarding ---
+
+  // --- follow-ups: auto-away ---
+  "availability.auto_away",
+  // --- end follow-ups: auto-away ---
 ] as const satisfies readonly NotificationKind[];
 
 type MissingKinds = Exclude<NotificationKind, (typeof NOTIFICATION_KINDS)[number]>;
@@ -153,6 +157,16 @@ export const referralNotificationTemplates = {
   grantedTitle: "Free minutes added",
   grantedOne: "1 free minute from your invites was added to your wallet.",
   grantedMany: "{minutes} free minutes from your invites were added to your wallet.",
+} as const;
+
+/**
+ * follow-ups: auto-away. An advisor whose live-chat requests expired unanswered
+ * `missed` times in a row was set to Away (data: `{ missed }`); the notification
+ * leads to the chatroom, where the availability control is.
+ */
+export const autoAwayNotificationTemplates = {
+  title: "Set to Away automatically",
+  body: "You were set to Away after {missed} missed requests.",
 } as const;
 
 /** Why a membership ended (`subscription.canceled` data `reason`, §12.1). */
@@ -382,6 +396,14 @@ export function notificationText(
     case "lifecycle.win_back":
       return lifecycleText(n.kind as LifecycleKind, d, text, fmt);
     // --- end growth: lifecycle and onboarding ---
+
+    // --- follow-ups: auto-away ---
+    case "availability.auto_away":
+      return {
+        title: text(autoAwayNotificationTemplates.title),
+        body: text(autoAwayNotificationTemplates.body, { missed: fmt(num(d.missed) ?? 0) }),
+      };
+    // --- end follow-ups: auto-away ---
     default:
       return { title: text(T.fallbackTitle), body: "" };
   }
@@ -434,6 +456,11 @@ export function notificationFallbackLink(n: AppNotification): string | null {
     case "lifecycle.invite_friends":
       return "/profile/invite";
     // --- end growth: lifecycle and onboarding ---
+
+    // --- follow-ups: auto-away ---
+    case "availability.auto_away":
+      return "/chatroom"; // the availability menu is in the chatroom
+    // --- end follow-ups: auto-away ---
     default:
       return null;
   }

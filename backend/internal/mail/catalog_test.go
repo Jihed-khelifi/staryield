@@ -7,12 +7,13 @@ import (
 
 // samples covers every kind with an e-mail or push form.
 var samples = map[string]map[string]any{
-	"chat.requested":     {"client_name": "Nova"},
-	"chat.missed":        {"client_name": "Nova"},
-	"chat.review_prompt": {"psychic_name": "Ramone"},
-	"review.received":    {"rating": float64(5)},
-	"request.created":    {"service_name": "Candle Ritual", "client_name": "Nova"},
-	"request.updated":    {"service_name": "Candle Ritual", "status": "accepted"},
+	"chat.requested":         {"client_name": "Nova"},
+	"chat.missed":            {"client_name": "Nova"},
+	"availability.auto_away": {"missed": float64(3)},
+	"chat.review_prompt":     {"psychic_name": "Ramone"},
+	"review.received":        {"rating": float64(5)},
+	"request.created":        {"service_name": "Candle Ritual", "client_name": "Nova"},
+	"request.updated":        {"service_name": "Candle Ritual", "status": "accepted"},
 	"purchase.succeeded": {"credits": float64(600), "price_cents": float64(1999), "currency": "USD", "pack_name": "Starter",
 		"purchase_id": "0b6d7c1e-0000-4000-8000-000000000001", "completed_at": "2026-11-12T10:15:00Z", "card_brand": "visa", "card_last4": "4242",
 		"statement_descriptor": "STARYIELD MEDIA LLC"},
@@ -141,5 +142,28 @@ func TestPushText(t *testing.T) {
 	}
 	if _, _, ok := PushText("en", "nope", nil); ok {
 		t.Fatal("unknown kind")
+	}
+}
+
+// Follow-ups: the auto-away notification names the number of missed requests,
+// tells the advisor how to come back, and reads naturally in the three languages.
+func TestAutoAwayNotification(t *testing.T) {
+	want := map[string]string{
+		"en": "after 3 missed requests",
+		"fr": "après 3 demandes manquées",
+		"es": "tras 3 solicitudes sin responder",
+	}
+	for loc, fragment := range want {
+		c, ok := Notification(loc, "availability.auto_away", map[string]any{"missed": float64(3)}, "https://staryield.net/"+loc+"/chatroom")
+		if !ok || len(c.Paragraphs) != 1 || !strings.Contains(c.Paragraphs[0], fragment) || strings.Contains(c.Paragraphs[0], "%") {
+			t.Fatalf("%s: %+v", loc, c)
+		}
+		if c.Action == nil || c.Action.URL != "https://staryield.net/"+loc+"/chatroom" {
+			t.Errorf("%s action: %+v", loc, c.Action)
+		}
+		title, body, ok := PushText(loc, "availability.auto_away", map[string]any{"missed": float64(2)})
+		if !ok || title == "" || !strings.Contains(body, "2") {
+			t.Errorf("%s push: %q %q %v", loc, title, body, ok)
+		}
 	}
 }

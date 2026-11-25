@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/database"
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
@@ -40,6 +41,21 @@ type PsychicRepository interface {
 	// referencing removed services.
 	GetServiceAny(ctx context.Context, id uuid.UUID) (*domain.PsychicService, error)
 	// --- end advisor settings ---
+
+	// --- follow-ups: auto-away (missed_requests_in_row) ---
+	// IncrementMissed adds one to the advisor's missed-request counter in one
+	// UPDATE ... RETURNING and returns the new value (atomic across instances).
+	IncrementMissed(ctx context.Context, userID uuid.UUID) (int, error)
+	// ResetMissed sets the counter back to 0 (a no-op when it already is).
+	ResetMissed(ctx context.Context, userID uuid.UUID) error
+	// ResetMissedAtLeast resets the counter only while it is at least min and
+	// reports whether this call did: the claim that makes an auto-away fire
+	// exactly once when several expiries race.
+	ResetMissedAtLeast(ctx context.Context, userID uuid.UUID, min int) (bool, error)
+	// SetAwayIfOnline moves the advisor's stored availability from Online to
+	// Away in one conditional UPDATE and reports whether it changed.
+	SetAwayIfOnline(ctx context.Context, userID uuid.UUID) (bool, error)
+	// --- end follow-ups: auto-away ---
 }
 
 // GormPsychicRepository implements PsychicRepository.
@@ -379,3 +395,45 @@ func (r *GormCreditRepository) PurchaseReceipt(ctx context.Context, purchaseID u
 	}
 	return out, nil
 }
+
+// --- follow-ups: auto-away ---
+
+// IncrementMissed implements PsychicRepository.
+func (r *GormPsychicRepository) IncrementMissed(ctx context.Context, userID uuid.UUID) (int, error) {
+	var out domain.Psychic
+	res := database.Conn(ctx, r.db).Model(&out).Clauses(clause.Returning{Columns: []clause.Column{{Name: "missed_requests_in_row"}}}).
+		Where("user_id = ?", userID).
+		UpdateColumn("missed_requests_in_row", gorm.Expr("missed_requests_in_row + 1"))
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return 0, ErrNotFound
+	}
+	return out.MissedRequestsInRow, nil
+}
+
+// ResetMissed implements PsychicRepository.
+func (r *GormPsychicRepository) ResetMissed(ctx context.Context, userID uuid.UUID) error {
+	return database.Conn(ctx, r.db).Model(&domain.Psychic{}).
+		Where("user_id = ? AND missed_requests_in_row <> 0", userID).
+		UpdateColumn("missed_requests_in_row", 0).Error
+}
+
+// ResetMissedAtLeast implements PsychicRepository.
+func (r *GormPsychicRepository) ResetMissedAtLeast(ctx context.Context, userID uuid.UUID, min int) (bool, error) {
+	res := database.Conn(ctx, r.db).Model(&domain.Psychic{}).
+		Where("user_id = ? AND missed_requests_in_row >= ?", userID, min).
+		UpdateColumn("missed_requests_in_row", 0)
+	return res.RowsAffected > 0, res.Error
+}
+
+// SetAwayIfOnline implements PsychicRepository.
+func (r *GormPsychicRepository) SetAwayIfOnline(ctx context.Context, userID uuid.UUID) (bool, error) {
+	res := database.Conn(ctx, r.db).Model(&domain.Psychic{}).
+		Where("user_id = ? AND availability = ?", userID, domain.AvailabilityOnline).
+		Updates(map[string]any{"availability": domain.AvailabilityAway, "updated_at": time.Now().UTC()})
+	return res.RowsAffected > 0, res.Error
+}
+
+// --- end follow-ups: auto-away ---

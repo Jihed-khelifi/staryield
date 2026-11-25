@@ -75,6 +75,29 @@ type ChatService struct {
 	// settledHooks run after commit when a session becomes settled (growth:
 	// referral qualification, lifecycle messaging); see OnSessionSettled.
 	settledHooks []func(ctx context.Context, s domain.Session)
+	// --- follow-ups: auto-away ---
+	// missedHooks run after commit for each request that expired unanswered
+	// (EndRequestTimeout); answeredHooks when the advisor answered one
+	// (accepted, declined, or tried to accept a request that had just expired).
+	missedHooks, answeredHooks []func(ctx context.Context, psychicID uuid.UUID)
+	// --- end follow-ups: auto-away ---
+}
+
+// OnRequestMissed adds a callback run after the commit that expired a request
+// nobody answered, with the advisor's ID. Hooks must not block and log their
+// own errors. Install them at start-up only.
+func (c *ChatService) OnRequestMissed(fn func(ctx context.Context, psychicID uuid.UUID)) {
+	if fn != nil {
+		c.missedHooks = append(c.missedHooks, fn)
+	}
+}
+
+// OnRequestAnswered adds a callback run after an advisor answered a request
+// (accept or decline). Same rules as OnRequestMissed.
+func (c *ChatService) OnRequestAnswered(fn func(ctx context.Context, psychicID uuid.UUID)) {
+	if fn != nil {
+		c.answeredHooks = append(c.answeredHooks, fn)
+	}
 }
 
 // OnSessionSettled adds a callback run once per session, after the commit of
@@ -260,9 +283,16 @@ func (c *ChatService) AcceptSession(ctx context.Context, psychicID, sessionID uu
 		c.publishSession(ctx, realtime.EventSessionExpired, s, nil)
 		c.psychics.PublishStatus(ctx, s.PsychicID)
 		c.track(ctx, "chat.expired", s, map[string]any{"reason": string(domain.EndRequestTimeout)})
+		// The advisor is here: a late accept is an answer, not a miss.
+		for _, fn := range c.answeredHooks {
+			fn(ctx, s.PsychicID)
+		}
 		return nil, apperror.InvalidState("This request has expired.")
 	}
 	if accepted {
+		for _, fn := range c.answeredHooks {
+			fn(ctx, s.PsychicID)
+		}
 		c.publishSession(ctx, realtime.EventSessionAccepted, s, nil)
 		c.track(ctx, "chat.accepted", s, map[string]any{"response_ms": now.Sub(s.RequestedAt).Milliseconds()})
 		c.tryActivate(ctx, s.ID)
@@ -326,6 +356,11 @@ func (c *ChatService) closeRequest(ctx context.Context, sessionID uuid.UUID, aut
 		c.publishSession(ctx, event, s, nil)
 		c.psychics.PublishStatus(ctx, s.PsychicID)
 		c.track(ctx, metric, s, map[string]any{"after_ms": now.Sub(s.RequestedAt).Milliseconds()})
+		if reason == domain.EndDeclined { // a decline is an answer; a client's cancel says nothing about the advisor
+			for _, fn := range c.answeredHooks {
+				fn(ctx, s.PsychicID)
+			}
+		}
 	}
 	v := c.sessionView(ctx, c.newParticipants(), s, viewer{ID: viewerID})
 	return &v, nil
@@ -935,6 +970,9 @@ func (c *ChatService) ExpireDue(ctx context.Context, batch int) (int, error) {
 			client := c.newParticipants().client(ctx, s.ClientID)
 			c.notifier().Notify(ctx, NotificationSpec{Kind: NotifyChatMissed,
 				Data: map[string]any{"session_id": s.ID, "client_name": client.Name}, Link: "/chatroom"}, s.PsychicID)
+			for _, fn := range c.missedHooks {
+				fn(ctx, s.PsychicID)
+			}
 		}
 	}
 	return len(expired), nil

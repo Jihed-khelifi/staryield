@@ -498,6 +498,7 @@ func TestChannelPolicies(t *testing.T) {
 	}{
 		{NotifyChatRequested, false, false, true},
 		{NotifyChatMissed, true, false, true},
+		{NotifyAutoAway, true, false, true},  // follow-ups: auto-away (notification category: follows the e-mail switch)
 		{NotifyWithdrawal, true, true, true}, // billing: always e-mailed
 		{NotifyExportReady, true, true, true},
 		{NotifyBroadcast, true, false, true},             // marketing: opt-in only

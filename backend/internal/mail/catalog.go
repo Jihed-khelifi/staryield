@@ -236,6 +236,12 @@ func Notification(locale, kind string, data map[string]any, link string) (Conten
 	case "referral.joined", "referral.qualified", "referral.reward_granted":
 		c, _ = referralNotification(t, kind, data, link)
 	// --- end growth: referrals ---
+	// --- follow-ups: auto-away ---
+	case "availability.auto_away":
+		c = Content{Subject: t("You were set to Away"),
+			Paragraphs: []string{t(fmt.Sprintf("You were set to Away after %d missed requests. Set yourself Online when you are ready.", intOf(data["missed"])))},
+			Action:     &Action{Label: t("Open the chatroom"), URL: link}}
+	// --- end follow-ups: auto-away ---
 	case "broadcast":
 		title, body := localizedPair(locale, data["title"]), localizedPair(locale, data["body"])
 		if title == "" {
