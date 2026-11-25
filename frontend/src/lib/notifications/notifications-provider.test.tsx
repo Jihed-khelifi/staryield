@@ -155,6 +155,14 @@ describe("notification.created", () => {
     expect(h.toast.mock.calls[0][0].message).toContain("Your data export is ready");
   });
 
+  it("records a kind the app already announced from its own event without a second toast", async () => {
+    await load();
+    emit("notification.created", { notification: note("v", { kind: "account.email_verified", data: {}, link: "/profile/settings#account" }) });
+    expect(unread()).toBe("3");
+    expect(ids()).toBe("v,a,b");
+    expect(h.toast).not.toHaveBeenCalled();
+  });
+
   it("does not count a notification that arrives already read", async () => {
     await load();
     emit("notification.created", { notification: note("c", { read_at: "2026-11-01T10:00:00Z" }) });

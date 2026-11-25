@@ -19,6 +19,7 @@ import { clearPushSyncMarkers, prepareSignOutPush } from "@/lib/push";
 import { clearOutbox } from "@/lib/chat/outbox";
 import { clearDrafts } from "@/lib/chat/drafts";
 import { clearAttachmentCache } from "@/lib/chat/attachments";
+import { EMAIL_VERIFIED_EVENT, shouldAnnounceVerified, withEmailVerified, type EmailVerifiedEvent } from "@/lib/auth/email-verified";
 import { useToast } from "@/components/feedback/toast-provider";
 
 type Status = "loading" | "authenticated" | "anonymous";
@@ -70,6 +71,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [connection, setConnection] = React.useState<{ state: ConnectionState; transport: TransportKind }>({ state: "idle", transport: "ws" });
   // While signing out, revocation events are expected: no "signed out" toast.
   const signingOut = React.useRef(false);
+  // Latest user and path for the realtime handlers (the connection outlives renders).
+  const userRef = React.useRef<User | null>(null);
+  const pathRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    userRef.current = user;
+    pathRef.current = pathname;
+  });
 
   const setUser = React.useCallback((u: User) => {
     setUserState(u);
@@ -221,8 +229,28 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
       verify(0);
     });
+    // Growth: e-mail verification. The link may be opened in any browser; every
+    // open tab and device learns it here, without a refetch.
+    const offVerified = client.on(EMAIL_VERIFIED_EVENT, (e) => {
+      const data = e.data as EmailVerifiedEvent | undefined;
+      const announceIt = shouldAnnounceVerified(data, userRef.current, pathRef.current);
+      if (data?.email_verified !== true) return;
+      // The ref changes at once: a second delivery before the next render (another device's replay) stays quiet.
+      userRef.current = withEmailVerified(userRef.current);
+      setUserState(withEmailVerified);
+      if (!announceIt) return;
+      const message = text("Your email is verified. Thank you for securing your account.");
+      toast.show({ tone: "success", message });
+    });
     const offResync = client.on("resync_required", () => {
-      void meApi.get().then((me) => setWallet(me.wallet ?? null)).catch(() => undefined);
+      void meApi
+        .get()
+        .then((me) => {
+          setWallet(me.wallet ?? null);
+          // Growth: events may have been missed (the gap was too large): learn a verification from the account.
+          if (me.email_verified === true) setUserState(withEmailVerified);
+        })
+        .catch(() => undefined);
     });
     client.start();
     return () => {
@@ -231,6 +259,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       offHello();
       offRevoked();
       offResync();
+      offVerified();
       stopped = true;
       window.clearTimeout(retry);
       client.stop();

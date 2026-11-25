@@ -54,6 +54,8 @@ export type User = {
   psychic?: PsychicSelf;
   /** revisions 5.0: advisors and admins are always "adult". */
   age_status: AgeStatus;
+  /** Growth: the address was confirmed through the e-mailed link (or by Google). */
+  email_verified?: boolean;
 };
 
 export type SessionResponse = {
@@ -557,6 +559,7 @@ export type NotificationKind =
   | "payment.refunded"
   | "subscription.started"
   // --- growth: e-mail verification ---
+  | "account.email_verified"
   // --- end growth: e-mail verification ---
 
   // --- growth: referrals ---

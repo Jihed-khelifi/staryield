@@ -127,6 +127,8 @@ const samples: Record<NotificationKind, Record<string, unknown>> = {
   // revisions 5.1 (§25.5)
   "payment.refunded": { amount_cents: 2667, currency: "USD", transaction_id: "t1" },
   "subscription.started": { plan_name: "Premium", amount_cents: 999, currency: "USD" },
+  // growth: e-mail verification
+  "account.email_verified": {},
 };
 
 describe("copy for every kind (§23.6)", () => {

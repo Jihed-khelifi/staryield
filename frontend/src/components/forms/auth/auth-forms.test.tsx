@@ -116,6 +116,31 @@ describe("SignupPasswordForm", () => {
     expect(sessionStorage.getItem("staryield.signup.email")).toBeNull();
   });
 
+  // growth: e-mail verification
+  it("tells a new account that a confirmation link was sent, without blocking the next step", async () => {
+    const u = userEvent.setup();
+    api.register.mockResolvedValue({ user: { ...user, email_verified: false } });
+    renderWithI18n(<SignupPasswordForm />);
+    await u.type(screen.getByLabelText("New password"), "Longenough1!");
+    await u.type(screen.getByLabelText("Confirm password"), "Longenough1!");
+    await u.click(submitButton());
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/en/signup/birth"));
+    expect(toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({ tone: "info", message: "We sent a confirmation link to jane@example.com. Open it to confirm your email." }),
+    );
+  });
+
+  it("says nothing about a link when the address is already verified", async () => {
+    const u = userEvent.setup();
+    api.register.mockResolvedValue({ user: { ...user, email_verified: true } });
+    renderWithI18n(<SignupPasswordForm />);
+    await u.type(screen.getByLabelText("New password"), "Longenough1!");
+    await u.type(screen.getByLabelText("Confirm password"), "Longenough1!");
+    await u.click(submitButton());
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/en/signup/birth"));
+    expect(toast.show).not.toHaveBeenCalled();
+  });
+
   it("maps email_taken to a form error with a Log In link", async () => {
     const u = userEvent.setup();
     api.register.mockRejectedValue(new ApiError({ code: "email_taken", message: "taken", status: 409 }));

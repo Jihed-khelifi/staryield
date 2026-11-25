@@ -240,3 +240,80 @@ describe("other tabs and expiry", () => {
     expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ message: "Your session has expired. Please sign in again." }));
   });
 });
+
+describe("growth: e-mail verification event", () => {
+  const emitVerified = (data: unknown = { email_verified: true, email_verified_at: "2026-11-05T10:00:00Z" }) =>
+    act(() => mocks.handlers.get("account.email_verified")?.forEach((fn) => fn({ type: "account.email_verified", data })));
+
+  function VerifiedProbe() {
+    const { user, wallet } = useSession();
+    return (
+      <p data-testid="verified">
+        {String(user?.email_verified)}:{wallet?.balance}
+      </p>
+    );
+  }
+  const mountVerified = () =>
+    render(
+      <SessionProvider>
+        <VerifiedProbe />
+      </SessionProvider>,
+    );
+
+  it("marks the user verified without a refetch and toasts once", async () => {
+    mocks.me.mockResolvedValue({ ...USER, email_verified: false });
+    mountVerified();
+    await flush();
+    expect(screen.getByTestId("verified").textContent).toBe("false:1");
+    emitVerified();
+    expect(screen.getByTestId("verified").textContent).toBe("true:1");
+    expect(mocks.me).toHaveBeenCalledTimes(1);
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+    expect(mocks.toast).toHaveBeenCalledWith({ tone: "success", message: "Your email is verified. Thank you for securing your account." });
+    // A repeated event (reconnect replay) changes nothing and does not toast again.
+    emitVerified();
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+  });
+
+  it("toasts once when two deliveries arrive before the next render", async () => {
+    mocks.me.mockResolvedValue({ ...USER, email_verified: false });
+    mountVerified();
+    await flush();
+    act(() => {
+      const fns = mocks.handlers.get("account.email_verified");
+      for (let i = 0; i < 2; i++) fns?.forEach((fn) => fn({ type: "account.email_verified", data: { email_verified: true } }));
+    });
+    expect(screen.getByTestId("verified").textContent).toBe("true:1");
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores an event that does not say verified", async () => {
+    mocks.me.mockResolvedValue({ ...USER, email_verified: false });
+    mountVerified();
+    await flush();
+    emitVerified({});
+    expect(screen.getByTestId("verified").textContent).toBe("false:1");
+    expect(mocks.toast).not.toHaveBeenCalled();
+  });
+
+  it("does not toast for an account that was already verified", async () => {
+    mocks.me.mockResolvedValue({ ...USER, email_verified: true });
+    mountVerified();
+    await flush();
+    emitVerified();
+    expect(mocks.toast).not.toHaveBeenCalled();
+  });
+
+  it("learns a missed verification when the stream has to resync", async () => {
+    mocks.me.mockResolvedValue({ ...USER, email_verified: false });
+    mountVerified();
+    await flush();
+    mocks.me.mockResolvedValue({ ...USER, email_verified: true });
+    await act(async () => {
+      mocks.handlers.get("resync_required")?.forEach((fn) => fn({ type: "resync_required" }));
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId("verified").textContent).toBe("true:1");
+    expect(mocks.toast).not.toHaveBeenCalled();
+  });
+});
