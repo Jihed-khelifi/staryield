@@ -18,7 +18,11 @@ func (h *Handler) AdminUsers(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	out, err := h.svc.Admin.Users(c.Request().Context(), c.QueryParam("q"), c.QueryParam("role"), c.QueryParam("status"), c.QueryParam("cursor"), limit)
+	verified, err := service.VerifiedFilter(c.QueryParam("verified"))
+	if err != nil {
+		return err
+	}
+	out, err := h.svc.Admin.Users(c.Request().Context(), c.QueryParam("q"), c.QueryParam("role"), c.QueryParam("status"), c.QueryParam("cursor"), limit, verified)
 	if err != nil {
 		return err
 	}
