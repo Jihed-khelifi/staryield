@@ -2,7 +2,7 @@
 /**
  * npm run test:content — validates the structured content modules:
  *   src/content/legal/{privacy,terms,refund}/{en,es,fr}.ts
- *   src/content/calculators/{natal,life-path,astrology}/{en,es,fr}.ts
+ *   src/content/calculators/{natal,life-path,astrology,tarot-birth-card}/{en,es,fr}.ts
  *
  * Every locale must mirror English (sections, ids, block types, list
  * lengths, link targets, bold spans, numbers, images, legal version/dates),
@@ -78,7 +78,7 @@ for (const [name, docs] of Object.entries(legal)) {
   sections += docs.en.sections.length;
 }
 const articles = {};
-for (const kind of ["natal", "life-path", "astrology"]) {
+for (const kind of ["natal", "life-path", "astrology", "tarot-birth-card"]) {
   articles[kind] = await loadAll(`content/calculators/${kind}`);
   issues.push(...checkArticle(kind, articles[kind], registry));
 }
