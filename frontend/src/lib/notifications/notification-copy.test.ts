@@ -127,6 +127,11 @@ const samples: Record<NotificationKind, Record<string, unknown>> = {
   // revisions 5.1 (§25.5)
   "payment.refunded": { amount_cents: 2667, currency: "USD", transaction_id: "t1" },
   "subscription.started": { plan_name: "Premium", amount_cents: 999, currency: "USD" },
+  // growth: lifecycle and onboarding
+  "lifecycle.verify_reminder": {},
+  "lifecycle.first_reading": { free_minutes: 5, online_advisors: 3 },
+  "lifecycle.invite_friends": {},
+  "lifecycle.win_back": { online_advisors: 4 },
 };
 
 describe("copy for every kind (§23.6)", () => {

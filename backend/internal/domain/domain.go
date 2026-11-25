@@ -119,8 +119,11 @@ type Profile struct {
 	// ShareBirthDetailsWithAdvisors is the client's consent for advisors to
 	// see their date of birth and birthplace.
 	ShareBirthDetailsWithAdvisors bool `gorm:"not null"`
-	CreatedAt                     time.Time
-	UpdatedAt                     time.Time
+	// OnboardingDismissedAt is when the client hid the "Get started"
+	// checklist (growth: lifecycle and onboarding).
+	OnboardingDismissedAt *time.Time
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
 func (Profile) TableName() string { return "user_profiles" }

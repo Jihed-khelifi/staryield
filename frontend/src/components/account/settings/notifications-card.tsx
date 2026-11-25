@@ -19,9 +19,10 @@ import { SettingsCard } from "./settings-ui";
 
 type Toggle = Exclude<keyof SettingsFormValues["notifications"], "push">;
 
-const PRIMARY: { name: Toggle; label: string }[] = [
+const PRIMARY: { name: Toggle; label: string; description?: string }[] = [
   { name: "email", label: "Email Notifications" },
-  { name: "marketing", label: "Marketing Updates" },
+  // growth: lifecycle messages are promotional; this opt-in is what allows their e-mail and push.
+  { name: "marketing", label: "Marketing Updates", description: "Tips, offers and reminders from Staryield by email and push. You can turn this off at any time." },
 ];
 
 const TOPICS: { name: Toggle; label: string }[] = [
@@ -30,19 +31,31 @@ const TOPICS: { name: Toggle; label: string }[] = [
   { name: "chart", label: "Changes in your chart" },
 ];
 
-function SwitchRow({ name, label, testId }: { name: Toggle; label: string; testId?: string }) {
+function SwitchRow({ name, label, description, testId }: { name: Toggle; label: string; description?: string; testId?: string }) {
   const { text } = useI18n();
   const form = useFormContext<SettingsFormValues>();
   const labelId = React.useId();
+  const hintId = React.useId();
   return (
     <FormField
       control={form.control}
       name={`notifications.${name}`}
       render={({ field }) => (
-        <FormItem className="settings-switch-row">
-          <span id={labelId} className="settings-switch-label">
-            {text(label)}
-          </span>
+        <FormItem className={description ? "settings-switch-row settings-switch-row-described" : "settings-switch-row"}>
+          {description ? (
+            <div>
+              <span id={labelId} className="settings-switch-label">
+                {text(label)}
+              </span>
+              <p id={hintId} className="settings-description" data-testid={`notify-${name}-hint`}>
+                {text(description)}
+              </p>
+            </div>
+          ) : (
+            <span id={labelId} className="settings-switch-label">
+              {text(label)}
+            </span>
+          )}
           <FormControl>
             <Switch
               ref={field.ref}
@@ -51,6 +64,7 @@ function SwitchRow({ name, label, testId }: { name: Toggle; label: string; testI
               onCheckedChange={field.onChange}
               onBlur={field.onBlur}
               aria-labelledby={labelId}
+              aria-describedby={description ? hintId : undefined}
               data-testid={testId ?? `notify-${name}`}
             />
           </FormControl>

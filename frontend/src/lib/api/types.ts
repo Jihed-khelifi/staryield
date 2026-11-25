@@ -563,6 +563,10 @@ export type NotificationKind =
   // --- end growth: referrals ---
 
   // --- growth: lifecycle and onboarding ---
+  | "lifecycle.verify_reminder"
+  | "lifecycle.first_reading"
+  | "lifecycle.invite_friends"
+  | "lifecycle.win_back"
   // --- end growth: lifecycle and onboarding ---
   ;
 

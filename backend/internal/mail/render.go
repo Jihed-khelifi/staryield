@@ -154,6 +154,9 @@ func Render(c Content, l Layout) (Rendered, error) {
 	if l.Category == "notification" || l.Category == "marketing" {
 		view.Notification = t("You receive this email because email notifications are on for your account.")
 	}
+	if l.Category == "marketing" { // growth: the reason is the opt-in, not the notification switch
+		view.Notification = t("You receive this email because you chose to receive tips, offers and reminders from Staryield.")
+	}
 	var html bytes.Buffer
 	if err := htmlLayout.Execute(&html, view); err != nil {
 		return Rendered{}, fmt.Errorf("mail: render html: %w", err)

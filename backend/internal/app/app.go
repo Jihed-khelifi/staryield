@@ -610,6 +610,12 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	// --- end growth: referrals ---
 
 	// --- growth: lifecycle and onboarding ---
+	lifecycleSvc := service.NewLifecycleService(service.LifecycleDeps{Tx: txm, Repo: repository.NewLifecycleRepository(db),
+		Site: repository.NewSiteRepository(db), Contacts: repository.NewContactRepository(db), Audit: audit, Notifier: dispatcher,
+		Events: publisher, OnlineAdvisors: catalogSvc.OnlineCount, Push: pushSvc, Cache: kv, Clock: clk, Log: log.With(zap.String("component", "lifecycle")),
+		IPHashSecret: cfg.Analytics.IPHashSecret})
+	lifecycleSvc.Attach(chatSvc)
+	services.Lifecycle = lifecycleSvc
 	// --- end growth: lifecycle and onboarding ---
 
 	// --- growth: cross-stream hooks ---
@@ -703,6 +709,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	// --- end growth jobs: referrals ---
 
 	// --- growth jobs: lifecycle and onboarding ---
+	scheduler.WithJobs(worker.Job{Name: service.LifecycleJob, Every: 5 * time.Minute, Run: lifecycleSvc.RunDue})
 	// --- end growth jobs: lifecycle and onboarding ---
 
 	return &App{
