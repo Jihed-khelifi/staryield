@@ -776,3 +776,52 @@ func TestReferralSweepCatchesMissedHooks(t *testing.T) {
 		t.Fatalf("the sweep did not qualify: %+v", r)
 	}
 }
+
+// Google sign-ups carry the invite code like password sign-ups, both when the
+// terms were accepted before leaving for Google and through the consent step
+// (the code then comes from the attempt started on the login page).
+func TestReferralGoogleSignUpsCreditTheInviter(t *testing.T) {
+	e, f := newGoogleEnv(t)
+	e.resetReferrals(true, 5, 20)
+	ctx := context.Background()
+	inviter := e.registerClient()
+	e.elsewhere(inviter.user.ID)
+	code := inviter.referrals().Code
+
+	// Sign-up intent with the terms: the callback creates the account.
+	direct := e.gbrowser()
+	direct.mustResult(f, gid(uniq("gref")+"@example.com"), map[string]any{"intent": "signup", "accept_terms": true,
+		"attribution": map[string]any{"referral_code": " " + strings.ToLower(code) + " ", "landing_path": "/en"}}, "signed_up")
+	var me service.UserView
+	direct.must(http.StatusOK, http.MethodGet, "/api/v1/me", nil, &me)
+	if r := e.referralOf(me.ID); r.Status != domain.ReferralJoined || r.ReferrerID != inviter.user.ID || r.Flagged {
+		t.Fatalf("direct Google sign-up: %+v", r)
+	}
+
+	// Sign-in intent on an unknown account: the consent step creates it.
+	consent := e.gbrowser()
+	consent.mustResult(f, gid(uniq("grefc")+"@example.com"), map[string]any{"intent": "signin",
+		"attribution": map[string]any{"referral_code": code}}, "signup_consent")
+	var sess struct {
+		User *service.UserView `json:"user"`
+	}
+	consent.must(http.StatusCreated, http.MethodPost, "/api/v1/auth/google/complete", map[string]any{"accept_terms": true}, &sess)
+	if sess.User == nil {
+		t.Fatal("consent: no account")
+	}
+	if r := e.referralOf(sess.User.ID); r.Status != domain.ReferralJoined || r.ReferrerID != inviter.user.ID {
+		t.Fatalf("Google sign-up through consent: %+v", r)
+	}
+	waitReferralNotice(t, inviter, service.NotifyReferralJoined)
+
+	// Google proved the address: a reading is all the friend still needs.
+	e.createPsychic(40)
+	e.settledReading(me.ID)
+	e.app.Services.Referrals.Evaluate(ctx, me.ID)
+	if r := e.referralOf(me.ID); r.Status != domain.ReferralQualified {
+		t.Fatalf("a Google friend with a reading: %+v", r)
+	}
+	if s := inviter.referrals().Stats; s.Joined != 2 || s.Qualified != 1 || s.PendingMinutes != 5 {
+		t.Fatalf("inviter stats: %+v", s)
+	}
+}
