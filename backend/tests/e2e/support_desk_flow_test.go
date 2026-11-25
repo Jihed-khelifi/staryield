@@ -296,11 +296,15 @@ func TestSupportDeskAssignPriorityAndVersionConflict(t *testing.T) {
 	if len(audits) < 4 {
 		t.Fatalf("audit rows: %d", len(audits))
 	}
-	// The fake clock does not move between writes, so find the first change by content.
+	// The fake clock does not move between writes, so the rows' order is not
+	// the order of the changes: find the first change (the assignee and the
+	// urgent priority together) by content. A later change also mentions
+	// "urgent" (from urgent to low).
 	first := ""
 	for _, a := range audits {
-		if j := toJSON(a.Metadata); strings.Contains(j, "urgent") {
+		if j := toJSON(a.Metadata); strings.Contains(j, "assignee_id") && strings.Contains(j, "urgent") {
 			first = j
+			break
 		}
 	}
 	for _, want := range []string{"assignee_id", "priority", "urgent", boss.adminID.String(), "from", "to"} {

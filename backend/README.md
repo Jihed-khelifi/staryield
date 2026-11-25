@@ -16,9 +16,10 @@ make run                          # http://localhost:8080
 Point the web app at it with `NEXT_PUBLIC_API_URL=http://localhost:8080` (see `frontend/README.md`).
 
 ```bash
-make test-unit    # no infrastructure needed
-make test-e2e     # full HTTP + WebSocket + SSE suite against PostgreSQL + Redis
-make test-race    # everything under the race detector
+make test-unit       # no infrastructure needed
+make test-e2e        # full HTTP + WebSocket + SSE suite against PostgreSQL + Redis (parallel shards)
+make test-e2e-quick  # the same without the large-dataset tests (-short), for iteration
+make test-race       # everything under the race detector
 make lint         # gofmt + go vet
 ```
 
@@ -232,7 +233,10 @@ DATABASE_URL='<DATABASE_PUBLIC_URL>' STARYIELD_SEED_ADMIN_EMAIL=you@staryield.ne
 ## Tests
 
 * **Unit tests:** state machines and billing arithmetic, Argon2id/JWT/CSRF, Redis and in-memory rate limiters, realtime stream IDs/replay/hub/presence/tickets and a WebSocket server against fakes, middleware and error rendering, config hardening, analytics batching, payments signatures, cache, storage, cursors, astrology (ephemeris accuracy vs JPL Horizons).
-* **End-to-end (`tests/e2e`):** the real app on PostgreSQL + Redis with real WebSocket and SSE clients. A fake clock drives billing deterministically. Scenarios:
+* **End-to-end (`tests/e2e`):** the real app on PostgreSQL + Redis with real WebSocket and SSE clients. A fake clock drives billing deterministically.
+  * **Parallel shards.** The suite spends most of its time waiting on PostgreSQL, so by default the test binary migrates the test database once, clones it per shard (`CREATE DATABASE … TEMPLATE`, so the test user needs `CREATEDB`) and runs the tests in `STARYIELD_E2E_SHARDS` child processes (default: half the CPUs, at most 4), one database each; tests within a shard run one at a time as before. The shards are balanced with the measured cost of the slow tests (`testCost` in `tests/e2e/shard_test.go`). `STARYIELD_E2E_SHARDS=1` runs everything in one process. A run that selects one test, lists tests, writes a profile or coverage, or uses `go test -json` stays in one process. The clones (`<test db>_shard<n>`) are dropped after a passing run and kept after a failing one. The test database also runs with `synchronous_commit = off` (it never has to survive a crash).
+  * Always pass `-count=1`; the large-dataset tests skip under `-short` (`make test-e2e-quick`).
+  * Scenarios:
   * auth, CSRF/Origin, refresh rotation and reuse detection, lockout, password reset, RBAC, profile and avatar
   * the full live chat lifecycle: free and paid minutes, an immutable ledger, read receipts, bookmarks and the summary
   * credit exhaustion, request expiry, decline and cancel

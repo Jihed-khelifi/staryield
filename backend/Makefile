@@ -1,4 +1,4 @@
-.PHONY: help up down run migrate seed seed-admin test test-unit test-e2e test-race lint build
+.PHONY: help up down run migrate seed seed-admin test test-unit test-e2e test-e2e-quick test-race lint build
 
 # The api, migrate and seed commands read their settings from ./.env (copy
 # .env.example) and the environment; nothing is exported here so .env applies.
@@ -31,8 +31,11 @@ test: test-unit test-e2e ## Run all tests
 test-unit: ## Unit tests (no infrastructure needed)
 	go test ./internal/... -count=1
 
-test-e2e: ## End-to-end tests against PostgreSQL + Redis (the suite runs longer than go test's default 10 minutes)
+test-e2e: ## End-to-end tests against PostgreSQL + Redis, in parallel shards (STARYIELD_E2E_SHARDS=1: one process)
 	STARYIELD_E2E=1 STARYIELD_TEST_DATABASE_DSN=$(TEST_DB_DSN) STARYIELD_TEST_REDIS_URL=$(TEST_REDIS_URL) go test ./tests/... -count=1 -timeout 45m
+
+test-e2e-quick: ## End-to-end tests without the large-dataset ones (-short), for iteration
+	STARYIELD_E2E=1 STARYIELD_TEST_DATABASE_DSN=$(TEST_DB_DSN) STARYIELD_TEST_REDIS_URL=$(TEST_REDIS_URL) go test ./tests/... -count=1 -short -timeout 20m
 
 test-race: ## Everything with the race detector
 	STARYIELD_E2E=1 STARYIELD_TEST_DATABASE_DSN=$(TEST_DB_DSN) STARYIELD_TEST_REDIS_URL=$(TEST_REDIS_URL) go test ./... -race -count=1 -timeout 90m

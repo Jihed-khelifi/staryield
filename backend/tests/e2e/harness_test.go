@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -64,6 +65,19 @@ func envOr(k, def string) string {
 
 func TestMain(m *testing.M) {
 	time.Local = time.UTC
+	flag.Parse()
+	if flagValue("test.list") != "" {
+		os.Exit(m.Run()) // listing only (also how the shard coordinator asks): no database
+	}
+	if os.Getenv(shardEnv) != "" {
+		// A shard (shard_test.go): its database is a migrated clone.
+		if err := pingDatabase(); err != nil {
+			fmt.Fprintln(os.Stderr, "e2e: shard database unavailable:", err)
+			os.Exit(1)
+		}
+		available = true
+		os.Exit(m.Run())
+	}
 	if err := resetDatabase(); err != nil {
 		if os.Getenv("STARYIELD_E2E") == "1" {
 			fmt.Fprintln(os.Stderr, "e2e: infrastructure unavailable:", err)
@@ -71,6 +85,11 @@ func TestMain(m *testing.M) {
 		}
 		fmt.Fprintln(os.Stderr, "e2e: skipping (PostgreSQL/Redis unavailable):", err)
 		os.Exit(0)
+	}
+	if n := shardCount(); n > 1 && shardable() {
+		if code, ok := runShards(n); ok {
+			os.Exit(code)
+		}
 	}
 	available = true
 	os.Exit(m.Run())
@@ -93,6 +112,12 @@ func resetDatabase() error {
 		return err
 	}
 	if err := db.WithContext(ctx).Exec("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;").Error; err != nil {
+		return err
+	}
+	// A test database never has to survive a crash, so commits need not wait
+	// for the WAL flush; the sessions opened from now on (every test's pool)
+	// inherit it. The shard clones get the same setting (shard_test.go).
+	if err := db.WithContext(ctx).Exec(`DO $$ BEGIN EXECUTE format('ALTER DATABASE %I SET synchronous_commit = off', current_database()); END $$`).Error; err != nil {
 		return err
 	}
 	_, err = migrations.Up(ctx, db, zap.NewNop())
