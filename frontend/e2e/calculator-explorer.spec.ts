@@ -101,4 +101,17 @@ test.describe("natal chart calculator: the full chart for every visitor", { tag:
     await expect(page.getByTestId("calculator-result").getByTestId("natal-wheel")).toBeVisible();
     await expect(page.getByTestId("big-three")).toContainText("Sun in Taurus");
   });
+
+  test("a cusp day without a birth time: both Sun signs from the sun sign result to the full chart, never the noon guess alone", async ({ page }) => {
+    await page.goto("/en/calculators/astrology#v=1&d=1990-02-19");
+    await expect(page.getByTestId("sun-sign-uncertain")).toContainText("the Sun moved from Aquarius into Pisces that day");
+    await page.getByTestId("full-chart-link").click();
+    await expect(page).toHaveURL(/\/en\/calculators\/natal-chart#v=1&d=1990-02-19$/);
+    await expect(page.getByTestId("big-three")).toHaveText(/^Sun in Aquarius or Pisces/);
+    const note = page.getByTestId("sun-uncertain");
+    await expect(note).toContainText("Your Sun sign needs your birth time and place.");
+    await note.getByRole("button", { name: "Add birth time and place" }).click();
+    await expect(page.getByTestId("calculator-form")).toBeVisible();
+    await expect(page.getByTestId("calculator-form").locator('input[name="birth.year"]')).toHaveValue("1990");
+  });
 });

@@ -64,7 +64,9 @@ test.describe("share a calculator result as a 9:16 image", () => {
     // Copy link: the calculator's page, without the fragment that holds the birth date.
     await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: baseURL });
     await page.getByTestId("share-copy").click();
-    await expect(page.getByText("Link copied.")).toBeVisible();
+    await expect(page.getByTestId("share-feedback")).toHaveText("Link copied.");
+    // Said once: the dialog's status region is the only one carrying it.
+    await expect(page.getByText("Link copied.")).toHaveCount(1);
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`${baseURL}/en/calculators/tarot-birth-card`);
 
     // Escape closes the dialog and focus returns to the button that opened it.
@@ -95,6 +97,20 @@ test.describe("share a calculator result as a 9:16 image", () => {
     const sun = await downloadShareImage(page, "astrology");
     expect([sun.width, sun.height]).toEqual([1080, 1920]);
     await expect(page.getByTestId("share-preview")).toHaveAttribute("alt", /I'm a Taurus/);
+  });
+
+  test("a cusp day without a birth time: the images name both signs", async ({ page }) => {
+    await page.goto("/en/calculators/astrology#v=1&d=1990-02-19");
+    await expect(page.getByTestId("sun-sign-uncertain")).toBeVisible();
+    const sun = await downloadShareImage(page, "astrology");
+    expect([sun.width, sun.height]).toEqual([1080, 1920]);
+    await expect(page.getByTestId("share-preview")).toHaveAttribute("alt", "Share image: I was born on the Aquarius–Pisces cusp");
+
+    await page.goto("/en/calculators/natal-chart#v=1&d=1990-02-19");
+    await expect(page.getByTestId("sun-uncertain")).toBeVisible();
+    const natal = await downloadShareImage(page, "natal-chart");
+    expect([natal.width, natal.height]).toEqual([1080, 1920]);
+    await expect(page.getByTestId("share-preview")).toHaveAttribute("alt", /^Share image: Sun in Aquarius or Pisces/);
   });
 
   test("the sample result offers no share (its date is not the visitor's)", async ({ page }) => {

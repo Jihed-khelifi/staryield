@@ -92,13 +92,31 @@ test.describe("tarot birth card calculator", { tag: "@responsive" }, () => {
     }
   });
 
-  test("the header fits every language at 1024 px", async ({ page, isMobile }) => {
-    test.skip(isMobile, "desktop navigation");
-    await page.setViewportSize({ width: 1024, height: 800 });
-    for (const locale of ["en", "fr", "es"]) {
-      await page.goto(`/${locale}/calculators/tarot-birth-card`);
-      await expect(page.locator("header nav a[href$='/calculators/tarot-birth-card']")).toBeVisible();
-      await expectNoHorizontalScroll(page);
-    }
+  test("the sample on /results gives way to the form, and the visitor's own card follows there", async ({ page }) => {
+    await page.goto("/en/calculators/tarot-birth-card/results");
+    await expect(page.getByText("Sample date from the design. Change the birth date to calculate your own result.")).toBeVisible();
+    await page.getByTestId("change-birth-date").click();
+    const form = page.getByTestId("calculator-form");
+    await expect(form).toBeVisible();
+    await expect(form.locator('input[name="birth.day"]')).toBeFocused();
+    await expect(form.locator('input[name="birth.year"]')).toHaveValue("");
+    await form.locator('input[name="birth.day"]').fill("29");
+    await form.locator('input[name="birth.month"]').fill("11");
+    await form.locator('input[name="birth.year"]').fill("1990");
+    await page.getByTestId("calculator-submit").click();
+    await expect(page.getByTestId("tarot-headline")).toHaveText("Your tarot birth card is The Hierophant");
+    expect(page.url()).toMatch(/\/en\/calculators\/tarot-birth-card\/results#v=1&d=1990-11-29$/);
+    await expect(page.getByText("Sample date from the design. Change the birth date to calculate your own result.")).toHaveCount(0);
+    await expect(page.getByTestId("share-result-button")).toHaveCount(2);
   });
+});
+
+// The full navigation bar exists on desktop widths only, so this runs in the desktop project alone.
+test("the header fits every language at 1024 px", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 800 });
+  for (const locale of ["en", "fr", "es"]) {
+    await page.goto(`/${locale}/calculators/tarot-birth-card`);
+    await expect(page.locator("header nav a[href$='/calculators/tarot-birth-card']")).toBeVisible();
+    await expectNoHorizontalScroll(page);
+  }
 });
