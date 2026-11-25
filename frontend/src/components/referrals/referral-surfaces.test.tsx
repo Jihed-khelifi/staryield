@@ -70,7 +70,7 @@ describe("ReferralCard (overview)", () => {
   });
 
   it("holds a place while loading, then offers a retry on failure", async () => {
-    mine.mockRejectedValueOnce(new ApiError({ code: "network_error", message: "offline", status: 0, retryable: true }));
+    mine.mockRejectedValueOnce(new ApiError({ code: "network_error", message: "offline", status: 0 }));
     mine.mockResolvedValueOnce(data());
     renderWith(<ReferralCard />);
     expect(screen.getByText("Loading your invite link…")).toBeTruthy();
