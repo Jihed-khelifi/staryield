@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/i18n-provider";
@@ -31,7 +31,9 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { announce } from "@/components/feedback/live-region";
 import { useAsync } from "@/lib/use-async";
 import { ServiceOrderForm } from "@/components/psychics/service-order-form";
-import { WaitlistButton } from "@/components/waitlist/waitlist-button";
+import { BookButton } from "@/components/booking/book-button";
+import { BookingBar, useBookingBarVisible } from "@/components/booking/booking-bar";
+import { WaitlistProvider } from "@/lib/booking/waitlist-provider";
 
 const statusCopy: Record<PresenceStatus, string> = {
   online: "● Online",
@@ -115,12 +117,14 @@ const statusName: Record<PresenceStatus, string> = { online: "Online", busy: "Bu
 
 function AdvisorCardView({ advisor }: { advisor: AdvisorCard }) {
   const { text, locale } = useI18n();
+  // The booking button repeats on every card: it points at the advisor's name.
+  const nameId = useId();
   return (
     <article className="advisor-card texture-24" data-status={advisor.status}>
       <img className="advisor-card-image" src={advisor.image_url} alt={text(advisor.name)} loading="lazy" decoding="async" />
       <div className="advisor-card-copy">
         <div className="advisor-card-head">
-          <h2 className="text-[26px] md:font-display">
+          <h2 id={nameId} className="text-[26px] md:font-display">
             {/* Figma desktop: a status dot before the name. Its shape also
                 changes (filled when available, hollow when offline), so the
                 status is not told by colour alone. */}
@@ -160,6 +164,7 @@ function AdvisorCardView({ advisor }: { advisor: AdvisorCard }) {
           </span>
           <span className="sr-only">: {text(advisor.name)}</span>
         </Link>
+        <BookButton advisor={advisor} placement="directory" size="full" describedBy={nameId} className="mt-3" />
       </div>
     </article>
   );
@@ -306,12 +311,26 @@ export function PsychicsBrowse() {
         <MobileNavigation />
       </div>
     );
-  return <PsychicsDirectory />;
+  return (
+    <WaitlistProvider>
+      <PsychicsDirectory />
+    </WaitlistProvider>
+  );
 }
 
+/** One waiting-list read serves the hero button and the phone bar. */
 export function PsychicProfile({ slug }: { slug: string }) {
+  return (
+    <WaitlistProvider>
+      <PsychicProfileView slug={slug} />
+    </WaitlistProvider>
+  );
+}
+
+function PsychicProfileView({ slug }: { slug: string }) {
   const { text, locale } = useI18n();
   const { status: sessionStatus, user } = useSession();
+  const barVisible = useBookingBarVisible();
   const psychicsHref = usePsychicsHref();
   const freeMode = useFreeMode();
   const [advisor, setAdvisor] = useState<Psychic | null>(null);
@@ -360,12 +379,13 @@ export function PsychicProfile({ slug }: { slug: string }) {
   }
 
   const canChat = advisor.status === "online";
+  const markOnline = () => setAdvisor((a) => (a ? { ...a, status: "online" } : a));
   const returnHere = encodeURIComponent(`/${locale}/psychics/${slug}`);
 
   return (
     <div className="dashboard-page">
       <SiteHeader />
-      <main className="psychic-profile">
+      <main className={barVisible ? "psychic-profile has-booking-bar" : "psychic-profile"}>
         <div className="mb-8 flex items-center justify-between text-sm">
           <div>
             <Link href={psychicsHref}>{text("Psychics")}</Link>{" "}
@@ -432,21 +452,9 @@ export function PsychicProfile({ slug }: { slug: string }) {
                 </p>
               </div>
               <FreeChatBadge className="mt-4" />
-              {/* Busy, away or offline: wait for the advisor next to the chat CTA (same flow as the home cards). */}
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row" data-testid="profile-ctas">
-                <Button asChild className="gold-button h-14 w-full sm:flex-1">
-                  <Link href={`/${locale}/chatroom?reader=${slug}`} onClick={() => track("chat_cta_clicked", { slug, status: advisor.status })}>
-                    {text("♧ Start live chat ")}
-                  </Link>
-                </Button>
-                {!canChat ? (
-                  <WaitlistButton
-                    slug={slug}
-                    name={advisor.name}
-                    className="h-14 w-full sm:flex-1"
-                    onAvailable={() => setAdvisor((a) => (a ? { ...a, status: "online" } : a))}
-                  />
-                ) : null}
+              {/* One standard action for every status: chat, sign up, or the waiting list. */}
+              <div className="mt-5" data-testid="profile-ctas">
+                <BookButton advisor={advisor} placement="profile_hero" size="lg" className="w-full" onAvailable={markOnline} />
               </div>
             </div>
           </div>
@@ -502,6 +510,7 @@ export function PsychicProfile({ slug }: { slug: string }) {
         </section>
         <PsychicReviews slug={slug} total={advisor.reviews_count} />
       </main>
+      <BookingBar advisor={advisor} onAvailable={markOnline} />
       <MobileNavigation />
       <Sheet
         open={Boolean(service)}

@@ -1,34 +1,25 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useEffect, useId } from "react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import type { Locale } from "@/i18n/config";
-import { psychicsApi, waitlistApi } from "@/lib/api/endpoints";
-import { toApiError } from "@/lib/api/errors";
+import { psychicsApi } from "@/lib/api/endpoints";
 import type { FeaturedAdvisor, FeaturedList, PresenceStatus } from "@/lib/api/types";
-import { useRequireAdult } from "@/lib/auth/age-gate"; // revisions 5.0: 18+ age gate (§24.6)
-import { useSession } from "@/lib/auth/session-provider";
+import { WaitlistProvider } from "@/lib/booking/waitlist-provider";
 import { applyStatusChange, useStatusChanges } from "@/lib/psychics-live"; // revisions 6.0: live re-sort (§26.3)
 import { useAsync } from "@/lib/use-async";
 import { formatRating } from "@/lib/format";
-import { loginUrl } from "@/lib/navigation";
-import { track } from "@/lib/analytics";
 import { FreeChatBadge } from "@/components/billing/free-chat-badge";
-import { Button } from "@/components/ui/button";
+import { BookButton } from "@/components/booking/book-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/feedback/error-state";
-import { useToast } from "@/components/feedback/toast-provider";
-import { announce } from "@/components/feedback/live-region";
 
 /** How many advisors the home page shows, and how often it refreshes. */
 export const FEATURED_COUNT = 3;
 const REFRESH_MS = 30_000;
 const imgStar = "https://assets.staryield.net/assets/figma/d9e90.svg";
 const imgDivider = "https://assets.staryield.net/assets/figma/7bd7f.svg";
-const imgPaper = "https://assets.staryield.net/assets/figma/fb9ee.jpg";
 
 const badgeCopy: Record<PresenceStatus, string> = {
   online: "Active Now",
@@ -67,15 +58,7 @@ function CardSkeleton() {
   );
 }
 
-type CardProps = {
-  advisor: FeaturedAdvisor;
-  joined: boolean;
-  pending: boolean;
-  onJoin: (a: FeaturedAdvisor) => void;
-  onLeave: (a: FeaturedAdvisor) => void;
-};
-
-function FeaturedCard({ advisor, joined, pending, onJoin, onLeave }: CardProps) {
+function FeaturedCard({ advisor }: { advisor: FeaturedAdvisor }) {
   const { text, locale } = useI18n();
   const online = advisor.status === "online";
   // Buttons repeat on every card: they point at the advisor's name.
@@ -129,65 +112,14 @@ function FeaturedCard({ advisor, joined, pending, onJoin, onLeave }: CardProps) 
           </dd>
         </div>
       </dl>
-      {online ? (
-        <Button asChild variant="cta" className="relative h-11 w-full overflow-hidden text-[14px]">
-          <Link
-            aria-describedby={nameId}
-            href={`/${locale}/chatroom?reader=${encodeURIComponent(advisor.slug)}`}
-            onClick={() => track("chat_cta_clicked", { slug: advisor.slug, status: advisor.status, source: "home_featured" })}
-          >
-            <img alt="" aria-hidden className="pointer-events-none absolute inset-0 size-full object-cover mix-blend-overlay" src={imgPaper} />
-            <span className="relative">{text("Start 1-on-1 Chat ")}</span>
-          </Link>
-        </Button>
-      ) : joined ? (
-        <Button
-          type="button"
-          variant="glass"
-          className="h-11 w-full text-[14px]"
-          aria-describedby={nameId}
-          disabled={pending}
-          aria-busy={pending}
-          onClick={() => onLeave(advisor)}
-        >
-          {text("✓ On the waiting list")}
-          <span className="sr-only">{text("(select to leave)")}</span>
-        </Button>
-      ) : (
-        <Button
-          type="button"
-          variant="glass"
-          className="h-11 w-full text-[14px]"
-          aria-describedby={nameId}
-          disabled={pending}
-          aria-busy={pending}
-          onClick={() => onJoin(advisor)}
-        >
-          {text(pending ? "Joining…" : "Join Waiting List ")}
-        </Button>
-      )}
+      <BookButton advisor={advisor} placement="home_featured" size="full" describedBy={nameId} />
     </article>
   );
 }
 
-/**
- * The home page "Psychic readings built around your journey" cards: the
- * advisors who can talk now first, then the best rated by many reviews
- * (GET /psychics/featured). Statuses stay live through realtime events and a
- * refresh every 30 seconds while the page is visible. Busy or offline
- * advisors offer the waiting list; visitors are asked to sign in first.
- */
-export function FeaturedAdvisors() {
-  const { text, locale } = useI18n();
-  const router = useRouter();
-  const toast = useToast();
-  const { status: sessionStatus, user } = useSession();
-  const requireAdult = useRequireAdult();
-  const isClient = sessionStatus === "authenticated" && user?.role === "client";
+function FeaturedCards() {
+  const { text } = useI18n();
   const featured = useAsync((signal) => psychicsApi.featured(FEATURED_COUNT, signal), []);
-  const mine = useAsync((signal) => waitlistApi.mine({ limit: 50 }, signal), [user?.id ?? ""], isClient);
-  const [joinedNow, setJoinedNow] = useState<Record<string, boolean>>({});
-  const [pending, setPending] = useState<string | null>(null);
   const { reload, setData } = featured;
 
   // Refresh while visible; pause in background tabs.
@@ -206,67 +138,6 @@ export function FeaturedAdvisors() {
   // A status change re-sorts the cards and refreshes the selection (at most
   // every 5 s): another advisor may now belong among the first cards.
   useStatusChanges((slug, status) => setData((list) => (list ? withStatus(list, slug, status) : list)), reload);
-
-  const joined = useMemo(() => {
-    const out = new Set((mine.data?.items ?? []).map((e) => e.slug));
-    for (const [slug, on] of Object.entries(joinedNow)) {
-      if (on) out.add(slug);
-      else out.delete(slug);
-    }
-    return out;
-  }, [mine.data, joinedNow]);
-
-  const join = useCallback(
-    async (advisor: FeaturedAdvisor) => {
-      if (sessionStatus !== "authenticated") {
-        router.push(loginUrl(locale));
-        return;
-      }
-      if (user?.role !== "client") {
-        router.push(`/${locale}/psychics/${advisor.slug}`);
-        return;
-      }
-      if (!requireAdult()) return;
-      setPending(advisor.slug);
-      try {
-        await waitlistApi.join(advisor.slug);
-        setJoinedNow((m) => ({ ...m, [advisor.slug]: true }));
-        const message = text("You're on {value0}'s waiting list. We'll let you know when they're online.", { value0: advisor.name });
-        toast.show({ tone: "success", message });
-        announce(message);
-      } catch (err) {
-        const e = toApiError(err);
-        if (e.code === "advisor_available") {
-          setData((list) => (list ? withStatus(list, advisor.slug, "online") : list));
-          toast.show({ tone: "info", message: text("{value0} is online now. Start your chat.", { value0: advisor.name }) });
-          reload();
-        } else {
-          toast.showError(e);
-        }
-      } finally {
-        setPending(null);
-      }
-    },
-    [locale, reload, requireAdult, router, sessionStatus, setData, text, toast, user?.role],
-  );
-
-  const leave = useCallback(
-    async (advisor: FeaturedAdvisor) => {
-      setPending(advisor.slug);
-      try {
-        await waitlistApi.leave(advisor.slug);
-        setJoinedNow((m) => ({ ...m, [advisor.slug]: false }));
-        const message = text("You left {value0}'s waiting list.", { value0: advisor.name });
-        toast.show({ tone: "info", message });
-        announce(message);
-      } catch (err) {
-        toast.showError(err);
-      } finally {
-        setPending(null);
-      }
-    },
-    [text, toast],
-  );
 
   const list = featured.data;
   return (
@@ -291,17 +162,25 @@ export function FeaturedAdvisors() {
       ) : list.items.length === 0 ? (
         <p className="font-serif text-[16px] text-white">{text("No advisors are listed right now.")}</p>
       ) : (
-        list.items.map((advisor) => (
-          <FeaturedCard
-            key={advisor.slug}
-            advisor={advisor}
-            joined={joined.has(advisor.slug)}
-            pending={pending === advisor.slug}
-            onJoin={join}
-            onLeave={leave}
-          />
-        ))
+        list.items.map((advisor) => <FeaturedCard key={advisor.slug} advisor={advisor} />)
       )}
     </div>
+  );
+}
+
+/**
+ * The home page "Psychic readings built around your journey" cards: the
+ * advisors who can talk now first, then the best rated by many reviews
+ * (GET /psychics/featured). Statuses stay live through realtime events and a
+ * refresh every 30 seconds while the page is visible. Each card carries the
+ * standard book button (chat, sign up, or the waiting list).
+ * The cards share one waiting-list read (and the joined state) through the
+ * provider.
+ */
+export function FeaturedAdvisors() {
+  return (
+    <WaitlistProvider>
+      <FeaturedCards />
+    </WaitlistProvider>
   );
 }
