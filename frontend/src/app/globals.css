@@ -3532,8 +3532,9 @@ html {
     gap: 12px;
   }
 }
-/* Tablets: the five-column footer only fits from 1024px. */
-@media (min-width: 768px) and (max-width: 1023px) {
+/* Tablets and small laptops: the five-column footer only fits from 1200px
+   (at 1024px "PLATEFORME" and "PLATAFORMA" broke mid-word). */
+@media (min-width: 768px) and (max-width: 1199px) {
   .site-footer {
     padding: 40px 32px;
   }
@@ -3664,7 +3665,9 @@ html {
   .public-frame .booking-bar {
     bottom: calc(12px + env(safe-area-inset-bottom));
   }
+  /* The bar is about 93px tall when its offer line wraps (more in fr/es) and sits 12px above the edge:
+     76px left the end of the footer under it. */
   .public-frame:has(> .psychic-profile.has-booking-bar) {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    padding-bottom: calc(128px + env(safe-area-inset-bottom));
   }
 }
