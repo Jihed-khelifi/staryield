@@ -8,8 +8,8 @@
 import type { TranslateCopy } from "@/i18n/translate-copy";
 import type { CalculatorResult } from "@/components/calculators/calculate";
 import { LIFE_PATH_COPY } from "@/lib/astro/life-path-copy";
+import { cardNumeral } from "@/lib/astro/tarot-birth-steps";
 import { SIGN_ARTWORK, isSign } from "@/lib/astro/zodiac";
-import { romanNumeral } from "@/lib/calculators";
 import type { CalculatorKind } from "@/lib/schemas/calculator";
 
 /** The site's address as printed on every image. */
@@ -90,7 +90,7 @@ export function shareCardSpec(result: CalculatorResult, text: TranslateCopy): Sh
             cards.length > 1
               ? [text("Soul card: {value0}", { value0: text(soul.name) })]
               : [text("Personality and soul card in one")],
-          artwork: cards.map((card) => ({ url: card.image, aspect: TAROT_ASPECT, style: "card", caption: card.arcana === 0 ? "0" : romanNumeral(card.arcana) })),
+          artwork: cards.map((card) => ({ url: card.image, aspect: TAROT_ASPECT, style: "card", caption: cardNumeral(card) })),
         },
         text,
       );

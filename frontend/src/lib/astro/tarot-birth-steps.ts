@@ -1,5 +1,10 @@
-import { parseIsoDate, type TarotBirthCards } from "@/lib/calculators";
-import { birthCardsOf, constellationOf } from "@/lib/astro/tarot-birth-card";
+import { parseIsoDate, romanNumeral, type TarotBirthCards } from "@/lib/calculators";
+import { birthCardsOf, constellationOf, type BirthCard } from "@/lib/astro/tarot-birth-card";
+
+/** The numeral printed on a card: "XVII"; The Fool is "0". */
+export function cardNumeral(card: Pick<BirthCard, "arcana">): string {
+  return card.arcana === 0 ? "0" : romanNumeral(card.arcana);
+}
 
 /**
  * "How it adds up" for a tarot birth card, written out:

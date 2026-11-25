@@ -5,17 +5,11 @@ import * as React from "react";
 import { useI18n } from "@/i18n/i18n-provider";
 import { birthCard, type BirthCard, type TarotBirthResult } from "@/lib/astro/tarot-birth-card";
 import { TAROT_BIRTH_COPY } from "@/lib/astro/tarot-birth-copy";
-import { chainLabel, constellationPeers, tarotBirthSteps } from "@/lib/astro/tarot-birth-steps";
-import { romanNumeral } from "@/lib/calculators";
+import { cardNumeral, chainLabel, constellationPeers, tarotBirthSteps } from "@/lib/astro/tarot-birth-steps";
 import { usePsychicsHref } from "@/lib/psychics-link";
 import { AdvisorCta, Lock, StarHeading } from "@/components/calculators/results";
 import { TAROT_BIRTH_NOTICE } from "@/components/calculators/birth-data-notice";
 import { cn } from "@/lib/utils";
-
-/** "XVII"; The Fool is "0". */
-export function cardNumeral(card: BirthCard): string {
-  return card.arcana === 0 ? "0" : romanNumeral(card.arcana);
-}
 
 /** Which role a card plays in the chain from the personality card to the soul card (English source copy). */
 export function roleOf(index: number, count: number): string {
