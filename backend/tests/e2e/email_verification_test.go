@@ -2,8 +2,11 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,7 +21,13 @@ import (
 
 type verifyMe struct {
 	EmailVerified bool `json:"email_verified"`
+	// EmailVerification is the open link (null when none is waiting).
+	EmailVerification *service.PendingVerification `json:"email_verification"`
 }
+
+// wellFormedToken is a token that passes the format check but matches no
+// link, so a refusal is decided by the database.
+const wellFormedToken = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE"
 
 // skipWelcomeMail delivers the welcome e-mail every password sign-up queues
 // (its verification link) and clears the fake provider, for tests that count
@@ -55,16 +64,23 @@ func TestEmailVerificationFlow(t *testing.T) {
 	if me.EmailVerified {
 		t.Fatal("a new password account must start unverified")
 	}
+	// /me says a link is waiting (the clients say "we sent a link" only then).
+	if p := me.EmailVerification; p == nil || p.SentAt.IsZero() || !p.ResendAvailableAt.Equal(p.SentAt.Add(time.Minute)) {
+		t.Fatalf("pending link: %+v", me.EmailVerification)
+	}
 	var stored int64
 	e.app.DB.Raw("SELECT count(*) FROM user_action_tokens WHERE purpose = 'email_verify' AND token_hash = ?", token).Scan(&stored)
 	if stored != 0 {
 		t.Fatal("the raw token must never be stored")
 	}
 
-	// A failed attempt announces nothing.
+	// A failed attempt announces nothing: a malformed token, and a well-formed
+	// one the database does not know.
 	anon := e.client()
-	if r := anon.call(http.MethodPost, "/api/v1/auth/email/verify", map[string]any{"token": "not-a-token"}); r.errCode(t) != "invalid_token" {
-		t.Fatalf("bad token: %d %s", r.status, r.body)
+	for _, bad := range []string{"not-a-token", wellFormedToken} {
+		if r := anon.call(http.MethodPost, "/api/v1/auth/email/verify", map[string]any{"token": bad}); r.errCode(t) != "invalid_token" {
+			t.Fatalf("bad token %q: %d %s", bad, r.status, r.body)
+		}
 	}
 	live.expectNone(realtime.EventEmailVerified, 400*time.Millisecond)
 
@@ -79,8 +95,8 @@ func TestEmailVerificationFlow(t *testing.T) {
 		t.Fatalf("event: %s", ev.Data)
 	}
 	c.must(http.StatusOK, http.MethodGet, "/api/v1/me", nil, &me)
-	if !me.EmailVerified {
-		t.Fatal("/me must report the verified address")
+	if !me.EmailVerified || me.EmailVerification != nil {
+		t.Fatalf("/me must report the verified address and no pending link: %+v", me)
 	}
 	if n := e.auditCount("account.email_verified", c.user.ID); n != 1 {
 		t.Fatalf("audit rows: %d", n)
@@ -107,10 +123,12 @@ func TestEmailVerificationFlow(t *testing.T) {
 		t.Fatalf("in-app notification missing: %+v", notes.Items)
 	}
 
-	// The token is single use; a verified address cannot ask for another link.
+	// The token is single use (the refusal of the used token announces
+	// nothing); a verified address cannot ask for another link.
 	if r := anon.call(http.MethodPost, "/api/v1/auth/email/verify", map[string]any{"token": token}); r.errCode(t) != "invalid_token" {
 		t.Fatalf("reuse: %d %s", r.status, r.body)
 	}
+	live.expectNone(realtime.EventEmailVerified, 400*time.Millisecond)
 	if r := c.call(http.MethodPost, "/api/v1/me/email/verification", nil); r.status != http.StatusConflict || r.errCode(t) != "already_verified" {
 		t.Fatalf("resend when verified: %d %s", r.status, r.body)
 	}
@@ -270,12 +288,21 @@ func TestEmailVerificationForAdvisors(t *testing.T) {
 	if me.EmailVerified {
 		t.Fatal("an advisor account starts unverified")
 	}
+	// No link was ever sent (like accounts created before verification existed):
+	// /me says so, so the clients do not claim one is in the inbox.
+	if me.EmailVerification != nil {
+		t.Fatalf("no link is pending for an account that never received one: %+v", me.EmailVerification)
+	}
 	var u domain.User
 	e.app.DB.First(&u, "id = ?", psy.user.ID)
 	if u.Role != domain.RolePsychic {
 		t.Fatalf("role %s", u.Role)
 	}
 	psy.must(http.StatusAccepted, http.MethodPost, "/api/v1/me/email/verification", nil, nil)
+	psy.must(http.StatusOK, http.MethodGet, "/api/v1/me", nil, &me)
+	if me.EmailVerification == nil {
+		t.Fatal("the link just sent must be pending")
+	}
 	_, token := verificationLink(t, e, psy.user.Email)
 	e.client().must(http.StatusOK, http.MethodPost, "/api/v1/auth/email/verify", map[string]any{"token": token}, nil)
 	psy.must(http.StatusOK, http.MethodGet, "/api/v1/me", nil, &me)
@@ -319,5 +346,223 @@ func TestEmailVerificationHooksRunAfterCommit(t *testing.T) {
 	case s := <-got:
 		t.Fatalf("a hook ran for a refused link: %+v", s)
 	case <-time.After(300 * time.Millisecond):
+	}
+}
+
+// Google sign-ups are verified at creation: no welcome link, nothing pending.
+func TestEmailVerificationGoogleSignUpGetsNoLink(t *testing.T) {
+	e, f := newGoogleEnv(t)
+	email := uniq("gverify") + "@example.com"
+	c, _ := e.googleAccount(f, email)
+	var me verifyMe
+	c.must(http.StatusOK, http.MethodGet, "/api/v1/me", nil, &me)
+	if !me.EmailVerified || me.EmailVerification != nil {
+		t.Fatalf("a Google account is verified with nothing pending: %+v", me)
+	}
+	for _, m := range e.mailTo(email) {
+		if strings.Contains(m.Text, "/verify-email#token=") {
+			t.Fatal("a Google sign-up must not get a verification link")
+		}
+	}
+	var tokens int64
+	e.app.DB.Model(&domain.ActionToken{}).Where("user_id = ? AND purpose = ?", c.user.ID, domain.ActionEmailVerify).Count(&tokens)
+	if tokens != 0 {
+		t.Fatalf("%d verification tokens for a Google account", tokens)
+	}
+	if r := c.call(http.MethodPost, "/api/v1/me/email/verification", nil); r.status != http.StatusConflict || r.errCode(t) != "already_verified" {
+		t.Fatalf("resend for a Google account: %d %s", r.status, r.body)
+	}
+}
+
+// An account receives at most 5 links in any 24 hours, whoever asks: the
+// address is unproven and the links are security e-mail, which the outbox's
+// daily cap does not cover.
+func TestEmailVerificationDailyLimit(t *testing.T) {
+	e := newEnv(t)
+	adm := e.createAdmin()
+	c := e.registerClient() // the welcome link is the first
+	verificationLink(t, e, c.user.Email)
+	for i := 2; i <= 5; i++ {
+		e.clock.Advance(61 * time.Second)
+		c.must(http.StatusAccepted, http.MethodPost, "/api/v1/me/email/verification", nil, nil)
+	}
+	e.clock.Advance(61 * time.Second)
+	before := len(e.mailTo(c.user.Email))
+	r := c.call(http.MethodPost, "/api/v1/me/email/verification", nil)
+	if r.status != http.StatusTooManyRequests || r.errCode(t) != "rate_limited" || !strings.Contains(string(r.body), "maximum number of verification emails") {
+		t.Fatalf("sixth link: %d %s", r.status, r.body)
+	}
+	// The welcome link leaves the 24-hour window first, about a day from now.
+	if wait, _ := strconv.Atoi(r.header.Get("Retry-After")); wait < 23*3600 || wait > 24*3600 {
+		t.Fatalf("Retry-After %q", r.header.Get("Retry-After"))
+	}
+	if r := adm.call(http.MethodPost, "/api/v1/admin/users/"+c.user.ID.String()+"/email-verification", nil); r.status != http.StatusTooManyRequests {
+		t.Fatalf("the console is capped too: %d %s", r.status, r.body)
+	}
+	if err := e.app.Services.EmailVerification.SendReminder(context.Background(), c.user.ID); err != nil {
+		t.Fatalf("a capped reminder is silent: %v", err)
+	}
+	if n := len(e.mailTo(c.user.Email)); n != before {
+		t.Fatalf("%d e-mails past the daily limit", n-before)
+	}
+	e.clock.Advance(24 * time.Hour)
+	c = e.login(c.user.Email, strongPassword) // the session expired meanwhile
+	c.must(http.StatusAccepted, http.MethodPost, "/api/v1/me/email/verification", nil, nil)
+}
+
+// No link is "sent" to an address that refuses e-mail (permanent bounce,
+// complaint): nothing is pending and a resend says what to do.
+func TestEmailVerificationAddressThatRefusesEmail(t *testing.T) {
+	e := newEnv(t)
+	t.Cleanup(func() { e.app.DB.Exec(`DELETE FROM email_suppressions WHERE source = 'e2e-verify'`) })
+	suppress := func(email string) {
+		now := time.Now()
+		if err := e.app.DB.Create(&domain.EmailSuppression{EmailHash: e.app.Services.Mail.AddressHash(email), Reason: domain.SuppressHardBounce,
+			Source: "e2e-verify", Timestamps: domain.Timestamps{CreatedAt: now, UpdatedAt: now}}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Signing up with an address that already bounced: no welcome link.
+	email := uniq("bounced") + "@example.com"
+	suppress(email)
+	c := e.client()
+	c.locale = "fr"
+	var out struct {
+		User *verifyMe `json:"user"`
+	}
+	c.must(http.StatusCreated, http.MethodPost, "/api/v1/auth/register", map[string]any{
+		"email": email, "password": strongPassword, "accept_terms": true, "birth_date": "1990-05-17", "locale": "fr",
+	}, &out)
+	if out.User == nil || out.User.EmailVerified || out.User.EmailVerification != nil {
+		t.Fatalf("registration answer: %+v", out.User)
+	}
+	if n := len(e.mailTo(email)); n != 0 {
+		t.Fatalf("%d e-mails to a refusing address", n)
+	}
+	r := c.call(http.MethodPost, "/api/v1/me/email/verification", nil)
+	if r.status != http.StatusConflict || r.errCode(t) != "email_undeliverable" || !strings.Contains(string(r.body), "Vérifiez l'adresse") {
+		t.Fatalf("resend to a refusing address: %d %s", r.status, r.body)
+	}
+	// The address starts refusing after the welcome link: the next one is refused.
+	other := e.registerClient()
+	verificationLink(t, e, other.user.Email)
+	suppress(other.user.Email)
+	e.clock.Advance(61 * time.Second)
+	if r := other.call(http.MethodPost, "/api/v1/me/email/verification", nil); r.errCode(t) != "email_undeliverable" {
+		t.Fatalf("resend after a bounce: %d %s", r.status, r.body)
+	}
+}
+
+// Opening a link while another one is being sent for the same account (the
+// person's other tab, the console, the reminder job) never ends in a server
+// error: every path locks the user row before the tokens, so the two
+// transactions queue instead of deadlocking. Each account ends verified
+// exactly once, announced once.
+func TestEmailVerificationConcurrentOpenAndResend(t *testing.T) {
+	e := newEnv(t)
+	adm := e.createAdmin()
+	const accounts = 24
+	type account struct {
+		c     *client
+		token string
+		live  *ws
+	}
+	all := make([]*account, accounts)
+	for i := range all {
+		c := e.registerClient()
+		_, tok := verificationLink(t, e, c.user.Email)
+		all[i] = &account{c: c, token: tok}
+		if i < 6 {
+			all[i].live = c.connect("")
+		}
+	}
+	adm.call(http.MethodGet, "/api/v1/admin/users?limit=1", nil) // CSRF token before the races
+	// Past the cooldown: every resend issues a new link and invalidates the open one.
+	e.clock.Advance(61 * time.Second)
+
+	var mu sync.Mutex
+	var failures []string
+	fail := func(format string, args ...any) {
+		mu.Lock()
+		failures = append(failures, strings.TrimSpace(strings.ReplaceAll(fmt.Sprintf(format, args...), "\n", " ")))
+		mu.Unlock()
+	}
+	for i, a := range all {
+		openers := []*client{e.client(), e.client()} // two devices open the same link
+		for _, o := range openers {
+			o.ensureCSRF()
+		}
+		a.c.ensureCSRF()
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		run := func(name string, f func() int) {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				if status := f(); status >= 500 || status == 0 {
+					fail("account %d: %s answered %d", i, name, status)
+				}
+			}()
+		}
+		for _, o := range openers {
+			o := o
+			run("verify", func() int {
+				r := o.call(http.MethodPost, "/api/v1/auth/email/verify", map[string]any{"token": a.token})
+				if r.status != http.StatusOK && r.errCode(t) != "invalid_token" {
+					fail("account %d: verify %d %s", i, r.status, r.body)
+				}
+				return r.status
+			})
+		}
+		run("resend", func() int {
+			r := a.c.call(http.MethodPost, "/api/v1/me/email/verification", nil)
+			if r.status != http.StatusAccepted && r.status != http.StatusConflict && r.status != http.StatusTooManyRequests {
+				fail("account %d: resend %d %s", i, r.status, r.body)
+			}
+			return r.status
+		})
+		if i%2 == 0 {
+			run("console resend", func() int {
+				return adm.call(http.MethodPost, "/api/v1/admin/users/"+a.c.user.ID.String()+"/email-verification", nil).status
+			})
+		} else {
+			run("reminder", func() int {
+				if err := e.app.Services.EmailVerification.SendReminder(context.Background(), a.c.user.ID); err != nil {
+					fail("account %d: reminder: %v", i, err)
+					return http.StatusInternalServerError
+				}
+				return http.StatusOK
+			})
+		}
+		close(start)
+		wg.Wait()
+	}
+	if len(failures) > 0 {
+		t.Fatalf("%d failures under concurrency:\n%s", len(failures), strings.Join(failures, "\n"))
+	}
+
+	// A resend may have replaced the link first: the newest one finishes the job.
+	for _, a := range all {
+		var me verifyMe
+		a.c.must(http.StatusOK, http.MethodGet, "/api/v1/me", nil, &me)
+		if !me.EmailVerified {
+			_, tok := verificationLink(t, e, a.c.user.Email)
+			e.client().must(http.StatusOK, http.MethodPost, "/api/v1/auth/email/verify", map[string]any{"token": tok}, nil)
+		}
+	}
+	for i, a := range all {
+		if n := e.auditCount("account.email_verified", a.c.user.ID); n != 1 {
+			t.Fatalf("account %d verified %d times", i, n)
+		}
+		var open int64
+		e.app.DB.Model(&domain.ActionToken{}).Where("user_id = ? AND purpose = ? AND used_at IS NULL", a.c.user.ID, domain.ActionEmailVerify).Count(&open)
+		if open != 0 {
+			t.Fatalf("account %d keeps %d open links after its verification", i, open)
+		}
+		if a.live != nil {
+			a.live.waitFor(realtime.EventEmailVerified, 5*time.Second)
+			a.live.expectNone(realtime.EventEmailVerified, 150*time.Millisecond)
+		}
 	}
 }

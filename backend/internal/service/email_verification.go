@@ -55,7 +55,15 @@ type EmailVerificationSettings struct {
 	TTL time.Duration
 	// ResendCooldown is the minimum time between two links (default 60 s).
 	ResendCooldown time.Duration
+	// DailyLimit caps the links sent to one account in any 24 hours, by every
+	// path (resend, console, reminders; default 5). The address is unproven
+	// by definition: anyone can sign up with someone else's, and the links
+	// are security e-mail, which the outbox's daily cap does not cover.
+	DailyLimit int
 }
+
+// verificationWindow is the period DailyLimit counts over.
+const verificationWindow = 24 * time.Hour
 
 func (c EmailVerificationSettings) withDefaults() EmailVerificationSettings {
 	if c.TTL <= 0 {
@@ -64,23 +72,36 @@ func (c EmailVerificationSettings) withDefaults() EmailVerificationSettings {
 	if c.ResendCooldown <= 0 {
 		c.ResendCooldown = time.Minute
 	}
+	if c.DailyLimit <= 0 {
+		c.DailyLimit = 5
+	}
 	return c
 }
 
+// addressSuppressions tells whether an address stopped accepting e-mail (a
+// permanent bounce or a complaint). The outbox (MailService) implements it.
+type addressSuppressions interface {
+	AddressHash(email string) string
+	Suppressed(ctx context.Context, hash string) (bool, error)
+}
+
 // EmailVerificationDeps are the collaborators of EmailVerificationService.
-// Events, Notifier and Tracker are optional.
+// Events, Notifier, Tracker and Suppressions are optional.
 type EmailVerificationDeps struct {
-	Tx       database.TxManager
-	Users    repository.UserRepository
-	Actions  repository.ActionTokenRepository
-	Mail     EmailQueue
-	Sealer   *security.Sealer
-	Events   EventPublisher
-	Notifier Notifier
-	Audit    repository.AuditRepository
-	Tracker  analytics.Tracker
-	Clock    clock.Clock
-	Settings EmailVerificationSettings
+	Tx      database.TxManager
+	Users   repository.UserRepository
+	Actions repository.VerificationTokenRepository
+	Mail    EmailQueue
+	// Suppressions keeps links from being "sent" to an address that refuses
+	// e-mail (nil: no check).
+	Suppressions addressSuppressions
+	Sealer       *security.Sealer
+	Events       EventPublisher
+	Notifier     Notifier
+	Audit        repository.AuditRepository
+	Tracker      analytics.Tracker
+	Clock        clock.Clock
+	Settings     EmailVerificationSettings
 }
 
 // EmailVerificationService verifies account addresses by e-mailed link.
@@ -132,6 +153,15 @@ type VerificationSent struct {
 	ResendAvailableAt time.Time `json:"resend_available_at"`
 }
 
+// PendingVerification is the open link of an unverified address (GET /me:
+// "we sent a link to …"; null when no link can be in the inbox).
+type PendingVerification struct {
+	// SentAt is when the newest open link was sent.
+	SentAt time.Time `json:"sent_at"`
+	// ResendAvailableAt is when another link can be requested.
+	ResendAvailableAt time.Time `json:"resend_available_at"`
+}
+
 // VerificationResult is the answer to opening a link.
 type VerificationResult struct {
 	// Status is verified or already_verified.
@@ -163,8 +193,9 @@ const (
 var errSkipped = errors.New("verification: skipped")
 
 // issue sends a new link to the user, invalidating the open ones. The user
-// row is locked, so concurrent requests are serialised and the cooldown
-// cannot be raced.
+// row is locked first (see repository.VerificationTokenRepository for the
+// lock order), so concurrent requests are serialised and neither the
+// cooldown nor the daily limit can be raced.
 func (s *EmailVerificationService) issue(ctx context.Context, userID uuid.UUID, mode sendMode, requireActive bool) (*VerificationSent, error) {
 	now := s.d.Clock.Now()
 	var out *VerificationSent
@@ -186,18 +217,23 @@ func (s *EmailVerificationService) issue(ctx context.Context, userID uuid.UUID, 
 			return apperror.InvalidState("Only active accounts can receive a verification email.")
 		}
 		if mode != sendFirst {
-			latest, err := s.d.Actions.LatestOpen(ctx, u.ID, domain.ActionEmailVerify, now)
-			switch {
-			case err == nil:
-				if wait := latest.CreatedAt.Add(s.cfg.ResendCooldown).Sub(now); wait > 0 {
-					if mode == sendQuiet {
-						return errSkipped
-					}
-					return apperror.RateLimited(wait)
+			if err := s.checkBudget(ctx, u.ID, now); err != nil {
+				if _, limited := apperror.As(err); limited && mode == sendQuiet {
+					return errSkipped
 				}
-			case !errors.Is(err, repository.ErrNotFound):
 				return err
 			}
+		}
+		// A link that cannot arrive is not "sent": no token, and the person
+		// is told to check or change the address.
+		if undeliverable, err := s.undeliverable(ctx, u.Email); err != nil {
+			return err
+		} else if undeliverable {
+			if mode != sendStrict {
+				logger.FromContext(ctx).Info("email verification: address refuses e-mail; no link sent", zap.String("user_id", u.ID.String()))
+				return errSkipped
+			}
+			return apperror.EmailUndeliverable()
 		}
 		if err := s.d.Actions.InvalidateOpen(ctx, u.ID, domain.ActionEmailVerify, now); err != nil {
 			return err
@@ -225,6 +261,35 @@ func (s *EmailVerificationService) issue(ctx context.Context, userID uuid.UUID, 
 		return nil, apperror.Internal(err)
 	}
 	return out, nil
+}
+
+// checkBudget refuses a link inside the cooldown of the previous one, or once
+// the account received DailyLimit links in the last 24 hours (one indexed
+// read of at most DailyLimit rows). Both answers are 429 with Retry-After.
+func (s *EmailVerificationService) checkBudget(ctx context.Context, userID uuid.UUID, now time.Time) error {
+	sent, err := s.d.Actions.IssuedSince(ctx, userID, domain.ActionEmailVerify, now.Add(-verificationWindow), s.cfg.DailyLimit)
+	if err != nil {
+		return err
+	}
+	if len(sent) == 0 {
+		return nil
+	}
+	if wait := sent[0].Add(s.cfg.ResendCooldown).Sub(now); wait > 0 {
+		return apperror.RateLimited(wait)
+	}
+	if len(sent) >= s.cfg.DailyLimit {
+		// The oldest of the counted links leaves the window first.
+		return apperror.VerificationDailyLimit(sent[len(sent)-1].Add(verificationWindow).Sub(now))
+	}
+	return nil
+}
+
+// undeliverable reports an address on the outbox's suppression list.
+func (s *EmailVerificationService) undeliverable(ctx context.Context, email string) (bool, error) {
+	if s.d.Suppressions == nil {
+		return false, nil
+	}
+	return s.d.Suppressions.Suppressed(ctx, s.d.Suppressions.AddressHash(email))
 }
 
 // newToken creates the single-use token row for the user's current address.
@@ -261,7 +326,8 @@ func (s *EmailVerificationService) OnRegistered(ctx context.Context, u *domain.U
 }
 
 // Resend sends a new link to the caller. 409 already_verified when the
-// address is verified; 429 (with Retry-After) inside the cooldown.
+// address is verified, 409 email_undeliverable when it refuses e-mail; 429
+// (with Retry-After) inside the cooldown or past the daily limit.
 func (s *EmailVerificationService) Resend(ctx context.Context, userID uuid.UUID) (*VerificationSent, error) {
 	out, err := s.issue(ctx, userID, sendStrict, true)
 	if err != nil {
@@ -272,14 +338,17 @@ func (s *EmailVerificationService) Resend(ctx context.Context, userID uuid.UUID)
 }
 
 // SendReminder sends a link like Resend but stays silent when the address is
-// verified, the account is not active or a link was sent within the cooldown
-// (the lifecycle "verify reminder").
+// verified, the account is not active, the address refuses e-mail, a link was
+// sent within the cooldown or the daily limit is reached (the lifecycle
+// "verify reminder"; it also gives accounts created before verification
+// existed their first link).
 func (s *EmailVerificationService) SendReminder(ctx context.Context, userID uuid.UUID) error {
 	_, err := s.issue(ctx, userID, sendQuiet, true)
 	return err
 }
 
-// AdminResend sends a new link on behalf of an administrator (audited).
+// AdminResend sends a new link on behalf of an administrator (audited). The
+// same answers as Resend, plus invalid_state for an inactive account.
 func (s *EmailVerificationService) AdminResend(ctx context.Context, userID uuid.UUID) (*VerificationSent, error) {
 	out, err := s.issue(ctx, userID, sendStrict, true)
 	if err != nil {
@@ -301,17 +370,29 @@ func mapRepoErrIssue(err error) error {
 // browser opens it. Unknown, expired, used, mismatching and inactive-account
 // links all answer the same invalid_token error; a link that can no longer
 // be used is burnt.
+//
+// The token is read without a lock, then the user row is locked, then the
+// token is used: the same lock order as issue (user, then tokens), so
+// opening a link never deadlocks against a resend, a console resend or a
+// reminder for the same account.
 func (s *EmailVerificationService) Verify(ctx context.Context, raw string) (*VerificationResult, error) {
 	if !validRawToken(raw) {
 		return nil, invalidLink()
 	}
 	now := s.d.Clock.Now()
+	t, err := s.d.Actions.FindOpen(ctx, security.HashToken(raw), domain.ActionEmailVerify, now)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, invalidLink()
+		}
+		return nil, apperror.Internal(err)
+	}
 	var (
 		result  *VerificationResult
 		invalid bool
 	)
-	err := s.d.Tx.WithinTx(ctx, func(ctx context.Context) error {
-		t, err := s.d.Actions.Consume(ctx, security.HashToken(raw), domain.ActionEmailVerify, now)
+	err = s.d.Tx.WithinTx(ctx, func(ctx context.Context) error {
+		u, err := s.d.Users.GetForUpdate(ctx, t.UserID)
 		if err != nil {
 			if errors.Is(err, repository.ErrNotFound) {
 				invalid = true
@@ -319,8 +400,9 @@ func (s *EmailVerificationService) Verify(ctx context.Context, raw string) (*Ver
 			}
 			return err
 		}
-		u, err := s.d.Users.GetForUpdate(ctx, t.UserID)
-		if err != nil {
+		// Single use: another request may have used (or a resend replaced)
+		// the token while this one waited for the user row.
+		if err := s.d.Actions.Use(ctx, t.ID, now); err != nil {
 			if errors.Is(err, repository.ErrNotFound) {
 				invalid = true
 				return nil
@@ -330,7 +412,7 @@ func (s *EmailVerificationService) Verify(ctx context.Context, raw string) (*Ver
 		var pl verificationPayload
 		plain, openErr := s.d.Sealer.Open(t.PayloadEnc, tokenAD(t))
 		if openErr != nil || json.Unmarshal([]byte(plain), &pl) != nil || pl.Email != u.Email || !u.Active() {
-			invalid = true // committed: the consumed token stays burnt
+			invalid = true // committed: the used token stays burnt
 			return nil
 		}
 		if u.EmailVerifiedAt != nil {
@@ -358,6 +440,28 @@ func (s *EmailVerificationService) Verify(ctx context.Context, raw string) (*Ver
 		return nil, invalidLink()
 	}
 	return result, nil
+}
+
+// Pending describes the open link of an unverified address (nil when none
+// is open: it expired, or none was ever sent, as for accounts created before
+// verification existed or by the team). One read of the partial index on
+// unused tokens; GET /me asks only for unverified addresses.
+func (s *EmailVerificationService) Pending(ctx context.Context, userID uuid.UUID) (*PendingVerification, error) {
+	t, err := s.d.Actions.LatestOpen(ctx, userID, domain.ActionEmailVerify, s.d.Clock.Now())
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &PendingVerification{SentAt: t.CreatedAt, ResendAvailableAt: t.CreatedAt.Add(s.cfg.ResendCooldown)}, nil
+}
+
+// SetVerificationLookup makes GET /me describe the open verification link of
+// an unverified address (EmailVerificationService.Pending), so the clients
+// say "we sent a link" only when one is waiting. Wired at start-up.
+func (s *UserService) SetVerificationLookup(fn func(ctx context.Context, userID uuid.UUID) (*PendingVerification, error)) {
+	s.pendingVerification = fn
 }
 
 // afterVerified runs once the verification committed: realtime event to every

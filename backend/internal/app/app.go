@@ -601,9 +601,10 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 
 	// --- growth: e-mail verification ---
 	verifySvc := service.NewEmailVerificationService(service.EmailVerificationDeps{Tx: txm, Users: users, Actions: actionsRepo,
-		Mail: mailSvc, Sealer: sealer, Events: publisher, Notifier: dispatcher, Audit: audit, Tracker: track, Clock: clk,
+		Mail: mailSvc, Suppressions: mailSvc, Sealer: sealer, Events: publisher, Notifier: dispatcher, Audit: audit, Tracker: track, Clock: clk,
 		Settings: service.EmailVerificationSettings{FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret}})
 	authSvc.AddRegistrationHook(verifySvc.OnRegistered)
+	userSvc.SetVerificationLookup(verifySvc.Pending)
 	services.EmailVerification = verifySvc
 	// --- end growth: e-mail verification ---
 

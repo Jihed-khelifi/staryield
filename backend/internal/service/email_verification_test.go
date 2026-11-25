@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -13,18 +15,109 @@ import (
 	"github.com/Jihed-khelifi/staryield/backend/internal/clock"
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
 	"github.com/Jihed-khelifi/staryield/backend/internal/realtime"
+	"github.com/Jihed-khelifi/staryield/backend/internal/repository"
 	"github.com/Jihed-khelifi/staryield/backend/internal/security"
 )
 
+// The verification flow's token queries on the in-memory store.
+
+func (r memActions) FindOpen(_ context.Context, hash string, p domain.ActionPurpose, now time.Time) (*domain.ActionToken, error) {
+	for _, t := range r.db.actions {
+		if t.TokenHash == hash && t.Purpose == p && t.UsedAt == nil && t.ExpiresAt.After(now) {
+			return &t, nil
+		}
+	}
+	return nil, repository.ErrNotFound
+}
+
+func (r memActions) Use(_ context.Context, id uuid.UUID, now time.Time) error {
+	t, ok := r.db.actions[id]
+	if !ok || t.UsedAt != nil || !t.ExpiresAt.After(now) {
+		return repository.ErrNotFound
+	}
+	t.UsedAt = &now
+	r.db.actions[id] = t
+	return nil
+}
+
+func (r memActions) IssuedSince(_ context.Context, userID uuid.UUID, p domain.ActionPurpose, since time.Time, limit int) ([]time.Time, error) {
+	var out []time.Time
+	for _, t := range r.db.actions {
+		if t.UserID == userID && t.Purpose == p && t.CreatedAt.After(since) {
+			out = append(out, t.CreatedAt)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].After(out[j]) })
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+// memSuppressions is the outbox's suppression list (addresses as their own hash).
+type memSuppressions map[string]bool
+
+func (m memSuppressions) AddressHash(email string) string { return strings.ToLower(email) }
+
+func (m memSuppressions) Suppressed(_ context.Context, hash string) (bool, error) {
+	return m[hash], nil
+}
+
+// lockLog records the order in which the flow locks users and writes tokens.
+type lockLog struct{ calls []string }
+
+type loggedUsers struct {
+	memUsers
+	log *lockLog
+}
+
+func (r loggedUsers) GetForUpdate(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	r.log.calls = append(r.log.calls, "lock user")
+	return r.memUsers.GetForUpdate(ctx, id)
+}
+
+type loggedActions struct {
+	memActions
+	log *lockLog
+	// failInvalidate makes InvalidateOpen fail (a broken transaction).
+	failInvalidate bool
+}
+
+func (r loggedActions) Use(ctx context.Context, id uuid.UUID, now time.Time) error {
+	r.log.calls = append(r.log.calls, "write token")
+	return r.memActions.Use(ctx, id, now)
+}
+
+func (r loggedActions) Consume(ctx context.Context, hash string, p domain.ActionPurpose, now time.Time) (*domain.ActionToken, error) {
+	r.log.calls = append(r.log.calls, "write token")
+	return r.memActions.Consume(ctx, hash, p, now)
+}
+
+func (r loggedActions) InvalidateOpen(ctx context.Context, userID uuid.UUID, p domain.ActionPurpose, at time.Time) error {
+	r.log.calls = append(r.log.calls, "write token")
+	if r.failInvalidate {
+		return errors.New("connection reset")
+	}
+	return r.memActions.InvalidateOpen(ctx, userID, p, at)
+}
+
+func (r loggedActions) Create(ctx context.Context, t *domain.ActionToken) error {
+	r.log.calls = append(r.log.calls, "write token")
+	return r.memActions.Create(ctx, t)
+}
+
 type verifyFixture struct {
-	db     *memDB
-	clock  *clock.Fake
-	mail   *memMail
-	events *eventLog
-	notes  *recordingNotifier
-	svc    *EmailVerificationService
-	user   domain.User
-	hooked []uuid.UUID
+	db         *memDB
+	clock      *clock.Fake
+	mail       *memMail
+	events     *eventLog
+	notes      *recordingNotifier
+	suppressed memSuppressions
+	locks      *lockLog
+	actions    *loggedActions
+	svc        *EmailVerificationService
+	user       domain.User
+	hooked     []uuid.UUID
 }
 
 func newVerifyFixture(t *testing.T) *verifyFixture {
@@ -35,10 +128,12 @@ func newVerifyFixture(t *testing.T) *verifyFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &verifyFixture{db: db, clock: clk, mail: &memMail{}, events: &eventLog{}, notes: &recordingNotifier{}}
-	f.svc = NewEmailVerificationService(EmailVerificationDeps{Tx: memTx{db: db}, Users: memUsers{db: db}, Actions: memActions{db: db},
-		Mail: f.mail, Sealer: sealer, Events: f.events, Notifier: f.notes, Audit: memAudit{db: db}, Clock: clk,
-		Settings: EmailVerificationSettings{FrontendURL: "https://staryield.test", IPHashSecret: "secret"}})
+	locks := &lockLog{}
+	f := &verifyFixture{db: db, clock: clk, mail: &memMail{}, events: &eventLog{}, notes: &recordingNotifier{}, suppressed: memSuppressions{},
+		locks: locks, actions: &loggedActions{memActions: memActions{db: db}, log: locks}}
+	f.svc = NewEmailVerificationService(EmailVerificationDeps{Tx: memTx{db: db}, Users: loggedUsers{memUsers: memUsers{db: db}, log: locks},
+		Actions: f.actions, Mail: f.mail, Suppressions: f.suppressed, Sealer: sealer, Events: f.events, Notifier: f.notes, Audit: memAudit{db: db},
+		Clock: clk, Settings: EmailVerificationSettings{FrontendURL: "https://staryield.test", IPHashSecret: "secret"}})
 	f.svc.OnVerified(func(_ context.Context, id uuid.UUID) { f.hooked = append(f.hooked, id) })
 	f.user = f.addUser("moon@example.com", domain.RoleClient)
 	return f
@@ -381,13 +476,190 @@ func TestAdminResendIsAuditedAndNeedsAnActiveAccount(t *testing.T) {
 func TestVerifiedHooksRunInOrder(t *testing.T) {
 	f := newVerifyFixture(t)
 	var order []string
-	f.svc.OnVerified(func(context.Context, uuid.UUID) { order = append(order, "second") })
+	f.svc.OnVerified(func(context.Context, uuid.UUID) { order = append(order, "first") })
 	f.svc.OnVerified(nil)
+	f.svc.OnVerified(func(context.Context, uuid.UUID) { order = append(order, "second") })
+	f.svc.OnVerified(func(context.Context, uuid.UUID) { order = append(order, "third") })
 	f.svc.OnRegistered(context.Background(), &f.user)
 	if _, err := f.svc.Verify(context.Background(), f.lastToken(t)); err != nil {
 		t.Fatal(err)
 	}
-	if len(f.hooked) != 1 || len(order) != 1 {
+	if len(f.hooked) != 1 || strings.Join(order, ",") != "first,second,third" {
 		t.Fatalf("hooks: %v %v", f.hooked, order)
+	}
+}
+
+// Opening a link and sending one lock the same rows in the same order (the
+// user, then the tokens): the opposite order deadlocks a link opened while a
+// resend, a console resend or a reminder runs for the same account.
+func TestEveryPathLocksTheUserBeforeWritingTokens(t *testing.T) {
+	f := newVerifyFixture(t)
+	ctx := context.Background()
+	check := func(name string) {
+		t.Helper()
+		if len(f.locks.calls) == 0 || f.locks.calls[0] != "lock user" {
+			t.Fatalf("%s: a token was written before the user was locked: %v", name, f.locks.calls)
+		}
+		f.locks.calls = nil
+	}
+	f.svc.OnRegistered(ctx, &f.user)
+	check("welcome link")
+	f.clock.Advance(2 * time.Minute)
+	if _, err := f.svc.Resend(ctx, f.user.ID); err != nil {
+		t.Fatal(err)
+	}
+	check("resend")
+	f.clock.Advance(2 * time.Minute)
+	if _, err := f.svc.AdminResend(ctx, f.user.ID); err != nil {
+		t.Fatal(err)
+	}
+	check("console resend")
+	f.clock.Advance(2 * time.Minute)
+	if err := f.svc.SendReminder(ctx, f.user.ID); err != nil {
+		t.Fatal(err)
+	}
+	check("reminder")
+	if _, err := f.svc.Verify(ctx, f.lastToken(t)); err != nil {
+		t.Fatal(err)
+	}
+	check("verify")
+}
+
+// The side effects of a verification belong to the committed transaction: a
+// failure after the address was stamped rolls everything back and announces
+// nothing (no event, notification, audit, analytics or hook).
+func TestAFailedVerificationAnnouncesNothing(t *testing.T) {
+	f := newVerifyFixture(t)
+	ctx := context.Background()
+	f.svc.OnRegistered(ctx, &f.user)
+	raw := f.lastToken(t)
+	f.actions.failInvalidate = true
+
+	_, err := f.svc.Verify(ctx, raw)
+	wantCode(t, err, apperror.CodeInternal)
+	if f.db.users[f.user.ID].EmailVerifiedAt != nil {
+		t.Fatal("the rolled back transaction left the address verified")
+	}
+	if len(f.events.events) != 0 || len(f.notes.spec) != 0 || len(f.hooked) != 0 {
+		t.Fatalf("a failed verification announced something: %d events, %d notifications, %d hooks", len(f.events.events), len(f.notes.spec), len(f.hooked))
+	}
+	for _, a := range f.db.audit {
+		if a.Action == "account.email_verified" {
+			t.Fatal("a failed verification was audited")
+		}
+	}
+	// The link survived the rollback: it still works once the database does.
+	f.actions.failInvalidate = false
+	if _, err := f.svc.Verify(ctx, raw); err != nil {
+		t.Fatalf("the link must survive a rolled back attempt: %v", err)
+	}
+	if len(f.events.events) != 1 || len(f.hooked) != 1 {
+		t.Fatalf("the retry must announce once: %d events, %d hooks", len(f.events.events), len(f.hooked))
+	}
+}
+
+// A link that was replaced while the request waited for the user row is
+// refused like any used link, and changes nothing.
+func TestALinkReplacedMeanwhileIsRefused(t *testing.T) {
+	f := newVerifyFixture(t)
+	ctx := context.Background()
+	f.svc.OnRegistered(ctx, &f.user)
+	raw := f.lastToken(t)
+	tok, err := f.actions.FindOpen(ctx, security.HashToken(raw), domain.ActionEmailVerify, f.clock.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// What a concurrent resend does between the lookup and the user lock.
+	if err := f.actions.memActions.InvalidateOpen(ctx, f.user.ID, domain.ActionEmailVerify, f.clock.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.actions.Use(ctx, tok.ID, f.clock.Now()); !errors.Is(err, repository.ErrNotFound) {
+		t.Fatalf("using a replaced token: %v", err)
+	}
+	_, err = f.svc.Verify(ctx, raw)
+	wantCode(t, err, apperror.CodeInvalidToken)
+	if f.db.users[f.user.ID].EmailVerifiedAt != nil || len(f.events.events) != 0 {
+		t.Fatal("a replaced link verified the address")
+	}
+}
+
+// An account receives at most DailyLimit links in any 24 hours, by every
+// path: the address is unproven, and security e-mail escapes the outbox's
+// daily cap.
+func TestLinksAreCappedPerDay(t *testing.T) {
+	f := newVerifyFixture(t)
+	ctx := context.Background()
+	f.svc.OnRegistered(ctx, &f.user) // 1
+	for i := 2; i <= 5; i++ {
+		f.clock.Advance(2 * time.Minute)
+		if _, err := f.svc.Resend(ctx, f.user.ID); err != nil {
+			t.Fatalf("link %d: %v", i, err)
+		}
+	}
+	f.clock.Advance(2 * time.Minute)
+	_, err := f.svc.Resend(ctx, f.user.ID)
+	e := wantCode(t, err, apperror.CodeRateLimited)
+	// The welcome link was sent 10 minutes ago: it leaves the window in 23 h 50 min.
+	if want := 24*time.Hour - 10*time.Minute; e.RetryAfter != want {
+		t.Fatalf("Retry-After %v, want %v", e.RetryAfter, want)
+	}
+	if !strings.Contains(e.Message, "maximum number of verification emails") {
+		t.Fatalf("message %q", e.Message)
+	}
+	_, err = f.svc.AdminResend(ctx, f.user.ID)
+	wantCode(t, err, apperror.CodeRateLimited)
+	if err := f.svc.SendReminder(ctx, f.user.ID); err != nil {
+		t.Fatalf("a capped reminder must be silent: %v", err)
+	}
+	if n := len(f.mail.byTemplate("email_verify")); n != 5 {
+		t.Fatalf("%d links sent, want 5", n)
+	}
+	// Once the oldest link leaves the window, one more may go.
+	f.clock.Advance(e.RetryAfter)
+	if _, err := f.svc.Resend(ctx, f.user.ID); err != nil {
+		t.Fatalf("after the window: %v", err)
+	}
+}
+
+// No link is "sent" to an address that refuses e-mail (a permanent bounce or
+// a complaint): no token, no outbox row, and a clear answer.
+func TestNoLinkForAnAddressThatRefusesEmail(t *testing.T) {
+	f := newVerifyFixture(t)
+	ctx := context.Background()
+	f.suppressed[f.user.Email] = true
+	f.svc.OnRegistered(ctx, &f.user)
+	if err := f.svc.SendReminder(ctx, f.user.ID); err != nil {
+		t.Fatalf("a reminder to a refusing address must be silent: %v", err)
+	}
+	_, err := f.svc.Resend(ctx, f.user.ID)
+	wantCode(t, err, apperror.CodeEmailUndeliverable)
+	_, err = f.svc.AdminResend(ctx, f.user.ID)
+	wantCode(t, err, apperror.CodeEmailUndeliverable)
+	if len(f.mail.sent) != 0 || len(f.db.actions) != 0 {
+		t.Fatalf("%d e-mails and %d tokens for a refusing address", len(f.mail.sent), len(f.db.actions))
+	}
+	if p, err := f.svc.Pending(ctx, f.user.ID); err != nil || p != nil {
+		t.Fatalf("no link may be pending: %+v %v", p, err)
+	}
+}
+
+// Pending tells the clients whether a link is waiting in the inbox: accounts
+// created before verification existed (or by the team) have none.
+func TestPendingDescribesTheOpenLink(t *testing.T) {
+	f := newVerifyFixture(t)
+	ctx := context.Background()
+	if p, err := f.svc.Pending(ctx, f.user.ID); err != nil || p != nil {
+		t.Fatalf("an account that never received a link: %+v %v", p, err)
+	}
+	sentAt := f.clock.Now()
+	f.svc.OnRegistered(ctx, &f.user)
+	f.clock.Advance(10 * time.Second)
+	p, err := f.svc.Pending(ctx, f.user.ID)
+	if err != nil || p == nil || !p.SentAt.Equal(sentAt) || !p.ResendAvailableAt.Equal(sentAt.Add(time.Minute)) {
+		t.Fatalf("pending: %+v %v", p, err)
+	}
+	f.clock.Advance(48 * time.Hour)
+	if p, err := f.svc.Pending(ctx, f.user.ID); err != nil || p != nil {
+		t.Fatalf("an expired link is not pending: %+v %v", p, err)
 	}
 }

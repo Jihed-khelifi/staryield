@@ -15,6 +15,8 @@ var frEmailVerification = map[string]string{
 	"The link works once and expires in %d hours.":                                                                     "Le lien ne fonctionne qu'une fois et expire dans %d heures.",
 	"Confirm my email": "Confirmer mon e-mail",
 	"If you did not create an account, ignore this email.": "Si vous n'avez pas créé de compte, ignorez cet e-mail.",
+	"We can't deliver email to this address: earlier messages bounced or were refused. Check the address or change it in your account settings.": "Nous ne pouvons pas envoyer d'e-mail à cette adresse : nos précédents messages ont été rejetés ou refusés. Vérifiez l'adresse ou modifiez-la dans les paramètres de votre compte.",
+	"This address has received the maximum number of verification emails for today. Please try again later.":                                     "Cette adresse a reçu le nombre maximal d'e-mails de confirmation pour aujourd'hui. Veuillez réessayer plus tard.",
 }
 
 var esEmailVerification = map[string]string{
@@ -28,6 +30,8 @@ var esEmailVerification = map[string]string{
 	"The link works once and expires in %d hours.":                                                                     "El enlace funciona una sola vez y caduca en %d horas.",
 	"Confirm my email": "Confirmar mi correo",
 	"If you did not create an account, ignore this email.": "Si no creaste una cuenta, ignora este correo.",
+	"We can't deliver email to this address: earlier messages bounced or were refused. Check the address or change it in your account settings.": "No podemos enviar correos a esta dirección: nuestros mensajes anteriores fueron devueltos o rechazados. Comprueba la dirección o cámbiala en los ajustes de tu cuenta.",
+	"This address has received the maximum number of verification emails for today. Please try again later.":                                     "Esta dirección ya recibió el número máximo de correos de confirmación por hoy. Vuelve a intentarlo más tarde.",
 }
 
 func init() {
