@@ -4,6 +4,7 @@ package load
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -30,6 +31,9 @@ import (
 //     the clients) and asserts that each query reads the index it was built
 //     for, within its budget; it also times the migration's one-time backfill
 //     and explains the two writes (the conversion UPDATE and a claim INSERT).
+
+// populatedRuns: EXPLAIN ANALYZE runs per query of TestExplainLifecyclePopulated.
+const populatedRuns = 5
 
 // lifecycleReady says whether migration 0037 is applied to the load database.
 func lifecycleReady(db *gorm.DB) bool {
@@ -98,6 +102,11 @@ func lifecycleChecks(db *gorm.DB) []queryCheck {
 		}},
 		queryCheck{"onboarding: checklist facts", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
 			_, _ = repository.NewLifecycleRepository(d).Onboarding(ctx, client)
+		}},
+		// The job's reconciliation reads the readings settled in the last hours
+		// (in a dry run it stops at that read; it then rewrites those readers).
+		queryCheck{"lifecycle: readings settled recently", 25 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewLifecycleRepository(d).ReconcileReaders(ctx, now.Add(-3*time.Hour))
 		}},
 	)
 }
@@ -250,6 +259,9 @@ func TestExplainLifecyclePopulated(t *testing.T) {
 		planCase{"checklist facts (busiest client)", func(ctx context.Context, d *gorm.DB) {
 			_, _ = repository.NewLifecycleRepository(d).Onboarding(ctx, client)
 		}, "users_pkey", "users", 25 * time.Millisecond},
+		planCase{"readings settled in the last 3 hours", func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewLifecycleRepository(d).ReconcileReaders(ctx, now.Add(-3*time.Hour))
+		}, "chat_sessions_reading_settled_idx", "chat_sessions", 25 * time.Millisecond},
 		planCase{"conversion on a settled reading", func(ctx context.Context, d *gorm.DB) {
 			_, _ = repository.NewLifecycleRepository(d).Convert(ctx, client, now.AddDate(0, 0, -7), now)
 		}, "lifecycle_messages_open_idx", "lifecycle_messages", 25 * time.Millisecond},
@@ -268,7 +280,15 @@ func TestExplainLifecyclePopulated(t *testing.T) {
 		if sql == "" {
 			t.Fatalf("%s: no SQL captured", tc.name)
 		}
-		plan := explainTx(t, tx, tc.name, sql)
+		// The median of a few runs: one slow run on a busy machine is not the plan's cost.
+		var plan explainOut
+		times := make([]float64, 0, populatedRuns)
+		for i := 0; i < populatedRuns; i++ {
+			plan = explainTx(t, tx, tc.name, sql)
+			times = append(times, plan.ExecutionTime)
+		}
+		sort.Float64s(times)
+		median := times[len(times)/2]
 		var label string
 		if tc.index != "" {
 			ok := false
@@ -289,9 +309,9 @@ func TestExplainLifecyclePopulated(t *testing.T) {
 				t.Errorf("%s: sequential scan on %s: %s\n%s", tc.name, n.Relation, label, sql)
 			}
 		})
-		if d := time.Duration(plan.ExecutionTime * float64(time.Millisecond)); d > tc.budget {
-			t.Errorf("%s: execution %s exceeds %s", tc.name, d, tc.budget)
+		if d := time.Duration(median * float64(time.Millisecond)); d > tc.budget {
+			t.Errorf("%s: median execution %s exceeds %s", tc.name, d, tc.budget)
 		}
-		t.Logf("%-44s %7.2f ms  %s", tc.name, plan.ExecutionTime, label)
+		t.Logf("%-44s %7.2f ms  %s", tc.name, median, label)
 	}
 }
