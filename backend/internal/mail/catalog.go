@@ -233,7 +233,7 @@ func Notification(locale, kind string, data map[string]any, link string) (Conten
 			Action: &Action{Label: t("Read the reply"), URL: link}}
 	// end revisions 3.0: support desk
 	// --- growth: referrals ---
-	case "referral.joined", "referral.qualified", "referral.reward_granted":
+	case "referral.joined", "referral.reward_granted":
 		c, _ = referralNotification(t, kind, data, link)
 	// --- end growth: referrals ---
 	// --- follow-ups: auto-away ---

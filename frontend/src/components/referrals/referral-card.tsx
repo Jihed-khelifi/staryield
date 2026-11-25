@@ -55,7 +55,6 @@ export function ReferralCard() {
       <div className="flex items-start gap-3">
         <Gift aria-hidden className="mt-0.5 size-6 shrink-0 text-[#8a6a1f]" strokeWidth={1.6} />
         <div className="flex min-w-0 flex-col gap-1">
-          <p className="text-[10px] font-medium tracking-[1.5px] text-[#74571a] uppercase">{text("Beta invite")}</p>
           <h2 id="referral-card-title" className="text-xl font-semibold text-[#17150f]">
             {text("Invite friends, get free minutes")}
           </h2>
@@ -65,7 +64,7 @@ export function ReferralCard() {
       <ReferralLinkField className="mt-4" />
       <div className="mt-3 flex flex-col gap-1 text-[13px] md:flex-row md:items-center md:justify-between md:gap-4">
         <p className="text-[#17150f]" data-testid="referral-progress">
-          {progressLine(data.stats, data.program, locale, text)}
+          {progressLine(data.stats, locale, text)}
         </p>
         <Link href={`/${locale}/profile/invite`} className="shrink-0 font-medium text-[#74571a] underline underline-offset-2">
           {text("How it works")}

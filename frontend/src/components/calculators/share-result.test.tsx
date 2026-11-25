@@ -225,14 +225,14 @@ describe("ShareResultDialog", () => {
 });
 
 describe("ShareResultDialog: the sharer's invite (growth: referrals)", () => {
-  const program = { enabled: true, reward_minutes: 5, max_rewards: 20, launched: false };
+  const program = { enabled: true, reward_minutes: 5, max_rewards: 20 };
   const mine = (over: Partial<typeof program> = {}) => ({
     code: "ABCD2345",
     link: "http://localhost:3000/en?ref=ABCD2345",
     program: { ...program, ...over },
     stats: { joined: 0, qualified: 0, pending_minutes: 0, granted_minutes: 0, remaining_rewards: 20 },
   });
-  const programOn = { config: { referrals: { enabled: true, reward_minutes: 5, launched: false } } };
+  const programOn = { config: { referrals: { enabled: true, reward_minutes: 5 } } };
 
   it("a client's link carries their invite code, and the dialog says so", async () => {
     m.session.current = { user: { id: "u1", role: "client" } };
@@ -243,7 +243,8 @@ describe("ShareResultDialog: the sharer's invite (growth: referrals)", () => {
     openDialog();
     const note = await screen.findByTestId("share-invite-note");
     expect(note.textContent).toContain("This link includes your invite code.");
-    expect(note.textContent).toContain("you get 5 free minutes, added when Staryield launches");
+    expect(note.textContent).toContain("you get 5 free minutes.");
+    expect(note.textContent).not.toMatch(/launch|beta/i);
     await u.click(await screen.findByTestId("share-native"));
     await screen.findByText("Shared. Thank you!");
     expect((share.mock.calls[0][0] as ShareData).url).toBe("http://localhost:3000/en/calculators/tarot-birth-card?ref=ABCD2345");
@@ -254,7 +255,7 @@ describe("ShareResultDialog: the sharer's invite (growth: referrals)", () => {
     for (const [user, config] of [
       [null, programOn],
       [{ id: "a1", role: "psychic" }, programOn],
-      [{ id: "u1", role: "client" }, { config: { referrals: { enabled: false, reward_minutes: 5, launched: false } } }],
+      [{ id: "u1", role: "client" }, { config: { referrals: { enabled: false, reward_minutes: 5 } } }],
     ] as const) {
       m.session.current = { user };
       m.config.current = config;

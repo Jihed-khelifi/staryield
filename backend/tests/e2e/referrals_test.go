@@ -28,12 +28,12 @@ func (e *env) resetReferrals(enabled bool, minutes, max int) {
 	if err := db.Exec("DELETE FROM referrals").Error; err != nil {
 		e.t.Fatal(err)
 	}
-	doc := fmt.Sprintf(`{"enabled": %t, "reward_minutes": %d, "max_rewards_per_referrer": %d, "launched_at": null}`, enabled, minutes, max)
+	doc := fmt.Sprintf(`{"enabled": %t, "reward_minutes": %d, "max_rewards_per_referrer": %d}`, enabled, minutes, max)
 	if err := db.Exec(`UPDATE site_settings SET value = ?::jsonb, version = version + 1 WHERE key = 'referral_program'`, doc).Error; err != nil {
 		e.t.Fatal(err)
 	}
 	e.t.Cleanup(func() {
-		_ = db.Exec(`UPDATE site_settings SET value = '{"enabled": true, "reward_minutes": 5, "max_rewards_per_referrer": 20, "launched_at": null}'::jsonb,
+		_ = db.Exec(`UPDATE site_settings SET value = '{"enabled": true, "reward_minutes": 5, "max_rewards_per_referrer": 20}'::jsonb,
 			version = version + 1 WHERE key = 'referral_program'`).Error
 		_ = db.Exec("DELETE FROM referrals").Error
 	})
@@ -169,8 +169,8 @@ func (c *client) referrals() service.MyReferrals {
 	return out
 }
 
-// The whole loop: link, sign-up, verification, a settled reading, pending
-// before launch, the admin's launch, the grant and everything that announces it.
+// The whole loop: link, sign-up, verification, a settled reading, the grant by
+// the next run of the job (no launch) and everything that announces it.
 func TestReferralLoopEndToEnd(t *testing.T) {
 	e := newEnv(t)
 	e.resetReferrals(true, 5, 20)
@@ -191,16 +191,29 @@ func TestReferralLoopEndToEnd(t *testing.T) {
 		t.Fatal("the code changed between calls")
 	}
 	// The public site configuration advertises the program.
+	// Its referrals object is exactly {enabled, reward_minutes}: no "launched".
 	var cfg struct {
-		Referrals struct {
-			Enabled       bool `json:"enabled"`
-			RewardMinutes int  `json:"reward_minutes"`
-			Launched      bool `json:"launched"`
-		} `json:"referrals"`
+		Referrals map[string]any `json:"referrals"`
 	}
 	e.client().must(http.StatusOK, http.MethodGet, "/api/v1/site/config", nil, &cfg)
-	if !cfg.Referrals.Enabled || cfg.Referrals.RewardMinutes != 5 || cfg.Referrals.Launched {
-		t.Fatalf("site config: %+v", cfg.Referrals)
+	if len(cfg.Referrals) != 2 || cfg.Referrals["enabled"] != true || cfg.Referrals["reward_minutes"] != float64(5) {
+		t.Fatalf("site config referrals: %v", cfg.Referrals)
+	}
+	if _, has := cfg.Referrals["launched"]; has {
+		t.Fatalf("site config still has launched: %v", cfg.Referrals)
+	}
+	// So does the inviter's program: no launched, no launched_at.
+	var rawMine struct {
+		Program map[string]any `json:"program"`
+	}
+	inviter.call(http.MethodGet, "/api/v1/me/referrals", nil).decode(t, &rawMine)
+	if len(rawMine.Program) != 3 || rawMine.Program["enabled"] != true || rawMine.Program["reward_minutes"] != float64(5) || rawMine.Program["max_rewards"] != float64(20) {
+		t.Fatalf("program keys: %v", rawMine.Program)
+	}
+	for _, k := range []string{"launched", "launched_at"} {
+		if _, has := rawMine.Program[k]; has {
+			t.Fatalf("program still has %s: %v", k, rawMine.Program)
+		}
 	}
 
 	// A friend signs up with the link (the code is case-insensitive).
@@ -233,50 +246,32 @@ func TestReferralLoopEndToEnd(t *testing.T) {
 	if q.RewardMinutes != 5 || q.FirstSessionID == nil || q.QualifiedAt == nil {
 		t.Fatalf("qualified: %+v", q)
 	}
-	pending := waitReferralNotice(t, inviter, service.NotifyReferralQualified)
-	if pending.Data["minutes"] != float64(5) || pending.Data["launched"] != false {
-		t.Fatalf("pending notice: %+v", pending)
-	}
 	before := inviter.wallet()
 	if s := inviter.referrals().Stats; s.Joined != 1 || s.Qualified != 1 || s.PendingMinutes != 5 || s.GrantedMinutes != 0 {
 		t.Fatalf("pending stats: %+v", s)
 	}
-	if err := e.app.Scheduler.RunJob(ctx, service.ReferralGrantJob); err != nil {
-		t.Fatal(err)
-	}
-	if w := inviter.wallet(); w.FreeMinutes != before.FreeMinutes {
-		t.Fatalf("minutes granted before launch: %+v", w)
-	}
 
-	// The admin sees it, and can only launch with step-up and the typed phrase.
+	// The admin sees it ready for the next run; the summary's program has no launch.
 	var sum service.ReferralSummary
 	admin.must(http.StatusOK, http.MethodGet, "/api/v1/admin/referrals/summary", nil, &sum)
-	if sum.Qualified != 1 || sum.ReadyRewards != 1 || sum.ReadyMinutes != 5 || sum.Program.Launched() || len(sum.TopInviters) != 1 {
+	if sum.Qualified != 1 || sum.ReadyRewards != 1 || sum.ReadyMinutes != 5 || len(sum.TopInviters) != 1 {
 		t.Fatalf("summary: %+v", sum)
 	}
-	e.clock.Advance(11 * time.Minute) // the step-up of the sign-in has lapsed
-	if r := admin.call(http.MethodPost, "/api/v1/admin/referrals/launch", map[string]any{"confirmation": "LAUNCH"}); r.errCode(t) != "step_up_required" {
-		t.Fatalf("launch without step-up: %d %s", r.status, r.body)
+	var rawSum struct {
+		Program map[string]any `json:"program"`
 	}
-	admin.stepUp()
-	for _, bad := range []string{"", "launch", "go"} {
-		if r := admin.call(http.MethodPost, "/api/v1/admin/referrals/launch", map[string]any{"confirmation": bad}); r.status != http.StatusUnprocessableEntity {
-			t.Fatalf("launch with %q: %d %s", bad, r.status, r.body)
+	admin.call(http.MethodGet, "/api/v1/admin/referrals/summary", nil).decode(t, &rawSum)
+	for _, k := range []string{"launched", "launched_at"} {
+		if _, has := rawSum.Program[k]; has {
+			t.Fatalf("summary program still has %s: %v", k, rawSum.Program)
 		}
 	}
-	if inviter.referrals().Program.Launched {
-		t.Fatal("launched without the confirmation")
+	// The launch endpoint is gone, with or without step-up.
+	admin.stepUp()
+	if r := admin.call(http.MethodPost, "/api/v1/admin/referrals/launch", map[string]any{"confirmation": "LAUNCH"}); r.status != http.StatusNotFound && r.status != http.StatusMethodNotAllowed {
+		t.Fatalf("POST /admin/referrals/launch must not exist: %d %s", r.status, r.body)
 	}
 	aws := inviter.connect("")
-	var launched service.ReferralLaunchResult
-	admin.must(http.StatusOK, http.MethodPost, "/api/v1/admin/referrals/launch", map[string]any{"confirmation": "LAUNCH"}, &launched)
-	if launched.Rewards != 1 || launched.Minutes != 5 || launched.LaunchedAt.IsZero() {
-		t.Fatalf("launch: %+v", launched)
-	}
-	if r := admin.call(http.MethodPost, "/api/v1/admin/referrals/launch", map[string]any{"confirmation": "LAUNCH"}); r.status != http.StatusConflict ||
-		r.errCode(t) != string(service.CodeReferralLaunched) {
-		t.Fatalf("second launch: %d %s", r.status, r.body)
-	}
 
 	// The grant job adds the minutes, once.
 	for i := 0; i < 3; i++ {
@@ -318,7 +313,7 @@ func TestReferralLoopEndToEnd(t *testing.T) {
 		t.Fatalf("granted: %+v", r)
 	}
 	final := inviter.referrals()
-	if !final.Program.Launched || final.Stats.GrantedMinutes != 5 || final.Stats.PendingMinutes != 0 || final.Stats.Qualified != 1 {
+	if final.Stats.GrantedMinutes != 5 || final.Stats.PendingMinutes != 0 || final.Stats.Qualified != 1 {
 		t.Fatalf("final stats: %+v", final)
 	}
 	// What the inviter gets back never identifies the friend.
@@ -329,7 +324,7 @@ func TestReferralLoopEndToEnd(t *testing.T) {
 		}
 	}
 
-	// A friend who qualifies after the launch is granted without a pending notice.
+	// A friend who qualifies later is granted by the next run, without any "qualified" notice.
 	second := e.registerReferred(mine.Code, "")
 	e.verifyEmail(second.user.ID)
 	e.readingOf(psychic, second)
@@ -341,8 +336,8 @@ func TestReferralLoopEndToEnd(t *testing.T) {
 	if w := inviter.wallet(); w.FreeMinutes != before.FreeMinutes+10 {
 		t.Fatalf("wallet after the second grant: %+v", w)
 	}
-	if n := countReferralNotices(t, inviter, service.NotifyReferralQualified); n != 1 {
-		t.Fatalf("a qualification after launch must not say 'pending': %d notices", n)
+	if n := countReferralNotices(t, inviter, "referral.qualified"); n != 0 {
+		t.Fatalf("a qualification is never announced as a notification: %d notices", n)
 	}
 
 	// The personal-data exports: the inviter's code and counters, the friend's
@@ -518,9 +513,7 @@ func TestReferralAntiAbuse(t *testing.T) {
 		t.Fatalf("flagged list: %+v", page)
 	}
 
-	// Launch: the held reward is not granted.
-	admin.stepUp()
-	admin.must(http.StatusOK, http.MethodPost, "/api/v1/admin/referrals/launch", map[string]any{"confirmation": "LAUNCH"}, nil)
+	// The grant job runs: the held reward is not granted.
 	before := inviter.wallet()
 	if err := e.app.Scheduler.RunJob(ctx, service.ReferralGrantJob); err != nil {
 		t.Fatal(err)
@@ -528,7 +521,7 @@ func TestReferralAntiAbuse(t *testing.T) {
 	if w := inviter.wallet(); w.FreeMinutes != before.FreeMinutes {
 		t.Fatalf("a held reward was granted: %+v", w)
 	}
-	if n := countReferralNotices(t, inviter, service.NotifyReferralQualified); n != 0 {
+	if n := countReferralNotices(t, inviter, "referral.qualified"); n != 0 {
 		t.Fatalf("a held reward announced itself: %d", n)
 	}
 
@@ -614,10 +607,7 @@ func TestReferralCapAndGrantsUnderConcurrency(t *testing.T) {
 		t.Fatalf("stats: %+v", s)
 	}
 
-	// Launch directly, then run the grant job on several "instances" at once.
-	admin := e.createAdmin()
-	admin.stepUp()
-	admin.must(http.StatusOK, http.MethodPost, "/api/v1/admin/referrals/launch", map[string]any{"confirmation": "LAUNCH"}, nil)
+	// Run the grant job on several "instances" at once.
 	before := inviter.wallet()
 	for i := 0; i < 6; i++ {
 		wg.Add(1)
@@ -687,7 +677,7 @@ func TestReferralAdminSettingsAndDecisions(t *testing.T) {
 	// Settings: readable by every admin, written with step-up, versioned, audited.
 	var set service.ReferralProgramSetting
 	admin.must(http.StatusOK, http.MethodGet, "/api/v1/admin/site/referral-program", nil, &set)
-	if !set.Enabled || set.RewardMinutes != 5 || set.MaxRewardsPerReferrer != 20 || set.Launched() || set.Version < 1 {
+	if !set.Enabled || set.RewardMinutes != 5 || set.MaxRewardsPerReferrer != 20 || set.Version < 1 {
 		t.Fatalf("setting: %+v", set)
 	}
 	put := func(body map[string]any) response {
@@ -853,5 +843,44 @@ func TestReferralGoogleSignUpsCreditTheInviter(t *testing.T) {
 	}
 	if s := inviter.referrals().Stats; s.Joined != 2 || s.Qualified != 1 || s.PendingMinutes != 5 {
 		t.Fatalf("inviter stats: %+v", s)
+	}
+}
+
+// An earned reward is kept: switching the program off stops new sign-ups and
+// qualifications, but the next run of the grant job still adds the minutes
+// (and nothing waits for a launch).
+func TestReferralGrantsStillRunWhileTheProgramIsDisabled(t *testing.T) {
+	e := newEnv(t)
+	e.resetReferrals(true, 5, 20)
+	e.ensurePacks()
+	ctx := context.Background()
+	admin := e.createAdmin()
+	psychic := e.createPsychic(40)
+	inviter := e.registerClient()
+	e.elsewhere(inviter.user.ID)
+	friend := e.registerReferred(inviter.referrals().Code, "")
+	e.verifyEmail(friend.user.ID)
+	e.readingOf(psychic, friend)
+	e.waitReferral(friend.user.ID, domain.ReferralQualified)
+
+	var set service.ReferralProgramSetting
+	admin.must(http.StatusOK, http.MethodGet, "/api/v1/admin/site/referral-program", nil, &set)
+	admin.stepUp()
+	admin.must(http.StatusOK, http.MethodPut, "/api/v1/admin/site/referral-program",
+		map[string]any{"enabled": false, "reward_minutes": 5, "max_rewards_per_referrer": 20, "version": set.Version}, nil)
+	// The stored setting carries no launch date.
+	var keys map[string]any
+	admin.call(http.MethodGet, "/api/v1/admin/site/referral-program", nil).decode(t, &keys)
+	if _, has := keys["launched_at"]; has || keys["enabled"] != false {
+		t.Fatalf("setting: %v", keys)
+	}
+
+	before := inviter.wallet()
+	if err := e.app.Scheduler.RunJob(ctx, service.ReferralGrantJob); err != nil {
+		t.Fatal(err)
+	}
+	e.waitReferral(friend.user.ID, domain.ReferralGranted)
+	if w := inviter.wallet(); w.FreeMinutes != before.FreeMinutes+5 {
+		t.Fatalf("an earned reward must be granted while the program is off: %+v (before %+v)", w, before)
 	}
 }

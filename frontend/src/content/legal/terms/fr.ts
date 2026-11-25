@@ -588,7 +588,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Les clients peuvent inviter des amis sur Staryield au moyen d’un lien d’invitation personnel et gagner des minutes de chat offertes lorsqu’un ami invité remplit les conditions ci-dessous. La récompense, la limite et l’état de lancement en vigueur du programme sont indiqués sur la page [Inviter des amis](/profile/invite) de votre compte. Le programme ne dépend en aucune façon des évaluations ou des avis."
+          "text": "Les clients peuvent inviter des amis sur Staryield au moyen d’un lien d’invitation personnel et gagner des minutes de chat offertes lorsqu’un ami invité remplit les conditions ci-dessous. La récompense et la limite en vigueur du programme sont indiquées sur la page [Inviter des amis](/profile/invite) de votre compte. Le programme ne dépend en aucune façon des évaluations ou des avis."
         },
         {
           "type": "h4",
@@ -638,13 +638,13 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "h4",
-          "id": "referral-beta-and-launch",
+          "id": "referral-minutes-added",
           "n": "4.20.4",
-          "title": "Bêta et lancement"
+          "title": "Ajout des minutes"
         },
         {
           "type": "p",
-          "text": "Staryield est en version bêta. Les récompenses obtenues avant le lancement des récompenses de parrainage sont affichées comme en attente et sont ajoutées à votre Compte lors de ce lancement, à une date que nous choisissons ; nous vous prévenons lorsque des minutes sont ajoutées. Après le lancement, une récompense est ajoutée automatiquement peu après que votre ami a rempli les conditions. Les minutes ne sont ajoutées que tant que votre Compte est actif : tant qu’il est désactivé, suspendu ou en cours de fermeture, elles restent en attente. Une récompense retenue pour examen ([section 4.20.7](#referral-fraud-and-review)) n’est ajoutée que si nous l’approuvons."
+          "text": "Une récompense est ajoutée automatiquement à votre Compte peu après que votre ami a rempli les conditions, et nous vous prévenons lorsque des minutes sont ajoutées. Les minutes ne sont ajoutées que tant que votre Compte est actif : tant qu’il est désactivé, suspendu ou en cours de fermeture, elles restent en attente. Une récompense retenue pour examen ([section 4.20.7](#referral-fraud-and-review)) n’est ajoutée que si nous l’approuvons."
         },
         {
           "type": "h4",
@@ -702,7 +702,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Nous pouvons modifier le programme, notamment la récompense, la limite et ces règles, ou le suspendre ou y mettre fin, à tout moment. Pendant que le programme est suspendu ou après sa fin, les nouvelles inscriptions par des liens d’invitation ne sont pas enregistrées, et les amis inscrits auparavant ne peuvent remplir les conditions que si le programme reprend. Une modification, une suspension ou la fin du programme ne vous retire ni les minutes déjà ajoutées à votre Compte, ni les récompenses déjà obtenues : les récompenses obtenues encore en attente sont ajoutées comme indiqué à la [section 4.20.4](#referral-beta-and-launch), sauf si elles sont rejetées en application de la [section 4.20.7](#referral-fraud-and-review)."
+          "text": "Nous pouvons modifier le programme, notamment la récompense, la limite et ces règles, ou le suspendre ou y mettre fin, à tout moment. Pendant que le programme est suspendu ou après sa fin, les nouvelles inscriptions par des liens d’invitation ne sont pas enregistrées, et les amis inscrits auparavant ne peuvent remplir les conditions que si le programme reprend. Une modification, une suspension ou la fin du programme ne vous retire ni les minutes déjà ajoutées à votre Compte, ni les récompenses déjà obtenues : les récompenses obtenues encore en attente sont ajoutées comme indiqué à la [section 4.20.4](#referral-minutes-added), sauf si elles sont rejetées en application de la [section 4.20.7](#referral-fraud-and-review)."
         },
         {
           "type": "h4",

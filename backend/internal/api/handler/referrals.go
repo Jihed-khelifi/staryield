@@ -111,25 +111,6 @@ func (h *Handler) AdminRejectReferral(c echo.Context) error {
 	return ok(c, out)
 }
 
-// AdminLaunchReferrals launches the rewards (once; typed confirmation).
-func (h *Handler) AdminLaunchReferrals(c echo.Context) error {
-	s, err := h.referrals()
-	if err != nil {
-		return err
-	}
-	var req struct {
-		Confirmation string `json:"confirmation"`
-	}
-	if err := bind(c, &req); err != nil {
-		return err
-	}
-	out, err := s.Launch(c.Request().Context(), req.Confirmation)
-	if err != nil {
-		return err
-	}
-	return ok(c, out)
-}
-
 // AdminReferralProgram returns the program setting.
 func (h *Handler) AdminReferralProgram(c echo.Context) error {
 	out, err := h.svc.Site.ReferralProgramSetting(c.Request().Context())

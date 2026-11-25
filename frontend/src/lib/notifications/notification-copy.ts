@@ -143,15 +143,13 @@ export const notificationTemplates = {
 
 /**
  * growth: referrals. The notifications never name the friend: joined carries
- * nothing, qualified the minutes earned and whether the rewards launched,
- * reward_granted the minutes added.
+ * nothing, qualified the minutes earned (legacy rows only: the API no longer
+ * sends it), reward_granted the minutes added.
  */
 export const referralNotificationTemplates = {
   joinedTitle: "A friend joined with your link",
   joinedBody: "Your free minutes are earned once they verify their email and complete a reading.",
   qualifiedTitle: "A friend completed a reading",
-  qualifiedPendingOne: "You earned 1 free minute, added to your wallet when Staryield launches.",
-  qualifiedPending: "You earned {minutes} free minutes, added to your wallet when Staryield launches.",
   qualifiedAddedOne: "Your free minute is being added to your wallet.",
   qualifiedAdded: "Your {minutes} free minutes are being added to your wallet.",
   grantedTitle: "Free minutes added",
@@ -379,8 +377,7 @@ export function notificationText(
       return { title: text(R.joinedTitle), body: text(R.joinedBody) };
     case "referral.qualified": {
       const minutes = num(d.minutes) ?? 0;
-      const launched = d.launched === true;
-      const template = launched ? (minutes === 1 ? R.qualifiedAddedOne : R.qualifiedAdded) : minutes === 1 ? R.qualifiedPendingOne : R.qualifiedPending;
+      const template = minutes === 1 ? R.qualifiedAddedOne : R.qualifiedAdded;
       return { title: text(R.qualifiedTitle), body: text(template, { minutes: fmt(minutes) }) };
     }
     case "referral.reward_granted": {

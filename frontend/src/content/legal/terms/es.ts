@@ -588,7 +588,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Los clientes pueden invitar a amigos a Staryield con un enlace de invitación personal y ganar minutos de chat gratuitos cuando un amigo invitado cumple las condiciones siguientes. La recompensa, el límite y el estado de lanzamiento vigentes del programa se muestran en la página [Invitar a amigos](/profile/invite) de su cuenta. El programa no depende en modo alguno de valoraciones ni reseñas."
+          "text": "Los clientes pueden invitar a amigos a Staryield con un enlace de invitación personal y ganar minutos de chat gratuitos cuando un amigo invitado cumple las condiciones siguientes. La recompensa y el límite vigentes del programa se muestran en la página [Invitar a amigos](/profile/invite) de su cuenta. El programa no depende en modo alguno de valoraciones ni reseñas."
         },
         {
           "type": "h4",
@@ -638,13 +638,13 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "h4",
-          "id": "referral-beta-and-launch",
+          "id": "referral-minutes-added",
           "n": "4.20.4",
-          "title": "Beta y lanzamiento"
+          "title": "Cuándo se añaden los minutos"
         },
         {
           "type": "p",
-          "text": "Staryield está en fase beta. Las recompensas obtenidas antes de que lancemos las recompensas del programa se muestran como pendientes y se añaden a su Cuenta cuando las lancemos, en la fecha que elijamos; le avisamos cuando se añaden minutos. Después del lanzamiento, una recompensa se añade automáticamente poco después de que su amigo cumpla las condiciones. Los minutos solo se añaden mientras su Cuenta esté activa: mientras esté desactivada, suspendida o en proceso de cierre, quedan en espera. Una recompensa retenida para revisión ([Sección 4.20.7](#referral-fraud-and-review)) solo se añade si la aprobamos."
+          "text": "Una recompensa se añade automáticamente a su Cuenta poco después de que su amigo cumpla las condiciones, y le avisamos cuando se añaden minutos. Los minutos solo se añaden mientras su Cuenta esté activa: mientras esté desactivada, suspendida o en proceso de cierre, quedan en espera. Una recompensa retenida para revisión ([Sección 4.20.7](#referral-fraud-and-review)) solo se añade si la aprobamos."
         },
         {
           "type": "h4",
@@ -702,7 +702,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Podemos modificar el programa, incluidas la recompensa, el límite y estas reglas, o pausarlo o ponerle fin, en cualquier momento. Mientras el programa esté en pausa o después de que haya terminado, las nuevas altas realizadas con enlaces de invitación no quedan registradas, y los amigos que se registraron antes solo pueden cumplir las condiciones si el programa se reanuda. Un cambio, una pausa o el fin del programa no le quitan los minutos ya añadidos a su Cuenta ni las recompensas ya obtenidas: las recompensas obtenidas que sigan pendientes se añaden como se describe en la [Sección 4.20.4](#referral-beta-and-launch), salvo que se rechacen conforme a la [Sección 4.20.7](#referral-fraud-and-review)."
+          "text": "Podemos modificar el programa, incluidas la recompensa, el límite y estas reglas, o pausarlo o ponerle fin, en cualquier momento. Mientras el programa esté en pausa o después de que haya terminado, las nuevas altas realizadas con enlaces de invitación no quedan registradas, y los amigos que se registraron antes solo pueden cumplir las condiciones si el programa se reanuda. Un cambio, una pausa o el fin del programa no le quitan los minutos ya añadidos a su Cuenta ni las recompensas ya obtenidas: las recompensas obtenidas que sigan pendientes se añaden como se describe en la [Sección 4.20.4](#referral-minutes-added), salvo que se rechacen conforme a la [Sección 4.20.7](#referral-fraud-and-review)."
         },
         {
           "type": "h4",

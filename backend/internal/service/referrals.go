@@ -26,8 +26,8 @@ import (
 
 // Growth: the referral loop. Every client can invite friends with a personal
 // link. For each invited friend who signs up with it, verifies the e-mail
-// address and completes a reading, the inviter earns free minutes, granted at
-// launch (referrals_grants.go). The rules, in order:
+// address and completes a reading, the inviter earns free minutes, added by
+// the grant job (referrals_grants.go). The rules, in order:
 //
 //   - a code is 8 characters of an unambiguous alphabet, created on first use;
 //   - Attribute (called after every sign-up) records the friend as "joined"
@@ -37,7 +37,8 @@ import (
 //   - Evaluate (called when a reading settles and when an address is verified,
 //     in either order) moves a joined friend to "qualified" once both are true,
 //     or to "rejected" (cap_reached) when the inviter's cap is used up;
-//   - the grant job adds the minutes once the rewards are launched.
+//   - the grant job adds the minutes of a qualified, unheld referral within a
+//     minute (it is woken by the qualification) and tells the inviter then.
 //
 // Privacy: an inviter only ever sees counts and notifications that name nobody.
 
@@ -74,9 +75,7 @@ type ReferralDeps struct {
 	// Wallet grants the free minutes.
 	Wallet *WalletService
 	// Program reads the program setting (SiteService.ReferralProgram).
-	Program func(ctx context.Context) ReferralProgram
-	// Launch stamps the launch date, once (SiteService.LaunchReferralRewards).
-	Launch   func(ctx context.Context, confirmation string, inTx func(ctx context.Context) error) (*ReferralProgramSetting, error)
+	Program  func(ctx context.Context) ReferralProgram
 	Notifier Notifier
 	Events   EventPublisher
 	Tracker  analytics.Tracker
@@ -347,25 +346,20 @@ func (s *ReferralService) Evaluate(ctx context.Context, refereeID uuid.UUID) {
 		return
 	}
 	if after != nil && after.Status == domain.ReferralQualified {
-		s.afterQualified(ctx, after, prog)
+		s.afterQualified(ctx, after)
 	}
 }
 
-// afterQualified announces a qualified referral: before launch the inviter is
-// told the minutes are pending; after launch the grant job adds them within a
-// minute and tells them then. Flagged referrals say nothing until an
-// administrator decides.
-func (s *ReferralService) afterQualified(ctx context.Context, r *domain.Referral, prog ReferralProgram) {
+// afterQualified records a qualified referral (an analytics event, not a
+// notification) and wakes the grant job, which adds the minutes within a
+// minute and tells the inviter then. A flagged referral waits for an
+// administrator's decision: the grant job skips it until it is approved.
+func (s *ReferralService) afterQualified(ctx context.Context, r *domain.Referral) {
 	s.d.Tracker.Track(ctx, "referral.qualified", map[string]any{"minutes": r.RewardMinutes, "flagged": r.Flagged})
 	if r.Flagged {
 		return
 	}
-	if prog.Launched() {
-		s.signal()
-		return
-	}
-	s.d.Notifier.Notify(ctx, NotificationSpec{Kind: NotifyReferralQualified,
-		Data: map[string]any{"minutes": r.RewardMinutes, "launched": false}, Link: referralLink}, r.ReferrerID)
+	s.signal()
 }
 
 // sweepBatch bounds one reconciliation pass.
@@ -399,11 +393,9 @@ func (s *ReferralService) RunSweep(ctx context.Context) error {
 
 // ReferralProgramView is the program as the inviter sees it.
 type ReferralProgramView struct {
-	Enabled       bool       `json:"enabled"`
-	RewardMinutes int        `json:"reward_minutes"`
-	MaxRewards    int        `json:"max_rewards"`
-	Launched      bool       `json:"launched"`
-	LaunchedAt    *time.Time `json:"launched_at,omitempty"`
+	Enabled       bool `json:"enabled"`
+	RewardMinutes int  `json:"reward_minutes"`
+	MaxRewards    int  `json:"max_rewards"`
 }
 
 // ReferralStatsView are the inviter's counters: counts and minutes only.
@@ -442,8 +434,7 @@ func (s *ReferralService) Mine(ctx context.Context, userID uuid.UUID) (*MyReferr
 	prog := s.d.Program(ctx)
 	locale := reqctx.MetaFrom(ctx).Locale
 	out := &MyReferrals{Code: code, Link: mail.AppURL(s.d.Cfg.FrontendURL, locale, "") + "?ref=" + code,
-		Program: ReferralProgramView{Enabled: prog.Enabled, RewardMinutes: prog.RewardMinutes, MaxRewards: prog.MaxRewardsPerReferrer,
-			Launched: prog.Launched(), LaunchedAt: prog.LaunchedAt},
+		Program: ReferralProgramView{Enabled: prog.Enabled, RewardMinutes: prog.RewardMinutes, MaxRewards: prog.MaxRewardsPerReferrer},
 		Stats: ReferralStatsView{Joined: stats.Joined, Qualified: stats.Qualified, PendingMinutes: stats.PendingMinutes,
 			GrantedMinutes: stats.GrantedMinutes, RemainingRewards: max(int64(prog.MaxRewardsPerReferrer)-stats.Qualified, 0)}}
 	return out, nil

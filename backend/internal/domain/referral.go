@@ -7,7 +7,7 @@ import (
 )
 
 // Growth: the referral loop (migration 0036). An inviter earns free minutes,
-// granted at launch, for each invited friend who signs up with their link,
+// granted by the grant job, for each invited friend who signs up with their link,
 // verifies the e-mail address and completes a reading.
 
 // SiteSettingReferralProgram is the referral program's settings document

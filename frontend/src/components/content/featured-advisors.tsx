@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
-import { useId } from "react";
+import { useId, type CSSProperties } from "react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import type { Locale } from "@/i18n/config";
@@ -12,11 +12,14 @@ import { FreeChatBadge } from "@/components/billing/free-chat-badge";
 import { BookButton } from "@/components/booking/book-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/feedback/error-state";
+import { cn } from "@/lib/utils";
 
 /** How many advisors the home page shows. */
 export const FEATURED_COUNT = 3;
 const imgStar = "https://assets.staryield.net/assets/figma/d9e90.svg";
 const imgDivider = "https://assets.staryield.net/assets/figma/7bd7f.svg";
+// Two columns (tablets): a last card alone on its row spans both, centred.
+const LONE_LAST_CARD = "md:max-lg:[&:last-of-type:nth-of-type(odd)]:col-span-2";
 
 const badgeCopy: Record<PresenceStatus, string> = {
   online: "Active Now",
@@ -33,7 +36,7 @@ export function reviewCountLabel(count: number, locale: Locale): string {
 
 function CardSkeleton() {
   return (
-    <div className="flex w-full max-w-[330px] flex-col gap-5 rounded-[16px] bg-[#e0d5c3] p-6" aria-hidden>
+    <div className={cn("flex w-full max-w-[330px] flex-col gap-5 justify-self-center rounded-[16px] bg-[#e0d5c3] p-6", LONE_LAST_CARD)} aria-hidden>
       <div className="flex items-center justify-between">
         <Skeleton className="size-12 rounded-full" />
         <Skeleton className="h-6 w-20" />
@@ -53,35 +56,43 @@ function FeaturedCard({ advisor, onAvailable }: { advisor: FeaturedAdvisor; onAv
   const online = advisor.status === "online";
   // Buttons repeat on every card: they point at the advisor's name.
   const nameId = useId();
+  // The card's five parts (top, name and headline, divider, rates, button)
+  // sit on rows shared with the cards beside it (subgrid), so the divider,
+  // the rates and the buttons line up whatever the length of each headline.
   return (
     <article
-      className="relative flex w-full max-w-[330px] flex-col items-start gap-5 rounded-[16px] bg-[#e0d5c3] p-6"
+      className={cn(
+        "relative row-span-5 grid w-full max-w-[330px] grid-rows-subgrid gap-y-5 justify-self-center rounded-[16px] bg-[#e0d5c3] p-6",
+        LONE_LAST_CARD,
+      )}
       data-testid="featured-advisor"
     >
-      <div className="flex w-full items-center justify-between">
-        <div className="relative size-12 shrink-0 overflow-hidden rounded-full bg-warm-gray">
-          {advisor.image_url ? (
-            <img alt="" className="absolute inset-0 size-full object-cover" src={advisor.image_url} loading="lazy" decoding="async" />
-          ) : null}
+      <div className="flex w-full flex-col items-start gap-5">
+        <div className="flex w-full items-center justify-between">
+          <div className="relative size-12 shrink-0 overflow-hidden rounded-full bg-warm-gray">
+            {advisor.image_url ? (
+              <img alt="" className="absolute inset-0 size-full object-cover" src={advisor.image_url} loading="lazy" decoding="async" />
+            ) : null}
+          </div>
+          <span
+            className={
+              online
+                ? "rounded-[4px] bg-[rgba(170,142,98,0.15)] px-[10px] py-1 font-serif text-[12px] font-semibold text-[#66502e]"
+                : "rounded-[4px] bg-[rgba(151,143,110,0.15)] px-[10px] py-1 font-serif text-[12px] font-semibold text-[#5a5440]"
+            }
+          >
+            {text(badgeCopy[advisor.status])}
+          </span>
         </div>
-        <span
-          className={
-            online
-              ? "rounded-[4px] bg-[rgba(170,142,98,0.15)] px-[10px] py-1 font-serif text-[12px] font-semibold text-[#66502e]"
-              : "rounded-[4px] bg-[rgba(151,143,110,0.15)] px-[10px] py-1 font-serif text-[12px] font-semibold text-[#5a5440]"
-          }
-        >
-          {text(badgeCopy[advisor.status])}
-        </span>
+        <FreeChatBadge />
       </div>
-      <FreeChatBadge />
-      <div className="flex w-full flex-col gap-1 text-black">
+      <div className="flex w-full flex-col gap-1 text-black" data-testid="featured-advisor-intro">
         <h3 id={nameId} className="font-serif text-[22px] font-semibold">
           {text(advisor.name)}
         </h3>
         <p className="font-serif text-[14px] font-light">{text(advisor.headline)}</p>
       </div>
-      <img alt="" aria-hidden className="block h-px w-full" src={imgDivider} />
+      <img alt="" aria-hidden className="block h-px w-full" src={imgDivider} data-testid="featured-advisor-divider" />
       <dl className="flex w-full flex-col gap-2 font-serif text-[13px] text-black">
         <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
           <dt className="font-light">{text("Consultation Rate ")}</dt>
@@ -114,15 +125,23 @@ function FeaturedCards() {
   const { reload, markOnline } = featured;
 
   const list = featured.data;
+  // One column on phones, two on tablets, one per card (up to three) on desktop.
+  const columns = list && list.items.length > 0 ? Math.min(list.items.length, FEATURED_COUNT) : FEATURED_COUNT;
   return (
     <div
-      className="relative flex w-full flex-col items-center gap-6 md:flex-row md:flex-wrap md:items-stretch md:justify-center lg:flex-nowrap lg:gap-[105px]"
+      className="relative grid w-full grid-cols-[minmax(0,330px)] justify-center gap-6 md:grid-cols-[repeat(2,minmax(0,330px))] lg:grid-cols-[repeat(var(--featured-columns),minmax(0,330px))] lg:gap-x-[105px]"
+      style={{ "--featured-columns": columns } as CSSProperties}
       data-name="Layout / Our Psychics / 02"
       aria-busy={featured.loading}
     >
       {list === null ? (
         featured.error && !featured.loading ? (
-          <ErrorState className="w-full max-w-md bg-[#e0d5c3]" error={featured.error} onRetry={reload} title={text("We couldn't load the advisors.")} />
+          <ErrorState
+            className="col-span-full w-full max-w-md justify-self-center bg-[#e0d5c3]"
+            error={featured.error}
+            onRetry={reload}
+            title={text("We couldn't load the advisors.")}
+          />
         ) : (
           <>
             <p role="status" className="sr-only">
@@ -134,7 +153,7 @@ function FeaturedCards() {
           </>
         )
       ) : list.items.length === 0 ? (
-        <p className="font-serif text-[16px] text-white">{text("No advisors are listed right now.")}</p>
+        <p className="col-span-full text-center font-serif text-[16px] text-white">{text("No advisors are listed right now.")}</p>
       ) : (
         list.items.map((advisor) => <FeaturedCard key={advisor.slug} advisor={advisor} onAvailable={() => markOnline(advisor.slug)} />)
       )}

@@ -34,13 +34,19 @@ test.describe("invite friends", () => {
     await expect(card.getByTestId("referral-copy")).toHaveText("Copied");
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link);
 
-    // The invite page explains the rules before the launch.
+    // The invite page explains the rules; while the program runs it has no notice and no beta wording.
     await card.getByRole("link", { name: "How it works" }).click();
     await page.waitForURL(/\/en\/profile\/invite$/);
-    await expect(page.getByTestId("referral-program-notice")).toHaveAttribute("data-state", "beta");
+    await expect(page.getByTestId("referral-program-notice")).toHaveCount(0);
     await expect(page.getByTestId("stat-joined")).toContainText("0");
+    await expect(page.getByTestId("stat-granted")).toBeVisible();
+    await expect(page.getByTestId("stat-granted")).toContainText("Minutes added");
+    await expect(page.getByTestId("invite-page")).not.toContainText(/beta|launch/i);
     await page.getByRole("button", { name: "What does my friend get?" }).click();
     await expect(page.getByText(/There is no extra reward for being invited\./)).toBeVisible();
+    await page.getByRole("button", { name: "When do I get my free minutes?" }).click();
+    await expect(page.getByText(/The minutes are usually in your wallet within a minute, and we let you know\./)).toBeVisible();
+    await expect(page.getByTestId("invite-page")).not.toContainText(/beta|launch/i);
 
     // A new visitor opens the link: the code is kept, ?ref= leaves the address bar.
     const visitor = await browser.newContext({ locale: "en-US", timezoneId: "Europe/Paris" });

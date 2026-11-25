@@ -65,7 +65,7 @@ const NEW_ANCHORS: [id: string, n: string, level: "h3" | "h4"][] = [
   ["referral-who-can-take-part", "4.20.1", "h4"],
   ["referral-how-rewards-are-earned", "4.20.2", "h4"],
   ["referral-reward-size-and-limits", "4.20.3", "h4"],
-  ["referral-beta-and-launch", "4.20.4", "h4"],
+  ["referral-minutes-added", "4.20.4", "h4"],
   ["referral-free-minutes", "4.20.5", "h4"],
   ["referral-sharing-your-link", "4.20.6", "h4"],
   ["referral-fraud-and-review", "4.20.7", "h4"],
@@ -205,7 +205,7 @@ describe("growth release: Terms of Use", () => {
       );
     });
 
-    it.each(locales)("%s: 4.20 states the reward conditions, size, cap, launch timing, value, disclosure duty and review", (l) => {
+    it.each(locales)("%s: 4.20 states the reward conditions, size, cap, when minutes are added, value, disclosure duty and review", (l) => {
       const doc = terms(l);
       expect(clause(doc, "referral-how-rewards-are-earned")).toMatch(
         {
@@ -215,7 +215,15 @@ describe("growth release: Terms of Use", () => {
         }[l],
       );
       expect(clause(doc, "referral-reward-size-and-limits")).toMatch({ en: /currently 5[\s\S]*currently 20/, fr: /actuellement 5[\s\S]*actuellement 20/, es: /actualmente 5[\s\S]*actualmente 20/ }[l]);
-      expect(clause(doc, "referral-beta-and-launch")).toMatch({ en: /Staryield is in beta[\s\S]*pending/, fr: /Staryield est en version bêta[\s\S]*en attente/, es: /Staryield está en fase beta[\s\S]*pendientes/ }[l]);
+      expect(clause(doc, "referral-minutes-added")).toMatch(
+        {
+          en: /^A reward is added to your Account automatically shortly after your friend qualifies, and we notify you when minutes are added\. Minutes are added only while your Account is active[\s\S]*held for review[\s\S]*added only if we approve it\.$/,
+          fr: /^Une récompense est ajoutée automatiquement à votre Compte peu après que votre ami a rempli les conditions, et nous vous prévenons lorsque des minutes sont ajoutées\. Les minutes ne sont ajoutées que tant que votre Compte est actif[\s\S]*retenue pour examen[\s\S]*n’est ajoutée que si nous l’approuvons\.$/,
+          es: /^Una recompensa se añade automáticamente a su Cuenta poco después de que su amigo cumpla las condiciones, y le avisamos cuando se añaden minutos\. Los minutos solo se añaden mientras su Cuenta esté activa[\s\S]*retenida para revisión[\s\S]*solo se añade si la aprobamos\.$/,
+        }[l],
+      );
+      expect(clause(doc, "referral-changes-and-ending")).toContain("(#referral-minutes-added)");
+      expect(allIds(doc)).not.toContain("referral-beta-and-launch");
       expect(clause(doc, "referral-free-minutes")).toMatch({ en: /no cash value/, fr: /aucune valeur monétaire/, es: /No tienen valor en efectivo/ }[l]);
       expect(clause(doc, "referral-free-minutes")).toContain("(/refund-policy)");
       expect(clause(doc, "referral-sharing-your-link")).toMatch(
@@ -283,5 +291,36 @@ describe("follow-ups: Terms of Use", () => {
 
   it.each(locales)("%s: 4.19 says a signed-in client's shared link carries the personal invite code", (l) => {
     expect(clause(terms(l), "sharing-your-results")).toMatch(SHARE_CODE[l]);
+  });
+});
+
+describe("the referral program is no longer in beta and has no launch", () => {
+  const OLD_WORDING = /\bbeta\b|bêta|launch|lancement|lancées?\b|lanzamiento|lanzadas?\b|lancemos|lanzar/i;
+
+  it.each(locales)("%s: Terms 4.20 and every referral clause say nothing about a beta or a launch", (l) => {
+    const doc = terms(l);
+    const referral = [
+      clause(doc, "referral-program"),
+      ...NEW_ANCHORS.filter(([id]) => id.startsWith("referral-")).map(([id]) => clause(doc, id)),
+    ].join("\n");
+    expect(referral).not.toMatch(OLD_WORDING);
+    const withReferral = allBlocks(doc).map(textOf).filter((t) => /referral|parrain|referid|invite link|lien d’invitation|enlace de invitación/i.test(t));
+    expect(withReferral.length).toBeGreaterThan(5);
+    for (const t of withReferral) expect(t).not.toMatch(OLD_WORDING);
+  });
+
+  it.each(locales)("%s: 4.20 names no launch status on the Invite friends page", (l) => {
+    expect(clause(terms(l), "referral-program")).toMatch(
+      {
+        en: /The program’s current reward and limit are shown on the \[Invite friends\]\(\/profile\/invite\) page of your account\./,
+        fr: /La récompense et la limite en vigueur du programme sont indiquées sur la page \[Inviter des amis\]\(\/profile\/invite\) de votre compte\./,
+        es: /La recompensa y el límite vigentes del programa se muestran en la página \[Invitar a amigos\]\(\/profile\/invite\) de su cuenta\./,
+      }[l],
+    );
+  });
+
+  it.each(locales)("%s: 4.20.4 is titled for when minutes are added", (l) => {
+    const heading = allBlocks(terms(l)).find((b) => b.type === "h4" && b.id === "referral-minutes-added") as { title: string };
+    expect(heading.title).toBe({ en: "When Minutes Are Added", fr: "Ajout des minutes", es: "Cuándo se añaden los minutos" }[l]);
   });
 });

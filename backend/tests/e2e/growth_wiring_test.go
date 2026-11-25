@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -42,7 +43,22 @@ func TestVerificationLinkQualifiesTheReferral(t *testing.T) {
 	if q.RewardMinutes != 5 || q.FirstSessionID == nil {
 		t.Fatalf("qualified: %+v", q)
 	}
-	waitReferralNotice(t, inviter, service.NotifyReferralQualified)
+	// No launch step: the next run of the grant job adds the minutes and
+	// tells the inviter; qualifying itself sends no notification.
+	before := inviter.wallet()
+	if err := e.app.Scheduler.RunJob(context.Background(), service.ReferralGrantJob); err != nil {
+		t.Fatal(err)
+	}
+	granted := waitReferralNotice(t, inviter, service.NotifyReferralRewardGranted)
+	if granted.Data["minutes"] != float64(5) {
+		t.Fatalf("grant notice: %+v", granted)
+	}
+	if w := inviter.wallet(); w.FreeMinutes != before.FreeMinutes+5 {
+		t.Fatalf("wallet after the grant: %+v (before %+v)", w, before)
+	}
+	if n := countReferralNotices(t, inviter, "referral.qualified"); n != 0 {
+		t.Fatalf("a qualification is not announced: %d", n)
+	}
 }
 
 // With the app's wiring the admin console lists every journey as available

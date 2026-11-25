@@ -144,23 +144,27 @@ describe("sign-up", () => {
 describe("referralProgramOf", () => {
   const base = { banners: { rotation_seconds: 6, items: [] }, signup_offer: { enabled: true, free_minutes: 5 }, free_mode: { active: false }, generated_at: "" };
   it("is off when the configuration is missing, older or malformed", () => {
-    expect(referralProgramOf(null)).toEqual({ enabled: false, reward_minutes: 0, launched: false });
+    expect(referralProgramOf(null)).toEqual({ enabled: false, reward_minutes: 0 });
     expect(referralProgramOf(base as SiteConfig).enabled).toBe(false);
-    expect(referralProgramOf({ ...base, referrals: { enabled: true, reward_minutes: "5", launched: false } } as unknown as SiteConfig).enabled).toBe(false);
-    expect(referralProgramOf({ ...base, referrals: { enabled: true, reward_minutes: 0, launched: false } } as SiteConfig).enabled).toBe(false);
+    expect(referralProgramOf({ ...base, referrals: { enabled: true, reward_minutes: "5" } } as unknown as SiteConfig).enabled).toBe(false);
+    expect(referralProgramOf({ ...base, referrals: { enabled: true, reward_minutes: 0 } } as SiteConfig).enabled).toBe(false);
   });
   it("reads the announced program", () => {
-    expect(referralProgramOf({ ...base, referrals: { enabled: true, reward_minutes: 5, launched: true } } as SiteConfig)).toEqual({
+    expect(referralProgramOf({ ...base, referrals: { enabled: true, reward_minutes: 5 } } as SiteConfig)).toEqual({
       enabled: true,
       reward_minutes: 5,
-      launched: true,
+    });
+    // An older API that still sends `launched` is read without it.
+    expect(referralProgramOf({ ...base, referrals: { enabled: true, reward_minutes: 5, launched: true } } as unknown as SiteConfig)).toEqual({
+      enabled: true,
+      reward_minutes: 5,
     });
   });
 });
 
 describe("accountViewNeedsReferrals", () => {
-  const on = { enabled: true, reward_minutes: 5, launched: false };
-  const off = { enabled: false, reward_minutes: 0, launched: false };
+  const on = { enabled: true, reward_minutes: 5 };
+  const off = { enabled: false, reward_minutes: 0 };
   it("asks for the invite data only on the views that show it", () => {
     expect(accountViewNeedsReferrals("overview", "client", on)).toBe(true);
     expect(accountViewNeedsReferrals("invite", "client", on)).toBe(true);

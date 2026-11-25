@@ -106,6 +106,36 @@ describe("FeaturedAdvisors", () => {
     expect(await axeViolations()).toEqual([]);
   });
 
+  it("puts each card's parts on rows shared with the cards beside it, so they line up whatever the headline", async () => {
+    const list = three();
+    list.items[1].headline = "A much longer headline that wraps onto several lines. ".repeat(5);
+    featured.mockResolvedValue(list);
+    renderWithI18n(<FeaturedAdvisors />);
+    await screen.findByRole("heading", { name: "Ramone" });
+    const cards = screen.getAllByTestId("featured-advisor");
+    for (const c of cards) {
+      // One child per shared row (the layout itself is measured in e2e/advisor-cards.spec.ts).
+      expect(c.className).toMatch(/(^|\s)grid-rows-subgrid(\s|$)/);
+      expect(c.className).toMatch(/(^|\s)row-span-5(\s|$)/);
+      expect([...c.children].map((el) => el.getAttribute("data-testid") ?? el.tagName.toLowerCase())).toEqual([
+        "div",
+        "featured-advisor-intro",
+        "featured-advisor-divider",
+        "dl",
+        "book-button",
+      ]);
+    }
+    // Desktop: one column per card, so fewer advisors stay centred.
+    expect(cards[0].parentElement!.style.getPropertyValue("--featured-columns")).toBe("3");
+  });
+
+  it("gives the row one desktop column per card when fewer advisors are listed", async () => {
+    featured.mockResolvedValue({ ...three(), items: three().items.slice(0, 2) });
+    renderWithI18n(<FeaturedAdvisors />);
+    await screen.findByRole("heading", { name: "Theo" });
+    expect(screen.getAllByTestId("featured-advisor")[0].parentElement!.style.getPropertyValue("--featured-columns")).toBe("2");
+  });
+
   it("sends visitors to sign up before joining a waiting list, and reads no waiting list for them", async () => {
     featured.mockResolvedValue(three());
     renderWithI18n(<FeaturedAdvisors />);

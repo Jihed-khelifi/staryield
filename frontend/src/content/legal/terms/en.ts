@@ -588,7 +588,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Clients can invite friends to Staryield with a personal invite link and earn free chat minutes when an invited friend meets the conditions below. The program’s current reward, limit and launch status are shown on the [Invite friends](/profile/invite) page of your account. The program does not depend on ratings or reviews in any way."
+          "text": "Clients can invite friends to Staryield with a personal invite link and earn free chat minutes when an invited friend meets the conditions below. The program’s current reward and limit are shown on the [Invite friends](/profile/invite) page of your account. The program does not depend on ratings or reviews in any way."
         },
         {
           "type": "h4",
@@ -638,13 +638,13 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "h4",
-          "id": "referral-beta-and-launch",
+          "id": "referral-minutes-added",
           "n": "4.20.4",
-          "title": "Beta and Launch"
+          "title": "When Minutes Are Added"
         },
         {
           "type": "p",
-          "text": "Staryield is in beta. Rewards earned before we launch the referral rewards are shown as pending and are added to your Account when we launch them, on a date we choose; we notify you when minutes are added. After the launch, a reward is added automatically shortly after your friend qualifies. Minutes are added only while your Account is active: while it is disabled, suspended or being closed, they wait. A reward held for review ([Section 4.20.7](#referral-fraud-and-review)) is added only if we approve it."
+          "text": "A reward is added to your Account automatically shortly after your friend qualifies, and we notify you when minutes are added. Minutes are added only while your Account is active: while it is disabled, suspended or being closed, they wait. A reward held for review ([Section 4.20.7](#referral-fraud-and-review)) is added only if we approve it."
         },
         {
           "type": "h4",
@@ -702,7 +702,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "We may change the program, including the reward, the limit and these rules, or pause or end it, at any time. While the program is paused or after it has ended, new sign-ups through invite links are not recorded, and friends who joined earlier can qualify only if the program resumes. A change, pause or end of the program does not take away minutes already added to your Account or rewards already earned: earned rewards that are still pending are added as described in [Section 4.20.4](#referral-beta-and-launch), unless they are rejected under [Section 4.20.7](#referral-fraud-and-review)."
+          "text": "We may change the program, including the reward, the limit and these rules, or pause or end it, at any time. While the program is paused or after it has ended, new sign-ups through invite links are not recorded, and friends who joined earlier can qualify only if the program resumes. A change, pause or end of the program does not take away minutes already added to your Account or rewards already earned: earned rewards that are still pending are added as described in [Section 4.20.4](#referral-minutes-added), unless they are rejected under [Section 4.20.7](#referral-fraud-and-review)."
         },
         {
           "type": "h4",

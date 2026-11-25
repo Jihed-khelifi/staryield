@@ -163,12 +163,12 @@ export function forgetReferral() {
 }
 
 /** What the public site configuration says about the program (off when absent or malformed). */
-export type PublicReferralProgram = { enabled: boolean; reward_minutes: number; launched: boolean };
+export type PublicReferralProgram = { enabled: boolean; reward_minutes: number };
 
 export function referralProgramOf(config: SiteConfig | null | undefined): PublicReferralProgram {
   const r = config?.referrals;
   const minutes = typeof r?.reward_minutes === "number" && Number.isFinite(r.reward_minutes) ? Math.max(0, Math.round(r.reward_minutes)) : 0;
-  return { enabled: r?.enabled === true && minutes > 0, reward_minutes: minutes, launched: r?.launched === true };
+  return { enabled: r?.enabled === true && minutes > 0, reward_minutes: minutes };
 }
 
 /**

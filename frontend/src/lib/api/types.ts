@@ -920,7 +920,7 @@ export type SiteConfig = {
   /** Switched-off features (§25.1): absent from older APIs, which means false. */
   features?: { memberships: boolean };
   /** growth: the invite program (read through `referralProgramOf`); absent from older APIs, which means off. */
-  referrals?: { enabled: boolean; reward_minutes: number; launched: boolean };
+  referrals?: { enabled: boolean; reward_minutes: number };
   generated_at: string;
 };
 

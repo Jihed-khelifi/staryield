@@ -239,18 +239,18 @@ describe("follow-ups: Privacy Policy", () => {
     "referral-program": {
       en: [
         /created the first time you view your invitation link or open the share window/,
-        /when a friend signs up \(not when a sign-up is held for review or rejected\) and, only before the rewards are launched, when a friend who has also confirmed their email address completes a live reading and the invitation earns a reward/,
-        /that message is an account message, sent by email whatever the inviter’s notification settings/,
+        /when a friend signs up \(not when a sign-up is held for review or rejected\) and when free minutes are added to their wallet/,
+        /The message about added minutes is an account message, also sent by email whatever the inviter’s notification settings; the other messages follow their notification settings/,
       ],
       fr: [
         /la première fois que vous affichez votre lien d’invitation ou que vous ouvrez la fenêtre de partage/,
-        /uniquement avant le lancement des récompenses, lorsqu’un ami qui a aussi confirmé son adresse e-mail termine une consultation en direct/,
-        /ce message est un message de compte, envoyé par e-mail quels que soient ses paramètres de notification/,
+        /lorsqu’une inscription est retenue pour examen ou rejetée\) et lorsque des minutes offertes sont ajoutées à son portefeuille/,
+        /Le message concernant les minutes ajoutées est un message de compte, également envoyé par e-mail quels que soient les paramètres de notification de la personne qui invite/,
       ],
       es: [
         /la primera vez que ve su enlace de invitación o abre la ventana para compartir/,
-        /solo antes del lanzamiento de las recompensas, cuando un amigo que además ha confirmado su correo electrónico completa una consulta en directo/,
-        /ese mensaje es un mensaje de cuenta, que se envía por correo electrónico sea cual sea su configuración de notificaciones/,
+        /o es rechazado\) y cuando se añaden minutos gratuitos a su monedero/,
+        /El mensaje sobre los minutos añadidos es un mensaje de cuenta, que también se envía por correo electrónico sea cual sea la configuración de notificaciones de quien invita/,
       ],
     },
     "lifecycle-messages": {
@@ -291,5 +291,29 @@ describe("follow-ups: Privacy Policy", () => {
     const text = clause(privacy("en"), "referral-program");
     expect(text).not.toMatch(/when a friend joins or completes a reading/);
     expect(text).not.toMatch(/by email when free minutes are added to their wallet, according to their notification settings/);
+  });
+});
+
+describe("the referral program is no longer in beta and has no launch (Privacy Policy)", () => {
+  const OLD_WORDING = /\bbeta\b|bêta|launch|lancement|lancées?\b|lanzamiento|lanzadas?\b|lancemos|lanzar/i;
+
+  it.each(locales)("%s: nothing in the Privacy Policy says beta or launch about the referral program", (l) => {
+    const doc = privacy(l);
+    expect(clause(doc, "referral-program")).not.toMatch(OLD_WORDING);
+    const sentences = allBlocks(doc)
+      .flatMap((b) => textOf(b).split(/(?<=[.;:])\s+/))
+      .filter((t) => /referral|parrain|referid|invite link|lien d’invitation|enlace de invitación|reward|récompense|recompensa/i.test(t));
+    expect(sentences.length).toBeGreaterThan(3);
+    for (const t of sentences) expect(t).not.toMatch(OLD_WORDING);
+  });
+
+  it.each(locales)("%s: the message about added minutes is an account message and the other messages follow the notification settings", (l) => {
+    expect(clause(privacy(l), "referral-program")).toMatch(
+      {
+        en: /Messages\. We tell the inviter, in the app and by push if push notifications are on, when a friend signs up \(not when a sign-up is held for review or rejected\) and when free minutes are added to their wallet\. The message about added minutes is an account message, also sent by email whatever the inviter’s notification settings; the other messages follow their notification settings\. These are service messages about the program, not marketing\./,
+        fr: /Messages\. Nous prévenons la personne qui invite[\s\S]*et lorsque des minutes offertes sont ajoutées à son portefeuille\. Le message concernant les minutes ajoutées est un message de compte, également envoyé par e-mail[\s\S]*les autres messages suivent ses paramètres de notification\./,
+        es: /Mensajes\. Avisamos a quien invita[\s\S]*y cuando se añaden minutos gratuitos a su monedero\. El mensaje sobre los minutos añadidos es un mensaje de cuenta, que también se envía por correo electrónico[\s\S]*los demás mensajes siguen su configuración de notificaciones\./,
+      }[l],
+    );
   });
 });

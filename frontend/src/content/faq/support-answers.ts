@@ -131,7 +131,7 @@ export const ACCOUNT_FAQ: readonly FaqEntry[] = [
   },
   {
     q: "When are my invite reward minutes added?",
-    a: "Staryield is in beta. Rewards you earn before we launch the referral rewards are shown as pending on the Invite friends page and are added to your account at launch, on a date we choose; we notify you when minutes are added. After the launch, a reward is added automatically shortly after your friend qualifies. Pending minutes cannot be used yet. A reward can be held for review, for example when an unusual number of friends join in a short time, and we may reject rewards that break the program rules in our [Terms of Use](/terms#referral-program).",
+    a: "Rewards are added to your account automatically shortly after your friend qualifies, and we notify you when minutes are added. Until then, the reward is shown as pending on the Invite friends page, and pending minutes cannot be used yet. A reward can be held for review, for example when an unusual number of friends join in a short time, and we may reject rewards that break the program rules in our [Terms of Use](/terms#referral-program).",
   },
   {
     q: "Do I have to confirm my e-mail address?",

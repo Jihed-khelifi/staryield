@@ -614,10 +614,10 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 
 	// --- growth: referrals ---
 	// A friend's reading or verified address qualifies the invite (post-commit
-	// hooks); the minutes are granted by the referral-grants job after launch.
+	// hooks); the minutes are granted by the referral-grants job.
 	// Account erasure also deletes the user's code and invites (AddPurger).
 	referralSvc := service.NewReferralService(service.ReferralDeps{Tx: txm, Repo: repository.NewReferralRepository(db), Audit: audit,
-		Wallet: walletSvc, Program: siteSvc.ReferralProgram, Launch: siteSvc.LaunchReferralRewards, Notifier: dispatcher,
+		Wallet: walletSvc, Program: siteSvc.ReferralProgram, Notifier: dispatcher,
 		Events: publisher, Tracker: track, Clock: clk,
 		Cfg: service.ReferralSettings{FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret}})
 	chatSvc.OnSessionSettled(referralSvc.OnSessionSettled)

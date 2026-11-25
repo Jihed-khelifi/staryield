@@ -153,14 +153,14 @@ describe("growth release: Refund Policy", () => {
       );
     });
 
-    it.each(locales)("%s: referral minutes are granted at launch, survive the friend's refund and may be forfeited for abuse", (l) => {
+    it.each(locales)("%s: a referral reward is added shortly after the friend qualifies, survive the friend's refund and may be forfeited for abuse", (l) => {
       const text = clause(refund(l), "refund-referral-rewards");
       expect(text).toContain("(/terms#referral-program)");
       expect(text).toMatch(
         {
-          en: /shown as pending and are added to your account at launch[\s\S]*pending reward cannot be used, refunded or exchanged[\s\S]*refund or payment dispute by the friend you invited does not change them[\s\S]*withhold or reject it[\s\S]*abusing the program, its pending rewards and free minutes may be forfeited/,
-          fr: /affichées comme en attente et sont ajoutées à votre compte lors de ce lancement[\s\S]*en attente ne peut être ni utilisée, ni remboursée, ni échangée[\s\S]*contestation de paiement ultérieurs de la part de l’ami que vous avez invité ne les modifient pas[\s\S]*la retenir ou la refuser[\s\S]*abus du programme, ses récompenses en attente et ses minutes offertes peuvent être perdues/,
-          es: /se muestran como pendientes y se añaden a su cuenta en el lanzamiento[\s\S]*pendiente no puede usarse, reembolsarse ni canjearse[\s\S]*disputa de pago posteriores del amigo que invitó no los modifican[\s\S]*retenerla o rechazarla[\s\S]*abusar del programa, sus recompensas pendientes y sus minutos gratuitos pueden perderse/,
+          en: /A reward is added to your account shortly after your friend qualifies; until then, a pending reward cannot be used, refunded or exchanged\.[\s\S]*refund or payment dispute by the friend you invited does not change them[\s\S]*withhold or reject it[\s\S]*abusing the program, its pending rewards and free minutes may be forfeited/,
+          fr: /Une récompense est ajoutée à votre compte peu après que votre ami a rempli les conditions ; d’ici là, une récompense en attente ne peut être ni utilisée, ni remboursée, ni échangée\.[\s\S]*contestation de paiement ultérieurs de la part de l’ami que vous avez invité ne les modifient pas[\s\S]*la retenir ou la refuser[\s\S]*abus du programme, ses récompenses en attente et ses minutes offertes peuvent être perdues/,
+          es: /Una recompensa se añade a su cuenta poco después de que su amigo cumpla las condiciones; hasta entonces, una recompensa pendiente no puede usarse, reembolsarse ni canjearse\.[\s\S]*disputa de pago posteriores del amigo que invitó no los modifican[\s\S]*retenerla o rechazarla[\s\S]*abusar del programa, sus recompensas pendientes y sus minutos gratuitos pueden perderse/,
         }[l],
       );
     });
@@ -191,5 +191,17 @@ describe("growth release: Refund Policy", () => {
     expect(added).not.toMatch(
       { en: /guarantee|certified|healing|therapy|\baccurate\b/i, fr: /garanti|certifié|guérison|thérapie|\bprécis\b/i, es: /garantiz|certificad|curación|terapia|\bprecis[oa]s?\b/i }[l],
     );
+  });
+});
+
+describe("the referral program is no longer in beta and has no launch (Refund Policy)", () => {
+  const OLD_WORDING = /\bbeta\b|bêta|launch|lancement|lancées?\b|lanzamiento|lanzadas?\b|lancemos|lanzar/i;
+
+  it.each(locales)("%s: nothing in the Refund Policy says beta or launch about referral rewards", (l) => {
+    const doc = refund(l);
+    expect(clause(doc, "refund-referral-rewards")).not.toMatch(OLD_WORDING);
+    const withReferral = doc.sections.flatMap((s) => s.blocks).map(textOf).filter((t) => /referral|parrain|referid|invit/i.test(t));
+    expect(withReferral.length).toBeGreaterThan(1);
+    for (const t of withReferral) expect(t).not.toMatch(OLD_WORDING);
   });
 });

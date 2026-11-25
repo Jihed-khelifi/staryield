@@ -31,10 +31,11 @@ const (
 	rejectNoWallet = "wallet_missing"
 )
 
-// RunGrants adds the earned minutes to the inviters' wallets once the rewards
-// are launched, in batches of grantBatch until nothing is left or the time
-// budget is spent. Job referral-grants (every minute, and woken by the launch,
-// by an approval and by a referral that qualifies after launch).
+// RunGrants adds the earned minutes to the inviters' wallets, in batches of
+// grantBatch until nothing is left or the time budget is spent. Job
+// referral-grants (every minute, and woken by an approval and by a referral
+// that qualifies). It also runs while the program is disabled: an earned
+// reward is kept (only new sign-ups and qualifications stop).
 //
 // Safe on several instances and idempotent: a batch claims its rows with
 // FOR UPDATE SKIP LOCKED, adds the minutes and flips the rows to granted in
@@ -48,9 +49,6 @@ const (
 // friends were spread over), including when a later batch fails or the
 // budget ends the run.
 func (s *ReferralService) RunGrants(ctx context.Context) error {
-	if !s.d.Program(ctx).Launched() {
-		return nil
-	}
 	run := grantRun{}
 	defer database.AfterCommit(ctx, func(ctx context.Context) { s.announceGrants(context.WithoutCancel(ctx), run) })
 	deadline := time.Now().Add(grantBudget)

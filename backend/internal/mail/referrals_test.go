@@ -14,10 +14,6 @@ func TestReferralNotificationsAreTranslatedAndAnonymous(t *testing.T) {
 		want string // a fragment of the English body
 	}{
 		{"referral.joined", map[string]any{}, "signed up with your invite link"},
-		{"referral.qualified", map[string]any{"minutes": float64(5), "launched": false}, "You earned 5 free minutes, added to your wallet when the rewards launch."},
-		{"referral.qualified", map[string]any{"minutes": float64(1), "launched": false}, "You earned 1 free minute,"},
-		{"referral.qualified", map[string]any{"minutes": float64(5), "launched": true}, "Your 5 free minutes are being added"},
-		{"referral.qualified", map[string]any{"minutes": float64(1), "launched": true}, "Your free minute is being added"},
 		{"referral.reward_granted", map[string]any{"minutes": float64(15), "friends": float64(3)}, "15 free minutes from the friends you invited"},
 		{"referral.reward_granted", map[string]any{"minutes": float64(1), "friends": float64(1)}, "1 free minute from the friends you invited was added"},
 	}
@@ -52,8 +48,13 @@ func TestReferralNotificationsAreTranslatedAndAnonymous(t *testing.T) {
 			t.Errorf("%s: %q", loc, c.Paragraphs[0])
 		}
 	}
-	// Push text exists for the three kinds.
-	for _, kind := range []string{"referral.joined", "referral.qualified", "referral.reward_granted"} {
+	// A qualified referral is an analytics event: there is no notification
+	// text for it, in the e-mail catalog or as a push.
+	if _, ok := Notification("en", "referral.qualified", map[string]any{"minutes": float64(5)}, ""); ok {
+		t.Error("referral.qualified must not have notification content")
+	}
+	// Push text exists for the two kinds.
+	for _, kind := range []string{"referral.joined", "referral.reward_granted"} {
 		if title, body, ok := PushText("es", kind, map[string]any{"minutes": float64(5)}); !ok || title == "" || body == "" {
 			t.Errorf("push %s: %q %q %v", kind, title, body, ok)
 		}

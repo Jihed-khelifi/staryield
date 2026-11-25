@@ -1,15 +1,17 @@
 # Growth: the referral loop
 
-Staryield is in beta. Every client can invite friends with a personal link. For each invited friend who signs up with
-the link, verifies the e-mail address and **completes a reading** (a settled live-chat session with at least one billed
-or free minute), the inviter earns **free chat minutes** (5 by default), **granted at launch**. Before the launch the
-minutes are "pending, added at launch"; the administrator launches the rewards once, the pending ones are granted
-within a minute and later ones as soon as they qualify. Nothing depends on reviews or ratings. The invited friend gets
-the normal sign-up offer only.
+Every client can invite friends with a personal link. For each invited friend who signs up with the link, verifies the
+e-mail address and **completes a reading** (a settled live-chat session with at least one billed or free minute), the
+inviter earns **free chat minutes** (5 by default), added to their wallet by the grant job, usually within a minute of
+the friend qualifying. Nothing depends on reviews or ratings. The invited friend gets the normal sign-up offer only.
+
+Until 2026-11-25 the rewards waited for a one-time "launch" by an administrator (Staryield was in beta). The launch is
+gone: migration `0042_referral_rewards_always_on.sql` removed `launched_at` from the setting, and whatever was still
+pending was granted by the next run of the grant job.
 
 Code: `backend/internal/service/referrals*.go`, `site_referrals.go`, `wallet_free_minutes.go`,
-`repository/referrals.go`, migration `0036_referrals.sql`; web `src/lib/referral.ts`, `src/lib/referrals/*`,
-`src/components/referrals/*`; admin `src/features/referrals/*`.
+`repository/referrals.go`, migrations `0036_referrals.sql` and `0042_referral_rewards_always_on.sql`; web
+`src/lib/referral.ts`, `src/lib/referrals/*`, `src/components/referrals/*`; admin `src/features/referrals/*`.
 
 ## Rules
 
@@ -22,8 +24,8 @@ Code: `backend/internal/service/referrals*.go`, `site_referrals.go`, `wallet_fre
 | Held for review (`flagged`, never granted automatically): `same_network` (sign-up IP hash equals one of the inviter's active devices seen in the last 30 days), `signup_burst` (10 or more friends joined the inviter in the last 24 h), `shared_browser` (the sign-up browser already belongs to another account) | `Attribute` |
 | `joined` → `qualified` when the friend's `users.email_verified_at` is set **and** they have a settled reading with ≥ 1 billed or free minute, in either order; `reward_minutes` is the setting at that moment | `Evaluate` (from `ChatService.OnSessionSettled`, `OnEmailVerified`, and the `referral-sweep` job every 5 min) |
 | Per-inviter cap (default 20): a friend qualifying beyond it is `rejected` / `cap_reached` (the inviter's row is locked, so concurrent qualifications cannot both take the last place) | `Evaluate` |
-| Program disabled: no new referral, no qualification (the sweep resumes them when re-enabled); earned rewards are still granted after launch | `Attribute`, `Evaluate`, `RunGrants` |
-| Grants: after launch, the `referral-grants` job (every minute and woken by the launch, an approval or a new qualification) claims qualified, unflagged rows of active inviters with `FOR UPDATE SKIP LOCKED` in batches of 200 (45 s budget), adds the minutes to `wallets.free_minutes` and marks the rows `granted` in one transaction; `wallet.updated` after each batch's commit, then one `referral.reward_granted` per inviter per run with the run's total (however many batches the inviter's friends were spread over; also when a later batch fails or the budget ends the run) | `RunGrants` |
+| Program disabled: no new referral, no qualification (the sweep resumes them when re-enabled); earned rewards are still granted | `Attribute`, `Evaluate`, `RunGrants` |
+| Grants: the `referral-grants` job (every minute, and woken by an approval or a new qualification) claims qualified, unflagged rows of active inviters with `FOR UPDATE SKIP LOCKED` in batches of 200 (45 s budget), adds the minutes to `wallets.free_minutes` and marks the rows `granted` in one transaction; `wallet.updated` after each batch's commit, then one `referral.reward_granted` per inviter per run with the run's total (however many batches the inviter's friends were spread over; also when a later batch fails or the budget ends the run) | `RunGrants` |
 | A decision clears the hold: approve (`flagged=false`) or reject (`rejected` with the admin's reason); the flags stay as history | `Approve`, `Reject` |
 | Privacy: the inviter only sees counts; notifications name nobody; only the admin console shows who invited whom | everywhere |
 
@@ -32,11 +34,11 @@ Code: `backend/internal/service/referrals*.go`, `site_referrals.go`, `wallet_fre
 `site_settings.key = 'referral_program'` (CHECK in 0036, value CHECK too):
 
 ```json
-{ "enabled": true, "reward_minutes": 5, "max_rewards_per_referrer": 20, "launched_at": null }
+{ "enabled": true, "reward_minutes": 5, "max_rewards_per_referrer": 20 }
 ```
 
-`reward_minutes` 1–60, `max_rewards_per_referrer` 1–500, `launched_at` RFC 3339 once launched (never editable by PUT).
-It travels in the cached site snapshot; an unreadable setting means "disabled, not launched".
+`reward_minutes` 1–60, `max_rewards_per_referrer` 1–500. It travels in the cached site snapshot; an unreadable setting
+means "disabled".
 
 ## Client API
 
@@ -49,18 +51,18 @@ moves; the rewards need a settled reading, which is gated.
 {
   "code": "ABCD2345",
   "link": "https://staryield.net/en?ref=ABCD2345",
-  "program": { "enabled": true, "reward_minutes": 5, "max_rewards": 20, "launched": false, "launched_at": "…" },
+  "program": { "enabled": true, "reward_minutes": 5, "max_rewards": 20 },
   "stats": { "joined": 2, "qualified": 1, "pending_minutes": 5, "granted_minutes": 0, "remaining_rewards": 19 }
 }
 ```
 
-`joined` counts friends not rejected; `qualified` counts qualified + granted (what the cap counts). One aggregate query.
-403 for advisors, 401 anonymous.
+`joined` counts friends not rejected; `qualified` counts qualified + granted (what the cap counts); `pending_minutes`
+are earned but not added yet (on their way). One aggregate query. 403 for advisors, 401 anonymous.
 
 ### `GET /api/v1/site/config` gains
 
 ```json
-"referrals": { "enabled": true, "reward_minutes": 5, "launched": false }
+"referrals": { "enabled": true, "reward_minutes": 5 }
 ```
 
 ### Sign-up
@@ -82,23 +84,25 @@ verified address, so a reading is all such a friend still needs.
 | `POST /admin/referrals/:id/reject` | `{reason}` 3–200 chars | `AdminReferral`; 409 unless joined/qualified; audit `referral.rejected` |
 | `GET /admin/site/referral-program` | – | setting with `version`, `updated_at`, `updated_by` |
 | `PUT /admin/site/referral-program` | `{enabled, reward_minutes, max_rewards_per_referrer, version}` | setting; 422 field errors; 409 `version_conflict`; audit `site.referral_program.updated` |
-| `POST /admin/referrals/launch` | `{confirmation: "LAUNCH"}` | `{launched_at, rewards, minutes}` (counted inside the launch transaction, before the grant job can see the launch); 422 without the phrase; 409 `referral_already_launched`; audit `site.referral_program.launched` |
 
 `AdminReferral`: `{id, referrer{id,name}, referee?{id,name}, status, reward_minutes, flagged, flags[], reject_reason?,
 joined_at, qualified_at?, granted_at?, decided_by?{id,name}, decided_at?, created_at}` (`referee` is absent once the
 friend's account was erased).
 
 The summary aggregates the whole `referrals` table (`referrals_summary_idx`, index-only once vacuumed) plus the top
-inviters, so the console polls it only while launched rewards are still being added (`ready_rewards > 0` after the
-launch); otherwise it refreshes when the admin returns to the tab and after every decision, setting change and launch.
+inviters, so the console polls it only while rewards are being added (`ready_rewards > 0`); otherwise it refreshes when
+the admin returns to the tab and after every decision and setting change.
 
 ## Notifications and realtime
 
 | Kind | Data | Channels |
 | --- | --- | --- |
 | `referral.joined` | `{}` | in-app, push (not sent for held or rejected sign-ups) |
-| `referral.qualified` | `{minutes, launched: false}` | in-app, push (before launch only; after launch the grant notifies) |
 | `referral.reward_granted` | `{minutes, friends}` | in-app, push, e-mail (category `account`) |
+
+A qualification itself sends nothing: the grant job adds the minutes within a minute and `referral.reward_granted`
+announces them. `referral.qualified` was only sent before the launch; the API no longer sends it, and the web app still
+renders older rows of that kind (without any launch wording).
 
 Link: `/profile/invite`. No new realtime event: the grant publishes `wallet.updated` (the wallet balance). The web app
 reads `GET /me/referrals` only on the account views that show it (the invite page, and the overview while the public
@@ -133,9 +137,8 @@ The invite page tells clients "Invites are subject to our Terms of Use"; the leg
   the value in force when it was earned.
 - Limits: one reward per invited person; a per-inviter maximum of rewarded friends, currently 20 (set between 1 and
   500). Friends who qualify beyond it earn nothing.
-- Beta and launch: rewards earned before launch are shown as pending and added to the wallet when Staryield launches
-  the rewards, on a date Staryield chooses; after launch they are added automatically, usually within a minute of a
-  friend qualifying.
+- When minutes are added: automatically, usually within a minute of a friend qualifying, while the inviter's account is
+  active; a reward held for review is added only if approved.
 - What the minutes are: promotional free chat minutes, usable only for live readings on Staryield. No cash value; they
   cannot be transferred, exchanged, sold or refunded.
 - The invited friend gets only the standard welcome offer available to every new client; there is no extra reward for
@@ -148,8 +151,8 @@ The invite page tells clients "Invites are subject to our Terms of Use"; the leg
 - Review: Staryield may automatically hold suspicious referrals for manual review, then approve or reject them,
   withhold rewards, and suspend accounts that abuse the program.
 - Changes: Staryield may change, pause or end the program at any time. Minutes already added to the wallet stay there;
-  while the program is paused, rewards already earned are kept (granted at launch unless rejected for abuse), and new
-  sign-ups and readings earn nothing.
+  while the program is paused, rewards already earned are kept (granted unless rejected for abuse), and new sign-ups
+  and readings earn nothing.
 - Closing the account forfeits pending rewards and deletes the personal code.
 
 **Privacy Policy: new processing**
@@ -167,8 +170,8 @@ The invite page tells clients "Invites are subject to our Terms of Use"; the leg
   removed after sign-up) and sessionStorage `staryield.referral.welcome-dismissed`.
 - Analytics: that an invite link was opened (never the code), and that a link was copied or shared, with the share
   method only.
-- Messages: in-app and push notifications when a friend joins or completes a reading; an account-category e-mail when
-  minutes are added (one per grant run). These are service messages, not marketing.
+- Messages: in-app and push notifications when a friend joins and when minutes are added, plus an account-category
+  e-mail when minutes are added (one per grant run). These are service messages, not marketing.
 - Data export: `referrals.json` holds the user's code, counters and whether they joined through an invite (never the
   inviter's identity).
 - Retention on erasure: erasing the inviter deletes their code and the referrals they made; erasing a friend deletes

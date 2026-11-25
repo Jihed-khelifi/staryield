@@ -722,11 +722,10 @@ func NewRouter(d Deps) *echo.Echo {
 	// --- end growth admin: e-mail verification ---
 
 	// --- growth admin: referrals ---
-	// Reads are open to every admin; decisions, settings and the launch need a
+	// Reads are open to every admin; decisions and settings need a
 	// fresh step-up and are audited by the service.
 	ad.GET("/referrals", h.AdminReferrals)
 	ad.GET("/referrals/summary", h.AdminReferralSummary)
-	ad.POST("/referrals/launch", h.AdminLaunchReferrals, stepUp, adminRL)
 	ad.POST("/referrals/:id/approve", h.AdminApproveReferral, stepUp, adminRL)
 	ad.POST("/referrals/:id/reject", h.AdminRejectReferral, stepUp, adminRL)
 	ad.GET("/site/referral-program", h.AdminReferralProgram)

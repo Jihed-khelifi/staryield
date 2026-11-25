@@ -84,7 +84,11 @@ describe("FAQ answers", () => {
     expect(earn).toMatch(/live reading of at least one minute/);
     expect(earn).toContain("currently 5 free chat minutes");
     expect(earn).toContain("the reward and the limit in force");
-    expect(ACCOUNT_FAQ.map((item) => item.a).join(" ")).toMatch(/added to your account at launch, on a date we choose/);
+    const added = ACCOUNT_FAQ.find((item) => /invite reward minutes added/.test(item.q))!.a;
+    expect(added).toMatch(/added to your account automatically shortly after your friend qualifies, and we notify you when minutes are added/);
+    expect(added).toContain("pending minutes cannot be used yet");
+    expect(added).toMatch(/held for review[\s\S]*reject rewards that break the program rules in our \[Terms of Use\]\(\/terms#referral-program\)/);
+    expect(added).not.toMatch(/beta|launch/i);
   });
 
   it("finds each of the 22 answers from the label of its Figma question", () => {

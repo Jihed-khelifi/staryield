@@ -417,7 +417,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Mensajes. Avisamos a quien invita, en la aplicación y, si tiene activadas las notificaciones push, mediante una notificación push, cuando un amigo se registra (no cuando un registro queda retenido para revisión o es rechazado) y, solo antes del lanzamiento de las recompensas, cuando un amigo que además ha confirmado su correo electrónico completa una consulta en directo y la invitación da derecho a una recompensa. Una vez lanzadas las recompensas, solo avisamos a quien invita cuando se añaden minutos gratuitos a su monedero; ese mensaje es un mensaje de cuenta, que se envía por correo electrónico sea cual sea su configuración de notificaciones. Los demás mensajes siguen su configuración de notificaciones. Son mensajes de servicio sobre el programa, no marketing."
+          "text": "Mensajes. Avisamos a quien invita, en la aplicación y, si tiene activadas las notificaciones push, mediante una notificación push, cuando un amigo se registra (no cuando un registro queda retenido para revisión o es rechazado) y cuando se añaden minutos gratuitos a su monedero. El mensaje sobre los minutos añadidos es un mensaje de cuenta, que también se envía por correo electrónico sea cual sea la configuración de notificaciones de quien invita; los demás mensajes siguen su configuración de notificaciones. Son mensajes de servicio sobre el programa, no marketing."
         },
         {
           "type": "p",

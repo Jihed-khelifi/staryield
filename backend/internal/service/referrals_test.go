@@ -450,7 +450,7 @@ func newReferralFixture(t *testing.T) *referralFixture {
 	t.Helper()
 	site := newSiteFixture(t)
 	site.repo.settings[domain.SiteSettingReferralProgram] = domain.SiteSetting{Key: domain.SiteSettingReferralProgram, Version: 1,
-		Value:     domain.JSONMap{"enabled": true, "reward_minutes": float64(5), "max_rewards_per_referrer": float64(20), "launched_at": nil},
+		Value:     domain.JSONMap{"enabled": true, "reward_minutes": float64(5), "max_rewards_per_referrer": float64(20)},
 		UpdatedAt: site.clk.Now()}
 	ledger := newMemLedger()
 	f := &referralFixture{t: t, site: site, repo: newMemReferralRepo(ledger), wallets: ledger, notes: &recordingNotifier{},
@@ -458,7 +458,7 @@ func newReferralFixture(t *testing.T) *referralFixture {
 	wallet := NewWalletService(nil, ledger, ledger, site.clk)
 	wallet.inTx = func(context.Context) bool { return true }
 	f.svc = NewReferralService(ReferralDeps{Tx: inlineTx{}, Repo: f.repo, Audit: site.audit, Wallet: wallet, Program: site.svc.ReferralProgram,
-		Launch: site.svc.LaunchReferralRewards, Notifier: f.notes, Events: f.events, Clock: site.clk,
+		Notifier: f.notes, Events: f.events, Clock: site.clk,
 		Cfg: ReferralSettings{FrontendURL: "https://staryield.test", IPHashSecret: "test-secret-0123456789"},
 		NewCode: func() string {
 			if len(f.codes) > 0 {
@@ -536,15 +536,6 @@ func (f *referralFixture) setProgram(enabled bool, minutes, max int) {
 		MaxRewardsPerReferrer: &max, Version: &v}); err != nil {
 		f.t.Fatal(err)
 	}
-}
-
-func (f *referralFixture) launch() *ReferralLaunchResult {
-	f.t.Helper()
-	res, err := f.svc.Launch(f.site.ctx, ReferralLaunchConfirmation)
-	if err != nil {
-		f.t.Fatal(err)
-	}
-	return res
 }
 
 func (f *referralFixture) freeMinutes(id uuid.UUID) int { return f.wallets.wallets[id].FreeMinutes }
@@ -742,18 +733,16 @@ func TestQualificationIsIndependentOfTheOrderOfEvents(t *testing.T) {
 			if r.Status != domain.ReferralQualified || r.RewardMinutes != 5 || r.QualifiedAt == nil || r.FirstSessionID == nil {
 				t.Fatalf("referral: %+v", r)
 			}
-			// Before launch the inviter is told the minutes are pending, once.
+			// Qualifying is not announced: the inviter only got the "joined"
+			// notice; the grant tells them about the minutes.
 			kinds := f.kinds()
-			if len(kinds) != 2 || kinds[1] != NotifyReferralQualified {
+			if len(kinds) != 1 || kinds[0] != NotifyReferralJoined {
 				t.Fatalf("notifications: %v", kinds)
-			}
-			if d := f.notes.spec[1].Data; d["minutes"] != 5 || d["launched"] != false {
-				t.Fatalf("qualified data: %v", d)
 			}
 			f.svc.Evaluate(f.ctx, friend) // idempotent
 			f.verify(friend)
 			f.readingBy(friend)
-			if len(f.kinds()) != 2 || f.status(friend).Status != domain.ReferralQualified {
+			if len(f.kinds()) != 1 || f.status(friend).Status != domain.ReferralQualified {
 				t.Fatalf("a second evaluation changed something: %v", f.kinds())
 			}
 		})
@@ -821,7 +810,6 @@ func TestPerInviterCap(t *testing.T) {
 		t.Fatalf("stats: %+v", st.Stats)
 	}
 	// Granted rewards keep counting toward the cap.
-	f.launch()
 	if err := f.svc.RunGrants(f.ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -877,9 +865,9 @@ func TestSweepCatchesAMissedHook(t *testing.T) {
 	}
 }
 
-// ---- launch and grants -------------------------------------------------------
+// ---- grants -------------------------------------------------------------------
 
-func TestGrantsWaitForLaunchThenAddMinutesOnceAndAnnounceThem(t *testing.T) {
+func TestQualifiedRewardsAreGrantedByTheNextRunWithoutALaunchAndAnnounceOnlyTheGrant(t *testing.T) {
 	f := newReferralFixture(t)
 	inviter, code := f.client("Ada")
 	var friends []uuid.UUID
@@ -889,21 +877,17 @@ func TestGrantsWaitForLaunchThenAddMinutesOnceAndAnnounceThem(t *testing.T) {
 		f.verify(fr)
 		f.readingBy(fr)
 	}
-	if err := f.svc.RunGrants(f.ctx); err != nil || f.freeMinutes(inviter) != 0 {
-		t.Fatalf("granted before launch: %d %v", f.freeMinutes(inviter), err)
-	}
-	pending, _ := f.svc.Mine(f.ctx, inviter)
-	if pending.Program.Launched || pending.Stats.PendingMinutes != 15 || pending.Stats.GrantedMinutes != 0 {
-		t.Fatalf("before launch: %+v", pending)
-	}
-	res := f.launch()
-	if res.Rewards != 3 || res.Minutes != 15 || res.LaunchedAt.IsZero() {
-		t.Fatalf("launch result: %+v", res)
-	}
 	select {
 	case <-f.svc.Wake():
 	default:
-		t.Fatal("the launch did not wake the grant job")
+		t.Fatal("a qualification must wake the grant job")
+	}
+	pending, _ := f.svc.Mine(f.ctx, inviter)
+	if pending.Stats.PendingMinutes != 15 || pending.Stats.GrantedMinutes != 0 || f.freeMinutes(inviter) != 0 {
+		t.Fatalf("before the run: %+v", pending)
+	}
+	if sum, err := f.svc.Summary(f.ctx); err != nil || sum.ReadyRewards != 3 || sum.ReadyMinutes != 15 {
+		t.Fatalf("summary: %+v %v", sum, err)
 	}
 	for i := 0; i < 3; i++ { // idempotent: repeated runs add nothing more
 		if err := f.svc.RunGrants(f.ctx); err != nil {
@@ -927,6 +911,11 @@ func TestGrantsWaitForLaunchThenAddMinutesOnceAndAnnounceThem(t *testing.T) {
 	if len(granted) != 1 || granted[0].Data["minutes"] != 15 || granted[0].Data["friends"] != 3 {
 		t.Fatalf("one aggregated notice per inviter expected: %+v", granted)
 	}
+	for _, k := range f.kinds() {
+		if k == "referral.qualified" {
+			t.Fatalf("a qualification is never announced as a notification: %v", f.kinds())
+		}
+	}
 	var published int
 	for _, e := range f.events.events {
 		if e.typ == "wallet.updated" && e.user == inviter && e.wallet.FreeMinutes == 15 {
@@ -937,62 +926,70 @@ func TestGrantsWaitForLaunchThenAddMinutesOnceAndAnnounceThem(t *testing.T) {
 		t.Fatalf("wallet.updated events: %+v", f.events.events)
 	}
 	mine, _ := f.svc.Mine(f.ctx, inviter)
-	if !mine.Program.Launched || mine.Stats.GrantedMinutes != 15 || mine.Stats.PendingMinutes != 0 || mine.Stats.Qualified != 3 {
-		t.Fatalf("after launch: %+v", mine)
+	if mine.Stats.GrantedMinutes != 15 || mine.Stats.PendingMinutes != 0 || mine.Stats.Qualified != 3 {
+		t.Fatalf("after the run: %+v", mine)
 	}
 }
 
-func TestQualifyingAfterLaunchIsGrantedByTheNextRunWithoutAPendingNotice(t *testing.T) {
+func TestGrantsStillRunWhileTheProgramIsDisabled(t *testing.T) {
 	f := newReferralFixture(t)
 	inviter, code := f.client("Ada")
-	f.launch()
-	<-f.svc.Wake()
 	friend := f.friend(code, AttributionInput{})
 	f.verify(friend)
 	f.readingBy(friend)
-	select {
-	case <-f.svc.Wake():
-	default:
-		t.Fatal("a reward that qualifies after launch must wake the grant job")
+	f.setProgram(false, 5, 20)
+	if err := f.svc.RunGrants(f.ctx); err != nil || f.freeMinutes(inviter) != 5 {
+		t.Fatalf("an earned reward is kept while the program is off: %d, %v", f.freeMinutes(inviter), err)
 	}
+	if f.status(friend).Status != domain.ReferralGranted {
+		t.Fatalf("referral: %+v", f.status(friend))
+	}
+}
+
+func TestAnUnreadableProgramSettingIsDisabledAndStillGrants(t *testing.T) {
+	f := newReferralFixture(t)
+	inviter, code := f.client("Ada")
+	friend := f.friend(code, AttributionInput{})
+	f.verify(friend)
+	f.readingBy(friend)
+	f.svc.d.Program = func(context.Context) ReferralProgram { return ReferralProgram{} }
 	if err := f.svc.RunGrants(f.ctx); err != nil || f.freeMinutes(inviter) != 5 {
 		t.Fatalf("free minutes: %d, %v", f.freeMinutes(inviter), err)
 	}
-	for _, k := range f.kinds() {
-		if k == NotifyReferralQualified {
-			t.Fatalf("no 'pending until launch' notice after launch: %v", f.kinds())
+}
+
+func TestMyReferralsProgramCarriesNoLaunchKeys(t *testing.T) {
+	f := newReferralFixture(t)
+	inviter, _ := f.client("Ada")
+	mine, err := f.svc.Mine(f.ctx, inviter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(mine.Program)
+	var keys map[string]any
+	if err := json.Unmarshal(raw, &keys); err != nil {
+		t.Fatal(err)
+	}
+	if len(keys) != 3 || keys["enabled"] != true || keys["reward_minutes"] != float64(5) || keys["max_rewards"] != float64(20) {
+		t.Fatalf("program: %s", raw)
+	}
+	for _, k := range []string{"launched", "launched_at"} {
+		if _, has := keys[k]; has {
+			t.Fatalf("%s must be gone: %s", k, raw)
 		}
 	}
 }
 
-func TestLaunchNeedsTheTypedConfirmationAndHappensOnce(t *testing.T) {
+func TestEditingTheProgramDropsAStaleLaunchDate(t *testing.T) {
 	f := newReferralFixture(t)
-	for _, bad := range []string{"", "launch", "LAUNCH ", "yes"} {
-		_, err := f.svc.Launch(f.site.ctx, bad)
-		e, ok := apperror.As(err)
-		if !ok || e.Status != http.StatusUnprocessableEntity && e.Status != http.StatusBadRequest || e.Details["fields"] == nil {
-			t.Fatalf("%q: %v", bad, err)
-		}
-	}
-	if f.site.svc.ReferralProgram(f.ctx).Launched() {
-		t.Fatal("launched without the confirmation")
-	}
-	f.launch()
-	first := f.site.svc.ReferralProgram(f.ctx).LaunchedAt
-	_, err := f.svc.Launch(f.site.ctx, ReferralLaunchConfirmation)
-	if e, ok := apperror.As(err); !ok || e.Status != http.StatusConflict || e.Code != CodeReferralLaunched {
-		t.Fatalf("second launch: %v", err)
-	}
-	if got := f.site.svc.ReferralProgram(f.ctx).LaunchedAt; got == nil || !got.Equal(*first) {
-		t.Fatal("the launch date changed")
-	}
-	if !auditHas(f.audit, "site.referral_program.launched") {
-		t.Fatal("the launch is not audited")
-	}
-	// Editing the program afterwards keeps the launch date.
+	// A row stored before migration 0042 still carries launched_at.
+	st := f.site.repo.settings[domain.SiteSettingReferralProgram]
+	st.Value["launched_at"] = "2026-01-01T00:00:00Z"
+	f.site.repo.settings[domain.SiteSettingReferralProgram] = st
 	f.setProgram(true, 7, 30)
-	if got := f.site.svc.ReferralProgram(f.ctx); got.LaunchedAt == nil || got.RewardMinutes != 7 {
-		t.Fatalf("program: %+v", got)
+	got := f.site.repo.settings[domain.SiteSettingReferralProgram].Value
+	if _, has := got["launched_at"]; has || mInt(got, "reward_minutes", 0) != 7 {
+		t.Fatalf("stored setting: %v", got)
 	}
 }
 
@@ -1022,9 +1019,6 @@ func TestGrantsSkipFlaggedRowsAndInactiveInviters(t *testing.T) {
 	f.repo.active[bea] = false // banned after the reading
 	// Neither reward is promised to the admin: one is held, the other's
 	// inviter is no longer active (the grant job would skip it).
-	if res := f.launch(); res.Rewards != 0 || res.Minutes != 0 {
-		t.Fatalf("launch result: %+v", res)
-	}
 	if sum, err := f.svc.Summary(f.ctx); err != nil || sum.ReadyRewards != 0 || sum.ReadyMinutes != 0 || sum.Qualified != 2 {
 		t.Fatalf("summary: %+v %v", sum, err)
 	}
@@ -1068,7 +1062,6 @@ func TestGrantsLoopOverManyBatchesAndInviters(t *testing.T) {
 			f.readingBy(fr)
 		}
 	}
-	f.launch()
 	if err := f.svc.RunGrants(f.ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -1119,7 +1112,6 @@ func TestGrantsAnnounceOncePerInviterPerRunAcrossBatches(t *testing.T) {
 			f.readingBy(fr)
 		}
 	}
-	f.launch()
 	notes := &userNotes{sent: map[uuid.UUID][]NotificationSpec{}}
 	f.svc.d.Notifier = notes
 	if err := f.svc.RunGrants(f.ctx); err != nil {
@@ -1166,7 +1158,6 @@ func TestGrantOfAnInviterWithoutAWalletDoesNotBlockTheQueue(t *testing.T) {
 		f.verify(fr)
 		f.readingBy(fr)
 	}
-	f.launch()
 	if err := f.svc.RunGrants(f.ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -1244,13 +1235,16 @@ func TestPublicConfigAnnouncesTheProgram(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := res.View.Referrals; !got.Enabled || got.RewardMinutes != 5 || got.Launched {
+	if got := res.View.Referrals; !got.Enabled || got.RewardMinutes != 5 {
 		t.Fatalf("referrals: %+v", got)
 	}
-	f.launch()
+	raw, _ := json.Marshal(res.View.Referrals)
+	if string(raw) != `{"enabled":true,"reward_minutes":5}` {
+		t.Fatalf("the public referrals object has exactly two keys: %s", raw)
+	}
 	f.setProgram(false, 9, 20)
 	res, _ = f.site.svc.Config(f.ctx, "en")
-	if got := res.View.Referrals; got.Enabled || got.RewardMinutes != 9 || !got.Launched {
+	if got := res.View.Referrals; got.Enabled || got.RewardMinutes != 9 {
 		t.Fatalf("referrals: %+v", got)
 	}
 }
@@ -1384,7 +1378,7 @@ func TestProgramFailsClosedWhenUnreadable(t *testing.T) {
 	f.site.repo.fail = true
 	fresh := f.site.instance() // a second instance with nothing cached locally
 	f.site.kv = nil
-	if p := fresh.ReferralProgram(f.ctx); p.Enabled || p.Launched() {
+	if p := fresh.ReferralProgram(f.ctx); p.Enabled {
 		t.Fatalf("an unreadable program must read as disabled: %+v", p)
 	}
 }

@@ -227,6 +227,66 @@ test.describe("advisor cards: layout (§26.2)", () => {
       }
     }
   });
+
+  test("home section cards line up their divider, rates and button whatever the headline length", async ({ page }) => {
+    // Real cards with headlines of very different lengths, one advisor online ("Chat now" with its
+    // price line is taller than "Notify me when online").
+    const headlines = [
+      "Clarity in love.",
+      "Many people approach me to help them discover more about themselves and the type of relationships that they encounter every single day, and where they lead.",
+      "I'll guide you towards the path you should take in order to resolve any future difficulties.",
+    ];
+    await page.route("**/api/v1/psychics/featured*", async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.items = body.items.map((item: Record<string, unknown>, i: number) => ({
+        ...item,
+        headline: headlines[i % headlines.length],
+        ...(i === 0 ? { status: "online", cta: "chat" } : { status: "offline", cta: "waitlist" }),
+      }));
+      await route.fulfill({ response, json: body });
+    });
+    for (const width of [1440, 1024, 768]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/en");
+      await page.locator("#psychics").scrollIntoViewIfNeeded();
+      await expect(page.getByTestId("featured-advisor")).toHaveCount(3);
+      const cards = await page.getByTestId("featured-advisor").evaluateAll((els) =>
+        els.map((card) => {
+          const top = (sel: string) => Math.round(card.querySelector(sel)!.getBoundingClientRect().top);
+          const box = card.getBoundingClientRect();
+          const button = card.querySelector('[data-testid="book-button"]')!.getBoundingClientRect();
+          return {
+            row: Math.round(box.top),
+            center: Math.round(box.left + box.width / 2),
+            height: Math.round(box.height),
+            headline: Math.round(card.querySelector('[data-testid="featured-advisor-intro"] p')!.getBoundingClientRect().height),
+            divider: top('[data-testid="featured-advisor-divider"]'),
+            rates: top("dl"),
+            buttonTop: Math.round(button.top),
+            buttonBottom: Math.round(button.bottom),
+          };
+        }),
+      );
+      const rows = new Map<number, typeof cards>();
+      for (const c of cards) rows.set(c.row, [...(rows.get(c.row) ?? []), c]);
+      expect(rows.size, `${width}px: rows ${JSON.stringify(cards)}`).toBe(width >= 1024 ? 1 : 2);
+      for (const row of rows.values()) {
+        for (const key of ["height", "divider", "rates", "buttonTop", "buttonBottom"] as const) {
+          const values = row.map((c) => c[key]);
+          expect(Math.max(...values) - Math.min(...values), `${width}px ${key}: ${values.join(", ")}`).toBeLessThanOrEqual(1);
+        }
+      }
+      // The headlines really differ in length (the test would prove nothing otherwise).
+      const headlineHeights = cards.map((c) => c.headline);
+      expect(Math.max(...headlineHeights) - Math.min(...headlineHeights), `${width}px headlines: ${headlineHeights.join(", ")}`).toBeGreaterThan(30);
+      if (width === 768) {
+        // Two columns: the third card, alone on its row, is centred under the first two.
+        const [a, b, c] = cards;
+        expect(Math.abs(c.center - (a.center + b.center) / 2)).toBeLessThanOrEqual(1);
+      }
+    }
+  });
 });
 
 /** The advisor's own session, kept open so the advisor stays connected (online). */

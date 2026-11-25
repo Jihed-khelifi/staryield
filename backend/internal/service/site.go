@@ -420,7 +420,6 @@ type SiteConfigView struct {
 	Referrals struct {
 		Enabled       bool `json:"enabled"`
 		RewardMinutes int  `json:"reward_minutes"`
-		Launched      bool `json:"launched"`
 	} `json:"referrals"`
 	GeneratedAt time.Time `json:"generated_at"`
 }
@@ -477,7 +476,7 @@ func renderSiteConfig(snap *siteSnapshot, locale string, now time.Time, googleEn
 	}
 	v.SignupOffer.Enabled, v.SignupOffer.FreeMinutes = snap.Signup.Enabled, minutes
 	if r := snap.Referral; r != nil && !snap.Defaults {
-		v.Referrals.Enabled, v.Referrals.RewardMinutes, v.Referrals.Launched = r.Enabled, r.RewardMinutes, r.Launched()
+		v.Referrals.Enabled, v.Referrals.RewardMinutes = r.Enabled, r.RewardMinutes
 	}
 	v.Banners.RotationSeconds = snap.Banners.RotationSeconds
 	v.Banners.Items = []PublicBanner{}

@@ -5,11 +5,10 @@ import (
 )
 
 // Growth: notification kinds of the referral loop. The data never names the
-// friend: joined carries nothing, qualified the minutes earned and whether
-// the rewards already launched, reward_granted the minutes added.
+// friend: joined carries nothing, reward_granted the minutes added. (A
+// qualified referral is an analytics event only; the grant announces it.)
 const (
 	NotifyReferralJoined        = "referral.joined"
-	NotifyReferralQualified     = "referral.qualified"
 	NotifyReferralRewardGranted = "referral.reward_granted"
 )
 
@@ -18,8 +17,7 @@ const (
 const referralLink = "/profile/invite"
 
 func init() {
-	// In-app and push for all three; e-mail only when minutes are added (account mail).
+	// In-app and push for both; e-mail only when minutes are added (account mail).
 	channelPolicies[NotifyReferralJoined] = ChannelPolicy{Push: true}
-	channelPolicies[NotifyReferralQualified] = ChannelPolicy{Push: true}
 	channelPolicies[NotifyReferralRewardGranted] = ChannelPolicy{Email: true, Category: domain.EmailAccount, Push: true}
 }

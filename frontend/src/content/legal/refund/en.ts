@@ -189,7 +189,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Minutes earned by inviting friends ([Terms of Use, Section 4.20](/terms#referral-program)) are free minutes and follow the rules above. Rewards earned before we launch the referral rewards are shown as pending and are added to your account at launch, on a date we choose; a pending reward cannot be used, refunded or exchanged. Once minutes are added, a later refund or payment dispute by the friend you invited does not change them, and changing, pausing or ending the program does not take them away. Before a reward is added, we may withhold or reject it if we reasonably believe it breaks the program rules or our Terms. If we suspend or close an account for abusing the program, its pending rewards and free minutes may be forfeited."
+          "text": "Minutes earned by inviting friends ([Terms of Use, Section 4.20](/terms#referral-program)) are free minutes and follow the rules above. A reward is added to your account shortly after your friend qualifies; until then, a pending reward cannot be used, refunded or exchanged. Once minutes are added, a later refund or payment dispute by the friend you invited does not change them, and changing, pausing or ending the program does not take them away. Before a reward is added, we may withhold or reject it if we reasonably believe it breaks the program rules or our Terms. If we suspend or close an account for abusing the program, its pending rewards and free minutes may be forfeited."
         }
       ]
     },

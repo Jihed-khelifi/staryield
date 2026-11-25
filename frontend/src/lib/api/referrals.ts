@@ -13,9 +13,6 @@ export type ReferralProgramView = {
   reward_minutes: number;
   /** How many friends can earn a reward (per inviter). */
   max_rewards: number;
-  /** Rewards were launched: earned minutes are added right away. Before, they wait for the launch. */
-  launched: boolean;
-  launched_at?: string;
 };
 
 /** The inviter's counters. */
@@ -24,7 +21,7 @@ export type ReferralStats = {
   joined: number;
   /** Friends who verified their e-mail and completed a reading (the reward is earned). */
   qualified: number;
-  /** Earned minutes waiting for the launch (or for the next grant run). */
+  /** Earned minutes that are not added yet (on their way, usually within a minute). */
   pending_minutes: number;
   /** Minutes already added to the wallet. */
   granted_minutes: number;

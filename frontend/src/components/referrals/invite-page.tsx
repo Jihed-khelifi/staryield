@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CircleCheck, Gift, MailCheck, MessageCircle, PauseCircle, Share2, Sparkles } from "lucide-react";
+import { CircleCheck, Gift, MailCheck, MessageCircle, PauseCircle, Share2 } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import type { MyReferrals } from "@/lib/api/referrals";
@@ -16,8 +16,8 @@ import { friendsCompleted, friendsJoined, rewardSentence, rewardsLeft } from "@/
 
 /**
  * /profile/invite (below the account tabs): how the invite program works, the link with copy/share,
- * the counters and the rules (FAQ). States: loading, error with retry,
- * program paused, before launch (minutes pending) and after launch.
+ * the counters and the rules (FAQ). States: loading, error with retry, and the program
+ * running or paused (a notice shows only while it is paused).
  */
 export function InvitePage() {
   const { text } = useI18n();
@@ -65,7 +65,7 @@ function InviteContent({ data }: { data: MyReferrals }) {
         {program.enabled ? <ReferralLinkField tone="dark" labelVisible /> : null}
       </section>
 
-      <ProgramNotice program={program} />
+      {!program.enabled ? <ProgramNotice /> : null}
 
       <section aria-labelledby="invite-stats-title" className="flex flex-col gap-3">
         <h2 id="invite-stats-title" className="text-xl font-semibold text-[#17150f]">
@@ -74,14 +74,10 @@ function InviteContent({ data }: { data: MyReferrals }) {
         <dl className="grid grid-cols-2 gap-3 md:grid-cols-4" data-testid="referral-stats">
           <Stat label={text("Friends joined")} value={stats.joined} detail={friendsJoined(stats.joined, locale, text)} testId="stat-joined" />
           <Stat label={text("Completed a reading")} value={stats.qualified} detail={friendsCompleted(stats.qualified, locale, text)} testId="stat-qualified" />
-          {program.launched ? (
-            <Stat label={text("Minutes added")} value={stats.granted_minutes} testId="stat-granted" />
-          ) : (
-            <Stat label={text("Minutes pending until launch")} value={stats.pending_minutes} testId="stat-pending" />
-          )}
+          <Stat label={text("Minutes added")} value={stats.granted_minutes} testId="stat-granted" />
           <Stat label={text("Rewards left")} display={rewardsLeft(stats, program, locale, text)} testId="stat-remaining" />
         </dl>
-        {program.launched && stats.pending_minutes > 0 ? (
+        {stats.pending_minutes > 0 ? (
           <p className="text-[13px] text-[var(--muted-ink)]">
             {stats.pending_minutes === 1
               ? text("1 more minute is on its way to your wallet.")
@@ -114,40 +110,21 @@ function Stat({ label, value, display, detail, testId }: { label: string; value?
   );
 }
 
-function ProgramNotice({ program }: { program: MyReferrals["program"] }) {
-  const { text, locale } = useI18n();
-  const notice: { icon: typeof Sparkles; title: string; body: string } = !program.enabled
-    ? {
-        icon: PauseCircle,
-        title: text("Invitations are paused"),
-        body: text("New sign-ups with your link don't earn rewards right now. Minutes you already earned are kept."),
-      }
-    : program.launched
-      ? {
-          icon: Sparkles,
-          title: text("Rewards are live"),
-          body: program.launched_at
-            ? text("Since {value0}, minutes are added to your wallet as soon as a friend completes a reading.", {
-                value0: new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(new Date(program.launched_at)),
-              })
-            : text("Minutes are added to your wallet as soon as a friend completes a reading."),
-        }
-      : {
-          icon: Sparkles,
-          title: text("Staryield is in beta"),
-          body: text("The minutes you earn now are kept for you and added to your wallet when we launch. We'll let you know."),
-        };
-  const Icon = notice.icon;
+/** Shown only while the program is paused. */
+function ProgramNotice() {
+  const { text } = useI18n();
   return (
     <section
       className="flex items-start gap-3 rounded-[12px] border border-dashed border-[rgb(170_142_98/0.6)] p-4 md:rounded-[4px]"
       data-testid="referral-program-notice"
-      data-state={!program.enabled ? "paused" : program.launched ? "launched" : "beta"}
+      data-state="paused"
     >
-      <Icon aria-hidden className="mt-0.5 size-5 shrink-0 text-[#8a6a1f]" strokeWidth={1.6} />
+      <PauseCircle aria-hidden className="mt-0.5 size-5 shrink-0 text-[#8a6a1f]" strokeWidth={1.6} />
       <div className="flex flex-col gap-0.5">
-        <h2 className="text-base font-semibold text-[#17150f]">{notice.title}</h2>
-        <p className="text-[13px] leading-[1.5] text-[var(--muted-ink)] md:text-sm">{notice.body}</p>
+        <h2 className="text-base font-semibold text-[#17150f]">{text("Invitations are paused")}</h2>
+        <p className="text-[13px] leading-[1.5] text-[var(--muted-ink)] md:text-sm">
+          {text("New sign-ups with your link don't earn rewards right now. Minutes you already earned are kept.")}
+        </p>
       </div>
     </section>
   );
@@ -206,7 +183,7 @@ function Rules({ data }: { data: MyReferrals }) {
     {
       q: text("When do I get my free minutes?"),
       a: text(
-        "Staryield is in beta. Minutes you earn before we launch are shown as pending and added to your wallet at launch. After the launch, they are added as soon as your friend completes a reading.",
+        "As soon as your friend has verified their e-mail address and completed a reading. The minutes are usually in your wallet within a minute, and we let you know.",
       ),
     },
     {

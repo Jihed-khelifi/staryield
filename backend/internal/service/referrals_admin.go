@@ -133,8 +133,8 @@ type ReferralSummary struct {
 	Flagged        int64 `json:"flagged"`
 	PendingMinutes int64 `json:"pending_minutes"`
 	GrantedMinutes int64 `json:"granted_minutes"`
-	// ReadyRewards and ReadyMinutes are what the launch (or the next run of the
-	// grant job) will add: qualified, not held for review.
+	// ReadyRewards and ReadyMinutes are what the next run of the grant job
+	// will add: qualified, not held for review.
 	ReadyRewards int64                `json:"ready_rewards"`
 	ReadyMinutes int64                `json:"ready_minutes"`
 	TopInviters  []ReferralTopInviter `json:"top_inviters"`
@@ -215,8 +215,8 @@ func (s *ReferralService) view(ctx context.Context, r *domain.Referral) (*AdminR
 }
 
 // Approve releases a referral held for review: a qualified one is granted at
-// the next run (or announced as pending before launch), a joined one is
-// rewarded automatically once it qualifies.
+// the next run of the grant job, a joined one is rewarded automatically once
+// it qualifies.
 func (s *ReferralService) Approve(ctx context.Context, id uuid.UUID) (*AdminReferral, error) {
 	r, err := s.decide(ctx, id, func(r *domain.Referral, _ time.Time) error {
 		if !r.Flagged || (r.Status != domain.ReferralJoined && r.Status != domain.ReferralQualified) {
@@ -230,7 +230,7 @@ func (s *ReferralService) Approve(ctx context.Context, id uuid.UUID) (*AdminRefe
 	}
 	s.record(ctx, "referral.approved", "referral", r.ID.String(), map[string]any{"status": string(r.Status), "referrer_id": r.ReferrerID})
 	if r.Status == domain.ReferralQualified {
-		s.afterQualified(ctx, r, s.d.Program(ctx))
+		s.afterQualified(ctx, r)
 	}
 	return s.view(ctx, r)
 }
@@ -256,34 +256,4 @@ func (s *ReferralService) Reject(ctx context.Context, id uuid.UUID, reason strin
 	}
 	s.record(ctx, "referral.rejected", "referral", r.ID.String(), map[string]any{"referrer_id": r.ReferrerID, "reason": reason})
 	return s.view(ctx, r)
-}
-
-// ReferralLaunchResult is POST /admin/referrals/launch.
-type ReferralLaunchResult struct {
-	LaunchedAt time.Time `json:"launched_at"`
-	// Rewards and Minutes are what the grant job is about to add (qualified,
-	// not held for review); the rest follows as friends qualify.
-	Rewards int64 `json:"rewards"`
-	Minutes int64 `json:"minutes"`
-}
-
-// Launch stamps the launch date once (a typed confirmation is enforced; a
-// second launch is a 409) and wakes the grant job.
-func (s *ReferralService) Launch(ctx context.Context, confirmation string) (*ReferralLaunchResult, error) {
-	out := &ReferralLaunchResult{}
-	set, err := s.d.Launch(ctx, confirmation, func(ctx context.Context) error {
-		// Counted before the launch commits, so the grant job cannot have
-		// granted any of these rewards yet.
-		var err error
-		out.Rewards, out.Minutes, err = s.d.Repo.PendingGrants(ctx)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	s.signal()
-	if set.LaunchedAt != nil {
-		out.LaunchedAt = *set.LaunchedAt
-	}
-	return out, nil
 }

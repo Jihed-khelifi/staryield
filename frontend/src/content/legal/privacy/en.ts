@@ -417,7 +417,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Messages. We tell the inviter, in the app and by push if push notifications are on, when a friend signs up (not when a sign-up is held for review or rejected) and, only before the rewards are launched, when a friend who has also confirmed their email address completes a live reading and the invitation earns a reward. Once the rewards are launched, the inviter is told only when free minutes are added to their wallet; that message is an account message, sent by email whatever the inviter’s notification settings. The other messages follow their notification settings. These are service messages about the program, not marketing."
+          "text": "Messages. We tell the inviter, in the app and by push if push notifications are on, when a friend signs up (not when a sign-up is held for review or rejected) and when free minutes are added to their wallet. The message about added minutes is an account message, also sent by email whatever the inviter’s notification settings; the other messages follow their notification settings. These are service messages about the program, not marketing."
         },
         {
           "type": "p",

@@ -417,7 +417,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Messages. Nous prévenons la personne qui invite, dans l’application et, si les notifications push sont activées, par notification push, lorsqu’un ami s’inscrit (pas lorsqu’une inscription est retenue pour examen ou rejetée) et, uniquement avant le lancement des récompenses, lorsqu’un ami qui a aussi confirmé son adresse e-mail termine une consultation en direct et que l’invitation donne droit à une récompense. Une fois les récompenses lancées, la personne qui invite n’est prévenue que lorsque des minutes offertes sont ajoutées à son portefeuille ; ce message est un message de compte, envoyé par e-mail quels que soient ses paramètres de notification. Les autres messages suivent ses paramètres de notification. Il s’agit de messages de service liés au programme, et non de marketing."
+          "text": "Messages. Nous prévenons la personne qui invite, dans l’application et, si les notifications push sont activées, par notification push, lorsqu’un ami s’inscrit (pas lorsqu’une inscription est retenue pour examen ou rejetée) et lorsque des minutes offertes sont ajoutées à son portefeuille. Le message concernant les minutes ajoutées est un message de compte, également envoyé par e-mail quels que soient les paramètres de notification de la personne qui invite ; les autres messages suivent ses paramètres de notification. Il s’agit de messages de service liés au programme, et non de marketing."
         },
         {
           "type": "p",
