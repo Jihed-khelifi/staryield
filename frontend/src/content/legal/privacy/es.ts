@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-19",
-    "effective": "2026-11-19",
-    "lastUpdated": "2026-11-19",
+    "version": "2026-11-25",
+    "effective": "2026-11-25",
+    "lastUpdated": "2026-11-25",
     "badge": "ACUERDO DE PRIVACIDAD DE STARYIELD",
     "title": "Política de Privacidad"
   },
@@ -205,7 +205,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Listas de espera. Si se une a la lista de espera de un asesor, guardamos su solicitud y le avisamos una sola vez, en la aplicación y por los canales que tenga activados, cuando ese asesor se conecte. Las solicitudes caducan a los 7 días y puede salir de una lista de espera en cualquier momento."
+          "text": "Listas de espera. Si se une a la lista de espera de un asesor, guardamos su solicitud y le avisamos una sola vez, en la aplicación y por los canales que tenga activados, cuando ese asesor se conecte. Las solicitudes caducan a los 7 días y puede salir de una lista de espera en cualquier momento. Si pide unirse a la lista de espera de un asesor antes de tener una cuenta, su navegador recuerda esa elección en la misma pestaña durante un máximo de 1 hora (véase [Cookies y tecnologías similares](#cookies)), y solo le añadimos a la lista de espera de ese asesor una vez que se ha registrado y ha iniciado sesión como cliente."
         },
         {
           "type": "p",
@@ -213,7 +213,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Asesores. Si es asesor, también tratamos su número de teléfono, sus ganancias, sus solicitudes de retiro y sus datos de cobro (cuenta bancaria o dirección de PayPal). Su número de teléfono y sus datos de cobro se almacenan cifrados; los datos de cobro solo se muestran al personal autorizado, con un registro de auditoría, al tramitar un pago. Una nueva foto de perfil puede revisarse antes de publicarse. Registramos cuándo está conectado para mostrar su disponibilidad y calcular estadísticas como sus horas activas, y elaboramos análisis de rendimiento a partir de sus consultas y valoraciones, como las tasas de conversión y de fidelización y las horas en las que los clientes solicitan consultas."
+          "text": "Asesores. Si es asesor, también tratamos su número de teléfono, sus ganancias, sus solicitudes de retiro y sus datos de cobro (cuenta bancaria o dirección de PayPal). Su número de teléfono y sus datos de cobro se almacenan cifrados; los datos de cobro solo se muestran al personal autorizado, con un registro de auditoría, al tramitar un pago. Una nueva foto de perfil puede revisarse antes de publicarse. Registramos cuándo está conectado para mostrar su disponibilidad y calcular estadísticas como sus horas activas, y elaboramos análisis de rendimiento a partir de sus consultas y valoraciones, como las tasas de conversión y de fidelización y las horas en las que los clientes solicitan consultas. También contamos las solicitudes de chat que no atendió seguidas, para pasarle automáticamente a ausente tras unas pocas."
         },
         {
           "type": "h3",
@@ -227,7 +227,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Nuestro sitio web guarda los parámetros de campaña de su primera visita (parámetros UTM como la fuente, el medio y la campaña, y el código del clic) en el almacenamiento local de su navegador durante 30 días. Si crea una cuenta, se envían con su registro y se guardan con su cuenta, para medir qué campañas generan registros y compras. Solo utilizamos esta información de forma agregada para evaluar nuestro marketing; no la vendemos. Puede borrarla en cualquier momento eliminando los datos del sitio en su navegador, y no registramos estadísticas web cuando su navegador envía una señal Do Not Track o Global Privacy Control. Cuando la ley exige su consentimiento, solo guardamos los parámetros de campaña y registramos estadísticas después de que los autorice en sus preferencias de privacidad."
+          "text": "Nuestro sitio web guarda los parámetros de campaña de su primera visita (parámetros UTM como la fuente, el medio y la campaña, y el código del clic) en el almacenamiento local de su navegador durante 30 días. Si crea una cuenta, se envían con su registro y se guardan con su cuenta, para medir qué campañas generan registros y compras. Solo utilizamos esta información de forma agregada para evaluar nuestro marketing; no la vendemos. Puede borrarla en cualquier momento eliminando los datos del sitio en su navegador, y no registramos estadísticas web cuando su navegador envía una señal Do Not Track o Global Privacy Control. Cuando la ley exige su consentimiento, solo guardamos los parámetros de campaña y registramos estadísticas después de que los autorice en sus preferencias de privacidad. Los enlaces de nuestros correos electrónicos pueden llevar parámetros de campaña, que se tratan de la misma manera."
         },
         {
           "type": "h3",
@@ -299,7 +299,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Para contar cuántas personas distintas abren y usan nuestras calculadoras, nuestro sitio guarda un identificador aleatorio en el almacenamiento local de tu navegador (no se deriva de tu nombre, correo electrónico ni dirección IP) y registra qué páginas de calculadora abres, si inicias un cálculo y si ves un resultado. Si creas una cuenta, este identificador se vincula a ella al registrarte, solo cuando las analíticas están permitidas, lo que nos permite saber qué visitantes se hicieron miembros. Junto con el identificador conservamos los datos de campaña y de enlace corto de tu primera visita (parámetros UTM y código de clic, véase el [Apartado 2.6](#marketing-attribution))."
+          "text": "Para contar cuántas personas distintas abren y usan nuestras calculadoras, nuestro sitio guarda un identificador aleatorio en el almacenamiento local de tu navegador (no se deriva de tu nombre, correo electrónico ni dirección IP) y registra qué páginas de calculadora abres, si inicias un cálculo y si ves un resultado. Si creas una cuenta, este identificador se vincula a ella al registrarte, solo cuando las analíticas están permitidas, lo que nos permite saber qué visitantes se hicieron miembros. En nuestros informes, los eventos registrados desde tu navegador antes de que te registraras se cuentan junto con tu cuenta. Junto con el identificador conservamos los datos de campaña y de enlace corto de tu primera visita (parámetros UTM y código de clic, véase el [Apartado 2.6](#marketing-attribution))."
         },
         {
           "type": "p",
@@ -370,6 +370,170 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Si solicita un informe, puede elegir recibir por correo electrónico horóscopos, ofertas y novedades de Staryield. Solo enviamos estos correos con su consentimiento. Cuando la ley lo permite, por ejemplo en los Estados Unidos, la casilla puede aparecer ya marcada; puede desmarcarla antes de enviar, y registramos si estaba premarcada. En los demás países la casilla aparece sin marcar y no le enviamos nada a menos que la marque. Cada correo comercial incluye un enlace para darse de baja, y también puede desactivar las novedades comerciales en la [configuración de su cuenta](/profile/settings). Nunca vendemos su dirección de correo electrónico ni se la damos a nadie para su propio marketing. Los correos comerciales los envía por nuestra cuenta un proveedor de correo electrónico que actúa según nuestras instrucciones y recibe su dirección de correo electrónico, idioma y país."
+        },
+        {
+          "type": "h3",
+          "id": "email-address-verification",
+          "n": "2.16",
+          "title": "Confirmación de su dirección de correo electrónico"
+        },
+        {
+          "type": "p",
+          "text": "Cuando crea una cuenta con una dirección de correo electrónico y una contraseña, le enviamos un correo de bienvenida con un enlace para confirmar que la dirección es suya. Lo hacemos para proteger su cuenta y para asegurarnos de que los recibos, las alertas de seguridad y los demás avisos de la cuenta le lleguen, sobre la base de nuestro contrato con usted y de nuestro interés legítimo en la seguridad de las cuentas. Este correo es un mensaje transaccional: no contiene publicidad y se envía con independencia de sus preferencias de marketing. Las cuentas creadas con el inicio de sesión de Google se marcan como confirmadas al crearse, porque Google nos indica que ha verificado la dirección (véase la [Sección 2.2](#data-we-receive-from-third-parties)). Cuando cambia su dirección de correo electrónico, el enlace que enviamos a la nueva dirección también la confirma."
+        },
+        {
+          "type": "p",
+          "text": "Qué conservamos. Registramos si su dirección se ha confirmado y cuándo. De cada enlace que enviamos solo guardamos un hash unidireccional de su código secreto, nunca el código en sí, junto con una copia cifrada de la dirección a la que se envió, para que el enlace solo funcione con esa dirección. Un enlace solo puede usarse una vez y caduca a las 48 horas, y pedir un enlace nuevo anula el anterior. Enviamos a una misma cuenta como máximo un enlace por minuto y 5 enlaces en cualquier periodo de 24 horas, y ninguno a una dirección que figure en nuestra lista de exclusión (por ejemplo, tras un rebote definitivo o una queja por spam). Guardamos un registro de auditoría cada vez que se confirma una dirección y cada vez que uno de nuestros administradores envía un enlace nuevo (la cuenta, quién actuó, cuándo y un hash con clave de la dirección IP), y nuestra analítica propia registra que se confirmó una dirección o que se pidió un enlace nuevo."
+        },
+        {
+          "type": "p",
+          "text": "Cómo funciona el enlace. El código secreto está en la parte del enlace que sigue a «#», que los navegadores no envían a los servidores ni a otros sitios web, por lo que no aparece en los registros de nuestros servidores ni en las cabeceras de referencia (referrer). La página de confirmación lee el código, lo quita de la barra de direcciones y nos lo envía una sola vez. Cuando se confirma su dirección, se actualizan todas las pestañas abiertas en las que haya iniciado sesión y añadimos una notificación en la aplicación. Puede pedir un enlace nuevo desde su cuenta. Nuestros administradores pueden ver si su dirección se ha confirmado y cuándo, y pueden enviarle un enlace nuevo, pero nunca ven el enlace en sí. Si recibe un correo de confirmación de una cuenta que no ha creado, puede ignorarlo: la dirección seguirá sin confirmar."
+        },
+        {
+          "type": "p",
+          "text": "Cuánto tiempo. La fecha de confirmación de su dirección se conserva mientras exista su cuenta y se elimina cuando se borra su cuenta. Los registros de los enlaces se eliminan automáticamente aproximadamente un día después de que caduque el enlace, y también con su cuenta. Confirmar su dirección no es necesario para usar los Servicios ni para pagar; en cambio, un amigo invitado debe confirmar su dirección para que la persona que lo invitó pueda obtener una recompensa por invitación (véase la [Sección 2.17](#referral-program))."
+        },
+        {
+          "type": "h3",
+          "id": "referral-program",
+          "n": "2.17",
+          "title": "Invitaciones y recompensas por invitar"
+        },
+        {
+          "type": "p",
+          "text": "Los clientes pueden invitar a sus amigos a Staryield con un enlace de invitación personal. Por cada amigo invitado que crea una cuenta a través de ese enlace, confirma su dirección de correo electrónico y completa una consulta en vivo, la persona que lo invitó gana minutos de chat gratuitos, según las reglas que se muestran en la aplicación y en nuestros [Términos de uso](/terms). Para gestionar el programa tratamos los siguientes datos, sobre la base de nuestro contrato con usted (las reglas del programa) y de nuestro interés legítimo en prevenir abusos:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "Su código personal: un código de 8 caracteres que se crea la primera vez que ve su enlace de invitación o abre la ventana para compartir. Su enlace es la dirección de nuestro sitio web seguida de ese código, por lo que una persona que abre su enlace puede vincularse a su invitación.",
+            "Registros de invitación: por cada amigo que se registra con un enlace, un registro que vincula la cuenta de quien invita y la cuenta del amigo, su estado y sus fechas (registro, cumplimiento de las condiciones, recompensa o rechazo), el número de minutos de recompensa, la primera consulta del amigo que cumple las condiciones, un hash con clave de la dirección IP desde la que se registró el amigo (nunca la dirección en sí), las posibles marcas de revisión y, si nuestro equipo lo revisó, la decisión, su motivo y el administrador que la tomó.",
+            "Controles contra el abuso: cuando un amigo se registra, comparamos el hash con clave de su dirección IP con los hashes con clave de las direcciones IP de los dispositivos con sesión iniciada de quien invita vistos en los últimos 30 días, y contamos cuántos amigos se han unido a la misma persona en las últimas 24 horas. Si la analítica está permitida en el navegador del amigo, también comprobamos si el identificador aleatorio del navegador descrito en la [Sección 2.10](#calculator-usage-measurement) ya está vinculado a una cuenta. Un registro desde un navegador ya vinculado a quien invita no se tiene en cuenta. Un registro desde la misma red que uno de los dispositivos de quien invita, desde un navegador vinculado a otra cuenta, o cuando ya se han unido 10 amigos o más a la misma persona en las últimas 24 horas, queda retenido para que una persona de nuestro equipo lo revise y lo apruebe o lo rechace. Estos controles nunca utilizan nombres, direcciones de correo electrónico ni mensajes."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Qué ve cada persona. Quien invita solo ve totales: cuántos amigos se han registrado, cuántos han completado una consulta y cuántos minutos gratuitos están pendientes o se han añadido. Nunca le decimos a quien invita quién se registró ni quién tuvo una consulta, y nuestras notificaciones sobre invitaciones nunca nombran a ningún amigo. El personal autorizado puede ver quién invitó a quién en nuestra consola de administración, para revisar los registros retenidos y responder a preguntas sobre las recompensas. Si comparte su enlace mediante el menú para compartir de su dispositivo, el enlace se envía a la aplicación que elija, que lo trata según sus propias condiciones y su propia política de privacidad."
+        },
+        {
+          "type": "p",
+          "text": "Mensajes. Avisamos a quien invita, en la aplicación y, si tiene activadas las notificaciones push, mediante una notificación push, cuando un amigo se registra (no cuando un registro queda retenido para revisión o es rechazado) y, solo antes del lanzamiento de las recompensas, cuando un amigo que además ha confirmado su correo electrónico completa una consulta en directo y la invitación da derecho a una recompensa. Una vez lanzadas las recompensas, solo avisamos a quien invita cuando se añaden minutos gratuitos a su monedero; ese mensaje es un mensaje de cuenta, que se envía por correo electrónico sea cual sea su configuración de notificaciones. Los demás mensajes siguen su configuración de notificaciones. Son mensajes de servicio sobre el programa, no marketing."
+        },
+        {
+          "type": "p",
+          "text": "En su navegador. Cuando abre un enlace de invitación, nuestro sitio web guarda el código y el momento en que abrió el enlace por primera vez en el almacenamiento local de su navegador durante un máximo de 30 días, quita el código de la barra de direcciones, envía el código con su registro para que se pueda reconocer al amigo que le invitó y lo elimina una vez que se ha registrado. Un enlace de invitación abierto más tarde no sustituye a un código que siga siendo válido. Nuestra analítica registra que se abrió un enlace de invitación, nunca el código en sí, y, cuando alguien copia o comparte su enlace, solo el método utilizado (véase la [Sección 2.21](#feature-usage-measurement))."
+        },
+        {
+          "type": "p",
+          "text": "Cuánto tiempo. Su código y los registros de invitación se conservan mientras exista la cuenta de quien invita. Cuando se borra la cuenta de quien invita, se eliminan su código y los registros de los amigos que invitó. Cuando se borra la cuenta de un amigo invitado, se elimina una invitación que no se completó; una invitación recompensada, rechazada o pendiente de su recompensa se conserva sin ningún vínculo con la cuenta del amigo y sin el hash de la IP, para nuestros registros contables y de prevención del fraude. Su exportación de datos incluye un archivo (referrals.json) con su código, sus totales y si se registró a través de una invitación, pero nunca quién le invitó ni a quién invitó usted."
+        },
+        {
+          "type": "h3",
+          "id": "lifecycle-messages",
+          "n": "2.18",
+          "title": "Recordatorios y lista «Empezar»"
+        },
+        {
+          "type": "p",
+          "text": "Para ayudar a los nuevos clientes a empezar y a los clientes que vuelven a orientarse, podemos enviarle algunos recordatorios y sugerencias: confirmar su dirección de correo electrónico, hacer su primera consulta, invitar a un amigo después de una consulta (mientras el programa de invitaciones esté activo) y volver después de una pausa. Su cuenta también muestra una lista «Empezar»: confirmar su dirección de correo electrónico, añadir sus datos de nacimiento, hacer su primera consulta y, mientras el programa de invitaciones esté activo, invitar a un amigo."
+        },
+        {
+          "type": "p",
+          "text": "Datos que utilizamos. Su fecha de registro, si su dirección de correo electrónico está confirmada, si ha indicado su fecha y su lugar de nacimiento, las fechas y el número de sus consultas completadas, cuándo inició sesión por última vez y el número de minutos gratuitos de su monedero. Un mensaje también puede mencionar algo que es cierto en el momento del envío, como cuántos asesores están en línea; puede haber cambiado cuando lo lea."
+        },
+        {
+          "type": "p",
+          "text": "Cómo los enviamos y con qué base jurídica. Los recordatorios en la aplicación y la lista forman parte de los Servicios y se basan en nuestro interés legítimo en ayudarle a utilizarlos (véase la [Sección 3](#legitimate-interests)). El recordatorio para confirmar su dirección de correo electrónico es un mensaje transaccional que incluye un nuevo enlace de confirmación (véase la [Sección 2.16](#email-address-verification)). Los recordatorios sobre su primera consulta, invitar a un amigo y volver son promocionales: solo se los enviamos por correo electrónico o push si ha activado «Novedades de marketing» en la [configuración de su cuenta](/profile/settings), y por push solo si las notificaciones push también están activadas. Puede desactivar «Novedades de marketing» en cualquier momento. Cada correo promocional muestra el nombre y la dirección postal de nuestra empresa y enlaza con su configuración de notificaciones."
+        },
+        {
+          "type": "p",
+          "text": "Límites. Le enviamos como máximo uno de estos mensajes cada 48 horas. Cada recordatorio se envía una sola vez, salvo el recordatorio para volver, que se envía como máximo una vez cada 30 días y no más de 3 veces después de su última consulta. No enviamos ninguno a cuentas restringidas por la comprobación de edad, cuentas en proceso de cierre, cuentas desactivadas o suspendidas, asesores ni administradores."
+        },
+        {
+          "type": "p",
+          "text": "Registros y medición. Por cada recordatorio guardamos un registro de qué recordatorio fue, cuándo se envió o se omitió (y por qué), los canales que intentamos y si completó una consulta durante el periodo de medición posterior (7 días, salvo que nuestro equipo fije otro periodo, de hasta 30 días). Este registro garantiza que un recordatorio nunca se envíe dos veces y nos permite ver, de forma agregada, si los recordatorios son útiles; nuestra consola de administración solo muestra totales y porcentajes. Si oculta la lista, registramos cuándo lo hizo. Estos registros se conservan mientras exista su cuenta; cuando se borra su cuenta, quedan vinculados únicamente a la cuenta anonimizada. También conservamos, para cada cliente, un resumen de sus consultas: la fecha de su primera y de su última consulta completada y cuántas ha tenido, lo que nos indica cuándo corresponde un recordatorio. Este resumen se elimina cuando se borra su cuenta. Los clics en la lista y en su botón «Ocultar» se miden como se describe en la [Sección 2.21](#feature-usage-measurement)."
+        },
+        {
+          "type": "h3",
+          "id": "free-calculators-and-search-pages",
+          "n": "2.19",
+          "title": "Calculadoras gratuitas y páginas de búsqueda"
+        },
+        {
+          "type": "p",
+          "text": "Carta natal. Nuestra calculadora gratuita de carta natal muestra la carta completa (rueda, posiciones, casas y aspectos) a todos los visitantes. Para calcularla, su fecha, hora y lugar de nacimiento se envían a nuestros servidores en el cuerpo de la solicitud, no en la dirección web. Solo se utilizan para calcular la carta y no se conservan, salvo que nos pida que le enviemos el informe por correo electrónico (véase la [Sección 2.14](#calculator-report-emails)). Cambiar el sistema de casas vuelve a enviar los mismos datos para recalcular la carta."
+        },
+        {
+          "type": "p",
+          "text": "Carta de nacimiento del tarot. La calculadora de la carta de nacimiento del tarot obtiene sus cartas en su navegador: la fecha de nacimiento que introduce no se nos envía ni se conserva."
+        },
+        {
+          "type": "p",
+          "text": "Páginas de búsqueda. Nuestras páginas sobre los números del camino de vida, las cartas de nacimiento del tarot y la compatibilidad zodiacal pueden leerse sin facilitar ningún dato personal. Cuando introduce una fecha de nacimiento en una página del camino de vida o de una carta de nacimiento del tarot, esta se pasa a la calculadora en la parte de la dirección web que sigue a «#», que los navegadores no envían a los servidores, a los registros ni a otros sitios web."
+        },
+        {
+          "type": "p",
+          "text": "Calculadora de compatibilidad. Para obtener los dos signos solares, la calculadora de compatibilidad envía a nuestros servidores cada una de las dos fechas de nacimiento que introduce (solo la fecha, sin nombre ni hora). Solo se utilizan para obtener los signos y no se conservan, y la página que se muestra a continuación solo nombra los dos signos. Puede introducir la fecha de nacimiento de otra persona: hágalo solo con su consentimiento. La utilizamos únicamente para obtener su signo, sobre la base de nuestro interés legítimo en ofrecer la herramienta que usted utiliza, y no la conservamos. Si una fecha cae en el límite entre dos signos, puede elegir el signo o abrir nuestra calculadora del signo zodiacal, que recibe la fecha en la parte de la dirección que sigue a «#»."
+        },
+        {
+          "type": "p",
+          "text": "Medición. Para estas calculadoras y páginas registramos el mismo tipo de eventos de uso que para nuestras otras calculadoras (que se inició o completó un cálculo, qué calculadora y si se inició desde una página de búsqueda), nunca las fechas que introduce (véanse la [Sección 2.10](#calculator-usage-measurement) y la [Sección 2.21](#feature-usage-measurement))."
+        },
+        {
+          "type": "h3",
+          "id": "share-images",
+          "n": "2.20",
+          "title": "Imágenes para compartir"
+        },
+        {
+          "type": "p",
+          "text": "En el resultado de una calculadora puede crear una imagen de su resultado para compartirla, en formato 9:16 y con la dirección staryield.net (por ejemplo, «Mi carta de nacimiento del tarot es La Estrella»). La imagen se dibuja en su dispositivo; no la recibimos ni la conservamos. Para dibujarla, su navegador carga las ilustraciones y nuestro logotipo desde nuestros servidores, como en cualquier otra página. La imagen solo muestra el resultado, como una carta, un número o sus signos, y nunca su fecha, hora o lugar de nacimiento ni su nombre."
+        },
+        {
+          "type": "p",
+          "text": "Cuando elige «Compartir», el menú para compartir de su dispositivo pasa la imagen, un texto breve y un enlace a la aplicación que elija (por ejemplo, una aplicación de mensajería o una red social), que los trata según sus propias condiciones y su propia política de privacidad. «Descargar imagen» guarda la imagen en su dispositivo y «Copiar enlace» copia el enlace. El enlace lleva a la página de la calculadora en su idioma y nunca contiene sus datos de nacimiento. Si ha iniciado sesión como cliente mientras el programa de referidos está en marcha, el enlace también contiene su código de invitación personal, para que un amigo que se registre desde él cuente como invitado ([Sección 2.17](#referral-program)). Qué comparte, y con quién, es decisión suya."
+        },
+        {
+          "type": "p",
+          "text": "Registramos que se abrió la ventana para compartir y, si compartió, el método (menú para compartir, descarga o copia del enlace) y la calculadora correspondiente (véase la [Sección 2.21](#feature-usage-measurement))."
+        },
+        {
+          "type": "h3",
+          "id": "feature-usage-measurement",
+          "n": "2.21",
+          "title": "Medición del uso de las funciones"
+        },
+        {
+          "type": "p",
+          "text": "Nuestra analítica propia (véase la [Sección 2.3](#data-we-collect-automatically)) también registra los siguientes eventos en su navegador:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "Botón de reserva: qué botón de asesor seleccionó (identificado por la dirección del perfil del asesor), el estado del asesor en ese momento, dónde estaba el botón en la página y qué hizo (iniciar un chat, registrarse, o unirse a una lista de espera o salir de ella).",
+            "Imágenes para compartir: que se abrió la ventana para compartir, para qué calculadora y, si compartió, el método.",
+            "Lista «Empezar»: qué paso seleccionó y que ocultó la lista.",
+            "Invitaciones: que se abrió un enlace de invitación y si se guardó su código (nunca el código en sí) y, cuando alguien copia o comparte su enlace, solo el método.",
+            "Calculadoras y páginas de búsqueda: que se inició o completó un cálculo, qué calculadora, si se inició desde una página de búsqueda y qué enlace a los asesores siguió desde una página de búsqueda (identificado por su posición en la página)."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Como nuestros demás eventos de analítica, cada evento se guarda con los identificadores aleatorios de navegador y de visita que figuran en [Cookies y tecnologías similares](#cookies), la ruta de la página (nunca la parte que sigue a «#»), la página de procedencia, su idioma, un hash de su dirección IP, el agente de usuario de su navegador y, si ha iniciado sesión, su cuenta. Ninguno de estos eventos contiene sus datos de nacimiento, el contenido de sus mensajes ni la identidad de un amigo al que haya invitado. Los utilizamos de forma agregada para entender qué funciones ayudan a los visitantes y a los clientes, sobre la base de nuestro interés legítimo y, cuando la ley lo exige, de su consentimiento. No se registra nada si su navegador envía una señal Do Not Track o Global Privacy Control, o si desactiva la analítica en sus [preferencias de privacidad](/profile/settings)."
+        },
+        {
+          "type": "h3",
+          "id": "email-delivery-records",
+          "n": "2.22",
+          "title": "Registros de entrega de correos"
+        },
+        {
+          "type": "p",
+          "text": "Por cada correo que enviamos, nuestra cola de envío guarda un registro de entrega: el tipo de correo y su categoría (por ejemplo, seguridad, cuenta o marketing), su idioma, un hash con clave de la dirección del destinatario, la cuenta a la que corresponde (si la hay), su estado, el número de intentos, y la respuesta del proveedor de correo y la referencia del mensaje. La dirección del destinatario y el contenido del correo se guardan cifrados, y solo hasta que el correo se ha enviado o ha fallado definitivamente. El registro de entrega se elimina 30 días después."
+        },
+        {
+          "type": "p",
+          "text": "Nuestros administradores pueden ver un resumen de entregas: para cada tipo de correo, cuántos se enviaron, están pendientes, fallaron o se cancelaron, y los problemas más recientes con el código de error del proveedor. Este resumen nunca muestra las direcciones de los destinatarios ni el contenido de los correos. Los administradores también pueden enviar un correo de prueba a la dirección que elijan para comprobar que el envío funciona; la prueba se envía al momento, no se guarda en nuestra cola de envío y nuestro registro de auditoría la anota con la dirección parcialmente oculta. Utilizamos estos registros, sobre la base de nuestro interés legítimo, para asegurarnos de que nuestros correos le lleguen y para detectar y corregir problemas de entrega."
         }
       ]
     },
@@ -496,6 +660,46 @@ const content: LegalDocumentContent = {
               "Interés legítimo (véase la descripción); Obligación legal cuando corresponda"
             ],
             [
+              "Confirmar que usted controla su dirección de correo electrónico y enviar un nuevo enlace de confirmación cuando usted o nuestro equipo lo pidan",
+              "Identificadores (dirección de correo electrónico); Registros de confirmación del correo electrónico; Datos del dispositivo y de ubicación (hash con clave de la dirección IP en los registros de auditoría)",
+              "Ejecución de un contrato con usted; Interés legítimo (seguridad de las cuentas, consulte la descripción)"
+            ],
+            [
+              "Gestionar el programa de invitaciones: crear los enlaces de invitación, reconocer las invitaciones, añadir los minutos gratuitos obtenidos e informar de ello a quien invita",
+              "Identificadores; Registros de invitación; Datos de actividad en línea (consultas completadas)",
+              "Ejecución de un contrato con usted (las reglas del programa)"
+            ],
+            [
+              "Controlar las invitaciones para prevenir abusos y revisar los registros retenidos",
+              "Registros de invitación; Datos del dispositivo y de ubicación (hashes con clave de direcciones IP); Datos de actividad en línea (identificador aleatorio del navegador, cuando la analítica está permitida)",
+              "Interés legítimo (consulte la descripción)"
+            ],
+            [
+              "Enviar recordatorios en la aplicación, mostrar la lista «Empezar» y medir de forma agregada si los recordatorios son útiles",
+              "Identificadores; Datos de registro y de perfil; Datos de actividad en línea (consultas, último inicio de sesión); Cuenta, dispositivos y preferencias; Registros de recordatorios",
+              "Interés legítimo (consulte la descripción)"
+            ],
+            [
+              "Enviar recordatorios promocionales por correo electrónico y push (primera consulta, invitar a un amigo, volver después de una pausa)",
+              "Identificadores; Cuenta, dispositivos y preferencias; Registros de recordatorios",
+              "Su consentimiento (Novedades de marketing)"
+            ],
+            [
+              "Obtener los signos en la calculadora de compatibilidad, también a partir de la fecha de nacimiento de otra persona que usted introduce",
+              "Datos de nacimiento (solo fechas de nacimiento, no se conservan)",
+              "Ejecución de un contrato con usted (la herramienta que utiliza); Interés legítimo (fecha de nacimiento de otra persona, consulte la descripción)"
+            ],
+            [
+              "Medir el uso del botón de reserva, las imágenes para compartir, la lista «Empezar» y los enlaces de invitación",
+              "Datos de actividad en línea; Cookies y tecnologías similares",
+              "Interés legítimo (consulte la descripción); Su consentimiento para la analítica cuando la ley lo exija"
+            ],
+            [
+              "Conservar los registros de entrega de nuestros correos, mostrar a nuestro equipo un resumen de entregas y enviar correos de prueba",
+              "Identificadores (hash con clave de la dirección de correo electrónico); Registros de entrega de correos",
+              "Interés legítimo (consulte la descripción)"
+            ],
+            [
               "Conservar la prueba de las condiciones aceptadas en cada compra y responder a las disputas de pago y a las devoluciones de cargo",
               "Registro de consentimiento de la compra; Registros de facturación y lotes de créditos; Datos del método de pago y normas de las redes de tarjetas",
               "Interés legítimo (consulte la descripción)"
@@ -544,6 +748,30 @@ const content: LegalDocumentContent = {
           "text": "Cuando mostramos el widget de opiniones de Trustpilot: permitir que las personas lean y dejen opiniones independientes sobre los Servicios. El widget solo se carga cuando aparece en pantalla y nunca cuando su navegador envía una señal Global Privacy Control o Do Not Track; siempre puede usar el enlace sencillo en su lugar."
         },
         {
+          "type": "p",
+          "text": "Al confirmar direcciones de correo electrónico: para asegurarnos de que los recibos, las alertas de seguridad y los avisos de la cuenta lleguen a la persona titular de la cuenta, dificultar el uso de una dirección que pertenece a otra persona y conservar constancia de los enlaces que envía nuestro equipo."
+        },
+        {
+          "type": "p",
+          "text": "Al controlar las invitaciones para prevenir abusos: para recompensar solo las invitaciones auténticas y proteger el programa de invitaciones frente a las autoinvitaciones, las cuentas múltiples o falsas y los registros automatizados. Los controles utilizan hashes con clave e identificadores aleatorios, nunca nombres, direcciones de correo electrónico ni mensajes, y un registro que parece sospechoso queda retenido para que una persona de nuestro equipo lo revise."
+        },
+        {
+          "type": "p",
+          "text": "Al enviar recordatorios en la aplicación y mostrar la lista «Empezar»: para ayudar a los nuevos clientes a ver el siguiente paso útil y a los clientes que vuelven a orientarse, limitando la frecuencia con la que escribimos (como máximo un recordatorio cada 48 horas) y midiendo solo de forma agregada si los recordatorios son útiles."
+        },
+        {
+          "type": "p",
+          "text": "Al obtener un signo a partir de la fecha de nacimiento de otra persona: para ofrecer la herramienta de compatibilidad que usted utiliza. Solo usamos la fecha para ese cálculo, no la conservamos y le pedimos que solo la introduzca con el consentimiento de esa persona."
+        },
+        {
+          "type": "p",
+          "text": "Al medir el uso del botón de reserva, las imágenes para compartir, la lista y los enlaces de invitación: para entender qué funciones ayudan a los visitantes a encontrar un asesor y cuáles no, mediante eventos seudonimizados e informes agregados."
+        },
+        {
+          "type": "p",
+          "text": "Al conservar los registros de entrega de correos: para asegurarnos de que nuestros correos le lleguen, detectar y corregir problemas de entrega y dejar de escribir a direcciones que rebotan."
+        },
+        {
           "type": "h3",
           "id": "automated-decisions",
           "title": "Información importante"
@@ -575,7 +803,7 @@ const content: LegalDocumentContent = {
           "type": "ul",
           "items": [
             "Alojamiento, almacenamiento y distribución: utilizamos Cloudflare para alojar nuestro sitio web, almacenar las imágenes subidas y las exportaciones de datos en el almacenamiento de objetos Cloudflare R2, distribuir el contenido y proteger los Servicios frente a ataques malintencionados. Nuestros servidores de aplicaciones y bases de datos funcionan en Railway.",
-            "Envío de correos electrónicos: utilizamos Cloudflare Email Service para enviar correos transaccionales, como mensajes de seguridad de la cuenta, recibos con sus facturas, los informes de las calculadoras que solicita y notificaciones de exportación de datos. No lo utilizamos para enviar correos comerciales.",
+            "Envío de correos electrónicos: utilizamos Cloudflare Email Service para enviar correos transaccionales, como mensajes de seguridad de la cuenta, recibos con sus facturas, los informes de las calculadoras que solicita y notificaciones de exportación de datos. No lo utilizamos para enviar correos comerciales. También envía el enlace para confirmar su dirección de correo electrónico y el correo que le avisa de que se han añadido minutos por invitación a su monedero.",
             "Envío de correos comerciales: si elige recibir correos comerciales (véase la [Sección 2.15](#marketing-emails)), su dirección de correo electrónico, idioma y país se entregan al proveedor de correo electrónico que los envía por nuestra cuenta.",
             "Notificaciones push: si activa las notificaciones push, se entregan a través del servicio push de su navegador (por ejemplo, Google, Mozilla, Apple o Microsoft). El contenido de cada notificación está cifrado para que el servicio push no pueda leerlo.",
             "Procesamiento de pagos: los pagos con tarjeta de créditos los procesa Stripe (Stripe, Inc. y sus filiales). Usted introduce los datos de su tarjeta directamente en Stripe, también cuando usa Apple Pay o Google Pay, por lo que nunca vemos el número completo de su tarjeta ni su código de seguridad. Enviamos a Stripe su correo electrónico, su nombre, el importe y la moneda, y una referencia de su compra. Mientras paga, Stripe.js, que se carga en su navegador desde js.stripe.com, recoge además datos del dispositivo y de la red (como su dirección IP, datos de su navegador y de su dispositivo y cómo interactúa con el formulario de pago) para prevenir el fraude. Stripe trata estos datos como nuestro proveedor de servicios y, para prevenir el fraude y cumplir sus propias obligaciones legales, como responsable del tratamiento independiente; consulte la política de privacidad de Stripe en https://stripe.com/privacy. Si encaminamos un pago a otro procesador de tarjetas, ese procesador recibe los mismos tipos de datos conforme a su propia política de privacidad. Los retiros de los asesores se pagan mediante transferencia bancaria o PayPal.",
@@ -681,7 +909,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Para retirar su consentimiento a la analítica, a la atribución de marketing o a la personalización, o para dejar de compartir su ciudad de nacimiento con los asesores, utilice Preferencias de privacidad en la [configuración de su cuenta](/profile/settings). Para dejar de recibir comunicaciones comerciales, utilice el enlace «Cancelar suscripción» del mensaje, desactive Novedades comerciales en la configuración de su cuenta o envíe su solicitud mediante este [formulario de solicitud](/contact?topic=privacy)."
+          "text": "Para retirar su consentimiento a la analítica, a la atribución de marketing o a la personalización, o para dejar de compartir su ciudad de nacimiento con los asesores, utilice Preferencias de privacidad en la [configuración de su cuenta](/profile/settings). Para dejar de recibir comunicaciones comerciales, utilice el enlace «Cancelar suscripción» del mensaje, desactive Novedades comerciales en la configuración de su cuenta o envíe su solicitud mediante este [formulario de solicitud](/contact?topic=privacy). Desactivar «Novedades de marketing» también detiene los recordatorios promocionales por correo electrónico y push (véase la [Sección 2.18](#lifecycle-messages))."
         },
         {
           "type": "h4",
@@ -694,7 +922,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Puede descargar una copia de sus datos personales en cualquier momento en la [configuración de su cuenta](/profile/settings), en Datos y privacidad. Preparamos un archivo ZIP con su cuenta y su perfil, sus preferencias y consentimientos, los dispositivos con sesión iniciada, sus métodos de inicio de sesión (por ejemplo, el correo electrónico de una cuenta de Google vinculada), sus compras y sus transacciones, su historial de créditos, sus conversaciones (con las respuestas y los «Me gusta», y las respuestas del asesor que se le ocultaron durante una espera) y las imágenes que subió, sus mensajes guardados, sus notificaciones y sus valoraciones. Cuando está listo, se lo notificamos en la aplicación y por correo electrónico; el enlace de descarga solo puede utilizarse una vez y el archivo se elimina a los 7 días. Las notas que los asesores escribieron sobre usted no forman parte de esta exportación porque contienen las observaciones propias de los asesores; puede solicitarlas mediante este [formulario de solicitud](/contact?topic=privacy) y nuestro personal se las facilitará tras revisar su solicitud."
+          "text": "Puede descargar una copia de sus datos personales en cualquier momento en la [configuración de su cuenta](/profile/settings), en Datos y privacidad. Preparamos un archivo ZIP con su cuenta y su perfil, sus preferencias y consentimientos, los dispositivos con sesión iniciada, sus métodos de inicio de sesión (por ejemplo, el correo electrónico de una cuenta de Google vinculada), sus compras y sus transacciones, su historial de créditos, sus conversaciones (con las respuestas y los «Me gusta», y las respuestas del asesor que se le ocultaron durante una espera) y las imágenes que subió, sus mensajes guardados, sus notificaciones y sus valoraciones. Cuando está listo, se lo notificamos en la aplicación y por correo electrónico; el enlace de descarga solo puede utilizarse una vez y el archivo se elimina a los 7 días. Las notas que los asesores escribieron sobre usted no forman parte de esta exportación porque contienen las observaciones propias de los asesores; puede solicitarlas mediante este [formulario de solicitud](/contact?topic=privacy) y nuestro personal se las facilitará tras revisar su solicitud. La exportación también incluye un archivo con su código de invitación y los totales de sus invitaciones (referrals.json), que nunca muestra quién le invitó ni a quién invitó usted. También incluye un archivo con los registros de los recordatorios que le enviamos (lifecycle-messages.json), y el archivo de su cuenta (account.json) indica cuándo ocultó la lista «Empezar»."
         },
         {
           "type": "h4",
@@ -807,6 +1035,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Las solicitudes de soporte y sus mensajes se eliminan 24 meses después de cerrarse la solicitud. Los registros de uso de las calculadoras, con su identificador aleatorio de navegador y los datos de campaña de la primera visita, se eliminan a los 25 meses. Los borradores de chat permanecen en tu dispositivo hasta 7 días."
+        },
+        {
+          "type": "p",
+          "text": "Confirmación del correo electrónico, invitaciones, recordatorios y registros de entrega. Los registros de los enlaces de confirmación del correo se eliminan aproximadamente un día después de que caduque el enlace; la fecha en que se confirmó su dirección se conserva mientras exista su cuenta. Los códigos y registros de invitación se conservan mientras exista la cuenta de quien invita; cuando se borra la cuenta de un amigo invitado, se elimina una invitación no completada y una ya resuelta se conserva sin ningún vínculo con el amigo (véase la [Sección 2.17](#referral-program)). Los registros de recordatorios se conservan mientras exista su cuenta (véase la [Sección 2.18](#lifecycle-messages)). Los registros de entrega de correos se eliminan 30 días después de que el correo se enviara o fallara definitivamente. Las fechas de nacimiento que introduce en las calculadoras de la carta de nacimiento del tarot y de compatibilidad no se conservan, y el código de invitación guardado en su navegador se elimina a los 30 días o cuando se registra."
         }
       ]
     },
@@ -1117,12 +1349,37 @@ const content: LegalDocumentContent = {
               "Recuerda la campaña que le trajo (parámetros UTM y código del clic)",
               "30 días",
               "Atribución de marketing"
+            ],
+            [
+              "staryield.referral",
+              "Almacenamiento local",
+              "Guarda el código de invitación del enlace que le trajo, y el momento en que lo abrió por primera vez, para que se pueda reconocer al amigo que le invitó si se registra; se elimina cuando se registra",
+              "Hasta 30 días",
+              "Invitaciones"
+            ],
+            [
+              "staryield.referral.welcome-dismissed",
+              "Almacenamiento de sesión",
+              "Recuerda que cerró el aviso «Un amigo te invitó a Staryield»",
+              "Hasta que cierre la pestaña",
+              "Esencial"
+            ],
+            [
+              "staryield.booking.intent",
+              "Almacenamiento de sesión",
+              "Recuerda que pidió unirse a la lista de espera de un asesor antes de tener una cuenta, para que se le pueda añadir a ella después de registrarse",
+              "Hasta 1 hora, o hasta que cierre la pestaña",
+              "Esencial"
             ]
           ]
         },
         {
           "type": "p",
           "text": "El personal que utiliza nuestra consola de administración recibe además una cookie de seguridad independiente (sy_adm) que solo es válida en ese sitio. El widget de opiniones de Trustpilot (véase la [Sección 4](#how-we-share-your-personal-data)) se ejecuta en el marco propio de Trustpilot; cualquier almacenamiento que utilice allí depende de Trustpilot y no de esta tabla."
+        },
+        {
+          "type": "p",
+          "text": "El elemento de invitación (staryield.referral) se guarda tanto si la analítica está permitida como si no, porque es necesario para reconocer al amigo que le invitó si se registra. Solo contiene el código de invitación y el momento en que abrió el enlace por primera vez, no se utiliza para la analítica y puede eliminarlo en cualquier momento borrando los datos del sitio en su navegador."
         }
       ]
     },
@@ -1133,7 +1390,7 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "Los Servicios pueden contener enlaces a otros sitios web o aplicaciones y otros sitios web o aplicaciones pueden hacer referencia o vincularse a nuestros Servicios. Estos servicios de terceros no están controlados por nosotros. Alentamos a nuestros usuarios a leer las políticas de privacidad de cada sitio web y aplicación con la que interactúan. No respaldamos, examinamos ni aprobamos, y no somos responsables de, las prácticas de privacidad o el contenido de dichos otros sitios web o aplicaciones. Visitar estos otros sitios web o aplicaciones es bajo su propia responsabilidad. Esto incluye a Google (Estados Unidos), si decide iniciar sesión con su cuenta de Google, y a Trustpilot (Dinamarca), si sigue nuestro enlace de opiniones al sitio web de Trustpilot o escribe allí una opinión."
+          "text": "Los Servicios pueden contener enlaces a otros sitios web o aplicaciones y otros sitios web o aplicaciones pueden hacer referencia o vincularse a nuestros Servicios. Estos servicios de terceros no están controlados por nosotros. Alentamos a nuestros usuarios a leer las políticas de privacidad de cada sitio web y aplicación con la que interactúan. No respaldamos, examinamos ni aprobamos, y no somos responsables de, las prácticas de privacidad o el contenido de dichos otros sitios web o aplicaciones. Visitar estos otros sitios web o aplicaciones es bajo su propia responsabilidad. Esto incluye a Google (Estados Unidos), si decide iniciar sesión con su cuenta de Google, y a Trustpilot (Dinamarca), si sigue nuestro enlace de opiniones al sitio web de Trustpilot o escribe allí una opinión. Las imágenes, los textos y los enlaces que comparte mediante el menú para compartir de su dispositivo llegan a la aplicación o al servicio que elija, que los trata según sus propias condiciones y su propia política de privacidad."
         }
       ]
     },

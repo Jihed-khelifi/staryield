@@ -9,6 +9,53 @@ const imgDividerHorizontal = `${assetPathPrefix}/27235.svg`;
 const imgDividerHorizontal1 = `${assetPathPrefix}/ea213.svg`;
 export default function ScreenDesktopLegalDisclaimer() {
   const { text } = useI18n();
+  /* Free calculators, guide pages, shared result images and informational
+     messages (growth release). Each clause has a stable anchor, e.g.
+     /en/disclaimer#zodiac-compatibility; keep the ids when the copy changes. */
+  const freeToolClauses = [
+    {
+      id: "natal-chart",
+      label: text("Natal chart."),
+      body: text(
+        "Our natal chart calculator shows the full chart free of charge: the wheel, the planets, the houses, the aspects and their interpretations. The positions are calculated by our own software from the birth date, time and place you enter. The rising sign and the houses need both a birth time and a birthplace, and without a birth time some placements, such as the Moon’s sign, may be uncertain. Another house system or another website may give different results. The interpretations describe what Western astrology traditionally associates with each placement. They are symbolic: they are not statements of fact about you, and they do not predict events.",
+      ),
+    },
+    {
+      id: "tarot-birth-cards",
+      label: text("Tarot birth cards."),
+      body: text(
+        "Our tarot birth card calculator and pages use the method described by the tarot author Mary K. Greer: the numbers of a birth date are added together to point to one, two or three of the 22 Major Arcana cards (the personality card, the soul card and, for some dates, a card in between; when there is only one, it is both), numbered as in the Rider–Waite–Smith deck and presented with their Golden Dawn attributions. The result depends on the birth date alone. A birth card is a symbol for reflection: it tells you what this tradition associates with a card, not who you are or what will happen to you.",
+      ),
+    },
+    {
+      id: "life-path-numbers",
+      label: text("Life path numbers."),
+      body: text(
+        "Our life path number calculator and pages follow Pythagorean numerology, which reduces a birth date to a number from 1 to 9 or to one of the master numbers 11, 22 and 33. The traits, strengths, challenges and traditionally compatible numbers we describe are what this tradition associates with each number. They are symbolic and are not an assessment of your personality, abilities or future.",
+      ),
+    },
+    {
+      id: "zodiac-compatibility",
+      label: text("Zodiac compatibility."),
+      body: text(
+        "Our zodiac compatibility pages and calculator compare two sun signs only. The love, friendship and work scores they show are produced by a fixed rule from the angle between the two signs, their elements, their modalities and their ruling planets, so the same two signs always get the same scores. They are a traditional-astrology heuristic, not a measurement: they are not based on data about real couples, and they cannot tell whether a romantic relationship, a friendship or a working relationship will work. They are not relationship advice, and decisions about your relationships are yours alone.",
+      ),
+    },
+    {
+      id: "sharing-results-and-invitations",
+      label: text("Sharing results and invitations."),
+      body: text(
+        "You can save or share the result of our natal chart, life path number, zodiac sign and tarot birth card calculators as an image. The image shows a result our software worked out from the birth details entered; it is not a prediction, a reading by an advisor or advice, and like the result itself it is for entertainment purposes only. When you share an image or your invite link, you are responsible for what you write and post with it, and you must not promise predictions or outcomes or make other misleading claims about Staryield. We are not responsible for what users write or post when they share an image or a link. Inviting friends and earning free minutes do not change the nature of readings, which remain for entertainment purposes only.",
+      ),
+    },
+    {
+      id: "informational-messages",
+      label: text("Informational messages."),
+      body: text(
+        "Some of our messages and notifications are informational: for example, they say how many advisors are online now, that an advisor you are waiting for is online, that you have free minutes to use or that your daily horoscope is ready. Figures and statuses in these messages describe the moment the message was sent. Advisors can go offline or start another reading, and your balance and our offers can change before you read it, so a message does not guarantee that an advisor will be available or that an offer will still apply. These messages are not readings or predictions.",
+      ),
+    },
+  ];
   return (
     <div
       className="figma-content flex w-full flex-col items-center bg-cream"
@@ -58,7 +105,7 @@ export default function ScreenDesktopLegalDisclaimer() {
         data-name="Container / Legal Content Container"
       >
         <div
-          className="border border-[#aa9063] border-solid content-stretch drop-shadow-[0px_12px_16px_rgba(0,0,0,0.04)] flex flex-col gap-[28px] h-[1440px] items-start pb-[48px] pt-[81px] px-[48px] relative rounded-[12px] shrink-0 w-[1000px]"
+          className="border border-[#aa9063] border-solid content-stretch drop-shadow-[0px_12px_16px_rgba(0,0,0,0.04)] flex flex-col gap-[28px] min-h-[1440px] items-start pb-[48px] pt-[81px] px-[48px] relative rounded-[12px] shrink-0 w-[1000px]"
           data-node-id="796:2324"
           data-name="Media / Legal Content Container"
         >
@@ -158,6 +205,54 @@ export default function ScreenDesktopLegalDisclaimer() {
               `The Company's responsibility and liability relating to your use of the Services and your interactions with advisors (psychics) is limited by the terms and conditions of the Terms.`,
             )}
           </p>
+          <div
+            className="h-0 relative shrink-0 w-full"
+            data-name="Divider / Horizontal"
+          >
+            <div className="absolute inset-[-1px_0_0_0]">
+              <img
+                alt=""
+                className="block max-w-none size-full"
+                src={imgDividerHorizontal1}
+              />
+            </div>
+          </div>
+          <section
+            id="free-tools-shared-results-and-messages"
+            aria-labelledby="free-tools-shared-results-and-messages-title"
+            className="content-stretch flex flex-col gap-[28px] items-start relative scroll-mt-28 shrink-0 w-full"
+            data-name="Section / Free Tools And Messages"
+          >
+            <h2
+              id="free-tools-shared-results-and-messages-title"
+              className="[word-break:break-word] font-serif font-semibold leading-[1.6] relative shrink-0 text-[#1a1612] text-[18px] w-full"
+            >
+              {text("Free Calculators, Guides, Shared Results and Messages")}
+            </h2>
+            <p className="[word-break:break-word] font-serif font-light leading-[1.6] relative shrink-0 text-[#2d241e] text-[17px] w-full">
+              {text(
+                "This section applies to our free natal chart, life path number, zodiac sign, tarot birth card and zodiac compatibility calculators, to our guide pages about life path numbers, tarot birth cards and zodiac sign pairings, to the result images you can save and share, and to the informational messages we send you. The rest of this Disclaimer applies to them as well. ",
+              )}
+              <span className="font-serif font-medium">
+                {text(
+                  "Like the rest of the Services, they are provided for entertainment purposes only. ",
+                )}
+              </span>
+              {text(
+                "They are symbolic or informational, they are not predictions, and nothing in them is medical, psychological, legal, financial, relationship or any other form of professional advice.",
+              )}
+            </p>
+            {freeToolClauses.map((clause) => (
+              <p
+                key={clause.id}
+                id={clause.id}
+                className="[word-break:break-word] font-serif font-light leading-[1.6] relative scroll-mt-28 shrink-0 text-[#2d241e] text-[17px] w-full"
+              >
+                <span className="font-serif font-medium">{clause.label}</span>{" "}
+                {clause.body}
+              </p>
+            ))}
+          </section>
           <div
             className="content-stretch flex items-start justify-center pt-[12px] relative shrink-0 w-full"
             data-node-id="796:2333"

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type * as React from "react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ApiError } from "@/lib/api/errors";
@@ -16,6 +16,13 @@ vi.mock("next/link", () => ({
     <a href={href} {...rest}>
       {children}
     </a>
+  ),
+}));
+vi.mock("@/components/booking/advisor-strip", () => ({
+  AdvisorStrip: ({ heading, placement }: { heading: string; placement: string }) => (
+    <section data-testid="advisor-strip-stub" data-placement={placement}>
+      <h3>{heading}</h3>
+    </section>
   ),
 }));
 vi.mock("@/lib/api/astrology", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/api/astrology")>()), browserTimeZone: () => "Europe/Paris" }));
@@ -65,6 +72,17 @@ describe("ReportEmailDialog: the form", () => {
     expect(submit().textContent).toBe("Send my report");
     expect(screen.getByRole("link", { name: "Privacy Policy" }).getAttribute("href")).toBe("/en/privacy");
     expect(screen.getByRole("button", { name: "No thanks" })).toBeTruthy();
+  });
+
+  it("the footnote says the e-mail is used for news and offers only if the box is ticked", () => {
+    setup();
+    const note = screen.getByRole("link", { name: "Privacy Policy" }).closest("p")!;
+    expect(note.textContent).toBe(
+      "We use your e-mail address to send this report and, only if the box above is ticked, to send you news and offers. We keep your birth details only until the report is sent. Privacy Policy",
+    );
+    expect(note.textContent).not.toContain("only to send this report");
+    // the consent evidence is untouched
+    expect(screen.getByText("Send me horoscopes, offers and news from Staryield by e-mail. You can unsubscribe at any time.")).toBeTruthy();
   });
 
   it("starts with the box ticked only when the API said so (pre-ticked countries)", () => {
@@ -145,6 +163,33 @@ describe("ReportEmailDialog: sending", () => {
     expect(onSent).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("report-email-success").textContent).toContain("check your spam folder");
     expect(screen.queryByTestId("report-email-form")).toBeNull();
+  });
+
+  it("offers a next step after sending: advisors, and a free account to a signed-out visitor", async () => {
+    window.history.pushState({}, "", "/en/calculators/natal-chart");
+    const u = userEvent.setup();
+    setup();
+    expect(screen.queryByTestId("advisor-strip-stub")).toBeNull();
+    await u.type(email(), "jane@example.com");
+    await u.click(submit());
+    const success = await screen.findByTestId("report-email-success");
+    const strip = within(success).getByTestId("advisor-strip-stub");
+    expect(strip.getAttribute("data-placement")).toBe("report_success");
+    expect(within(strip).getByRole("heading", { name: "Ask an advisor about your results" })).toBeTruthy();
+    expect(within(success).getByRole("link", { name: "Create a free account" }).getAttribute("href")).toBe(
+      "/en/signup?next=%2Fen%2Fcalculators%2Fnatal-chart",
+    );
+    expect(within(success).getByTestId("report-email-close")).toBeTruthy();
+  });
+
+  it("offers no sign-up link to a signed-in visitor, but still the advisors", async () => {
+    session.current = { status: "authenticated", user: { email: "me@example.com" } };
+    const u = userEvent.setup();
+    setup();
+    await u.click(submit());
+    const success = await screen.findByTestId("report-email-success");
+    expect(within(success).getByTestId("advisor-strip-stub")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Create a free account" })).toBeNull();
   });
 
   it("closes from the success state", async () => {

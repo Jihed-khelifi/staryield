@@ -227,9 +227,13 @@ func TestReportEmailQueuesTheReportAndKeepsNoBirthDetails(t *testing.T) {
 			t.Errorf("natal report lacks %q", want)
 		}
 	}
-	if !strings.Contains(natal.Text, "http://localhost:3000/en/calculators/natal-chart#v=1&d=1990-03-14&t=08%3A45&p=gn%3A2988507&h=whole_sign") &&
-		!strings.Contains(natal.Text, "/en/calculators/natal-chart#v=1&d=1990-03-14&t=08%3A45&p=gn%3A2988507&h=whole_sign") {
-		t.Fatalf("natal report has no link that reopens the result:\n%s", natal.Text)
+	// The links back to the site carry the UTM tags (before the fragment, which keeps the visitor's input); unsubscribe never does.
+	const tags = "?utm_source=staryield&utm_medium=email&utm_campaign=calculator_report&utm_content=natal-chart"
+	if !strings.Contains(natal.Text, "/en/calculators/natal-chart"+tags+"#v=1&d=1990-03-14&t=08%3A45&p=gn%3A2988507&h=whole_sign") {
+		t.Fatalf("natal report has no tagged link that reopens the result:\n%s", natal.Text)
+	}
+	if !strings.Contains(natal.Text, "/en"+tags+"#psychics") {
+		t.Fatalf("natal report has no tagged advisors link:\n%s", natal.Text)
 	}
 	if sun := bySubject["Your Staryield astrology report"]; !strings.Contains(sun.Text, "Your zodiac") || !strings.Contains(sun.Text, "Virgo") || !strings.Contains(sun.Text, "Mercury") {
 		t.Fatalf("astrology report:\n%s", sun.Text)

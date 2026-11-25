@@ -99,3 +99,15 @@ func AccountClosed(locale string) Content {
 		Note: t("Thank you for the time you spent with us."),
 	}
 }
+
+// MailTest is the admin console's test e-mail (growth: e-mail delivery): it
+// proves the provider delivers to a real inbox.
+func MailTest(locale string) Content {
+	t := tr(localeOf(locale))
+	return Content{
+		Subject:    t("Staryield test e-mail"),
+		Preheader:  t("E-mail delivery works."),
+		Heading:    t("E-mail delivery works"),
+		Paragraphs: []string{t("This test e-mail was sent from the Staryield admin console. If you can read it, the e-mail provider delivers to this inbox.")},
+	}
+}

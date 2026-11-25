@@ -197,7 +197,7 @@ func (c *Cloudflare) Send(ctx context.Context, m Message) (Result, error) {
 		se.Reason = shortReason(parsed.Errors[0].Message)
 	}
 	switch {
-	case res.StatusCode == http.StatusTooManyRequests || se.Code == 10004:
+	case res.StatusCode == http.StatusTooManyRequests || se.Code == cfThrottled:
 		se.Retryable = true
 		se.RetryAfter = retryAfter(res.Header.Get("Retry-After"))
 	case res.StatusCode >= 500:
@@ -205,8 +205,65 @@ func (c *Cloudflare) Send(ctx context.Context, m Message) (Result, error) {
 	case res.StatusCode >= 200 && res.StatusCode < 300:
 		// 2xx without success: treat as a transient provider error.
 		se.Retryable = true
+	default:
+		if hint, ok := cfConfigHint(res.StatusCode, se.Code); ok {
+			// The account, token or plan needs the operator: retrying with the
+			// usual backoff delivers the message once it is fixed, instead of
+			// losing every e-mail sent meanwhile.
+			se.Retryable, se.Config, se.Hint = true, true, hint
+		}
 	}
 	return Result{}, se
+}
+
+// Cloudflare Email Sending error codes
+// (https://developers.cloudflare.com/email-service/api/send-emails/rest-api/).
+const (
+	cfNotFound                = 10000
+	cfThrottled               = 10004
+	cfUnauthorized            = 10101
+	cfForbidden               = 10102
+	cfBadTokenType            = 10103
+	cfNotEntitled             = 10105
+	cfSendingDisabled         = 10203
+	cfAccountSuspended        = 10207
+	cfRecipientPlanRestricted = 10208
+)
+
+// ConfigHint returns the operator hint of a Cloudflare Email Sending failure
+// recorded with its HTTP status and error code (the outbox keeps them in
+// last_error), and whether it is an account or configuration problem.
+func ConfigHint(status, code int) (string, bool) { return cfConfigHint(status, code) }
+
+// cfConfigHint classifies the failures that come from the provider account
+// (credentials, entitlement, plan, sending domain) rather than from the
+// message, with what the operator should check.
+func cfConfigHint(status, code int) (string, bool) {
+	switch code {
+	case cfRecipientPlanRestricted:
+		return "Cloudflare only delivers to verified destination addresses on the Workers Free plan: upgrade the account to Workers Paid (or verify the recipient for tests)", true
+	case cfUnauthorized, cfBadTokenType:
+		return "check STARYIELD_MAIL_CLOUDFLARE_API_TOKEN: it must be an API token with the Email Sending: Send permission", true
+	case cfForbidden:
+		return "the API token is not allowed to send for this account or sender domain: check its permissions and STARYIELD_MAIL_FROM", true
+	case cfNotEntitled:
+		return "Email Sending is not enabled for this Cloudflare account", true
+	case cfSendingDisabled:
+		return "sending is disabled for this account or sender domain: check the Email Sending dashboard and the domain onboarding of STARYIELD_MAIL_FROM", true
+	case cfAccountSuspended:
+		return "the Cloudflare account is suspended from sending", true
+	case cfNotFound:
+		return "check STARYIELD_MAIL_CLOUDFLARE_ACCOUNT_ID", true
+	}
+	switch status {
+	case http.StatusUnauthorized:
+		return "check STARYIELD_MAIL_CLOUDFLARE_API_TOKEN", true
+	case http.StatusForbidden:
+		return "the provider refused the account or sender: check the Email Sending dashboard", true
+	case http.StatusNotFound:
+		return "check STARYIELD_MAIL_CLOUDFLARE_ACCOUNT_ID and STARYIELD_MAIL_CLOUDFLARE_BASE_URL", true
+	}
+	return "", false
 }
 
 // encodeAttachments base64-encodes the attachments; false when the whole

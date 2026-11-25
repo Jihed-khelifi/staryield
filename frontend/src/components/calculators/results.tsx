@@ -5,8 +5,8 @@ import Link from "next/link";
 import { LockKeyhole, Mail } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
-import type { NatalResult, SunSignResult } from "@/lib/api/astrology";
-import { useSession } from "@/lib/auth/session-provider";
+import type { HouseSystem, NatalResult, SunSignResult } from "@/lib/api/astrology";
+import type { ApiError } from "@/lib/api/errors";
 import { usePsychicsHref } from "@/lib/psychics-link";
 import { formatDateParts, romanNumeral } from "@/lib/calculators";
 import { LIFE_PATH_COPY, NUMBER_CARDS } from "@/lib/astro/life-path-copy";
@@ -14,10 +14,15 @@ import { HOUSE_SYSTEM_NAMES } from "@/lib/astro/report-labels";
 import { lifePathSteps } from "@/lib/astro/report-steps";
 import { SIGN_FACTS, SIGN_INSIGHT, isSign } from "@/lib/astro/zodiac";
 import { birthDateOf, type CalculatorFormValues, type CalculatorKind } from "@/lib/schemas/calculator";
+import { natalHeadline, sunCuspOf } from "@/lib/share/card-spec";
 import { BIRTH_DATA_NOTICE } from "@/components/calculators/birth-data-notice";
-import type { LifePathResult } from "@/components/calculators/calculate";
+import { lifePathResult, type LifePathResult } from "@/components/calculators/calculate";
 import { SpreadCardList, TarotSpread } from "@/components/calculators/tarot-spread";
 import { ZodiacWheel } from "@/components/astrology/ZodiacWheel";
+import { ChartExplorer } from "@/components/astrology/chart-explorer/chart-explorer";
+import { NumbersSummary } from "@/components/astrology/chart-explorer/numbers-summary";
+import { ShareResultButton, useShareResult } from "@/components/calculators/share-result";
+import { AdvisorStrip } from "@/components/booking/advisor-strip";
 import { cn } from "@/lib/utils";
 
 const WALL_TIME_NOTES: Record<string, string> = {
@@ -33,8 +38,11 @@ export function ResultDate({
   onChange,
   sample = false,
   onEmail,
+  title,
 }: {
   values: CalculatorFormValues;
+  /** The page's h1 (defaults to "Natal alignment calculated for:"). */
+  title?: string;
   details?: React.ReactNode;
   onChange: () => void;
   sample?: boolean;
@@ -42,21 +50,28 @@ export function ResultDate({
   onEmail?: () => void;
 }) {
   const { text } = useI18n();
+  // "Share your result" when the result view offers it (not on the sample, not before the result).
+  const share = useShareResult();
   return (
     <section className="flex flex-col items-center gap-6 border-b border-[rgb(186_175_157/0.4)] bg-cream px-5 py-10 text-center md:px-20 md:py-16">
       <h1 tabIndex={-1} id="calculator-result-title" className="font-display text-[24px] tracking-[1.28px] uppercase outline-none md:text-[32px]">
-        {text("Natal alignment calculated for:")}
+        {title ?? text("Natal alignment calculated for:")}
       </h1>
       <button type="button" className="calc-date-button" onClick={onChange} data-testid="change-birth-date">
         <span aria-hidden="true">{formatDateParts(birthDateOf(values.birth))}</span>
         <span className="sr-only">{text("Change birth date ({value0})", { value0: formatDateParts(birthDateOf(values.birth)) })}</span>
       </button>
       {details ? <div className="-mt-2 text-sm font-light">{details}</div> : null}
-      {onEmail ? (
-        <button type="button" className="calc-email-button" onClick={onEmail} data-testid="email-report-button">
-          <Mail aria-hidden className="size-4" />
-          {text("E-mail me this report")}
-        </button>
+      {onEmail || share ? (
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {onEmail ? (
+            <button type="button" className="calc-email-button" onClick={onEmail} data-testid="email-report-button">
+              <Mail aria-hidden className="size-4" />
+              {text("E-mail me this report")}
+            </button>
+          ) : null}
+          <ShareResultButton />
+        </div>
       ) : null}
       {sample ? (
         <p className="text-xs text-[var(--muted-ink)]">{text("Sample date from the design. Change the birth date to calculate your own result.")}</p>
@@ -65,7 +80,7 @@ export function ResultDate({
   );
 }
 
-function Lock({ children }: { children: React.ReactNode }) {
+export function Lock({ children }: { children: React.ReactNode }) {
   return (
     <p className="flex items-center justify-center gap-1.5 text-center text-xs text-[var(--muted-ink)]">
       <LockKeyhole aria-hidden className="size-3 shrink-0" />
@@ -74,7 +89,7 @@ function Lock({ children }: { children: React.ReactNode }) {
   );
 }
 
-function StarHeading({ children, size = "md" }: { children: React.ReactNode; size?: "md" | "lg" }) {
+export function StarHeading({ children, size = "md" }: { children: React.ReactNode; size?: "md" | "lg" }) {
   return (
     <h2
       className={cn(
@@ -89,16 +104,96 @@ function StarHeading({ children, size = "md" }: { children: React.ReactNode; siz
   );
 }
 
-/** Natal chart: the data-driven Twelve Houses spread (Figma 482:2010). */
-export function NatalResultView({ result }: { result: NatalResult }) {
+export type NatalHouseState = {
+  /** The house system asked for (the URL's `h=`); the chart on screen may still be the previous one. */
+  houseSystem: HouseSystem;
+  onChange: (system: HouseSystem) => void;
+  /** A chart for the new house system is being calculated. */
+  updating: boolean;
+  error: ApiError | null;
+  onRetry: () => void;
+};
+
+/**
+ * Natal chart: the headline with the big three, the full chart explorer (the
+ * same one as the signed-in chart), the numbers computed in the browser, the
+ * data-driven Twelve Houses spread (Figma 482:2010) and the advisor call to
+ * action.
+ */
+export function NatalResultView({
+  result,
+  houses,
+  onEditBirth,
+}: {
+  result: NatalResult;
+  houses: NatalHouseState;
+  /** Back to the form to add a birth time and place. */
+  onEditBirth: () => void;
+}) {
   const { text } = useI18n();
   const psychicsHref = usePsychicsHref();
   const spread = result.tarot;
   const chart = result.chart;
   const system = chart.house_system_used || spread?.house_system || "";
+  // "Your numbers" come from the birth date in the browser: no extra request.
+  const numbers = React.useMemo(() => {
+    const { lifePath, cycles } = lifePathResult(chart.birth_date);
+    return { lifePath: lifePath.number, personalYear: cycles.personalYear, personalMonth: cycles.personalMonth };
+  }, [chart.birth_date]);
+  const addBirthData = (testId = "add-birth-time") => (
+    <button type="button" className="ml-1 font-semibold underline underline-offset-4" onClick={onEditBirth} data-testid={testId}>
+      {text("Add birth time and place")}
+    </button>
+  );
+  // A cusp day without a birth time: the headline names both signs, and this says why.
+  const sunCusp = sunCuspOf(chart);
   return (
     <>
-      <section className="flex flex-col items-center bg-cream px-5 pt-14 pb-12 text-center md:px-20 md:pt-20 md:pb-[68px]" aria-labelledby="spread-title">
+      <section className="flex flex-col items-center bg-cream px-5 pt-14 pb-12 text-center md:px-12 md:pt-20 md:pb-16" aria-labelledby="chart-title" data-testid="natal-chart-section">
+        <div id="chart-title">
+          <StarHeading size="lg">{text("Your birth chart")}</StarHeading>
+        </div>
+        <p className="mt-4 max-w-3xl font-display text-[20px] leading-snug tracking-[0.6px] text-[#17150f] uppercase md:text-[26px]" data-testid="big-three">
+          {natalHeadline(chart, text)}
+        </p>
+        {sunCusp ? (
+          <p className="mt-2 max-w-2xl text-sm text-[var(--muted-ink)]" data-testid="sun-uncertain">
+            {text("You were born on a cusp: the Sun moved from {value0} into {value1} that day.", { value0: text(sunCusp[0]), value1: text(sunCusp[1]) })}{" "}
+            {text("Your Sun sign needs your birth time and place.")}
+            {addBirthData("add-birth-time-cusp")}
+          </p>
+        ) : null}
+        {chart.moon_sign_uncertain ? (
+          <p className="mt-2 max-w-2xl text-sm text-[var(--muted-ink)]" data-testid="moon-uncertain">
+            {text("The Moon changed signs on your birth date, so your Moon sign needs your birth time and place.")}
+          </p>
+        ) : null}
+        <p className="mt-3 max-w-2xl text-base leading-normal">{text("Your natal chart is a map of the sky at the precise moment you arrived. ")}</p>
+        <div className="mt-8 w-full max-w-[1280px]">
+          <ChartExplorer
+            chart={chart}
+            houseSystem={houses.houseSystem}
+            onHouseSystemChange={houses.onChange}
+            updating={houses.updating}
+            updateError={houses.error}
+            onRetry={houses.onRetry}
+            timeNote={
+              <>
+                {text("Add your birth time and place to see your rising sign and houses.")}
+                {addBirthData()}
+              </>
+            }
+            placeNote={
+              <>
+                {text("Your birth time was left out because no birthplace was given. Add your birthplace to use it.")}
+                {addBirthData()}
+              </>
+            }
+          />
+        </div>
+        <NumbersSummary numbers={numbers} className="mt-8 w-full max-w-xl rounded-lg border border-gold/50 px-4 py-4" />
+      </section>
+      <section className="flex flex-col items-center bg-cream px-5 pt-4 pb-12 text-center md:px-20 md:pb-[68px]" aria-labelledby="spread-title">
         <div id="spread-title">
           <StarHeading size="lg">{text("Your spread")}</StarHeading>
         </div>
@@ -130,26 +225,78 @@ export function NatalResultView({ result }: { result: NatalResult }) {
           </p>
           {chart.wall_time_status && WALL_TIME_NOTES[chart.wall_time_status] ? <p>{text(WALL_TIME_NOTES[chart.wall_time_status])}</p> : null}
           <Lock>{text(BIRTH_DATA_NOTICE)}</Lock>
-          <p>{text(result.disclaimer)}</p>
-          {result.attribution ? <p lang="en">{result.attribution}</p> : null}
+          {/* The explorer above already shows the chart's disclaimer and attribution. */}
+          {result.disclaimer !== chart.disclaimer ? <p>{text(result.disclaimer)}</p> : null}
+          {result.attribution && result.attribution !== chart.attribution ? <p lang="en">{result.attribution}</p> : null}
         </div>
       </section>
-      <section className="calc-olive flex flex-col items-center gap-6 px-5 py-12 text-center md:px-20 md:py-16" style={{ "--calc-texture": 0.62 } as React.CSSProperties}>
-        <h2 className="max-w-[1000px] font-display text-[19px] leading-[1.5] tracking-[0.48px] text-black uppercase md:text-[24px]">
-          {text("Get a better understanding of what this spread means with the guidance of one of our amazing psychics!")}
-        </h2>
-        <Link href={psychicsHref} className="calc-cta-link">
-          {text("Click here!")}
-        </Link>
-      </section>
+      <AdvisorCta
+        title={text("Talk to an advisor about your chart")}
+        body={text("A psychic advisor can walk you through your planets, your houses and this spread, for entertainment purposes only.")}
+        href={psychicsHref}
+        placement="calculator_natal_chart"
+      />
     </>
   );
 }
 
+/**
+ * The closing call to action of every result: up to three advisors with the
+ * standard book button (online first, growth: booking), a link to all of them,
+ * and share the result when the result view offers it. `tone` follows the
+ * page's design: olive after light sections, paper after an olive one (Path
+ * of Life, Figma 482:2164); `footer` goes under the buttons; `placement` is the
+ * book buttons' analytics placement.
+ */
+export function AdvisorCta({
+  title,
+  body,
+  href,
+  placement,
+  tone = "olive",
+  footer,
+}: {
+  title: string;
+  body: string;
+  href: string;
+  placement: string;
+  tone?: "olive" | "paper";
+  footer?: React.ReactNode;
+}) {
+  const { text } = useI18n();
+  const paper = tone === "paper";
+  return (
+    <section
+      className={cn("flex flex-col items-center text-center", paper ? "calc-paper gap-4 px-5 py-14 md:px-[120px] md:py-20" : "calc-olive gap-5 px-5 py-12 md:px-20 md:py-16")}
+      style={paper ? undefined : ({ "--calc-texture": 0.62 } as React.CSSProperties)}
+      data-testid="advisor-cta"
+    >
+      <h2 className={cn("max-w-[1000px] font-display text-[19px] leading-[1.5] tracking-[0.48px] uppercase md:text-[24px]", !paper && "text-black")}>{title}</h2>
+      <p className={cn("max-w-[800px] text-base leading-normal", paper ? "font-light" : "text-black")}>{body}</p>
+      <AdvisorStrip heading="Choose an advisor" headingLevel={3} placement={placement} className="max-w-[640px] text-left" />
+      <div className={cn("flex flex-wrap items-center justify-center gap-4", paper ? "pt-3" : "pt-2")}>
+        <Link href={href} className="calc-cta-link" data-testid="advisor-cta-link">
+          {text("Browse all advisors")}
+        </Link>
+        <ShareResultButton />
+      </div>
+      {footer}
+    </section>
+  );
+}
+
 /** Astrology: the sun sign on the zodiac wheel (Figma 482:2275). */
-export function SunSignResultView({ result, onAddTime }: { result: SunSignResult; onAddTime: () => void }) {
-  const { text, locale } = useI18n();
-  const { user } = useSession();
+export function SunSignResultView({
+  result,
+  onAddTime,
+  chartHref,
+}: {
+  result: SunSignResult;
+  onAddTime: () => void;
+  /** The free natal chart calculator carrying the same birth details in its fragment. */
+  chartHref: string;
+}) {
+  const { text } = useI18n();
   const sign = isSign(result.sun_sign) ? result.sun_sign : null;
   const alternatives = (result.alternatives ?? []).filter((s) => s !== result.sun_sign);
   const facts = sign ? SIGN_FACTS[sign] : null;
@@ -205,18 +352,13 @@ export function SunSignResultView({ result, onAddTime }: { result: SunSignResult
           {text("Want to discover your planetary coordinates?")}
         </h2>
         <p className="max-w-[800px] text-base leading-normal text-[var(--muted-ink)]">
-          {text("Sign up to unlock details on your elemental balance, ascending, moon and sun signs, and complete alignment data.")}
+          {text("Your Moon sign, planets, houses and aspects come from the same birth details. See the full chart for free, with no account needed.")}
         </p>
-        <div className="pt-3">
-          {user ? (
-            <Link href={`/${locale}/profile/chart`} className="calc-cta-link">
-              {text("Open my chart")}
-            </Link>
-          ) : (
-            <Link href={`/${locale}/signup`} className="calc-cta-link">
-              {text("Sign in / up")}
-            </Link>
-          )}
+        <div className="flex flex-wrap items-center justify-center gap-4 pt-3">
+          <Link href={chartHref} className="calc-cta-link" data-testid="full-chart-link">
+            {text("See your full birth chart — free")}
+          </Link>
+          <ShareResultButton />
         </div>
         <Lock>{text(BIRTH_DATA_NOTICE)}</Lock>
       </section>
@@ -275,22 +417,14 @@ export function LifePathResultView({ result }: { result: LifePathResult }) {
           </p>
         </div>
       </section>
-      <section className="calc-paper flex flex-col items-center gap-4 px-5 py-14 text-center md:px-[120px] md:py-20">
-        <h2 className="max-w-[1000px] font-display text-[19px] leading-[1.5] tracking-[0.48px] uppercase md:text-[24px]">
-          {text("Get a deeper understanding of what a life path really means and the alignment that comes with it")}
-        </h2>
-        <p className="max-w-[800px] text-base leading-normal font-light">
-          {text(
-            "Chat with one of our psychic advisors to explore your chart and upcoming planetary transitions, for entertainment purposes only. ",
-          )}
-        </p>
-        <div className="pt-3">
-          <Link href={psychicsHref} className="calc-cta-link">
-            {text("Click here!")}
-          </Link>
-        </div>
-        <Lock>{text(BIRTH_DATA_NOTICE)}</Lock>
-      </section>
+      <AdvisorCta
+        tone="paper"
+        title={text("Get a deeper understanding of what a life path really means and the alignment that comes with it")}
+        body={text("Chat with one of our psychic advisors to explore your chart and upcoming planetary transitions, for entertainment purposes only. ")}
+        href={psychicsHref}
+        placement="calculator_path_of_life"
+        footer={<Lock>{text(BIRTH_DATA_NOTICE)}</Lock>}
+      />
     </>
   );
 }

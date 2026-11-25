@@ -7,3 +7,6 @@
  */
 export const BIRTH_DATA_NOTICE =
   "Your birth data is used only to calculate this report. We keep it only if you ask us to e-mail the report, and only until it is sent.";
+
+/** The tarot birth card is worked out in the browser: nothing is sent, so nothing can be kept. */
+export const TAROT_BIRTH_NOTICE = "Your birth date is used only in your browser to find your card. It is never sent to us.";

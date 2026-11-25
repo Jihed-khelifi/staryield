@@ -121,6 +121,21 @@ var allowedRawSQL = map[string]int{
 	"lots.go:GormLotRepository.ApplyDeltas": 1,
 	"lots.go:GormLotRepository.Mismatches":  1,
 	"lots.go:GormLotRepository.bounds":      1,
+	// --- growth: lifecycle and onboarding ---
+	// Due queries (EXISTS probes against lifecycle_messages and chat_sessions,
+	// each starting from an index range), the claim insert (multi-row INSERT ...
+	// ON CONFLICT DO NOTHING RETURNING), the idempotent reader upsert, the
+	// statistics and funnel aggregates, the checklist facts and the job's
+	// advisory lock. Every value is a bound parameter; the only spliced
+	// fragments are constants and the placeholder list of the claim rows.
+	"lifecycle.go:GormLifecycleRepository.Claim":         1,
+	"lifecycle.go:GormLifecycleRepository.Due":           1,
+	"lifecycle.go:GormLifecycleRepository.Funnel":        1,
+	"lifecycle.go:GormLifecycleRepository.Onboarding":    1,
+	"lifecycle.go:GormLifecycleRepository.RecordReaders": 1,
+	"lifecycle.go:GormLifecycleRepository.Stats":         1,
+	"lifecycle.go:GormLifecycleRepository.WithRunLock":   2,
+	// --- end growth: lifecycle and onboarding ---
 	// revisions 5.0: revenue report (§24.5). Period aggregates over indexed
 	// columns (FILTER, percentile_cont, date_trunc with a unit from the
 	// RevenueUnits allow-list, a UNION ALL of the two recognized-revenue

@@ -235,3 +235,18 @@ export function uniqueSandboxCard(): { number: string; expiry: string } {
     return { number, expiry: month + year };
   }
 }
+
+/** Enter a date of birth (no time) and submit the sign-up birth step. */
+export async function enterBirthDate(page: Page, date: { day: string; month: string; year: string }) {
+  const form = page.getByTestId("birth-info-form");
+  // The dev server may not have hydrated the form yet: retry until the control reacts.
+  const unknownTime = form.getByRole("checkbox", { name: "I don't know my time" });
+  await expect(async () => {
+    if ((await unknownTime.getAttribute("aria-checked")) !== "true") await unknownTime.click();
+    expect(await unknownTime.getAttribute("aria-checked")).toBe("true");
+  }).toPass({ timeout: 20_000 });
+  await form.getByRole("textbox", { name: /Day$/ }).fill(date.day);
+  await form.getByRole("textbox", { name: "Month", exact: true }).fill(date.month);
+  await form.getByRole("textbox", { name: "Year", exact: true }).fill(date.year);
+  await page.locator("form button[type=submit]").click();
+}

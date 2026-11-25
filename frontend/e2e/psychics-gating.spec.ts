@@ -5,7 +5,7 @@
  */
 import { expect, test } from "@playwright/test";
 
-import { CLIENT, signIn } from "./helpers";
+import { CLIENT, expectNoHorizontalScroll, signIn } from "./helpers";
 
 test.describe("visitors", { tag: "@responsive" }, () => {
   test("every public Psychics link points to the home section", async ({ page }) => {
@@ -64,6 +64,22 @@ test.describe("visitors", { tag: "@responsive" }, () => {
     await page.goto("/en/psychics/theo");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Theo");
     expect(new URL(page.url()).pathname).toBe("/en/psychics/theo");
+  });
+
+  // §27.2: a visitor on a phone gets the public frame (menu, Sign up, footer), not the app frame.
+  test("advisor profiles give a phone visitor the menu, Sign up and the footer", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/en/psychics/theo");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Theo");
+    const header = page.locator("header.site-header");
+    await expect(header.getByTestId("mobile-menu-trigger")).toBeVisible();
+    await expect(header.getByTestId("header-signup-compact")).toBeVisible();
+    await expect(page.getByRole("contentinfo")).toBeAttached();
+    await expect(page.locator(".mobile-navigation")).toHaveCount(0);
+    await header.getByTestId("mobile-menu-trigger").click();
+    await expect(page.getByRole("dialog").getByRole("link", { name: "Pricing" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expectNoHorizontalScroll(page);
   });
 });
 

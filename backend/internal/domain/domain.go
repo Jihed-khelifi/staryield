@@ -119,8 +119,11 @@ type Profile struct {
 	// ShareBirthDetailsWithAdvisors is the client's consent for advisors to
 	// see their date of birth and birthplace.
 	ShareBirthDetailsWithAdvisors bool `gorm:"not null"`
-	CreatedAt                     time.Time
-	UpdatedAt                     time.Time
+	// OnboardingDismissedAt is when the client hid the "Get started"
+	// checklist (growth: lifecycle and onboarding).
+	OnboardingDismissedAt *time.Time
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
 func (Profile) TableName() string { return "user_profiles" }
@@ -302,9 +305,14 @@ type Psychic struct {
 	// SettingsVersion increments on every save of the advisor-editable
 	// profile (optimistic concurrency for PATCH /psychic/settings).
 	SettingsVersion int `gorm:"not null;default:1"`
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	Services        []PsychicService `gorm:"foreignKey:PsychicID;references:UserID"`
+	// MissedRequestsInRow counts live-chat requests that expired unanswered
+	// since the advisor last answered one, changed their availability or was
+	// set Away automatically (follow-ups: auto-away). Written only by the
+	// auto-away statements; never saved from a loaded copy.
+	MissedRequestsInRow int `gorm:"not null;default:0"`
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	Services            []PsychicService `gorm:"foreignKey:PsychicID;references:UserID"`
 }
 
 func (Psychic) TableName() string { return "psychics" }

@@ -437,3 +437,33 @@ func BenchmarkCatalogUnderStatusChurn(b *testing.B) {
 		}
 	}
 }
+
+// OnlineCount follows the directory's status (presence and busy state, not the
+// advisor's chosen availability alone) and its in-place status patches.
+func TestCatalogOnlineCountFollowsTheDirectory(t *testing.T) {
+	rows := []repository.AdvisorCardRow{card("ada", 4.5, 3), card("bea", 4.5, 3), card("cy", 4.5, 3), card("dee", 4.5, 3)}
+	// Every advisor chose "online"; only ada is connected and free.
+	cat, repo, _ := catalogWith(rows, map[string]domain.PresenceStatus{"ada": domain.PresenceOnline, "bea": domain.PresenceBusy,
+		"cy": domain.PresenceOffline})
+	ctx := context.Background()
+	if n, err := cat.OnlineCount(ctx); err != nil || n != 1 {
+		t.Fatalf("online count = %d, %v; want 1", n, err)
+	}
+	cat.SetStatus(rows[2].UserID, domain.PresenceOnline)
+	cat.SetStatus(rows[0].UserID, domain.PresenceOffline)
+	if n, _ := cat.OnlineCount(ctx); n != 1 {
+		t.Fatalf("after status changes: %d, want 1", n)
+	}
+	cat.MarkStale()
+	repo.mu.Lock()
+	repo.err = errors.New("db down")
+	repo.mu.Unlock()
+	if n, err := cat.OnlineCount(ctx); err != nil || n != 1 {
+		t.Fatalf("a failed rebuild should serve the previous snapshot: %d, %v", n, err)
+	}
+	empty, emptyRepo, _ := catalogWith(nil, nil)
+	emptyRepo.err = errors.New("db down")
+	if _, err := empty.OnlineCount(ctx); err == nil {
+		t.Fatal("no snapshot and no database: want an error")
+	}
+}

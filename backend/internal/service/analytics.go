@@ -33,6 +33,12 @@ var ClientEvents = map[string]bool{
 	"locale_changed": true, "chat_opened": true,
 	"chat_report_submitted": true, // revisions 3.1: chat reports (properties: reason only, never free text)
 	"campaign_landing":      true, // revisions 3.0: calculator analytics (was sent by the web app but dropped)
+	// growth: result sharing ({kind, method}), the standard book button
+	// ({slug, status, placement, action}), referral sharing ({method}) and the
+	// referral landing, onboarding checklist clicks ({step}) and dismissal.
+	"share_opened": true, "share_completed": true, "book_cta_clicked": true,
+	"referral_link_copied": true, "referral_link_shared": true, "referral_landing": true,
+	"onboarding_step_clicked": true, "onboarding_dismissed": true,
 }
 
 // ClientEvent is one browser-reported event.

@@ -111,19 +111,21 @@ All under `/api/v1/admin`. Every mutation is audit-logged.
 
 | Method & path | Notes |
 | --- | --- |
-| `GET /users?q=&role=&status=&cursor=&limit=` | limit 50/200. `status`: `active|deactivated|banned|deleted`. Returns `AdminUserRow` page. |
+| `GET /users?q=&role=&status=&verified=&cursor=&limit=` | limit 50/200. `status`: `active|deactivated|banned|deleted`. `verified`: `true|false` (e-mail verification, §13.7; anything else is 422 `validation_failed`). Returns `AdminUserRow` page. |
 | `POST /users` | `{email, password, role, display_name?, locale?}` → `AdminUser` (201). Creating `role:"admin"` is 🔐. Use `/psychics` to create advisors. |
 | `GET /users/:id` | `AdminUser` |
 | `PATCH /users/:id` | `{display_name?, locale?, email?, role?, status?, status_reason?}`. `status:"banned"` requires `status_reason` and is 🔐; changing `role` to/from `admin` is 🔐. Cannot target yourself. Deactivate/ban revokes all sessions, ends live chats, closes realtime connections, hides a psychic from the directory. |
 | 🔐 `DELETE /users/:id` | `{reason}` → `204`. Soft delete + anonymisation: email becomes `deleted+<id>@deleted.invalid`, profile PII and avatar removed, sessions revoked, status `deleted`. Ledger/earnings history is kept (append-only). |
 | 🔐 `POST /users/:id/credits` | unchanged body `{amount, reason, idempotency_key}` → `Wallet`. |
 | `POST /users/:id/logout-all` | `204`. Revokes all main-site sessions. |
+| `POST /users/:id/email-verification` | Sends the user a new e-mail verification link (§13.7) → 202 `VerificationSent`. 409 `already_verified`, or 409 `email_undeliverable` when the address is on the suppression list; 429 `rate_limited` with `Retry-After` inside the 60 s cooldown or once the account received 5 links in 24 hours (both shared with the user's own resends and the reminders); 404 unknown user; `invalid_state` for an inactive account. Audited `admin.email_verification_resent`. |
 
 ```ts
 type AdminUserRow = {
   id: string; email: string; role: "client"|"psychic"|"admin";
   status: "active"|"deactivated"|"banned"|"deleted"; status_reason?: string;
   display_name: string; locale: string; created_at: string; last_login_at?: string;
+  email_verified_at: string | null;   // growth: e-mail verification (§13.7)
 };
 type AdminUser = AdminUserRow & {
   deleted_at?: string;
@@ -990,6 +992,66 @@ Everything is under `/api/v1`. "Sensitive" routes ask for the current password a
   - ends the membership and forgets saved cards (billing);
   - deletes notes, push subscriptions, devices, consents, exports, waiting lists and the user's support requests.
 
+### 13.7 Growth: e-mail verification by secure link
+- Every password sign-up (client) gets a welcome e-mail (category `security`, template `email_verify`) with a single-use link
+  `{frontend}/{locale}/verify-email#token=<raw>`. The token travels in the URL fragment, so it never reaches a server log, a
+  proxy or a `Referer`. Google sign-ups and confirmed e-mail changes are verified already (`email_verified_at` is set).
+  - Token: 32 random bytes; only its SHA-256 is stored (`user_action_tokens`, purpose `email_verify`); expires after 48 h;
+    single use; its sealed payload `{email}` is bound to the token row and must match the account's current address.
+  - Accounts created by the team (advisors, admin-created users) get no welcome link; they or an admin can request one.
+  - Accounts that existed before this feature are not marked verified (nothing proves they control their address) and were
+    never sent a link: `GET /me` says so (`email_verification: null`) and the clients offer "Send me a link" instead of
+    claiming one is in the inbox. The lifecycle "verify reminder" (`SendReminder`) may send them a first link.
+  - No link is created for an address on the outbox's suppression list (permanent bounce, complaint): the welcome e-mail and
+    reminders are skipped, a resend answers 409 `email_undeliverable`.
+- `POST /auth/email/verify {token}` (public, `auth` rate limit by IP, CSRF as usual) → 200
+  `{status: "verified"|"already_verified", email_verified: true}`. Unknown, expired, used, superseded, mismatching (the
+  address changed since) and inactive-account links all answer 400 `invalid_token` with the same message; a link refused for
+  its address or account is burnt. On success, after the commit: realtime `account.email_verified`
+  `{email_verified: true, email_verified_at}` to every tab and device of the user, in-app notification
+  `account.email_verified` (`{}`, link `/profile/settings#account`; the clients show their own toast for the event and do not
+  toast this notification a second time), audit `account.email_verified`, analytics `user.email_verified`, and the
+  `OnVerified` hooks (referral rewards). Nothing is announced for a refused link or a rolled-back transaction.
+- `POST /me/email/verification` (any role with an unverified address; never age-gated) → 202
+  `VerificationSent {status: "sent", email: "m***@example.com", resend_available_at}`. Every previous open link stops working.
+  - 409 `already_verified`; 409 `email_undeliverable` (the address refuses e-mail: check or change it).
+  - 429 `rate_limited` with `Retry-After`: within 60 s of the previous link, or once the account received 5 links in any 24
+    hours (welcome, resends, console resends and reminders together; `Retry-After` is when the oldest of them leaves the
+    window). The links are security e-mail, which the outbox's daily cap does not cover, and the address is unproven by
+    definition, so this ceiling bounds what anyone can make us send to someone else's address.
+  - Both are checked under the user's row lock; the route also has its own bucket of 5 requests per hour per user (fails
+    closed).
+- Locking: every transaction of the flow locks the user row before touching the user's tokens. Opening a link reads its
+  token without a lock, locks the user, then uses the token, so it queues behind a concurrent resend, console resend or
+  reminder for the same account instead of deadlocking.
+- `GET /me` gains `email_verified: boolean` and `email_verification: {sent_at, resend_available_at} | null`: the newest open
+  link of an unverified address (null when verified, or when no link is waiting: never sent, expired, or the address refuses
+  e-mail). One indexed read, for unverified addresses only. `GET /me/settings` already carries `account.email_verified`.
+- Frontend page `/{lang}/verify-email` (`noindex`, `referrer: no-referrer`) reads the fragment once, strips it from the address
+  bar and posts it at once (no extra click). Migration `0039_email_verification.sql` adds the partial indexes behind the admin
+  `verified` filter and `user_action_tokens (user_id, purpose, created_at DESC)` for the cooldown and the daily limit.
+- Legal text (for the lead's update of the Privacy Policy and Terms of Service):
+  - Privacy Policy: at sign-up we send a one-time e-mail asking the person to confirm their address. Purpose: account
+    security and making sure receipts and account notices reach them. Legal basis: performance of the contract and our
+    legitimate interest in account security. It is a transactional message (no marketing consent needed; marketing stays
+    opt-in and separate).
+  - Data processed: the address; when it was verified (`email_verified_at`, kept for the life of the account, removed when
+    the account is erased); a hashed single-use link token holding a sealed copy of the address it was sent to (valid 48
+    hours, then kept as an expired record until the account is erased; the raw link exists only in the e-mail and is never
+    stored or logged); audit records of each verification and of each link an administrator sends (actor, time, keyed hash
+    of the IP address); internal analytics events when an address is verified or a link is resent.
+  - The link carries its token after the `#`, so it is not sent to our servers' logs or to third parties as a referrer.
+  - Administrators can see whether and when an address was verified and send a new link; they never see the link itself.
+  - The e-mail is sent by the transactional e-mail provider (Cloudflare Email Service), to be listed among processors.
+  - Terms of Service: users must give an address they control and keep it current; we send account, security and receipt
+    communications there and ask users to confirm it. Links work once and expire after 48 hours; new links can be requested
+    within limits (one a minute, five a day). Verification is not required today to use or pay for the service; a feature
+    that comes to depend on it (for example referral rewards granted only once the friend verified) must say so in the Terms
+    or its own rules.
+  - Anyone who receives the e-mail without having signed up can ignore it: nothing is confirmed, and at most five such
+    e-mails can be sent to an address in a day.
+  - Disclaimer and Refund Policy: no change (verification does not affect readings, credits, purchases or refunds).
+
 ---
 
 ## 14. Support requests (contact form)
@@ -1400,10 +1462,11 @@ type AdminReportContext = {
 
 ## 17. Calculator usage and conversion analytics
 
-Measures how many distinct visitors open and use the three calculators
-(`/{lang}/calculators/natal-chart|path-of-life|astrology`, every locale), where
-they came from (UTM, short links) and who signed up afterwards. Migration
-`0018_web_visitors.sql`.
+Measures how many distinct visitors open and use the calculators
+(`/{lang}/calculators/natal-chart|path-of-life|astrology|tarot-birth-card`,
+every locale), where they came from (UTM, short links) and who signed up
+afterwards. Migration `0018_web_visitors.sql` (growth: `0038_calculator_tarot.sql`
+adds `tarot-birth-card` to the `calculator_visits.kind` CHECK).
 
 Collection (browser → `POST /analytics/events`, unchanged envelope):
 
@@ -1412,7 +1475,7 @@ Collection (browser → `POST /analytics/events`, unchanged envelope):
   utm_campaign, utm_content, utm_term, has_click` and the new `click_id`
   (the `sy_click` value).
 - A **visit** is a `page_view` whose path matches
-  `^/(en|fr|es)/calculators/(natal-chart|path-of-life|astrology)(/results)?$`;
+  `^/(en|fr|es)/calculators/(natal-chart|path-of-life|astrology|tarot-birth-card)(/results)?$`;
   a **try** is `calculator_started`; a **result** is `calculator_completed`
   (`properties.kind`).
 - A visitor is the browser's random `anonymous_id` (localStorage
@@ -1460,7 +1523,7 @@ Definitions for a window (`to` exclusive):
 `source` filters on `utm_source`; `(direct)` selects visitors without one.
 
 ```ts
-type CalculatorKind = "natal-chart" | "path-of-life" | "astrology";
+type CalculatorKind = "natal-chart" | "path-of-life" | "astrology" | "tarot-birth-card";
 type CalculatorTotals = {
   visitors: number; signed_in_visitors: number; existing_users: number;
   tried: number; completed: number; signups: number;
@@ -1469,7 +1532,7 @@ type CalculatorTotals = {
 type CalculatorReport = {
   range: { from: string; to: string; interval: "hour" | "day" | "week" | "month" };
   totals: CalculatorTotals;
-  by_kind: ({ kind: CalculatorKind } & CalculatorTotals)[];          // always all three
+  by_kind: ({ kind: CalculatorKind } & CalculatorTotals)[];          // always every calculator
   by_locale: ({ locale: "en" | "fr" | "es" } & CalculatorTotals)[];  // always all three
   by_source: { source: string; medium: string; campaign: string; visitors: number; tried: number; signups: number }[];  // top 50, "(direct)" without UTM
   by_link: { link_id: string; code: string; label: string; campaign_name?: string; visitors: number; tried: number; signups: number }[];  // top 50
@@ -3892,3 +3955,278 @@ What the build settled that §26 above left open or stated differently:
   Next.js, production runs vinext; the error-page and Stripe specs were also
   run against the vinext build served by `wrangler dev`
   (`docs/stripe-setup.md` §8).
+
+## 27. Growth conversion follow-ups
+
+The nine follow-ups of the growth funnel audit (design:
+`docs/superpowers/specs/2026-11-25-conversion-follow-ups-design.md`). Each
+subsection is owned by one slice of the work.
+
+### 27.1 FAQ answers
+
+`/[lang]/faq` (`components/content/faq.tsx`, Figma-derived) used to answer each
+of its 22 expandable questions with "contact our support team". Every question
+now has a real answer, and a new group "Free minutes, invites and your account"
+follows "Live readings". No backend, API or migration change.
+
+* **Data** (`frontend/src/content/faq/`): `support-answers.ts` holds the 22
+  answers in four lists (`WEBSITE_FAQ` 6, `CHATTING_FAQ` 6, `ASTROLOGERS_FAQ` 8,
+  `BILLING_FAQ` 2) and `ACCOUNT_FAQ` (5: free sign-up minutes, earning invite
+  minutes, when they are added, whether confirming the e-mail address is
+  required, the free calculators). `index.ts` exports `SUPPORT_FAQ`,
+  `FAQ_PAGE_ENTRIES` (support answers, then `LIVE_READINGS_FAQ`, then
+  `ACCOUNT_FAQ`, in page order) and `faqAnswerForLabel(label)`. An entry is
+  `{ q, a }`: English source text, which is the key of
+  `copy-{en,fr,es}.json`; `a` may use the content modules' inline markup
+  (`[label](/path)`), rendered with `InlineText` and reduced to the label in the
+  structured data (`plainText`).
+* **Rendering.** The 20 Figma questions of the three first groups keep their
+  markup: `ContentLink` (`data-name="Instance / State=Collapsed…"`) renders the
+  `<details>` and now looks the answer up with `faqAnswerForLabel(label)` (the
+  design's label is "<symbol> <question> <tag words>"); it keeps the placeholder
+  only when no answer matches. The two Billing questions were plain `<div>`s in
+  the design (not expandable at all); they are now `ContentLink`s with a label.
+  "Live readings" and the new group render through `FaqAnswerBlock`
+  (`components/content/faq-answer-block.tsx`), anchors `#live-readings` and
+  `#account-and-offers`. `.faq-item` sets `white-space: normal` (the Figma
+  columns are `nowrap`, which clipped long questions).
+* **Structured data.** `screenJsonLd("faq")` builds the FAQPage from
+  `FAQ_PAGE_ENTRIES`: one `Question` per answered item (32 today), names equal
+  to the visible question text.
+* **Where the facts come from.** Credits and per-minute billing: Terms 6.1.1 and
+  6.1.4 (per started minute, free minutes first, then purchased, then bonus
+  credits, the hold is not charged), the pricing page and the chat session
+  panel (billing starts when the chat starts, the request countdown); refunds:
+  Refund Policy 4, 7–10 and the "Request a refund" action of Settings, Billing;
+  password reset: `AuthService.ForgotPassword`/`ResetPassword` (single-use link,
+  a new link cancels earlier ones, other devices are signed out; the expiry is
+  `PasswordResetTTL`, so the answer says "the time stated in the e-mail");
+  e-mail confirmation: Terms 3.8 (single use, 48 hours, resend limits, a new link
+  cancels the earlier ones, Google sign-ups count as confirmed; not required to
+  use the service); invites: Terms 4.20 (a friend counts after signing up with
+  the link, confirming their e-mail address and completing a reading of at least
+  one minute; rewards pending until launch, added "on a date we choose"; reviews
+  can hold a sign-up); free calculators: Terms 2.5; settings and account menu:
+  `components/account/settings`.
+* **Amounts.** The sign-up free minutes (admin setting, 1–60, may be off) are
+  never written down: the answer points to the Pricing page and sign-up. The
+  invite reward is "currently 5 free chat minutes" like Terms 4.20.3, with the
+  Invite friends page named as the place that shows the reward and limit in
+  force. If an administrator changes the default, update that sentence (and the
+  Terms) together; the dictionary keys are the English sentences.
+* **Wording rules.** `faq.test.tsx` bans audit/assurance/verification wording and
+  memberships; the payment-processor claim list
+  (`i18n/marketing-claims.test.ts`, `e2e/merchant-readiness.spec.ts`) bans, among
+  others, "accurate", "guarantee", "certified", "therapy" on the public pages.
+  Confirmation is "confirm your e-mail address"; no answer mentions
+  subscriptions or memberships.
+* **Tests.** `content/faq/faq-answers.test.ts` (22 + group, three languages,
+  links, banned wording, label lookup), `components/content/faq.test.tsx`
+  (no placeholder left, each answer under its question, the group),
+  `lib/seo/seo.test.ts` (one Question per item), and `e2e/faq.spec.ts`
+  (reset-password answer, group, JSON-LD with at least 26 questions, fr/es, no
+  sideways scroll on a phone).
+
+### 27.2 New advisor label, public header and advisor profile frame
+
+Frontend only; no API or data change.
+
+- **New advisor label.** New advisors default to `rating` 5.0 with
+  `reviews_count` 0, which read as "5.0 (0 reviews)". The directory card and
+  the profile's rating tile (`components/psychics/psychics.tsx`) now show the
+  existing "New advisor" text, with no star, no number and no count, when
+  `reviews_count` is 0 (the profile tile's detail line reads "No reviews yet").
+  Advisors with reviews are unchanged. The home cards and the chat reader panel
+  already followed this rule.
+- **Public header** (`components/layout/site-header.tsx`). "Pricing"
+  (`/<lang>/pricing`) is a public navigation item: desktop nav and menu drawer.
+  Below `lg` the desktop Log In / Sign Up pair is hidden, so a signed-out
+  visitor gets a compact Sign Up button (`data-testid="header-signup-compact"`,
+  `lg:hidden`) in the bar, next to the menu trigger. It links to
+  `/<lang>/signup` exactly like the desktop button (neither carries a `?next=`;
+  the existing sign-up link has none). Signed-in users see neither.
+- **Profile frame.** `PsychicProfileView` (main, loading and error states) is
+  wrapped by `ProfileFrame`. Visitors get `PublicFrame` (public header with the
+  drawer, `SiteFooter`, no `.mobile-navigation` bottom pill); signed-in users
+  keep `dashboard-page` + `SiteHeader` + `MobileNavigation`. `PublicFrame`
+  gained an optional `mainClassName` so the profile's `<main class="psychic-profile">`
+  is the frame's only `<main>`. The phone booking bar and the order sheet are
+  rendered inside `<main>` for visitors and after it for members.
+- **Which frame while the session loads.** `status === "loading"` follows the
+  browser's remembered session (`readAuthHint`, false on the server), the same
+  rule as the promo banner: the server-rendered page that search engines read is
+  the visitor frame, and a returning member does not see it flash. Otherwise
+  `authenticated` selects the app frame.
+- **Phone spacing.** Visitors have no bottom pill, so `.booking-bar` sits at the
+  screen edge under `.public-frame` and the frame reserves room under the footer
+  (`globals.css`, phones only, `:has(> .psychic-profile.has-booking-bar)`).
+- **Tests.** vitest: `psychics.test.tsx`, `psychic-profile.test.tsx`,
+  `site-header.test.tsx`. Playwright: `responsive-landing.spec.ts` (phone
+  header), `psychics-gating.spec.ts` (phone visitor on a profile).
+
+### 27.3 Report next step, footnote, e-mail UTM tags, alternative advisors
+
+No new API and no migration. Web copy is in en/fr/es; the e-mail change is Go only.
+
+- **Report success screen** (`components/calculators/report-email-dialog.tsx`). After "Your report is on its way to ...", the dialog shows `AdvisorStrip` (heading "Ask an advisor about your results", analytics `placement` `report_success`, up to three advisors, online first) and, only for signed-out visitors (`useSession().status === "anonymous"`), a "Create a free account" link to `/{locale}/signup?next=<calculator path>`. The `next` is the page's own pathname (never the `#v=` fragment, which holds the birth details), falling back to `/{locale}/calculators/<kind>`. This link is internal, so it carries no UTM tags: the strip and link are measured with the client analytics `placement`.
+- **Footnote** (same dialog): "We use your e-mail address to send this report and, only if the box above is ticked, to send you news and offers. We keep your birth details only until the report is sent." plus the Privacy Policy link. The wording does not say "if you tick" because the box is pre-ticked for US visitors. The marketing checkbox text and `CalculatorReportConsentVersion = "2026-11-19"` are unchanged. It agrees with Privacy Policy section 2.14 (report requests: marketing only with consent, birth details kept until the e-mail is sent); no legal text was edited.
+- **UTM tags on report e-mail links** (`backend/internal/mail/calculator_report.go`, `withUTM(rawURL, kind string) string`). The "View your report", advisor (home `#psychics`, natal chart and path of life) and sign-up (sun sign) links get `utm_source=staryield&utm_medium=email&utm_campaign=calculator_report&utm_content=<kind>`, where `<kind>` is the report's calculator kind (`natal-chart`, `astrology`, `path-of-life`). The tags are appended after any existing query with `&` and inserted before the `#fragment`, which is copied byte for byte (the `#v=` fragment is parity-tested by `testdata/report_parity.json`, which pins fragments only, not URLs, and was not changed). The unsubscribe link and the `List-Unsubscribe` header stay untagged. A URL that does not parse is returned unchanged. Internal site links never get UTM tags (they would overwrite the visitor's first-touch source in `lib/attribution.ts`).
+- **Alternative advisors** (`components/booking/advisor-strip.tsx`, `components/chat/session-panel.tsx`). `AdvisorStrip` takes `excludeSlug?: string`: it then fetches `STRIP_COUNT + 1` (4) from `GET /psychics/featured`, drops that advisor, keeps up to three advisors who are `online`, and renders nothing at all (no heading, no skeleton, no error, no empty message) while loading, on failure or when nobody else is online. Without `excludeSlug` nothing changes (fetch 3, the "No advisors are listed right now." message). In the chat room, on the client side only, when the latest session's `end_reason` is `declined` or `request_timeout`, the card above the composer is followed by the strip: heading "Other advisors online now", placement `chat_alternatives`, `excludeSlug` = the advisor who declined or did not answer. It shows next to both the start card and the waiting-list card; never on the advisor's side and never after other end reasons.
+- **Tests**: vitest `advisor-strip.test.tsx`, `session-panel.test.tsx`, `report-email-dialog.test.tsx`; Go `TestWithUTM`, `TestReportLinksCarryUTM` (`internal/mail`), the service and e2e report tests assert the tagged links; Playwright `calculator-report.spec.ts` (success next step, footnote) and `chat-flow.spec.ts` (declined request suggests another advisor).
+
+### 27.4 Advisor auto-away after missed requests
+
+An Online advisor whose live-chat requests expire unanswered several times in a
+row is set to Away and told why, so clients stop requesting an advisor who is
+not at the screen. Migration `0041_advisor_auto_away.sql`.
+
+**Rules.**
+
+- Only a `request_timeout` expiry counts as a miss (`ChatService.ExpireDue`,
+  after the commit, next to the `chat.missed` notification). A decline is an
+  answer, a client's cancel says nothing about the advisor, and a request that
+  expires lazily when the advisor tries to accept it late counts as an answer.
+- The threshold is a site setting, default **3**, allowed **2-10**, **enabled by
+  default**. While the feature is off nothing is counted (the counter is reset
+  on every miss), so switching it on never finds a stale count.
+- Only **Online to Away**. An advisor whose stored availability is Away or
+  Offline, or who is in a reading (an open session other than a pending
+  request), is left as they are: no availability change, no notification, the
+  counter is reset to 0. An advisor who simply has the browser closed is still
+  Online in the stored sense and is moved to Away.
+- The counter `psychics.missed_requests_in_row` (`integer NOT NULL DEFAULT 0`,
+  `CHECK (>= 0)`) is reset to 0 on accept, decline, any availability change the
+  advisor makes (`PATCH /psychic/availability`, in the same UPDATE) and on the
+  auto-away itself. It is the reason for a counter rather than "the last 3
+  sessions": after an auto-away the old misses would send a returning advisor
+  Away again at the next single miss.
+
+**Concurrency.** Each miss is one `UPDATE psychics SET missed_requests_in_row =
+missed_requests_in_row + 1 ... RETURNING` (atomic across instances). At the
+threshold the caller claims the reset with `UPDATE ... SET missed_requests_in_row
+= 0 WHERE user_id = ? AND missed_requests_in_row >= threshold`; only the caller
+whose statement changes a row continues, so a burst of expiries (one tick, or
+two API instances) yields exactly one change and one notification. The change
+itself is the conditional `UPDATE ... SET availability = 'away' WHERE availability
+= 'online'`, run in the same transaction; afterwards the advisor's status is
+published like `PsychicService.SetAvailability` does (realtime presence and the
+directory cache) and an `psychic.auto_away` analytics event is tracked.
+
+**Notification.** Kind `availability.auto_away`, data `{"missed": <threshold>}`,
+link `/chatroom` (where the availability menu is). Channels: in-app, Web Push
+and e-mail (category `notification`, so it follows the advisor's e-mail switch;
+push is on the normal lane). Copy: "You were set to Away" / "You were set to Away
+after {n} missed requests. Set yourself Online when you are ready." in en, fr and
+es (`internal/i18n/auto_away.go`, `internal/mail/catalog.go`). The `notifications.kind`
+check is a pattern, not a list, so no migration is needed for the kind.
+
+**Setting.** `site_settings` key `advisor_auto_away` =
+`{"enabled": true, "missed_requests": 3}`, seeded by the migration with a CHECK on
+the shape (boolean, whole number 2-10); the key list constraint gains the key.
+
+**Admin API** (`/api/v1/admin/advisors/auto-away`, admin session):
+
+| Method | Body | Response |
+| --- | --- | --- |
+| `GET` | - | `{"enabled": bool, "missed_requests": int, "version": int, "updated_at": ..., "updated_by"?: {id, name}}` |
+| `PUT` | `{"enabled"?: bool, "missed_requests"?: int, "version"?: int}` (at least one setting) | the same view |
+
+`PUT` needs a fresh step-up and is rate limited like the other settings writes.
+A stale `version` is `409 version_conflict`; `missed_requests` outside 2-10 is
+`422` with the field message "Choose between 2 and 10."; an empty body is `422`
+(`enabled`: "Change at least one setting."); an unchanged value is not a new
+version and not audited. Changes are audited as `advisors.auto_away.updated`
+(`before` and `after`). Reads and writes by a non-admin are refused.
+
+**Admin console.** "Advisor settings" (`/psychics/settings`, People group, after
+Psychics): the Auto-away card with the switch and the number of missed requests,
+saved with the version that was read (conflict text "Someone else changed these
+settings. Reload to see them.").
+
+**Web.** The advisor's notification list renders the kind with a moon icon,
+title "Set to Away automatically", body "You were set to Away after {n} missed
+requests." and leads to `/chatroom` (`frontend/src/lib/notifications/notification-copy.ts`).
+
+**Tests.** Go e2e `backend/tests/e2e/auto_away_test.go`
+(`TestAutoAwayAfterThreeMissedRequests`, `...CountsOnlyMissesInARow`,
+`...AcceptResetsTheCount`, `...ResetsWhenAdvisorSetsAvailability`,
+`...OnlyFromOnline`, `...NotWhileInAReading`, `...OnceUnderConcurrentExpiry`,
+`...DisabledBySetting`, `TestAutoAwayAdminSettings`), unit tests in
+`internal/service/auto_away_test.go`, `internal/mail/catalog_test.go`; the counter
+statements are explained in `backend/tests/load/explain_auto_away_test.go` (every
+statement a primary-key update on `psychics`, no sequential scan beyond
+`seqScanRowLimit`; skips without a load database or before migration 0041).
+Admin console: `src/features/psychics/auto-away-card.test.tsx` and
+`e2e/auto-away.spec.ts`; web: `notification-copy-auto-away.test.ts` and the
+bell test.
+
+### 27.5 Funnel visit stitching
+
+Admin console funnel (`GET /admin/analytics/funnel`, `repository/analytics.go`
+`Funnel`): a visitor who browsed before signing up used to count as two actors,
+because the pre-sign-up events carry only the browser id and the server event
+`user.registered` carries only the account, so the funnel lost every visitor
+at the sign-up step. The contract (request and response, `steps`, `from`, `to`,
+`{items: [{name, actors}]}`) is unchanged; the console needs no change.
+
+* **Actor rule.** An event belongs to `COALESCE(user_id, <account its browser
+  is linked to in web_visitors>, anonymous_id)`: its own account; else, for
+  anonymous events, the account `web_visitors.user_id` of that browser (linked
+  at sign-up by the register body's `attribution.anonymous_id`, or by a later
+  signed-in event from that browser; the first link wins, §17); else the
+  browser id. A user who browsed from two browsers, one of them linked, counts
+  once; a browser that never signed in or was never linked stays its own
+  anonymous actor.
+* **Resolved at query time.** Nothing is written or back-filled
+  (`analytics_events` is append-only), so history is stitched too: events
+  stored before the link existed count for the account as soon as the browser
+  is linked, and the first occurrence of a step is the earliest across all of
+  the actor's browsers (so "page view, then sign-up" holds for the account).
+* **Query.** The browser lookup is a correlated subquery on the
+  `web_visitors` primary key, evaluated only for events without an account
+  (not a join: with a join the planner hashed the whole of `web_visitors`).
+  Steps 2 and later also bound their events by `from`, so each step reads
+  `analytics_events` through `analytics_events_name_time_idx`. A later step
+  cannot precede step 1, so counts are unchanged by that bound.
+* **Tests.** `tests/e2e/analytics_funnel_test.go`
+  `TestFunnelStitchesVisitorsToAccounts` (browser A links at sign-up, browser
+  C by a signed-in event, browser B never: `[web.page_view, user.registered]`
+  counts the account once plus B, and the sign-up converts);
+  `tests/load/explain_funnel_test.go` `TestExplainFunnelPopulated` (needs
+  `LOAD_DATABASE_DSN`; inserts 40,000 clients, 120,000 browsers and about
+  290,000 events in a rolled-back transaction; asserts no sequential scan on
+  `analytics_events` or `web_visitors`, `web_visitors_pkey` read, and 1.5 s per
+  funnel). Measured on a 120,000-browser synthetic set on the development
+  machine (to be re-measured on the 200k-user load database): 30-day 3-step
+  funnel 132 ms, 7-day 2-step 31 ms, 90-day 3-step 424 ms (the join form of
+  the same stitching: 449 / 244 / 717 ms with sequential scans).
+
+### 27.6 Legal, privacy and performance follow-ups of the growth work
+
+- **Legal documents** (Terms, Privacy Policy, Refund Policy, en/fr/es) are
+  dated **2026-11-25**, with `LEGAL_VERSIONS` (the purchase consent evidence):
+  ship on or after that day (the API refuses consent dates in the future). The
+  growth clauses were fact-checked against the code: tarot birth cards (one,
+  two or three cards), the invite code in a signed-in client's shared result
+  link, when each referral message is sent (the reward e-mail is an account
+  message), the export (`lifecycle-messages.json`, checklist dismissal), the
+  reading summary, auto-away, alternative advisors, campaign parameters in our
+  e-mail links and the stitching of a browser's events to its account.
+- **Erasure:** the reading summary (`lifecycle_readers`) is deleted with the
+  account and never recomputed for an erased one; lifecycle messages stay on
+  the anonymised account.
+- **Analytics:** `referral.joined` and `referral.qualified` no longer carry
+  `referrer_id` (no event links an invited friend to the inviter);
+  `referral.granted` still names the inviter.
+- **Query plans at 200k users:** `InvitersAmong` (lifecycle funnel) probes
+  `referrals_referrer_status_idx` per account of the cohort instead of hashing
+  every referral (374 ms → 12 ms warm); the `after_first_reading` and
+  `win_back` due queries fetch each reader's account by `users_pkey` in band
+  order instead of hashing the band against a scan of `users` (win_back
+  1.3 s → 6 ms warm). Both use an `OFFSET 0` subquery so the planner keeps the
+  per-row probe.
+- **Tests:** the Go e2e suite runs in parallel shards, then the large-dataset
+  tests alone (`backend/README.md`, `make test-e2e-quick` skips the latter);
+  the web Playwright suite has `npm run test:e2e:full` (production build,
+  public pages in parallel, the shared-state journeys one at a time) and both
+  Playwright configs record video only with `E2E_VIDEO=1`.

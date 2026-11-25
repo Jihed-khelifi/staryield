@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-19",
-    "effective": "2026-11-19",
-    "lastUpdated": "2026-11-19",
+    "version": "2026-11-25",
+    "effective": "2026-11-25",
+    "lastUpdated": "2026-11-25",
     "badge": "STARYIELD SYSTEM AGREEMENT",
     "title": "Terms of Use"
   },
@@ -149,6 +149,28 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Natal charts, horoscopes, numerology numbers and tarot spreads are produced automatically by our own software from the details you provide. Their accuracy depends on the accuracy of your birth date, time and place; if you do not know your birth time, results such as your rising sign and houses cannot be calculated. Different websites may use different methods (for example different house systems), so their results may differ from ours. Like the rest of the Service, these results are provided for entertainment purposes only (see Section 2.1)."
+        },
+        {
+          "type": "h3",
+          "id": "free-calculators-and-guides",
+          "n": "2.5",
+          "title": "Free Calculators and Guides"
+        },
+        {
+          "type": "p",
+          "text": "Our natal chart calculator, which shows the full chart (the wheel, planets, houses, aspects and their interpretations), our life path number, zodiac sign, tarot birth card and zodiac compatibility calculators, and our guide pages about life path numbers, tarot birth cards and zodiac sign pairings are free and can be used without an Account. They describe traditions, such as Pythagorean numerology, Western astrology and the tarot birth card method described by Mary K. Greer (with Rider–Waite–Smith numbering and the Golden Dawn attributions), and what those traditions associate with a number, a card or a sign. They are not predictions and are not psychological, medical, financial, legal, relationship or other professional advice. Like the rest of the Service, they are provided for entertainment purposes only (see Section 2.1), and Section 2.4 also applies to their results."
+        },
+        {
+          "type": "p",
+          "text": "Compatibility scores. The love, friendship and work scores shown for two zodiac signs are produced by a fixed rule from the angle between the two signs, their elements, their modalities and their ruling planets, so the same two signs always get the same scores. They are a traditional-astrology heuristic offered for entertainment, not a measurement: they are not based on data about real couples and cannot tell whether a relationship will work."
+        },
+        {
+          "type": "p",
+          "text": "Other people’s birth dates. The compatibility calculator asks for two birth dates. Enter another person’s birth date only if they agree. It is used only to work out their zodiac sign and is not stored; see our [Privacy Policy](/privacy)."
+        },
+        {
+          "type": "p",
+          "text": "Advisors shown with free results. Next to some results and on guide pages we may show advisors and booking buttons ([Section 4.17](#booking-a-reading)). Using a free calculator or page never commits you to a reading: readings are charged only as described in Section 6. We may change, limit or withdraw any free calculator or page at any time (see Section 1.3)."
         }
       ]
     },
@@ -242,6 +264,28 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "You can also disable your Account temporarily in your account settings. While it is disabled, you are signed out on all devices, your profile is hidden and, if you are an advisor, you are removed from the directory; your data, Credits and settings are kept. To reactivate your Account, sign in again and confirm. An Account disabled by us under Section 3.4 can only be reactivated by us."
+        },
+        {
+          "type": "h3",
+          "id": "email-address-and-confirmation",
+          "n": "3.8",
+          "title": "Your Email Address and Its Confirmation"
+        },
+        {
+          "type": "p",
+          "text": "You must register with an email address that you control and keep it up to date in your account settings. We use it to identify your Account and to send you messages about your Account and your purchases, such as security alerts, receipts and invoices, and replies to your support requests. These are service messages, not marketing (see [Section 4.13](#notifications))."
+        },
+        {
+          "type": "p",
+          "text": "Confirming your address. When you register with an email address and password, we send you a welcome email with a link to confirm that the address is yours. The link works only once, expires after 48 hours and is valid only for the address it was sent to; you can open it on any device, even if you are not signed in. If the link has expired or did not arrive, you can ask for a new one in your account, within limits on how often links can be sent; a new link cancels the earlier ones. If you register with Google, your address counts as confirmed because Google has confirmed it to us. When you change your address, the new address is confirmed through the link we send to it."
+        },
+        {
+          "type": "p",
+          "text": "Confirming your address is not currently required to use the Service or to buy Credits. It is one of the conditions for an invited friend to count in the referral program ([Section 4.20.2](#referral-how-rewards-are-earned)), and we may remind you to do it ([Section 4.18](#reminders-and-getting-started)). If your address is wrong, unconfirmed or cannot receive email, you may miss receipts and notices about your Account (see also Section 3.2)."
+        },
+        {
+          "type": "p",
+          "text": "If you receive a confirmation email for an account you did not create, you can ignore it and should not open the link: the address is confirmed only if the link is used. If this happens repeatedly, contact our [Support center](/contact)."
         }
       ]
     },
@@ -422,7 +466,11 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "We send notifications about your account and activity — for example chat requests, the end of a reading and invitations to rate it, order updates, completed purchases and payment problems, credit adjustments, waiting-list alerts and, for advisors, new ratings and payout updates — as well as occasional announcements from Staryield. Notifications appear in the bell menu of the website in your chosen language and can be marked as read; we keep them for up to 180 days. Depending on your notification settings, we also send them by email and as browser push notifications. Messages that protect your account, such as a confirmation of a change to your email address, are always sent by email. In-app notifications are part of the Service; they are not marketing emails, and we only send marketing communications if you opt in. Signing out stops push notifications on that device."
+          "text": "We send notifications about your account and activity — for example chat requests, the end of a reading and invitations to rate it, order updates, completed purchases and payment problems, credit adjustments, waiting-list alerts and, for advisors, new ratings and payout updates — as well as occasional announcements from Staryield. Notifications appear in the bell menu of the website in your chosen language and can be marked as read; we keep them for up to 180 days. Depending on your notification settings, we also send them by email and as browser push notifications. Messages that protect your account, such as a confirmation of a change to your email address, are always sent by email. In-app notifications are part of the Service; they are not marketing emails, and we only send marketing communications if you opt in. Signing out stops push notifications on that device. Advisors are also notified, in the app and, depending on their notification settings, by email and push, if their status is set to Away automatically ([Section 4.17](#booking-a-reading))."
+        },
+        {
+          "type": "p",
+          "text": "Reminders and suggestions, and the consent that promotional reminders by email or push require, are described in [Section 4.18](#reminders-and-getting-started)."
         },
         {
           "type": "h3",
@@ -445,6 +493,10 @@ const content: LegalDocumentContent = {
           "text": "When an advisor is busy or offline, you can join their waiting list. We will notify you once, in the app and through the channels you have enabled, when the advisor comes online. Joining a waiting list does not reserve the advisor or guarantee a reading, entries expire after 7 days, and you can leave a waiting list at any time."
         },
         {
+          "type": "p",
+          "text": "“Notify me when online.” Joining a waiting list from the booking button on an advisor’s profile, card or page is a best-effort service. If you are not signed in, you are first asked to sign in or create an Account; you then join the waiting list automatically, provided you finish in the same browser tab within an hour. We send the notice only once, and only if the advisor is still online when we send it; the advisor may be busy or offline again by the time you read it. The notice does not hold a place for you, and we are not responsible for a notice that arrives late or not at all because of your notification settings, your device or your email provider."
+        },
+        {
           "type": "h3",
           "id": "messages-outside-live-readings",
           "n": "4.16",
@@ -461,6 +513,206 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "These messages are stored and kept like other chat messages and are visible only to you and the advisor. Authorised Staryield staff may review them only as described in our [Privacy Policy](/privacy#messages-outside-live-readings), for example to handle a dispute, a safety report or a legal obligation. The other participant is notified in the app and by push notification, without the text of the message."
+        },
+        {
+          "type": "h3",
+          "id": "booking-a-reading",
+          "n": "4.17",
+          "title": "Booking a Reading"
+        },
+        {
+          "type": "p",
+          "text": "Advisor profiles and cards show a booking button for each advisor, and some calculator and guide pages may show it too. What it offers depends on the advisor’s live status: when the advisor is online, “Chat now” starts a request for a live chat; when the advisor is in a reading, away or offline, you can join their waiting list instead ([Section 4.15](#advisor-waiting-lists)). An advisor’s status can change at any moment: being shown as online does not guarantee that the advisor will accept your request or still be available when you send it. An advisor who misses several chat requests in a row (currently 3) may be set to Away automatically and is told why; an Away advisor is not shown as online until they set themselves Online. After a request that an advisor declined or did not answer, we may suggest other advisors who are online; the same status caveat applies."
+        },
+        {
+          "type": "p",
+          "text": "Who can book. Only client Accounts of users aged 18 or older can book readings ([Section 3.3](#age-restriction)). If you are not signed in, you are asked to create an Account or sign in first and are then brought back to the advisor. If your Account still has to complete the age check, you are asked to do so first. Advisor and administrator Accounts cannot book readings."
+        },
+        {
+          "type": "p",
+          "text": "Prices and offers shown on the button. Under the button we show either the advisor’s per-minute rate in Credits or a free offer: the introductory free minutes for new members, your own free minutes, or “Free for a limited time” while free mode is on. These lines summarise the offers described in [Section 6.1.4](#free-trials-and-promotional-offers), which also sets their conditions: introductory free minutes are for new accounts only, one per person, in the amount Staryield sets at the time; free minutes have no cash value; and Staryield may change or withdraw an offer, or end free mode, at any time. When a reading is not free, you pay the advisor’s per-minute rate shown when you start the chat ([Section 6.1.1](#account-balance)); free minutes are always used first."
+        },
+        {
+          "type": "h3",
+          "id": "reminders-and-getting-started",
+          "n": "4.18",
+          "title": "Reminders and the Getting Started Checklist"
+        },
+        {
+          "type": "p",
+          "text": "Getting started. If you are a client, your account overview shows a “Get started” checklist of suggested next steps: confirming your email address, adding your birth details, having your first reading and, while the referral program is running, inviting a friend. Following it is optional, and you can hide it."
+        },
+        {
+          "type": "p",
+          "text": "Reminders. To help you get started and come back, we may send you reminders and suggestions at certain moments: to confirm your email address, to have a first reading after you sign up, to invite a friend after a reading (only while the referral program is running), and to come back after some time without a reading. They appear as in-app notifications, which are part of the Service ([Section 4.13](#notifications)). A reminder to confirm your address may also come by email with a new confirmation link, as a message about your Account."
+        },
+        {
+          "type": "p",
+          "text": "Promotional reminders by email or push. We send the reminders about a first reading, inviting a friend or coming back by email or push notification only if you have turned on “Marketing Updates” (tips, offers and reminders) in your [notification settings](/profile/settings#notifications); push notifications must also be turned on for your browser. You can turn them off at any time in the same place, and every promotional email includes a link to your notification settings."
+        },
+        {
+          "type": "p",
+          "text": "Limits. We limit how often we send these reminders, and we do not send them to advisor or administrator Accounts, or to Accounts that are restricted, disabled, banned or being closed."
+        },
+        {
+          "type": "p",
+          "text": "What a reminder says. Figures in a reminder, such as your free minutes or the number of advisors online, describe the moment it was sent. Advisors’ availability, your balance and our offers can change before you read it, and free minutes remain subject to [Section 6.1.4](#free-trials-and-promotional-offers). Messages such as “your daily horoscope is ready” are informational and, like the rest of the Service, for entertainment purposes only (Section 2.1)."
+        },
+        {
+          "type": "h3",
+          "id": "sharing-your-results",
+          "n": "4.19",
+          "title": "Sharing Your Results"
+        },
+        {
+          "type": "p",
+          "text": "You can save or share the result of our natal chart, life path number, zodiac sign and tarot birth card calculators as an image in 9:16 format, made on your device. The image shows your result with its artwork, the Staryield name and mark and the address staryield.net. It does not show your birth date, birth time, birthplace or name, and the link shared with it opens the calculator page without your birth details. If you are signed in as a client while the referral program is running, the link also contains your personal invite code, so that a friend who signs up from it counts as invited ([Section 4.20](#referral-program)). We do not receive or keep the images you create."
+        },
+        {
+          "type": "p",
+          "text": "What you may do with it. You may save the image and share it, unaltered, for personal and non-commercial purposes, for example with friends, in messages or on your own social media accounts. You may not alter the image (including by removing or covering the Staryield name or mark, or by changing the result), use it to suggest that Staryield endorses you, another person, a product or a service, or use it in advertising or for any other commercial purpose. This permission is personal, non-exclusive, non-transferable and revocable."
+        },
+        {
+          "type": "p",
+          "text": "Ownership. The Staryield name and mark, the design of the image and the artwork that we own or license remain the property of Staryield or its licensors ([Section 4.1](#ownership-and-intellectual-property)). Sharing an image does not transfer any of these rights to you or to anyone else."
+        },
+        {
+          "type": "p",
+          "text": "Your responsibility. You are responsible for what you post and where. When you use your device’s share menu, the image and its text are passed to the app you choose, whose own terms and privacy policy apply (see [Section 5](#third-party-services-materials-and-advertising)). A shared result is not a prediction or advice; it is for entertainment purposes only (Section 2.1)."
+        },
+        {
+          "type": "h3",
+          "id": "referral-program",
+          "n": "4.20",
+          "title": "Invite Friends (Referral Program)"
+        },
+        {
+          "type": "p",
+          "text": "Clients can invite friends to Staryield with a personal invite link and earn free chat minutes when an invited friend meets the conditions below. The program’s current reward, limit and launch status are shown on the [Invite friends](/profile/invite) page of your account. The program does not depend on ratings or reviews in any way."
+        },
+        {
+          "type": "h4",
+          "id": "referral-who-can-take-part",
+          "n": "4.20.1",
+          "title": "Who Can Take Part"
+        },
+        {
+          "type": "p",
+          "text": "You can invite friends and earn rewards if you have an active client Account and are 18 or older. Advisors, administrator Accounts, and Staryield’s employees and contractors cannot take part, including through a separate client Account. Your invite link is personal and may not be sold or transferred."
+        },
+        {
+          "type": "h4",
+          "id": "referral-how-rewards-are-earned",
+          "n": "4.20.2",
+          "title": "How a Reward Is Earned"
+        },
+        {
+          "type": "p",
+          "text": "You earn a reward for each invited friend who:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "creates a new Staryield Account, with an email address or with Google, in the same browser in which they opened your invite link and no more than 30 days after first opening it (if they opened several invite links, only the first one counts);",
+            "confirms their email address ([Section 3.8](#email-address-and-confirmation)); an address confirmed through Google sign-up counts; and",
+            "completes a live chat reading of at least one minute with any advisor, paid or free (with Credits, with free minutes or during free mode). A minute counts once it has started, and the reading counts once it has ended."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "These steps can happen in any order. Existing accounts, your own other accounts and friends who sign up without your link do not count. The invited friend receives only the standard welcome offer available to every new client ([Section 6.1.4](#free-trials-and-promotional-offers)); there is no extra reward for being invited."
+        },
+        {
+          "type": "p",
+          "text": "To protect your friends’ privacy, we show you only numbers (how many friends joined, how many completed a reading, and the minutes pending or added), never who joined or who had a reading, and our notifications to you never name a friend."
+        },
+        {
+          "type": "h4",
+          "id": "referral-reward-size-and-limits",
+          "n": "4.20.3",
+          "title": "Reward Size and Limits"
+        },
+        {
+          "type": "p",
+          "text": "The reward for each qualifying friend is a number of free chat minutes set by Staryield, currently 5. A reward keeps the amount in force when your friend met the last condition, even if the amount changes later. Each friend can earn a reward only once, for a single inviter. You can be rewarded for a limited number of friends, currently 20; friends who qualify while you are at that limit earn no reward. The amount and the limit in force are shown on the Invite friends page."
+        },
+        {
+          "type": "h4",
+          "id": "referral-beta-and-launch",
+          "n": "4.20.4",
+          "title": "Beta and Launch"
+        },
+        {
+          "type": "p",
+          "text": "Staryield is in beta. Rewards earned before we launch the referral rewards are shown as pending and are added to your Account when we launch them, on a date we choose; we notify you when minutes are added. After the launch, a reward is added automatically shortly after your friend qualifies. Minutes are added only while your Account is active: while it is disabled, suspended or being closed, they wait. A reward held for review ([Section 4.20.7](#referral-fraud-and-review)) is added only if we approve it."
+        },
+        {
+          "type": "h4",
+          "id": "referral-free-minutes",
+          "n": "4.20.5",
+          "title": "Your Reward Minutes"
+        },
+        {
+          "type": "p",
+          "text": "Reward minutes are promotional free chat minutes. They are added to your free minutes and are used in the same way: only for live chat readings on Staryield, before any Credits in your Balance ([Section 6.1.1](#account-balance)). They have no cash value and cannot be sold, transferred, exchanged for money or Credits, or refunded (see our [Refund Policy](/refund-policy)). A later refund or payment dispute by your friend does not change minutes already added to your Account."
+        },
+        {
+          "type": "h4",
+          "id": "referral-sharing-your-link",
+          "n": "4.20.6",
+          "title": "Sharing Your Link"
+        },
+        {
+          "type": "p",
+          "text": "You are responsible for how and where you share your invite link, and you must comply with the law when you do, including the rules on spam and advertising. In particular:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "share it only with people you know or in places where you are allowed to post it, and do not send it in unsolicited or bulk messages (by email, text message, messaging app, comment or forum post);",
+            "when you share it publicly, for example on social media, in a video, on a blog or in a forum, say clearly that you receive free minutes when people sign up and have a reading through your link;",
+            "do not make misleading claims: do not promise predictions, outcomes or accuracy, do not describe the reward or the welcome offer differently from these Terms, and do not present yourself as Staryield or as acting on its behalf;",
+            "do not buy advertising, sponsored posts or search keywords that use the Staryield name or brand to promote your link; and",
+            "do not pay or reward people for signing up or having a reading."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "We are not responsible for what you write or post when you share your link."
+        },
+        {
+          "type": "h4",
+          "id": "referral-fraud-and-review",
+          "n": "4.20.7",
+          "title": "Fraud, Review and Abuse"
+        },
+        {
+          "type": "p",
+          "text": "You may not invite yourself, create several or fake accounts, use another person’s identity, create sign-ups with automated tools or in bulk, or otherwise try to obtain rewards without a genuine new client completing a reading. To protect the program, we check sign-ups automatically. A sign-up from a browser already linked to your own Account is not rewarded. Other referrals may be held for review, for example when your friend signs up from the same network as one of your recent sessions or from a browser already linked to another account, or when an unusual number of friends join through your link in a short time; our staff then approve or reject them."
+        },
+        {
+          "type": "p",
+          "text": "We may reject or withhold a reward that we reasonably believe breaks these rules or these Terms, and we may suspend or close Accounts that abuse the program ([Section 3.4](#account-suspension-or-termination)); when an Account is suspended or closed for abuse, its pending rewards and free minutes may be forfeited. If you think a decision is wrong, contact our [Support center](/contact)."
+        },
+        {
+          "type": "h4",
+          "id": "referral-changes-and-ending",
+          "n": "4.20.8",
+          "title": "Changes, Pauses and the End of the Program"
+        },
+        {
+          "type": "p",
+          "text": "We may change the program, including the reward, the limit and these rules, or pause or end it, at any time. While the program is paused or after it has ended, new sign-ups through invite links are not recorded, and friends who joined earlier can qualify only if the program resumes. A change, pause or end of the program does not take away minutes already added to your Account or rewards already earned: earned rewards that are still pending are added as described in [Section 4.20.4](#referral-beta-and-launch), unless they are rejected under [Section 4.20.7](#referral-fraud-and-review)."
+        },
+        {
+          "type": "h4",
+          "id": "referral-closing-your-account",
+          "n": "4.20.9",
+          "title": "Closing Your Account"
+        },
+        {
+          "type": "p",
+          "text": "While your Account is disabled or its closure is pending, your invite link does not work and no minutes are added. When the closure becomes final ([Section 3.6](#account-deletion)), your invite code and the record of the friends you invited are deleted, rewards not yet added are forfeited, and the free minutes in your Account are lost, like unused Credits. If an invited friend’s Account is closed for good before they qualify, their invite no longer counts."
         }
       ]
     },
@@ -618,6 +870,18 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Pause when your free minutes or Credits run out (the “hold”). If your free minutes run out during a live reading (or, where we enable it, your Credits run out), the reading does not end at once: it is put on hold for a short time, currently one minute, so that you can add Credits. The time on hold is not charged. While the reading is on hold the advisor may keep writing, but those replies are hidden from you until the hold ends. If you add Credits during the hold, the reading continues, the replies are shown and the next minute is charged at the advisor’s per-minute rate. If a purchase you have started is still being confirmed when the hold ends, we may extend it briefly. If you do not add Credits, the reading ends, nothing is charged, and you can later reveal the hidden replies for the price of one minute at that advisor’s rate. You are always told the price before you pay, and nothing is charged until you confirm. Free minutes never convert into a charge: you pay only if you add Credits to continue or choose to reveal the hidden replies. Staryield sets the length of the hold and may change it, or switch the hold off, at any time."
+        },
+        {
+          "type": "p",
+          "text": "Free minutes from the referral program. Free minutes earned by inviting friends ([Section 4.20](#referral-program)) are added to your free minutes and follow the same rules of use: they are used before any Credits, have no cash value, and cannot be transferred, exchanged or refunded."
+        },
+        {
+          "type": "p",
+          "text": "One welcome offer per person. Introductory free minutes are limited to one Account per person. Creating additional Accounts to receive them again is not allowed and is a breach of these Terms ([Section 3.4](#account-suspension-or-termination))."
+        },
+        {
+          "type": "p",
+          "text": "Offers shown on buttons, pages and messages. Lines such as “free minutes for new members” or “Free for a limited time” on booking buttons, pages and reminders describe the offer in force when they were shown. The offer that applies is the one in force when your Account is created (introductory free minutes) or when you request the chat (free mode)."
         },
         {
           "type": "h3",

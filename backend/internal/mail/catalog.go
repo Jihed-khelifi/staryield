@@ -232,12 +232,30 @@ func Notification(locale, kind string, data map[string]any, link string) (Conten
 		c = Content{Subject: t("Our team replied to your request"), Paragraphs: []string{p},
 			Action: &Action{Label: t("Read the reply"), URL: link}}
 	// end revisions 3.0: support desk
+	// --- growth: referrals ---
+	case "referral.joined", "referral.qualified", "referral.reward_granted":
+		c, _ = referralNotification(t, kind, data, link)
+	// --- end growth: referrals ---
+	// --- follow-ups: auto-away ---
+	case "availability.auto_away":
+		c = Content{Subject: t("You were set to Away"),
+			Paragraphs: []string{t(fmt.Sprintf("You were set to Away after %d missed requests. Set yourself Online when you are ready.", intOf(data["missed"])))},
+			Action:     &Action{Label: t("Open the chatroom"), URL: link}}
+	// --- end follow-ups: auto-away ---
 	case "broadcast":
 		title, body := localizedPair(locale, data["title"]), localizedPair(locale, data["body"])
 		if title == "" {
 			return Content{}, false
 		}
 		c = Content{Subject: title, Paragraphs: nonEmpty(body), Action: &Action{Label: t("Open Staryield"), URL: link}}
+	// --- growth: lifecycle and onboarding ---
+	case "lifecycle.first_reading", "lifecycle.invite_friends", "lifecycle.win_back":
+		lc, found := lifecycleNotification(t, kind, data, link)
+		if !found {
+			return Content{}, false
+		}
+		c = lc
+	// --- end growth: lifecycle and onboarding ---
 	default:
 		return Content{}, false
 	}

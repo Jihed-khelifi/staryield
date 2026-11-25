@@ -37,6 +37,30 @@ type EmailRepository interface {
 	// List returns outbox rows (newest first) for a user or template, for
 	// support tooling and tests.
 	List(ctx context.Context, userID *uuid.UUID, template string, limit int) ([]domain.EmailOutbox, error)
+	// DeliveryStats counts the rows created since a time per template, status
+	// and reason (the admin console's delivery view).
+	DeliveryStats(ctx context.Context, since time.Time) ([]EmailDeliveryStat, error)
+	// Problems returns the most recently updated rows that did not go out
+	// (failed, dead, cancelled or suppressed) or are being retried after an
+	// error, newest first. Rows carry no recipient or body once final.
+	Problems(ctx context.Context, since time.Time, limit int) ([]domain.EmailOutbox, error)
+	// Backlog reports the queued rows and the oldest due time among them.
+	Backlog(ctx context.Context) (EmailBacklog, error)
+}
+
+// EmailDeliveryStat is one group of DeliveryStats.
+type EmailDeliveryStat struct {
+	Template string
+	Status   domain.EmailStatus
+	Reason   string
+	Count    int64
+}
+
+// EmailBacklog summarises the queued rows.
+type EmailBacklog struct {
+	Queued    int64
+	OldestDue *time.Time
+	Retrying  int64
 }
 
 // GormEmailRepository implements EmailRepository.
@@ -134,6 +158,48 @@ func (r *GormEmailRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Em
 		return nil, notFound(err)
 	}
 	return &row, nil
+}
+
+func (r *GormEmailRepository) DeliveryStats(ctx context.Context, since time.Time) ([]EmailDeliveryStat, error) {
+	var rows []EmailDeliveryStat
+	err := database.Conn(ctx, r.db).Model(&domain.EmailOutbox{}).
+		Select("template, status, status_reason AS reason, count(*) AS count").
+		Where("created_at >= ?", since).
+		Group("template, status, status_reason").
+		Order("template, status, status_reason").
+		Scan(&rows).Error
+	return rows, err
+}
+
+// emailProblemPredicate selects the rows that did not go out or are being
+// retried after an error (the predicate of email_outbox_problems_idx).
+const emailProblemPredicate = "status IN ('failed', 'dead', 'suppressed', 'cancelled') OR (status = 'queued' AND last_error <> '')"
+
+func (r *GormEmailRepository) Problems(ctx context.Context, since time.Time, limit int) ([]domain.EmailOutbox, error) {
+	var out []domain.EmailOutbox
+	// Only metadata columns: the sealed recipient and body of a retrying row
+	// never leave the database here. The status predicate is the literal
+	// predicate of the partial index email_outbox_problems_idx (migration
+	// 0040): with bind parameters Postgres cannot match the index once a
+	// cached statement runs on a generic plan. It holds no input.
+	err := database.Conn(ctx, r.db).Model(&domain.EmailOutbox{}).
+		Select("id, user_id, category, template, locale, status, status_reason, attempts, next_attempt_at, last_error, provider, created_at, updated_at").
+		Where(emailProblemPredicate).
+		Where("created_at >= ?", since).
+		Order("updated_at DESC, id DESC").Limit(clampLimit(limit, 20, 100)).Find(&out).Error
+	return out, err
+}
+
+func (r *GormEmailRepository) Backlog(ctx context.Context) (EmailBacklog, error) {
+	var out struct {
+		Queued    int64
+		OldestDue *time.Time
+		Retrying  int64
+	}
+	err := database.Conn(ctx, r.db).Model(&domain.EmailOutbox{}).
+		Select("count(*) AS queued, min(next_attempt_at) AS oldest_due, count(*) FILTER (WHERE attempts > 0) AS retrying").
+		Where("status = ?", domain.EmailQueued).Scan(&out).Error
+	return EmailBacklog{Queued: out.Queued, OldestDue: out.OldestDue, Retrying: out.Retrying}, err
 }
 
 func (r *GormEmailRepository) List(ctx context.Context, userID *uuid.UUID, template string, limit int) ([]domain.EmailOutbox, error) {

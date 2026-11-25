@@ -230,7 +230,12 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 			mailer = mail.LogMailer{From: cfg.Mail.From}
 		default:
 			mailer = mail.NoopMailer{}
-			log.Warn("mail driver is noop: e-mail (password resets, account notices) is discarded")
+			msg := "mail driver is noop: every e-mail (sign-up verification, password resets, calculator reports, receipts) is discarded; set STARYIELD_MAIL_DRIVER=cloudflare"
+			if cfg.IsProduction() {
+				log.Error(msg)
+			} else {
+				log.Warn(msg)
+			}
 		}
 	}
 	// Keyed hashes identify e-mail addresses and push endpoints without
@@ -240,7 +245,8 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	mailSvc := service.NewMailService(txm, repository.NewEmailRepository(db), mailer, sealer, clk, log.With(zap.String("component", "mail")),
 		service.MailSettings{FrontendURL: cfg.App.FrontendURL, MaxAttempts: cfg.Mail.MaxAttempts, DailyCap: cfg.Mail.DailyCap,
 			AllowMarketing: cfg.Mail.AllowMarketing, SendTimeout: cfg.Mail.Timeout + 5*time.Second, HashKey: addressHashKey,
-			SupportEmail: cfg.Mail.SupportInbox}) // revisions 5.1: footer of every e-mail (§25.4)
+			SupportEmail: cfg.Mail.SupportInbox, // revisions 5.1: footer of every e-mail (§25.4)
+			From:         cfg.Mail.From})        // growth: e-mail delivery view
 	var pushSender push.Sender
 	pushPublicKey := ""
 	if cfg.Push.Active() {
@@ -548,7 +554,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Cfg: service.ReportSettings{FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret,
 			UnsubscribeKey: security.Keyed(string(key), "staryield:marketing-unsubscribe:v1", 0),
 			AddressRule:    service.ReportAddressRule.Scaled(cfg.RateLimit.Scale)}})
-	authSvc.SetRegistrationHook(reportSvc.LinkRegistration)
+	authSvc.AddRegistrationHook(reportSvc.LinkRegistration)
 	purgeCalcLead := service.PurgeAll(calculatorSvc, reportSvc) // account erasure also deletes the user's e-mail lead
 	// end revisions 6.0 (§26.4)
 	eraser := service.NewAccountEraser(service.EraserDeps{Tx: txm, Users: users, Tokens: tokens, Psychics: psychics, Hasher: hasher,
@@ -593,6 +599,66 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		service.RevenueSettings{Currency: cfg.Payments.Currency, PayoutCentsPerCredit: cfg.Billing.PayoutCentsPerCredit})
 	// revisions 6.0 (§26.4): the calculators' e-mail report
 	services.CalculatorReport = reportSvc
+
+	// --- growth: e-mail verification ---
+	verifySvc := service.NewEmailVerificationService(service.EmailVerificationDeps{Tx: txm, Users: users, Actions: actionsRepo,
+		Mail: mailSvc, Suppressions: mailSvc, Sealer: sealer, Events: publisher, Notifier: dispatcher, Audit: audit, Tracker: track, Clock: clk,
+		Settings: service.EmailVerificationSettings{FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret}})
+	authSvc.AddRegistrationHook(verifySvc.OnRegistered)
+	userSvc.SetVerificationLookup(verifySvc.Pending)
+	services.EmailVerification = verifySvc
+	// --- end growth: e-mail verification ---
+
+	// growth: e-mail delivery (the admin console's test sends are audited).
+	mailSvc.WithAudit(audit, cfg.Analytics.IPHashSecret)
+
+	// --- growth: referrals ---
+	// A friend's reading or verified address qualifies the invite (post-commit
+	// hooks); the minutes are granted by the referral-grants job after launch.
+	// Account erasure also deletes the user's code and invites (AddPurger).
+	referralSvc := service.NewReferralService(service.ReferralDeps{Tx: txm, Repo: repository.NewReferralRepository(db), Audit: audit,
+		Wallet: walletSvc, Program: siteSvc.ReferralProgram, Launch: siteSvc.LaunchReferralRewards, Notifier: dispatcher,
+		Events: publisher, Tracker: track, Clock: clk,
+		Cfg: service.ReferralSettings{FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret}})
+	chatSvc.OnSessionSettled(referralSvc.OnSessionSettled)
+	eraser.AddPurger(referralSvc)
+	services.Referrals = referralSvc
+	// --- end growth: referrals ---
+
+	// --- growth: lifecycle and onboarding ---
+	lifecycleSvc := service.NewLifecycleService(service.LifecycleDeps{Tx: txm, Repo: repository.NewLifecycleRepository(db),
+		Site: repository.NewSiteRepository(db), Contacts: repository.NewContactRepository(db), Audit: audit, Notifier: dispatcher,
+		Events: publisher, OnlineAdvisors: catalogSvc.OnlineCount, Push: pushSvc, Cache: kv, Clock: clk, Log: log.With(zap.String("component", "lifecycle")),
+		IPHashSecret: cfg.Analytics.IPHashSecret})
+	lifecycleSvc.Attach(chatSvc)
+	// Account erasure also deletes the user's reading summary (AddPurger).
+	eraser.AddPurger(lifecycleSvc)
+	services.Lifecycle = lifecycleSvc
+	// --- end growth: lifecycle and onboarding ---
+
+	// --- follow-ups: auto-away ---
+	// An Online advisor whose live-chat requests expire unanswered N times in a
+	// row is set Away and told why; answers and availability changes reset the count.
+	autoAwaySvc := service.NewAutoAwayService(service.AutoAwayDeps{Tx: txm, Psychics: psychics,
+		Chat: chatRepo, Site: repository.NewSiteRepository(db), Audit: audit, Advisors: psychicSvc, Notifier: dispatcher,
+		Tracker: track, Clock: clk, Log: log.With(zap.String("component", "auto-away")), IPHashSecret: cfg.Analytics.IPHashSecret})
+	autoAwaySvc.Attach(chatSvc)
+	services.AutoAway = autoAwaySvc
+	// --- end follow-ups: auto-away ---
+
+	// --- growth: cross-stream hooks ---
+	// A verified address is one of the two conditions of a referral reward
+	// (the other is a completed reading, observed through OnSessionSettled).
+	verifySvc.OnVerified(referralSvc.OnEmailVerified)
+	// Lifecycle: the verification reminder sends a fresh link; the invite
+	// journey runs only while the referral program is on; the onboarding
+	// checklist and the admin funnel read the invite counts.
+	lifecycleSvc.SetVerificationReminder(verifySvc.SendReminder)
+	lifecycleSvc.SetReferralsEnabled(referralSvc.Enabled)
+	lifecycleSvc.SetInvitedFriends(referralSvc.InvitedFriends)
+	lifecycleSvc.SetInvitedCohort(referralSvc.InvitersAmong)
+	// --- end growth: cross-stream hooks ---
+
 	cookieNames := api.CookieNamesFor(cfg.Security)
 	health := func(r *http.Request) map[string]error {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -676,6 +742,16 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	// revisions 3.0: support desk
 	scheduler.WithJobs(worker.Job{Name: service.SupportJob, Every: time.Hour, Run: supportSvc.RunMaintenance})
 	// end revisions 3.0: support desk
+
+	// --- growth jobs: referrals ---
+	scheduler.WithJobs(
+		worker.Job{Name: service.ReferralGrantJob, Every: time.Minute, Wake: referralSvc.Wake(), Run: referralSvc.RunGrants},
+		worker.Job{Name: service.ReferralSweepJob, Every: 5 * time.Minute, Run: referralSvc.RunSweep})
+	// --- end growth jobs: referrals ---
+
+	// --- growth jobs: lifecycle and onboarding ---
+	scheduler.WithJobs(worker.Job{Name: service.LifecycleJob, Every: 5 * time.Minute, Run: lifecycleSvc.RunDue})
+	// --- end growth jobs: lifecycle and onboarding ---
 
 	return &App{
 		Config: cfg, Log: log, DB: db, Redis: rdb, Router: router, Services: services, Hub: hub, Realtime: rtServer,

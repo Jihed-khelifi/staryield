@@ -310,6 +310,30 @@ func NewRouter(d Deps) *echo.Echo {
 	me.GET("/notifications/unread-count", h.UnreadNotifications)
 	me.POST("/notifications/read", h.MarkNotificationsRead, writeRL)
 
+	// --- growth: e-mail verification ---
+	// The link may be opened on another device, signed out: public, by IP, fail closed.
+	a.POST("/email/verify", h.VerifyEmail, authRL)
+	// Resending has its own small hourly budget per user (it sends e-mail): fail closed.
+	verifyResendRL := mw.RateLimit(limiter, rule("email_verification", config.Rule{Rate: 5, Period: time.Hour, Burst: 5}, scale), mw.ByUserOrIP, false)
+	me.POST("/email/verification", h.ResendEmailVerification, verifyResendRL)
+	// --- end growth: e-mail verification ---
+
+	// --- growth: referrals ---
+	// The invite link and counters of a client. Not behind ageGate: it reads
+	// the caller's own code and counters (no money, no advisor contact) and the
+	// overview card must load for a client still completing their birth date;
+	// the rewards need a settled reading, which is gated.
+	me.GET("/referrals", h.MyReferrals, client)
+	// --- end growth: referrals ---
+
+	// --- growth: lifecycle and onboarding ---
+	// The onboarding checklist is the client's own data (never age gated: it
+	// holds no client action); writes are limited like other profile writes.
+	me.GET("/onboarding", h.MyOnboarding, client)
+	me.POST("/onboarding/dismiss", h.DismissOnboarding, client, writeRL)
+	me.DELETE("/onboarding/dismiss", h.RestoreOnboarding, client, writeRL)
+	// --- end growth: lifecycle and onboarding ---
+
 	// --- Web Push (M0 delivery channels) ---
 	// Public VAPID key for browsers; per-user browser subscriptions.
 	pushRL := mw.RateLimit(limiter, rule("push", cfg.RateLimit.Push, scale), mw.ByUserOrIP, cfg.RateLimit.FailOpen)
@@ -523,6 +547,8 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.POST("/users/:id/credits", h.AdminAdjustCredits, stepUp, adminRL)
 	ad.POST("/users/:id/logout-all", h.AdminLogoutUser, adminRL)
 	ad.POST("/users/:id/age-review", h.AdminAgeReview, stepUp, adminRL) // revisions 5.0: 18+ age gate (§24.6)
+	// growth: e-mail verification (resend the link; audited)
+	ad.POST("/users/:id/email-verification", h.AdminResendEmailVerification, adminRL)
 	ad.GET("/psychics", h.AdminPsychics)
 	ad.POST("/psychics", h.AdminCreatePsychic, adminRL)
 	ad.GET("/psychics/:id", h.AdminPsychic)
@@ -682,6 +708,45 @@ func NewRouter(d Deps) *echo.Echo {
 	ad.PUT("/billing/policies", h.AdminUpdatePaymentPolicies, stepUp, adminRL)
 	ad.GET("/reports/revenue", h.AdminRevenue)
 	// end revisions 5.0: refund requests
+
+	// --- growth admin: e-mail delivery ---
+	// The delivery view is metadata only (no recipients or bodies); the test
+	// send reaches a real inbox, so it needs a fresh step-up and has its own
+	// small budget.
+	mailTestRL := mw.RateLimit(limiter, rule("admin_mail_test", config.Rule{Rate: 10, Period: time.Hour, Burst: 5}, scale), mw.ByUserOrIP, false)
+	ad.GET("/mail/health", h.AdminMailHealth)
+	ad.POST("/mail/test", h.AdminMailTest, stepUp, mailTestRL)
+	// --- end growth admin: e-mail delivery ---
+
+	// --- growth admin: e-mail verification ---
+	// --- end growth admin: e-mail verification ---
+
+	// --- growth admin: referrals ---
+	// Reads are open to every admin; decisions, settings and the launch need a
+	// fresh step-up and are audited by the service.
+	ad.GET("/referrals", h.AdminReferrals)
+	ad.GET("/referrals/summary", h.AdminReferralSummary)
+	ad.POST("/referrals/launch", h.AdminLaunchReferrals, stepUp, adminRL)
+	ad.POST("/referrals/:id/approve", h.AdminApproveReferral, stepUp, adminRL)
+	ad.POST("/referrals/:id/reject", h.AdminRejectReferral, stepUp, adminRL)
+	ad.GET("/site/referral-program", h.AdminReferralProgram)
+	ad.PUT("/site/referral-program", h.AdminUpdateReferralProgram, stepUp, adminRL)
+	// --- end growth admin: referrals ---
+
+	// --- growth admin: lifecycle and onboarding ---
+	// Lifecycle messaging: the journeys' setting (versioned; writes need a
+	// fresh step-up and are audited), their statistics and the activation funnel.
+	ad.GET("/lifecycle", h.AdminLifecycle)
+	ad.PUT("/lifecycle", h.AdminUpdateLifecycle, stepUp, adminRL)
+	ad.GET("/lifecycle/funnel", h.AdminLifecycleFunnel)
+	// --- end growth admin: lifecycle and onboarding ---
+
+	// --- follow-ups admin: auto-away ---
+	// The advisors' auto-away setting (versioned; writes need a fresh step-up
+	// and are audited).
+	ad.GET("/advisors/auto-away", h.AdminAutoAway)
+	ad.PUT("/advisors/auto-away", h.AdminUpdateAutoAway, stepUp, adminRL)
+	// --- end follow-ups admin: auto-away ---
 
 	return e
 }

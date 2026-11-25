@@ -6,6 +6,8 @@
  */
 import type { AppNotification, NotificationKind } from "@/lib/api/types";
 import type { TranslationValues } from "@/i18n/types";
+import { lifecycleText, type LifecycleKind } from "@/lib/notifications/lifecycle-copy";
+import { emailVerifiedCopy } from "@/lib/notifications/email-verified-copy";
 
 type Translate = <T>(value: T, values?: TranslationValues) => T;
 
@@ -46,6 +48,26 @@ export const NOTIFICATION_KINDS = [
   // revisions 5.1 (§25.5)
   "payment.refunded",
   "subscription.started",
+  // --- growth: e-mail verification ---
+  "account.email_verified",
+  // --- end growth: e-mail verification ---
+
+  // --- growth: referrals ---
+  "referral.joined",
+  "referral.qualified",
+  "referral.reward_granted",
+  // --- end growth: referrals ---
+
+  // --- growth: lifecycle and onboarding ---
+  "lifecycle.verify_reminder",
+  "lifecycle.first_reading",
+  "lifecycle.invite_friends",
+  "lifecycle.win_back",
+  // --- end growth: lifecycle and onboarding ---
+
+  // --- follow-ups: auto-away ---
+  "availability.auto_away",
+  // --- end follow-ups: auto-away ---
 ] as const satisfies readonly NotificationKind[];
 
 type MissingKinds = Exclude<NotificationKind, (typeof NOTIFICATION_KINDS)[number]>;
@@ -117,6 +139,34 @@ export const notificationTemplates = {
   refundResolvedTitle: "Refund request update",
   fallbackTitle: "Notification",
   someone: "A client",
+} as const;
+
+/**
+ * growth: referrals. The notifications never name the friend: joined carries
+ * nothing, qualified the minutes earned and whether the rewards launched,
+ * reward_granted the minutes added.
+ */
+export const referralNotificationTemplates = {
+  joinedTitle: "A friend joined with your link",
+  joinedBody: "Your free minutes are earned once they verify their email and complete a reading.",
+  qualifiedTitle: "A friend completed a reading",
+  qualifiedPendingOne: "You earned 1 free minute, added to your wallet when Staryield launches.",
+  qualifiedPending: "You earned {minutes} free minutes, added to your wallet when Staryield launches.",
+  qualifiedAddedOne: "Your free minute is being added to your wallet.",
+  qualifiedAdded: "Your {minutes} free minutes are being added to your wallet.",
+  grantedTitle: "Free minutes added",
+  grantedOne: "1 free minute from your invites was added to your wallet.",
+  grantedMany: "{minutes} free minutes from your invites were added to your wallet.",
+} as const;
+
+/**
+ * follow-ups: auto-away. An advisor whose live-chat requests expired unanswered
+ * `missed` times in a row was set to Away (data: `{ missed }`); the notification
+ * leads to the chatroom, where the availability control is.
+ */
+export const autoAwayNotificationTemplates = {
+  title: "Set to Away automatically",
+  body: "You were set to Away after {missed} missed requests.",
 } as const;
 
 /** Why a membership ended (`subscription.canceled` data `reason`, §12.1). */
@@ -205,6 +255,7 @@ export function notificationText(
   { memberships = true }: { memberships?: boolean } = {},
 ): NotificationCopy {
   const T = notificationTemplates;
+  const R = referralNotificationTemplates; // growth: referrals
   const d = n.data ?? {};
   const fmt = (v: number) => new Intl.NumberFormat(locale).format(v);
   const name = (key: string) => str(d[key]).trim() || text(T.someone);
@@ -318,6 +369,41 @@ export function notificationText(
       return { title: text(T.refundResolvedTitle), body: text(refundResolvedCopy[str(d.status)] ?? refundResolvedCopy.other, { reference: str(d.reference) }) };
     case "broadcast":
       return { title: pickLocalized(d.title, locale) || text(T.fallbackTitle), body: pickLocalized(d.body, locale) };
+    // --- growth: e-mail verification ---
+    case "account.email_verified":
+      return { title: text(emailVerifiedCopy.title), body: text(emailVerifiedCopy.body) };
+    // --- end growth: e-mail verification ---
+
+    // --- growth: referrals ---
+    case "referral.joined":
+      return { title: text(R.joinedTitle), body: text(R.joinedBody) };
+    case "referral.qualified": {
+      const minutes = num(d.minutes) ?? 0;
+      const launched = d.launched === true;
+      const template = launched ? (minutes === 1 ? R.qualifiedAddedOne : R.qualifiedAdded) : minutes === 1 ? R.qualifiedPendingOne : R.qualifiedPending;
+      return { title: text(R.qualifiedTitle), body: text(template, { minutes: fmt(minutes) }) };
+    }
+    case "referral.reward_granted": {
+      const minutes = num(d.minutes) ?? 0;
+      return { title: text(R.grantedTitle), body: text(minutes === 1 ? R.grantedOne : R.grantedMany, { minutes: fmt(minutes) }) };
+    }
+    // --- end growth: referrals ---
+
+    // --- growth: lifecycle and onboarding ---
+    case "lifecycle.verify_reminder":
+    case "lifecycle.first_reading":
+    case "lifecycle.invite_friends":
+    case "lifecycle.win_back":
+      return lifecycleText(n.kind as LifecycleKind, d, text, fmt);
+    // --- end growth: lifecycle and onboarding ---
+
+    // --- follow-ups: auto-away ---
+    case "availability.auto_away":
+      return {
+        title: text(autoAwayNotificationTemplates.title),
+        body: text(autoAwayNotificationTemplates.body, { missed: fmt(num(d.missed) ?? 0) }),
+      };
+    // --- end follow-ups: auto-away ---
     default:
       return { title: text(T.fallbackTitle), body: "" };
   }
@@ -349,6 +435,32 @@ export function notificationFallbackLink(n: AppNotification): string | null {
       return "/profile/settings#billing";
     case "account.reactivated":
       return "/profile";
+    // --- growth: e-mail verification ---
+    case "account.email_verified":
+      return "/profile/settings#account";
+    // --- end growth: e-mail verification ---
+
+    // --- growth: referrals ---
+    case "referral.joined":
+    case "referral.qualified":
+    case "referral.reward_granted":
+      return "/profile/invite";
+    // --- end growth: referrals ---
+
+    // --- growth: lifecycle and onboarding ---
+    case "lifecycle.verify_reminder":
+      return "/profile/settings#account";
+    case "lifecycle.first_reading":
+    case "lifecycle.win_back":
+      return "/psychics";
+    case "lifecycle.invite_friends":
+      return "/profile/invite";
+    // --- end growth: lifecycle and onboarding ---
+
+    // --- follow-ups: auto-away ---
+    case "availability.auto_away":
+      return "/chatroom"; // the availability menu is in the chatroom
+    // --- end follow-ups: auto-away ---
     default:
       return null;
   }

@@ -290,7 +290,9 @@ func (s *PsychicService) SetAvailability(ctx context.Context, psychicID uuid.UUI
 	if !av.Valid() {
 		return nil, apperror.Validation(map[string]string{"availability": "Choose online, away or offline."})
 	}
-	if err := s.psychics.Updates(ctx, psychicID, map[string]any{"availability": av}); err != nil {
+	// The advisor choosing their own status starts the missed-request count
+	// over (follow-ups: auto-away).
+	if err := s.psychics.Updates(ctx, psychicID, map[string]any{"availability": av, "missed_requests_in_row": 0}); err != nil {
 		return nil, mapRepoErr(err, "Advisor")
 	}
 	s.tracker.Track(ctx, "psychic.availability_changed", map[string]any{"availability": string(av)})

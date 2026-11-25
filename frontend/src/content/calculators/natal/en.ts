@@ -185,6 +185,11 @@ const content: ArticleContent = {
             "**4th House / 10th House (The Axis of Origin and Status):** Balances private domestic life, family security, and psychological roots with public career goals, reputation, and social duty.",
           ],
         },
+        {
+          type: "p",
+          weight: "light",
+          text: "Reading a chart for two? A natal chart comparison starts with the sun signs: see how yours meets someone else’s in our [zodiac compatibility guide](/compatibility), which covers all 78 sign pairings.",
+        },
       ],
     },
   ],

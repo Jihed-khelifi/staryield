@@ -2,13 +2,15 @@
 // Keep section and block ids identical across locales (npm run test:content).
 // Acknowledgement (2 business days), refund submission (5 business days) and the card-statement descriptor
 // (STARYIELD MEDIA LLC) were confirmed by the business on 2026-11-13 (docs/legal-review-checklist.md row 65).
+// Growth release: §2 describes the configured sign-up offer (admin setting, no fixed number of minutes: checklist row 74),
+// free mode and the free tools; §6 adds free minutes and referral reward minutes; §12 adds their forfeiture on closure.
 import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-19",
-    "effective": "2026-11-19",
-    "lastUpdated": "2026-11-19",
+    "version": "2026-11-25",
+    "effective": "2026-11-25",
+    "lastUpdated": "2026-11-25",
     "badge": "STARYIELD · POLÍTICAS",
     "title": "Política de reembolso y cancelación"
   },
@@ -21,7 +23,7 @@ const content: LegalDocumentContent = {
   "intro": [
     {
       "type": "p",
-      "text": "Esta política explica los reembolsos de los paquetes de créditos, las lecturas psíquicas y los créditos promocionales adquiridos a través de Staryield, operado por Staryield Media LLC."
+      "text": "Esta política explica los reembolsos de los paquetes de créditos, las lecturas psíquicas y los créditos promocionales adquiridos a través de Staryield, operado por Staryield Media LLC. También explica cómo se tratan los minutos gratuitos, incluidas las recompensas por referidos, y nuestras funciones gratuitas."
     },
     {
       "type": "p",
@@ -47,11 +49,33 @@ const content: LegalDocumentContent = {
       "blocks": [
         {
           "type": "p",
-          "text": "Los nuevos usuarios elegibles reciben cuatro minutos de lectura gratuitos sin necesidad de facilitar un método de pago. La prueba no requiere ninguna compra, no se convierte en una suscripción y no genera ningún cargo. Los minutos de prueba gratuitos no tienen valor en efectivo ni valor reembolsable."
+          "text": "Cuando nuestra oferta de registro está disponible, las cuentas nuevas reciben una cantidad de minutos de lectura gratuitos sin necesidad de facilitar un método de pago. Staryield fija la cantidad de minutos y la muestra en nuestra página de [Precios](/pricing) y durante el registro. Podemos cambiar la oferta o desactivarla en cualquier momento; un cambio solo se aplica a las cuentas creadas después, de modo que usted recibe la oferta vigente en el momento en que se crea su cuenta. La oferta es solo para cuentas nuevas, una por persona. La prueba no requiere ninguna compra, no se convierte en una suscripción y no genera ningún cargo. Los minutos de prueba gratuitos no tienen valor en efectivo ni valor reembolsable."
         },
         {
           "type": "p",
           "text": "Si sus minutos gratuitos se agotan durante una consulta en vivo, la consulta se pone en espera durante un breve tiempo en lugar de terminar (véanse los [Términos de uso](/terms#free-trials-and-promotional-offers)). La espera no se cobra: solo paga si añade Créditos para continuar o si más tarde decide revelar las respuestas ocultas durante la espera, y se le muestra antes el precio."
+        },
+        {
+          "type": "p",
+          "text": "Las ofertas que se muestran en los botones de reserva, las páginas o los recordatorios, como «minutos gratis para nuevos miembros», describen la oferta vigente en el momento en que se mostraron y siguen las mismas reglas."
+        },
+        {
+          "type": "h4",
+          "id": "refund-free-mode",
+          "title": "Chats gratis para todos («modo gratuito»):"
+        },
+        {
+          "type": "p",
+          "text": "De vez en cuando podemos hacer gratis los chats en vivo para todos durante un periodo limitado, y los botones de reserva pueden mostrar entonces «Gratis por tiempo limitado». Un chat solicitado mientras el modo gratuito está activo no consume minutos gratuitos ni Créditos y no implica ningún pago, por lo que no hay nada que reembolsar. Los Créditos que compre durante el modo gratuito quedan cubiertos por esta política como de costumbre. Consulte los [Términos de uso, Sección 6.1.4](/terms#free-trials-and-promotional-offers)."
+        },
+        {
+          "type": "h4",
+          "id": "refund-free-tools",
+          "title": "Calculadoras, imágenes de resultados y páginas de guía gratuitas:"
+        },
+        {
+          "type": "p",
+          "text": "Nuestras calculadoras (incluidas la carta natal completa, la calculadora de la carta de nacimiento del tarot y la calculadora de compatibilidad de signos), las imágenes de resultados que puede crear y compartir a partir de ellas, el informe de la calculadora enviado por correo electrónico y nuestras páginas de guía sobre los números del camino de vida, las cartas de nacimiento del tarot y las parejas de signos del zodiaco son gratuitos ([Términos de uso, Sección 2.5](/terms#free-calculators-and-guides)). Usarlos no implica ningún pago ni consume Créditos ni minutos gratuitos, por lo que no hay nada que reembolsar por ellos."
         }
       ]
     },
@@ -144,6 +168,28 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Los créditos de bonificación, gratuitos, de recomendación, de fidelidad y de cortesía no tienen valor en efectivo propio, no pueden canjearse por dinero y no son reembolsables de forma independiente, salvo que la ley lo exija."
+        },
+        {
+          "type": "h4",
+          "id": "refund-free-minutes",
+          "title": "Minutos gratuitos:"
+        },
+        {
+          "type": "p",
+          "text": "Los minutos de lectura gratuitos son promocionales, tanto si proceden de la oferta de registro (Sección 2) como del programa de referidos o de otra promoción. Solo pueden usarse para consultas por chat en vivo en Staryield y se usan antes que cualquier Crédito de su saldo. No tienen valor en efectivo y no pueden reembolsarse, canjearse por dinero o Créditos, venderse ni transferirse a otra cuenta, salvo que la ley lo exija."
+        },
+        {
+          "type": "p",
+          "text": "El tiempo de consulta cubierto por minutos gratuitos no implica ningún pago, por lo que no hay nada que reembolsar en dinero. Los minutos gratuitos usados en una consulta no reducen el importe reembolsable de un paquete de créditos, porque solo se descuentan los créditos comprados ya utilizados (Sección 4). Si algo salió mal en una consulta en la que se usaron minutos gratuitos, puede igualmente ponerse en contacto con nosotros (Sección 8); cualquier compensación de cortesía que ofrezcamos no es un reembolso en efectivo."
+        },
+        {
+          "type": "h4",
+          "id": "refund-referral-rewards",
+          "title": "Minutos de recompensa por referidos:"
+        },
+        {
+          "type": "p",
+          "text": "Los minutos obtenidos al invitar a amigos ([Términos de uso, Sección 4.20](/terms#referral-program)) son minutos gratuitos y siguen las reglas anteriores. Las recompensas obtenidas antes de que lancemos las recompensas del programa se muestran como pendientes y se añaden a su cuenta en el lanzamiento, en la fecha que elijamos; una recompensa pendiente no puede usarse, reembolsarse ni canjearse. Una vez añadidos los minutos, un reembolso o una disputa de pago posteriores del amigo que invitó no los modifican, y cambiar, pausar o terminar el programa no se los quita. Antes de añadir una recompensa, podemos retenerla o rechazarla si creemos razonablemente que incumple las reglas del programa o nuestros Términos. Si suspendemos o cerramos una cuenta por abusar del programa, sus recompensas pendientes y sus minutos gratuitos pueden perderse."
         }
       ]
     },
@@ -258,6 +304,10 @@ const content: LegalDocumentContent = {
         {
           "type": "p",
           "text": "Para solicitar el cierre de la cuenta, póngase en contacto con [support@staryield.net](mailto:support@staryield.net). Si le quedan créditos, contacte con nosotros antes del cierre para que le expliquemos las opciones disponibles. El cierre de la cuenta no elimina los derechos de reembolso aplicables."
+        },
+        {
+          "type": "p",
+          "text": "Los minutos gratuitos, incluidos los minutos de recompensa por referidos, no se reembolsan ni se pagan en dinero cuando se cierra una cuenta. Cuando el cierre se hace definitivo ([Términos de uso, Sección 3.6](/terms#account-deletion)), se pierden los minutos gratuitos que queden en la cuenta y las recompensas por referidos aún no añadidas. Esto no afecta a los derechos de reembolso de los paquetes de créditos comprados descritos en esta política."
         }
       ]
     },

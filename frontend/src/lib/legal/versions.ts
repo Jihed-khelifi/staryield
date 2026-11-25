@@ -6,11 +6,12 @@
  * fails as soon as a document's `meta.version` changes without it.
  */
 export const LEGAL_VERSIONS = {
-  // revisions 6.0 (§26.8): free-trial hold, Stripe, invoices, disputes, calculator report e-mails (2026-11-19).
-  // The API refuses consent dates in the future (UTC): ship on or after 2026-11-19 UTC.
-  terms: "2026-11-19",
-  privacy: "2026-11-19",
-  refund: "2026-11-19",
+  // growth (2026-11-25): e-mail confirmation, free calculators and guides, booking, reminders and the
+  // "Get started" checklist, shareable result images, the referral program. Before: revisions 6.0 (2026-11-19).
+  // The API refuses consent dates in the future (UTC): ship on or after 2026-11-25 UTC.
+  terms: "2026-11-25",
+  privacy: "2026-11-25",
+  refund: "2026-11-25",
 } as const;
 
 export type LegalConsent = { terms: string; privacy: string; refund: string };

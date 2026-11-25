@@ -1,10 +1,11 @@
 /**
  * One calculation per calculator. Natal and Astrology are computed by the
- * API (stateless POSTs answered no-store); Path of Life is pure arithmetic
- * in the browser. Results are kept in memory by fragment so going back and
- * forward never repeats a request.
+ * API (stateless POSTs answered no-store); Path of Life and the Tarot birth
+ * card are pure arithmetic in the browser. Results are kept in memory by
+ * fragment so going back and forward never repeats a request.
  */
 import { astroApi, type NatalResult, type SunSignResult } from "@/lib/api/astrology";
+import { tarotBirthResult, type TarotBirthResult } from "@/lib/astro/tarot-birth-card";
 import { lifePathReduction, localIsoDate, personalCycles, type PersonalCycles, type Reduction } from "@/lib/calculators";
 import {
   birthDateOf,
@@ -16,10 +17,16 @@ import {
 
 export type LifePathResult = { lifePath: Reduction; cycles: PersonalCycles };
 
+/** Life path and today's personal cycles of a birth date ("YYYY-MM-DD"), in the visitor's local calendar. */
+export function lifePathResult(date: string): LifePathResult {
+  return { lifePath: lifePathReduction(date), cycles: personalCycles(date, localIsoDate()) };
+}
+
 export type CalculatorResult =
   | { kind: "natal-chart"; natal: NatalResult }
   | { kind: "astrology"; sun: SunSignResult }
-  | { kind: "path-of-life"; numbers: LifePathResult };
+  | { kind: "path-of-life"; numbers: LifePathResult }
+  | { kind: "tarot-birth-card"; tarot: TarotBirthResult };
 
 /** The natal request for validated form values (time only with a place). */
 export function natalPayload(values: NatalFormValues) {
@@ -41,11 +48,25 @@ export function sunSignPayload(values: SunSignFormValues) {
   };
 }
 
+/**
+ * The natal request of the page: the report's payload plus the aspects the
+ * explorer's tables and wheel draw (the e-mailed report builds its own).
+ */
+export function natalRequest(values: NatalFormValues) {
+  return { ...natalPayload(values), include: ["tarot" as const, "aspects" as const] };
+}
+
 export async function calculate(kind: CalculatorKind, values: CalculatorFormValues, signal?: AbortSignal): Promise<CalculatorResult> {
-  if (kind === "natal-chart") return { kind, natal: await astroApi.natal(natalPayload(values as NatalFormValues), signal) };
+  if (kind === "natal-chart") return { kind, natal: await astroApi.natal(natalRequest(values as NatalFormValues), signal) };
   if (kind === "astrology") return { kind, sun: await astroApi.sunSign(sunSignPayload(values as SunSignFormValues), signal) };
   const date = birthDateOf(values.birth);
-  return { kind, numbers: { lifePath: lifePathReduction(date), cycles: personalCycles(date, localIsoDate()) } };
+  if (kind === "tarot-birth-card") {
+    const tarot = tarotBirthResult(date);
+    // Unreachable after the schema check; never shows a broken card.
+    if (!tarot) throw new RangeError(`Invalid birth date: ${date}`);
+    return { kind, tarot };
+  }
+  return { kind, numbers: lifePathResult(date) };
 }
 
 const MAX_CACHED = 6;

@@ -44,6 +44,8 @@ export function SiteHeader({
         ["Natal Chart", "/calculators/natal-chart"],
         ["Path of Life", "/calculators/path-of-life"],
         ["Astrology", "/calculators/astrology"],
+        ["Tarot Birth Card", "/calculators/tarot-birth-card"],
+        ["Pricing", "/pricing"],
       ]
     : advisor
       ? [
@@ -84,7 +86,14 @@ export function SiteHeader({
           ))}
         </nav>
         <div className="header-actions">
-          <LocaleSwitcher className={cn("rounded-full border border-gold/40 bg-cream/60 px-2 sm:px-3", signedIn && "max-md:hidden")} />
+          {/* §27.2: below 400px a signed-out visitor's bar keeps the compact Sign up; the language moves to the menu. */}
+          <LocaleSwitcher
+            className={cn(
+              "rounded-full border border-gold/40 bg-cream/60 px-2 sm:px-3",
+              signedIn && "max-md:hidden",
+              !signedIn && publicSite && "max-[399px]:hidden",
+            )}
+          />
           {/* revisions 3.0: chat shortcut with unread badge, every header, signed-in users only. */}
           <ChatShortcut />
           {!signedIn ? (
@@ -115,6 +124,12 @@ export function SiteHeader({
               <UserMenu className="user-menu-trigger hidden md:flex" />
             </>
           )}
+          {/* Phones and tablets hide the desktop pair above: keep the call to action in the bar (§27.2). */}
+          {!signedIn && publicSite ? (
+            <Button asChild className="gold-button h-9 px-4 text-xs lg:hidden" data-testid="header-signup-compact">
+              <Link href={`/${locale}/signup`}>{text("Sign Up")}</Link>
+            </Button>
+          ) : null}
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button

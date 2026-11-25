@@ -103,7 +103,7 @@ func (h *Handler) GoogleCallback(c echo.Context) error {
 		h.rotateCSRF(c)
 	}
 	if out.Created {
-		h.afterGoogleSignup(ctx, out.UserID, out.Locale, out.Attribution)
+		h.afterSignup(ctx, out.UserID, out.Locale, out.Attribution)
 	}
 	if !out.KeepCookie {
 		h.clearOAuthCookie(c)
@@ -136,9 +136,11 @@ func (h *Handler) GoogleCallbackGuard(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-// afterGoogleSignup runs the steps that follow every new account, exactly
-// like POST /auth/register: first-touch attribution and the calculator link.
-func (h *Handler) afterGoogleSignup(ctx context.Context, userID uuid.UUID, loc string, attribution *service.AttributionInput) {
+// afterSignup runs the request-bound steps that follow every new account,
+// created with a password (POST /auth/register) or with Google: first-touch
+// attribution and the calculator link (revisions 3.0). Steps that only need
+// the account itself are registration hooks (AuthService.AddRegistrationHook).
+func (h *Handler) afterSignup(ctx context.Context, userID uuid.UUID, loc string, attribution *service.AttributionInput) {
 	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: userID, Role: domain.RoleClient})
 	if h.svc.Growth != nil {
 		h.svc.Growth.Attribute(ctx, userID, attribution)
@@ -146,6 +148,11 @@ func (h *Handler) afterGoogleSignup(ctx context.Context, userID uuid.UUID, loc s
 	if h.svc.Calculators != nil {
 		h.svc.Calculators.LinkSignup(ctx, userID, loc, attribution)
 	}
+	// --- growth: referrals (sign-up attribution) ---
+	if h.svc.Referrals != nil {
+		h.svc.Referrals.Attribute(ctx, userID, attribution)
+	}
+	// --- end growth: referrals (sign-up attribution) ---
 }
 
 // GooglePending tells the web app what the sy_oa cookie is waiting for.
@@ -184,7 +191,7 @@ func (h *Handler) GoogleComplete(c echo.Context) error {
 	}
 	h.clearOAuthCookie(c)
 	if res.Created {
-		h.afterGoogleSignup(c.Request().Context(), res.UserID, res.Locale, res.Attribution)
+		h.afterSignup(c.Request().Context(), res.UserID, res.Locale, res.Attribution)
 	}
 	return h.session(c, res.Auth, http.StatusCreated)
 }

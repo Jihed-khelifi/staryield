@@ -27,6 +27,11 @@ const content: ArticleContent = {
             "Signo ascendente (Ascendente): el filtro, el aspecto físico y la perspectiva principal con la que se desenvuelve en el mundo exterior.",
           ],
         },
+        {
+          type: "p",
+          weight: "light",
+          text: "¿Quieres saber cómo se lleva tu signo solar con el de otra persona? Compara dos signos, desde el ángulo que los separa hasta sus elementos y planetas regentes, en nuestra [guía de compatibilidad de los signos](/compatibility) con sus 78 combinaciones.",
+        },
       ],
     },
     {

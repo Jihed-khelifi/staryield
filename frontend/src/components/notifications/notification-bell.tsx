@@ -12,12 +12,16 @@ import {
   ImageIcon,
   KeyRound,
   Mail,
+  MailCheck,
   Megaphone,
   MessageCircle,
   MessageCircleX,
+  Moon,
   ScrollText,
+  Sparkles,
   Star,
   UserCheck,
+  UserPlus,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -49,12 +53,19 @@ const icons: Record<string, LucideIcon> = {
   "export.ready": Download,
   "account.email_change_requested": Mail,
   "account.email_changed": Mail,
+  "account.email_verified": MailCheck, // growth: e-mail verification
   "account.reactivated": UserCheck,
   "account.google_linked": KeyRound,
   "account.google_unlinked": KeyRound,
   "subscription.renewed": CreditCard,
   "subscription.payment_failed": CreditCard,
   "subscription.canceled": CreditCard,
+  // growth: lifecycle and onboarding
+  "lifecycle.verify_reminder": Mail,
+  "lifecycle.first_reading": MessageCircle,
+  "lifecycle.invite_friends": UserPlus,
+  "lifecycle.win_back": Sparkles,
+  "availability.auto_away": Moon, // follow-ups: auto-away
 };
 
 function useMinuteTick(active: boolean) {

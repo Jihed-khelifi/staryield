@@ -2,7 +2,8 @@
  * Contract checks for the in-browser Path of Life calculator
  * (src/lib/calculators.ts) against the fixtures the Go engine is tested with
  * (backend/internal/astro/testdata/numerology_vectors.json), so the two
- * implementations cannot drift. Astrology itself is computed by the API.
+ * implementations cannot drift, and for the in-browser tarot birth cards.
+ * Astrology itself is computed by the API.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -25,6 +26,7 @@ const {
   minimumAdultDate,
   romanNumeral,
   formatDateParts,
+  tarotBirthCards,
 } = sandbox.exports;
 
 const fixtures = JSON.parse(
@@ -84,4 +86,32 @@ equal(romanNumeral(4), "IV", "roman 4");
 equal(romanNumeral(33), "XXXIII", "roman 33");
 equal(formatDateParts("1945-04-30"), "30 / 04 / 1945", "date button");
 
-console.log(`Calculator checks passed (${checks} assertions, ${fixtures.vectors.length + fixtures.timezone_vectors.length} shared vectors).`);
+// Tarot birth cards (Mary K. Greer): month + day + year, digit sums down to
+// 22 or less (the personality card), then down to one digit (the soul card).
+const tarot = (date) => tarotBirthCards(date);
+equal(tarot("1990-11-29").total, 2030, "tarot worked example total");
+equal(tarot("1990-11-29").steps.join(" "), "2+0+3+0=5", "tarot worked example steps");
+equal(tarot("1990-11-29").cards.join("/"), "5", "tarot single card");
+equal(tarot("1987-06-15").cards.join("/"), "10/1", "tarot two cards (the article's example)");
+equal(tarot("1930-05-10").cards.join("/"), "19/10/1", "tarot three cards");
+equal(tarot("1940-07-10").cards.join("/"), "22/4", "The Fool pairs with The Emperor");
+equal(tarot("1985-07-04").steps.join(" "), "1+9+9+6=25 2+5=7", "a total above 22 is reduced again");
+equal(tarot("1998-01-01").cards.join("/"), "2", "the smallest birth number");
+equal(tarot("1990-2-3"), null, "malformed date (calendar validity is checked by the form schema)");
+// Every valid date from 1900 to the end of 2030: a personality card from 2 to
+// 22, a single-digit soul card, and each step a true digit sum.
+let tarotDates = 0;
+for (let day = new Date(Date.UTC(1900, 0, 1)); day.getUTCFullYear() <= 2030; day.setUTCDate(day.getUTCDate() + 1)) {
+  const iso = day.toISOString().slice(0, 10);
+  const r = tarot(iso);
+  assert.ok(r && r.cards[0] >= 2 && r.cards[0] <= 22, `${iso}: personality card ${r?.cards[0]}`);
+  assert.ok(r.cards.at(-1) >= 1 && r.cards.at(-1) <= 9, `${iso}: soul card ${r.cards.at(-1)}`);
+  for (const step of r.steps) {
+    const [digits, sum] = step.split("=");
+    assert.equal(digits.split("+").reduce((t, d) => t + Number(d), 0), Number(sum), `${iso}: ${step}`);
+  }
+  tarotDates++;
+}
+checks++;
+
+console.log(`Calculator checks passed (${checks} assertions, ${fixtures.vectors.length + fixtures.timezone_vectors.length} shared vectors, ${tarotDates} tarot birth dates).`);

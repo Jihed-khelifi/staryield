@@ -231,7 +231,7 @@ func (s *CalculatorService) normalize(in CalculatorQuery) (calculatorQuery, erro
 	f := repository.CalculatorFilter{FromDay: q.from, ToDay: q.to, CampaignID: in.CampaignID, LinkID: in.LinkID}
 	if k := strings.TrimSpace(in.Kind); k != "" {
 		if !domain.ValidCalculatorKind(k) {
-			return calculatorQuery{}, apperror.Validation(map[string]string{"kind": "Use natal-chart, path-of-life or astrology."})
+			return calculatorQuery{}, apperror.Validation(map[string]string{"kind": "Use natal-chart, path-of-life, astrology or tarot-birth-card."})
 		}
 		f.Kind = k
 	}

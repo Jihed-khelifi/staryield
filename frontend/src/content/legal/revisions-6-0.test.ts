@@ -47,14 +47,16 @@ const clause = (doc: LegalDocumentContent, id: string) => {
 const d = (doc: Doc, l: Locale) => legalDocuments[doc][l];
 
 describe("revisions 6.0 legal updates", () => {
-  it("LEGAL_VERSIONS is 2026-11-19 for the three documents", () => {
-    expect(LEGAL_VERSIONS).toEqual({ terms: "2026-11-19", privacy: "2026-11-19", refund: "2026-11-19" });
+  it("LEGAL_VERSIONS is 2026-11-19 or later for the three documents (re-dated by growth)", () => {
+    for (const doc of ["terms", "privacy", "refund"] as const) expect(LEGAL_VERSIONS[doc] >= "2026-11-19").toBe(true);
   });
 
-  it.each(locales)("%s: Terms, Privacy Policy and Refund Policy are dated 2026-11-19 and match LEGAL_VERSIONS", (l) => {
+  it.each(locales)("%s: Terms, Privacy Policy and Refund Policy are dated 2026-11-19 or later and match LEGAL_VERSIONS (re-dated by growth)", (l) => {
     for (const doc of ["terms", "privacy", "refund"] as const) {
-      expect(d(doc, l).meta).toMatchObject({ version: "2026-11-19", effective: "2026-11-19", lastUpdated: "2026-11-19" });
-      expect(d(doc, l).meta.version).toBe(LEGAL_VERSIONS[doc]);
+      const { version, effective, lastUpdated } = d(doc, l).meta;
+      expect(version >= "2026-11-19").toBe(true);
+      expect([effective, lastUpdated]).toEqual([version, version]);
+      expect(version).toBe(LEGAL_VERSIONS[doc]);
     }
   });
 

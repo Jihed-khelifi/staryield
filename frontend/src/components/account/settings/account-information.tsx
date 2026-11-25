@@ -14,6 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
 import { FormControl, FormField, FormItem } from "@/components/ui/form";
 
+import { EmailVerificationStatus } from "@/components/account/email-verification-status"; // growth: e-mail verification
+
 import { EmailChangeDialog } from "./email-change-dialog";
 import type { SettingsFormValues } from "./settings-model";
 import { SettingsCard, SettingsField } from "./settings-ui";
@@ -82,6 +84,7 @@ export function AccountInformationCard({ settings, onEmailChangeRequested }: { s
               </button>
             )}
           </div>
+          <EmailVerificationStatus verified={settings.account.email_verified} />
           {pending ? (
             <p id={pendingId} className="settings-pending" role="status" data-testid="pending-email">
               <MailCheck aria-hidden className="size-4 shrink-0" />

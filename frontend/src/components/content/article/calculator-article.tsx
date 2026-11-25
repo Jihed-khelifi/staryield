@@ -210,15 +210,17 @@ function Block({
       );
     case "faq":
       // FAQ accordions (revisions 2.0): questions are buttons inside headings
-      // and the answer opens in place.
+      // and the answer opens in place. growth (seo): answers are always in the
+      // HTML (forceMount) and hidden while closed, so search engines read the
+      // questions and answers the FAQPage structured data describes.
       return (
-        <Accordion type="multiple" className="flex flex-col" data-testid="article-faq">
+        <Accordion type="multiple" className="flex flex-col [&_[data-slot=accordion-content][data-state=closed]]:hidden" data-testid="article-faq">
           {block.items.map((item, index) => (
             <AccordionItem key={index} value={`faq-${index}`} className="border-b border-[rgb(176_145_79/0.3)] last:border-b-0">
               <AccordionTrigger className="py-4 text-left text-[17px] leading-normal font-medium tracking-[0.02em] sm:text-[19px] lg:text-[24px]">
                 {item.q}
               </AccordionTrigger>
-              <AccordionContent className="pb-5">
+              <AccordionContent forceMount className="pb-5">
                 <p className="text-[17px] leading-normal font-light tracking-[0.02em] text-black sm:text-[19px] lg:text-[24px]">
                   <InlineText text={item.a} locale={locale} />
                 </p>

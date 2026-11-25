@@ -61,7 +61,8 @@ func (s *ExportService) collect(ctx context.Context, userID uuid.UUID) (*ExportB
 			"house_system": p.HouseSystem, "avatar_url": p.AvatarURL,
 			"notifications": map[string]any{"email": p.NotifyEmail, "push": p.NotifyPush, "marketing": p.NotifyMarketing,
 				"horoscope": p.NotifyHoroscope, "events": p.NotifyEvents, "chart": p.NotifyChart},
-			"share_birth_details_with_advisors": p.ShareBirthDetailsWithAdvisors, "created_at": p.CreatedAt, "updated_at": p.UpdatedAt}
+			"share_birth_details_with_advisors": p.ShareBirthDetailsWithAdvisors, "onboarding_checklist_hidden_at": p.OnboardingDismissedAt,
+			"created_at": p.CreatedAt, "updated_at": p.UpdatedAt}
 	}
 	var wallets []domain.Wallet
 	if err := rows(&wallets, "user_id"); err != nil {
@@ -193,6 +194,14 @@ func (s *ExportService) collect(ctx context.Context, userID uuid.UUID) (*ExportB
 	}
 	// revisions 6.0 (§26.4): e-mail leads of the calculators' report
 	if err := s.collectCalculatorReports(ctx, b, u.ID, rows); err != nil {
+		return nil, err
+	}
+	// growth: lifecycle messages (reminders and nudges, their conversion)
+	if err := collectLifecycle(b, rows, capped); err != nil {
+		return nil, err
+	}
+	// growth: referrals
+	if err := s.collectReferrals(ctx, b, u.ID, rows); err != nil {
 		return nil, err
 	}
 	if p != nil && p.AvatarKey != "" && s.d.Avatars != nil {

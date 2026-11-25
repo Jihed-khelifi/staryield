@@ -22,3 +22,22 @@ export function loginUrl(locale: string): string {
   const here = typeof window !== "undefined" ? window.location.pathname + window.location.search : `/${locale}`;
   return `/${locale}/login?next=${encodeURIComponent(here)}`;
 }
+
+/** `path` with `?next=<next>` when there is somewhere to continue to afterwards. */
+export function withNext(path: string, next?: string | null): string {
+  return next ? `${path}?next=${encodeURIComponent(next)}` : path;
+}
+
+/**
+ * Sign-up URL that continues to `next` (a locale-prefixed path) once the
+ * account exists. The sign-up steps keep `?next=` and the birth step, which
+ * ends sign-up, honours it (see `safeNext`).
+ */
+export function signupUrl(locale: string, next?: string | null): string {
+  return withNext(`/${locale}/signup`, next);
+}
+
+/** A sign-up step path that keeps the `?next=` of the current address (only when it is safe). */
+export function keepNext(path: string, search: string, locale: string): string {
+  return withNext(path, safeNext(search, locale));
+}

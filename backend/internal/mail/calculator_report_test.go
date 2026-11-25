@@ -152,10 +152,10 @@ func TestNatalReportCarriesEverySectionOfTheResult(t *testing.T) {
 	if !strings.Contains(r.HTML, `src="https://assets.staryield.net/assets/tarot/the-sun.png"`) {
 		t.Fatal("tarot artwork must load from R2")
 	}
-	if !strings.Contains(r.Text, "https://staryield.net/en/calculators/natal-chart#v=1&d=1990-03-14&t=08%3A45&p=gn%3A2988507") {
+	if !strings.Contains(r.Text, "https://staryield.net/en/calculators/natal-chart?utm_source=staryield&utm_medium=email&utm_campaign=calculator_report&utm_content=natal-chart#v=1&d=1990-03-14&t=08%3A45&p=gn%3A2988507") {
 		t.Fatalf("the view link must reopen the result:\n%s", r.Text)
 	}
-	if !strings.Contains(r.Text, "https://staryield.net/en#psychics") {
+	if !strings.Contains(r.Text, "https://staryield.net/en?utm_source=staryield&utm_medium=email&utm_campaign=calculator_report&utm_content=natal-chart#psychics") {
 		t.Fatal("the call to action links the psychics section")
 	}
 	if strings.Contains(r.Text, "nsubscribe") || r.Headers["List-Unsubscribe"] != "" {
@@ -313,4 +313,82 @@ func TestRendererLabelsExistInTheCopy(t *testing.T) {
 			t.Logf("label %q has the same text in French", key)
 		}
 	}
+}
+
+const utmNatal = "utm_source=staryield&utm_medium=email&utm_campaign=calculator_report&utm_content=natal"
+
+func TestWithUTM(t *testing.T) {
+	for _, tc := range []struct{ name, in, want string }{
+		{"fragment only", "https://staryield.net/en#psychics", "https://staryield.net/en?" + utmNatal + "#psychics"},
+		{"plain", "https://staryield.net/en/signup", "https://staryield.net/en/signup?" + utmNatal},
+		{"existing query", "https://staryield.net/en/x?a=1", "https://staryield.net/en/x?a=1&" + utmNatal},
+		{"existing query and fragment", "https://staryield.net/en/x?a=1#top", "https://staryield.net/en/x?a=1&" + utmNatal + "#top"},
+		{"report fragment is byte-identical", "https://staryield.net/en/calculators/natal-chart#v=1&d=1990-03-14&t=08%3A45&p=gn%3A2988507&h=whole_sign",
+			"https://staryield.net/en/calculators/natal-chart?" + utmNatal + "#v=1&d=1990-03-14&t=08%3A45&p=gn%3A2988507&h=whole_sign"},
+		{"empty fragment marker", "https://staryield.net/en/x#", "https://staryield.net/en/x?" + utmNatal + "#"},
+	} {
+		if got := withUTM(tc.in, "natal"); got != tc.want {
+			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
+		}
+	}
+	// The kind is escaped, and an unparsable URL is returned untouched.
+	if got := withUTM("https://staryield.net/en", "a b&c"); !strings.Contains(got, "utm_content=a+b%26c") {
+		t.Errorf("kind not escaped: %q", got)
+	}
+	if got := withUTM("http://[::1", "natal"); got != "http://[::1" {
+		t.Errorf("unparsable URL changed: %q", got)
+	}
+}
+
+// Review focus: the view, advisor and sign-up links carry the tags (before any
+// fragment, the fragment unchanged); the unsubscribe link never does.
+func TestReportLinksCarryUTM(t *testing.T) {
+	utm := func(kind string) string {
+		return "utm_source=staryield&utm_medium=email&utm_campaign=calculator_report&utm_content=" + kind
+	}
+	natal := natalData("en")
+	natal.UnsubscribePath = "/unsubscribe?token=abc"
+	c, r := renderReport(t, natal)
+	if got, want := c.Action.URL, "https://staryield.net/en/calculators/natal-chart?"+utm("natal-chart")+"#v=1&d=1990-03-14&t=08%3A45&p=gn%3A2988507"; got != want {
+		t.Errorf("view link %q, want %q", got, want)
+	}
+	if !strings.Contains(r.Text, "https://staryield.net/en?"+utm("natal-chart")+"#psychics") {
+		t.Errorf("the advisor link lacks the tags:\n%s", r.Text)
+	}
+	if len(c.Links) != 1 || c.Links[0].URL != "/unsubscribe?token=abc" || strings.Contains(c.ListUnsubscribe, "utm_") {
+		t.Errorf("unsubscribe must stay untagged: %+v %q", c.Links, c.ListUnsubscribe)
+	}
+	if strings.Contains(r.Headers["List-Unsubscribe"], "utm_") {
+		t.Errorf("List-Unsubscribe is tagged: %q", r.Headers["List-Unsubscribe"])
+	}
+	for _, link := range regexpURLs(r.HTML) {
+		if strings.Contains(link, "unsubscribe") && strings.Contains(link, "utm_") {
+			t.Errorf("tagged unsubscribe link in the HTML: %q", link)
+		}
+	}
+
+	sun := CalculatorReportData{Locale: "en", Kind: KindAstrology, BirthDate: "1990-08-23", FrontendURL: "https://staryield.net",
+		ViewPath: "/calculators/astrology#v=1&d=1990-08-23", Sun: &SunReport{Sign: "Virgo", Element: "Earth", Modality: "Mutable"}}
+	_, sr := renderReport(t, sun)
+	for _, want := range []string{"https://staryield.net/en/signup?" + utm("astrology"), "https://staryield.net/en/calculators/astrology?" + utm("astrology") + "#v=1&d=1990-08-23"} {
+		if !strings.Contains(sr.Text, want) {
+			t.Errorf("sun report lacks %q:\n%s", want, sr.Text)
+		}
+	}
+
+	life := CalculatorReportData{Locale: "fr", Kind: KindPathOfLife, BirthDate: "1990-11-29", FrontendURL: "https://staryield.net/",
+		ViewPath: "/calculators/path-of-life#v=1&d=1990-11-29",
+		Numbers:  &NumbersReport{LifePath: astro.LifePathReduction(1990, 11, 29), PersonalYear: 5, PersonalMonth: 7, AsOf: "2026-11-04"}}
+	_, lr := renderReport(t, life)
+	if !strings.Contains(lr.Text, "https://staryield.net/fr?"+utm("path-of-life")+"#psychics") {
+		t.Errorf("numbers report lacks the advisor tags:\n%s", lr.Text)
+	}
+}
+
+func regexpURLs(s string) []string {
+	var out []string
+	for _, part := range strings.Split(s, `href="`)[1:] {
+		out = append(out, part[:strings.Index(part, `"`)])
+	}
+	return out
 }

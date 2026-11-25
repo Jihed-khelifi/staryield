@@ -16,9 +16,10 @@ make run                          # http://localhost:8080
 Point the web app at it with `NEXT_PUBLIC_API_URL=http://localhost:8080` (see `frontend/README.md`).
 
 ```bash
-make test-unit    # no infrastructure needed
-make test-e2e     # full HTTP + WebSocket + SSE suite against PostgreSQL + Redis
-make test-race    # everything under the race detector
+make test-unit       # no infrastructure needed
+make test-e2e        # full HTTP + WebSocket + SSE suite against PostgreSQL + Redis (parallel shards)
+make test-e2e-quick  # the same without the large-dataset tests (-short), for iteration
+make test-race       # everything under the race detector
 make lint         # gofmt + go vet
 ```
 
@@ -79,7 +80,7 @@ declined · expired · cancelled            ended ──calculate earnings──
 * **SSE fallback** `GET /api/v1/realtime/stream` (cookie auth, `Last-Event-ID` resume); intents then go over REST (`/chat/sessions/:id/messages`, `/typing`, `/realtime/presence`).
 * **Envelope** `{ "id", "type", "ts", "ref", "data", "error" }`. Durable events carry a Redis Stream ID as `id`; each user's stream is bounded and expires. Every instance subscribes to Pub/Sub and delivers to its local sockets. On reconnect the server replays from `resume`, merges live events without duplicates, or sends `resync_required` if history was trimmed. If the server's own Pub/Sub link drops, it asks its clients to resync.
 * **Client frames** `session.join`, `session.leave`, `message.send` (idempotent `client_msg_id`), `typing`, `message.read`, `ping`. Each frame is acked or rejected with an error frame carrying its `ref`.
-* **Server events** `hello`, `session.*` (requested, accepted, started, billed, low_balance, disconnected, resumed, ended, settled, declined, expired, cancelled, participant), `message.created`, `message.read`, `chat.unread` (ephemeral unread totals), `typing`, `wallet.updated`, `custom_request.*`, `psychic.status_changed`, `auth.revoked`, `server.shutdown`, `resync_required`.
+* **Server events** `hello`, `session.*` (requested, accepted, started, billed, low_balance, disconnected, resumed, ended, settled, declined, expired, cancelled, participant), `message.created`, `message.read`, `chat.unread` (ephemeral unread totals), `typing`, `wallet.updated`, `custom_request.*`, `psychic.status_changed`, `auth.revoked`, `account.email_verified` (growth: the address was verified, in any browser; docs §13.7), `server.shutdown`, `resync_required`.
 * **Robustness.** Ping/pong with read deadlines. Bounded send buffers: slow consumers are closed with 4000. Per-connection frame rate limit, closing with 4008 after repeated abuse. Frame size limit (1009). Per-user connection cap (4009). Revocation closes with 4001. Graceful drain on shutdown with 1001 and a reconnect hint.
 
 ### Security
@@ -141,7 +142,7 @@ Admin dashboard endpoints (served to the admin console, see below):
 | Advisor tools | `GET psychic/analytics` · `GET/POST psychic/withdrawals` · `POST psychic/withdrawals/:id/cancel` |
 | Short links | `GET /l/:code` (API root) |
 | Admin auth | `admin/auth/{login,enroll,enroll/confirm,verify,session,step-up,logout,sessions,recovery-codes}` |
-| Admin | `users[/:id[/credits,/logout-all]]`, `psychics[/:id[/image,/earnings,/analytics,/services]]`, `services/:id`, `credit-packs[/:id]`, `custom-requests[/:id/resolve]`, `chat/sessions[/:id[/transcript,/terminate]]`, `reviews[/:id]`, `withdrawals[/:id/{destination,approve,pay,reject}]`, `broadcasts[/:id]`, `presence`, `campaigns[/:id[/report]]`, `links[/:id[/report]]`, `site/{banners,signup-offer,free-mode,off-session-messages}`, `acquisition/overview`, `insights/{audience,engagement,retention,top-users,users/:id}`, `reports/*`, `analytics/*`, `audit-logs` |
+| Admin | `users[/:id[/credits,/logout-all]]`, `psychics[/:id[/image,/earnings,/analytics,/services]]`, `services/:id`, `credit-packs[/:id]`, `custom-requests[/:id/resolve]`, `chat/sessions[/:id[/transcript,/terminate]]`, `reviews[/:id]`, `withdrawals[/:id/{destination,approve,pay,reject}]`, `broadcasts[/:id]`, `presence`, `campaigns[/:id[/report]]`, `links[/:id[/report]]`, `site/{banners,signup-offer,free-mode,off-session-messages}`, `mail/{health,test}` (e-mail delivery view and test send), `acquisition/overview`, `insights/{audience,engagement,retention,top-users,users/:id}`, `reports/*`, `analytics/*`, `audit-logs` |
 
 Health: `GET /healthz` (liveness), `GET /readyz` (PostgreSQL + Redis).
 
@@ -192,7 +193,8 @@ Production requires `STARYIELD_APP_ENV=production` and the following:
 * `STARYIELD_SECURITY_ALLOWED_ORIGINS` (https only) and `STARYIELD_SECURITY_COOKIE_SECURE=true`
 * R2 credentials (`STARYIELD_STORAGE_DRIVER=r2`, `STARYIELD_STORAGE_R2_*`), or `STARYIELD_STORAGE_DRIVER=disabled` to refuse uploads; the bucket names `R2_ADVISOR_IMAGE` (public advisor portraits, with `R2_ADVISOR_IMAGE_PUBLIC_URL`) and `R2_CHAT_IMAGES_PRIVATE` (private chat images)
 * `STARYIELD_SECURITY_DATA_ENCRYPTION_KEY` (32 random bytes, `openssl rand -hex 32`) and `STARYIELD_SECURITY_ADMIN_ORIGINS=https://admin.staryield.net`
-* a real payment provider (or `STARYIELD_PAYMENTS_PROVIDER=disabled`), and `STARYIELD_MAIL_DRIVER=noop` until a mailer adapter exists
+* a real payment provider (or `STARYIELD_PAYMENTS_PROVIDER=disabled`)
+* e-mail through Cloudflare Email Service: `STARYIELD_MAIL_DRIVER=cloudflare`, `STARYIELD_MAIL_CLOUDFLARE_ACCOUNT_ID`, `STARYIELD_MAIL_CLOUDFLARE_API_TOKEN` (an API token with **Email Sending: Send**) and `STARYIELD_MAIL_FROM` on a domain onboarded to Email Sending. On the Workers **Free** plan Cloudflare only delivers to verified destination addresses, so sign-up links, password resets and calculator reports to visitors fail with code 10208 until the account is on **Workers Paid**. `noop` discards every e-mail (each one is recorded as cancelled with reason `no_provider` and the API logs an error at start-up); the admin console's **Marketing → E-mail delivery** page shows the driver, what happened to each e-mail type, provider errors with what to fix, and sends a test e-mail.
 
 ### Deploying on Railway
 
@@ -231,7 +233,10 @@ DATABASE_URL='<DATABASE_PUBLIC_URL>' STARYIELD_SEED_ADMIN_EMAIL=you@staryield.ne
 ## Tests
 
 * **Unit tests:** state machines and billing arithmetic, Argon2id/JWT/CSRF, Redis and in-memory rate limiters, realtime stream IDs/replay/hub/presence/tickets and a WebSocket server against fakes, middleware and error rendering, config hardening, analytics batching, payments signatures, cache, storage, cursors, astrology (ephemeris accuracy vs JPL Horizons).
-* **End-to-end (`tests/e2e`):** the real app on PostgreSQL + Redis with real WebSocket and SSE clients. A fake clock drives billing deterministically. Scenarios:
+* **End-to-end (`tests/e2e`):** the real app on PostgreSQL + Redis with real WebSocket and SSE clients. A fake clock drives billing deterministically.
+  * **Parallel shards.** The suite spends most of its time waiting on PostgreSQL, so by default the test binary migrates the test database once, clones it per shard (`CREATE DATABASE … TEMPLATE`, so the test user needs `CREATEDB`) and runs the tests in `STARYIELD_E2E_SHARDS` child processes (default: half the CPUs, at most 4), one database each; tests within a shard run one at a time as before. The shards are balanced with the measured cost of the slow tests (`testCost` in `tests/e2e/shard_test.go`). `STARYIELD_E2E_SHARDS=1` runs everything in one process. A run that selects one test, lists tests, writes a profile or coverage, or uses `go test -json` stays in one process. The clones (`<test db>_shard<n>`) are dropped after a passing run and kept after a failing one. The test database also runs with `synchronous_commit = off` (it never has to survive a crash).
+  * Always pass `-count=1`; the large-dataset tests skip under `-short` (`make test-e2e-quick`).
+  * Scenarios:
   * auth, CSRF/Origin, refresh rotation and reuse detection, lockout, password reset, RBAC, profile and avatar
   * the full live chat lifecycle: free and paid minutes, an immutable ledger, read receipts, bookmarks and the summary
   * credit exhaustion, request expiry, decline and cancel

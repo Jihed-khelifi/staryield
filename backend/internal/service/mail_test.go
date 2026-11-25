@@ -123,6 +123,8 @@ func (m *memEmailRepo) Finish(_ context.Context, id uuid.UUID, f map[string]any)
 			r.LockedUntil = nil
 		case "provider_message_id":
 			r.ProviderMessageID = v.(string)
+		case "provider":
+			r.Provider = v.(string)
 		case "sent_at":
 			t := v.(time.Time)
 			r.SentAt = &t
@@ -132,6 +134,57 @@ func (m *memEmailRepo) Finish(_ context.Context, id uuid.UUID, f map[string]any)
 }
 
 func (m *memEmailRepo) PurgeFinished(context.Context, time.Time) (int64, error) { return 0, nil }
+
+func (m *memEmailRepo) DeliveryStats(_ context.Context, since time.Time) ([]repository.EmailDeliveryStat, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	counts := map[repository.EmailDeliveryStat]int64{}
+	for _, r := range m.rows {
+		if r.CreatedAt.Before(since) {
+			continue
+		}
+		counts[repository.EmailDeliveryStat{Template: r.Template, Status: r.Status, Reason: r.StatusReason}]++
+	}
+	out := make([]repository.EmailDeliveryStat, 0, len(counts))
+	for k, n := range counts {
+		k.Count = n
+		out = append(out, k)
+	}
+	return out, nil
+}
+
+func (m *memEmailRepo) Problems(_ context.Context, since time.Time, limit int) ([]domain.EmailOutbox, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []domain.EmailOutbox
+	for _, r := range m.rows {
+		problem := r.Status == domain.EmailFailed || r.Status == domain.EmailDead || r.Status == domain.EmailCancelled ||
+			r.Status == domain.EmailSuppressed || (r.Status == domain.EmailQueued && r.LastError != "")
+		if problem && !r.CreatedAt.Before(since) && len(out) < limit {
+			out = append(out, *r)
+		}
+	}
+	return out, nil
+}
+
+func (m *memEmailRepo) Backlog(context.Context) (repository.EmailBacklog, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var b repository.EmailBacklog
+	for _, r := range m.rows {
+		if r.Status != domain.EmailQueued {
+			continue
+		}
+		b.Queued++
+		if r.Attempts > 0 {
+			b.Retrying++
+		}
+		if due := r.NextAttemptAt; b.OldestDue == nil || due.Before(*b.OldestDue) {
+			b.OldestDue = &due
+		}
+	}
+	return b, nil
+}
 func (m *memEmailRepo) Get(_ context.Context, id uuid.UUID) (*domain.EmailOutbox, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -213,6 +266,50 @@ func TestMailEnqueueSealsAndDelivers(t *testing.T) {
 	// Nothing left to deliver.
 	if n, _ := svc.DeliverDue(context.Background(), 10); n != 0 {
 		t.Fatalf("redelivered %d", n)
+	}
+}
+
+// A deployment without a provider (the no-op driver) must never look
+// delivered: the row is cancelled with reason no_provider and keeps no body.
+func TestMailNoopDriverIsRecordedAsNotSent(t *testing.T) {
+	svc, repo, _, _ := newTestMail(t)
+	svc.provider = mail.NoopMailer{}
+	if err := svc.Enqueue(context.Background(), req(uuid.New(), domain.EmailAccount, "calculator_report")); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := svc.Drain(context.Background()); err != nil || n != 1 {
+		t.Fatalf("drain: %d %v", n, err)
+	}
+	rows := repo.byTemplate("calculator_report")
+	if len(rows) != 1 || rows[0].Status != domain.EmailCancelled || rows[0].StatusReason != reasonNoProvider ||
+		rows[0].SentAt != nil || rows[0].PayloadSealed != "" || rows[0].ToSealed != "" {
+		t.Fatalf("noop row: %+v", rows)
+	}
+}
+
+// Provider account problems (plan restrictions, revoked tokens) are retried
+// with backoff, so the message goes out once the operator fixes the account,
+// and the row keeps the provider's code for the admin console.
+func TestMailProviderConfigErrorsAreRetried(t *testing.T) {
+	svc, repo, rec, clk := newTestMail(t)
+	rec.SetFail(func(mail.Message) (mail.Result, error) {
+		return mail.Result{}, &mail.SendError{Status: 403, Code: 10208, Reason: "email.sending.error.email.recipient_plan_restricted",
+			Retryable: true, Config: true, Hint: "upgrade"}
+	})
+	if err := svc.Enqueue(context.Background(), req(uuid.New(), domain.EmailAccount, "calculator_report")); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = svc.Drain(context.Background())
+	row := repo.byTemplate("calculator_report")[0]
+	if row.Status != domain.EmailQueued || !strings.Contains(row.LastError, "10208") || row.PayloadSealed == "" {
+		t.Fatalf("after a config failure: %+v", row)
+	}
+	// The operator upgrades the plan: the next attempt delivers.
+	rec.SetFail(nil)
+	clk.Advance(time.Hour)
+	_, _ = svc.Drain(context.Background())
+	if got, _ := repo.Get(context.Background(), row.ID); got.Status != domain.EmailSent || len(rec.Sent()) != 1 {
+		t.Fatalf("after the fix: %+v (sent %d)", got, len(rec.Sent()))
 	}
 }
 
@@ -401,6 +498,7 @@ func TestChannelPolicies(t *testing.T) {
 	}{
 		{NotifyChatRequested, false, false, true},
 		{NotifyChatMissed, true, false, true},
+		{NotifyAutoAway, true, false, true},  // follow-ups: auto-away (notification category: follows the e-mail switch)
 		{NotifyWithdrawal, true, true, true}, // billing: always e-mailed
 		{NotifyExportReady, true, true, true},
 		{NotifyBroadcast, true, false, true},             // marketing: opt-in only

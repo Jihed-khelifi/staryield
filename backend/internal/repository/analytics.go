@@ -110,29 +110,45 @@ func (r *GormAnalyticsRepository) Timeseries(ctx context.Context, name string, f
 	return out, err
 }
 
-// Funnel counts actors (users or anonymous visitors) that performed each step
-// in order within the window. Step i requires step i-1 earlier in time.
+// funnelActor resolves who performed an event: its account, else the account
+// its browser was linked to (web_visitors, looked up by primary key only for
+// events that carry no account), else the browser id. Resolution happens at
+// query time, so history is stitched as soon as a browser is linked;
+// analytics_events itself is append-only and never updated. The lookup is a
+// correlated subquery rather than a join so the planner cannot choose a hash
+// join that scans the whole of web_visitors.
+const funnelActor = `COALESCE(e.user_id::text, (SELECT wv.user_id::text FROM web_visitors wv WHERE wv.anonymous_id = e.anonymous_id), e.anonymous_id)`
+
+// Funnel counts actors (accounts, or anonymous visitors that never signed in)
+// that performed each step in order within the window. Step i requires step
+// i-1 earlier in time. A visitor's pre-sign-up events and the account's own
+// events count as one actor once the browser is linked to the account.
 func (r *GormAnalyticsRepository) Funnel(ctx context.Context, steps []string, from, to time.Time) ([]FunnelStep, error) {
 	out := make([]FunnelStep, 0, len(steps))
 	if len(steps) == 0 {
 		return out, nil
 	}
 	// Build: first occurrence per actor for step 1, then for each next step the
-	// first occurrence after the previous step's time.
+	// first occurrence after the previous step's time. Every step reads its
+	// events through (name, occurred_at) in the window (a later step cannot
+	// happen before the window opens, since it follows step 1).
 	query := `WITH s0 AS (
-		SELECT COALESCE(user_id::text, anonymous_id) AS actor, min(occurred_at) AS at
-		FROM analytics_events WHERE name = ? AND occurred_at >= ? AND occurred_at < ?
-		  AND (user_id IS NOT NULL OR anonymous_id <> '')
-		GROUP BY 1)`
+		SELECT actor, min(occurred_at) AS at FROM (
+			SELECT ` + funnelActor + ` AS actor, e.occurred_at
+			FROM analytics_events e
+			WHERE e.name = ? AND e.occurred_at >= ? AND e.occurred_at < ?
+			  AND (e.user_id IS NOT NULL OR e.anonymous_id <> '')) ev
+		GROUP BY actor)`
 	args := []any{steps[0], from, to}
 	for i := 1; i < len(steps); i++ {
 		query += fmt.Sprintf(`, s%d AS (
-		SELECT p.actor, min(e.occurred_at) AS at
-		FROM s%d p JOIN analytics_events e
-		  ON COALESCE(e.user_id::text, e.anonymous_id) = p.actor AND e.occurred_at >= p.at
-		WHERE e.name = ? AND e.occurred_at < ?
+		SELECT p.actor, min(ev.occurred_at) AS at
+		FROM (SELECT `+funnelActor+` AS actor, e.occurred_at
+			FROM analytics_events e
+			WHERE e.name = ? AND e.occurred_at >= ? AND e.occurred_at < ?) ev
+		JOIN s%d p ON p.actor = ev.actor AND ev.occurred_at >= p.at
 		GROUP BY p.actor)`, i, i-1)
-		args = append(args, steps[i], to)
+		args = append(args, steps[i], from, to)
 	}
 	query += " SELECT "
 	for i := range steps {

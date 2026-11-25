@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { expectNoA11yViolations } from "./a11y";
 import { expectNoHorizontalScroll } from "./helpers";
+import { LEGAL_VERSIONS } from "../src/lib/legal/versions";
 
 /**
  * Revisions 5.1 (docs/platform-extensions.md §25): what a payment processor's underwriters read on the public site.
@@ -134,10 +135,10 @@ test.describe("legal documents without memberships", () => {
     await expect(root).not.toContainText(/Premium Membership/i);
   });
 
-  test("the documents are dated 19.11.2026 / 2026-11-19 in the header", async ({ page }) => {
-    for (const doc of ["terms", "privacy"]) {
+  test("the documents are dated with their LEGAL_VERSIONS (the purchase consent) in the header", async ({ page }) => {
+    for (const doc of ["terms", "privacy"] as const) {
       await page.goto(`/en/${doc}`);
-      await expect(page.locator("[data-legal-document] header time").first()).toHaveAttribute("datetime", "2026-11-19");
+      await expect(page.locator("[data-legal-document] header time").first()).toHaveAttribute("datetime", LEGAL_VERSIONS[doc]);
     }
   });
 });

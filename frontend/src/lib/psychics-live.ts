@@ -15,6 +15,9 @@ import { useRealtimeEvent } from "@/lib/auth/session-provider";
 /** Least time between two refetches caused by status changes. */
 export const STATUS_REFETCH_MS = 5_000;
 
+/** Status names (English source copy): the directory cards' accessible names, the booking bar and the advisor strip. */
+export const STATUS_NAME: Record<PresenceStatus, string> = { online: "Online", busy: "Busy", away: "Away", offline: "Offline" };
+
 /** Lower comes first. Mirrors `statusTier` in the API's catalogue. */
 export const STATUS_TIER: Record<PresenceStatus, number> = { online: 0, away: 1, busy: 2, offline: 3 };
 

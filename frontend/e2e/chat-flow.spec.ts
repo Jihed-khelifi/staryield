@@ -269,3 +269,48 @@ test.describe.serial("live chat between a client and an advisor", () => {
     await expect(reviews.locator(".review-item").first()).toBeVisible();
   });
 });
+
+test.describe.serial("a declined request suggests other advisors", () => {
+  const RAMONE = advisor("ramone");
+  let clientCtx: BrowserContext;
+  let theoCtx: BrowserContext;
+  let ramoneCtx: BrowserContext;
+  let client: Page;
+  let theo: Page;
+  let ramone: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    ({ context: theoCtx, page: theo } = await signedInPage(browser, THEO.email, THEO.password));
+    ({ context: ramoneCtx, page: ramone } = await signedInPage(browser, RAMONE.email, RAMONE.password));
+    ({ context: clientCtx, page: client } = await signedInPage(browser, CLIENT.email, CLIENT.password));
+    await ensureCredits(client);
+    for (const page of [theo, ramone]) {
+      await page.goto("/en/profile");
+      await setAvailability(page, "online");
+    }
+  });
+
+  test.afterAll(async () => {
+    for (const page of [theo, ramone]) {
+      await page.goto("/en/profile").catch(() => undefined);
+      await setAvailability(page, "offline").catch(() => undefined);
+    }
+    await Promise.all([clientCtx, theoCtx, ramoneCtx].map((c) => c?.close()));
+  });
+
+  test("the declining advisor is left out of 'Other advisors online now'", async () => {
+    await theo.goto(`/en/chatroom`);
+    await client.goto(`/en/chatroom?reader=${THEO.slug}`);
+    await client.getByRole("button", { name: /Start live chat/ }).click();
+    await expect(client.getByText(/Waiting for .* to accept/)).toBeVisible();
+    await theo.getByRole("button", { name: "Decline", exact: true }).click();
+
+    await expect(client.getByText("The advisor declined this request.")).toBeVisible();
+    const strip = client.getByTestId("advisor-strip");
+    await expect(strip.getByRole("heading", { name: "Other advisors online now" })).toBeVisible();
+    await expect(strip.getByTestId("advisor-strip-item").filter({ hasText: /Ramone/ })).toBeVisible();
+    await expect(strip.getByTestId("advisor-strip-item").filter({ hasText: /Theo/ })).toHaveCount(0);
+    // the advisor who declined never sees the suggestion on their side
+    await expect(theo.getByTestId("advisor-strip")).toHaveCount(0);
+  });
+});

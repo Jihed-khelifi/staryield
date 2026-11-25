@@ -85,6 +85,9 @@ type MailSettings struct {
 	// SupportEmail is printed in the footer of every e-mail (revisions 5.1,
 	// STARYIELD_MAIL_SUPPORT_INBOX; empty: the built-in support address).
 	SupportEmail string
+	// From is the configured sender, shown by the admin console's delivery
+	// view (growth: e-mail delivery).
+	From string
 }
 
 func (s *MailSettings) defaults() {
@@ -113,6 +116,8 @@ func (s *MailSettings) defaults() {
 
 // Outbox status reasons (email_outbox.status_reason).
 const (
+	// reasonNoProvider: the no-op driver is configured, so nothing is sent.
+	reasonNoProvider          = "no_provider"
 	reasonNoMarketingProvider = "no_marketing_provider"
 	reasonDailyCap            = "daily_cap"
 	reasonSuppressed          = "recipient_suppressed"
@@ -139,6 +144,8 @@ type MailService struct {
 	// resolvers turn attachment references into files, by kind (registered at
 	// start-up with RegisterAttachments, before delivery starts).
 	resolvers map[string]AttachmentResolver
+	// audit records the admin console's test sends (growth: e-mail delivery).
+	audit *mailAudit
 }
 
 // NewMailService wires the outbox.
@@ -288,11 +295,20 @@ func (s *MailService) Enqueue(ctx context.Context, reqs ...EmailRequest) error {
 	if err := s.repo.Enqueue(ctx, rows); err != nil {
 		return fmt.Errorf("mail: enqueue: %w", err)
 	}
+	// Wake the delivery loop once the rows are visible: inside the caller's
+	// transaction a wake-up would find nothing to claim, and the message would
+	// wait for the next poll.
+	database.AfterCommit(ctx, func(context.Context) { s.signal() })
+	return nil
+}
+
+// signal wakes the delivery loop without blocking (one pending wake-up is
+// enough: a run claims everything that is due).
+func (s *MailService) signal() {
 	select {
 	case s.wake <- struct{}{}:
 	default:
 	}
-	return nil
 }
 
 // DeliverDue claims due rows and delivers them; it returns how many rows it
@@ -370,7 +386,17 @@ func (s *MailService) deliver(ctx context.Context, row *domain.EmailOutbox) {
 		cancel()
 	}
 	now := s.clock.Now()
+	if err != nil && mail.IsConfigError(err) {
+		// The provider account needs the operator (credentials, plan, sending
+		// domain): every message fails the same way until it is fixed.
+		log.Error("mail: provider configuration problem; the message will be retried", zap.String("error", describeMailErr(err)),
+			zap.String("hint", mail.HintOf(err)), zap.Int("attempt", row.Attempts))
+	}
 	switch {
+	case err == nil && res.Discarded:
+		// A driver that delivers nothing (noop): never record it as sent.
+		final(domain.EmailCancelled, reasonNoProvider, "")
+		log.Error("mail: no e-mail provider is configured; the message was discarded (set STARYIELD_MAIL_DRIVER=cloudflare)")
 	case err == nil && bounced(res, to):
 		s.suppress(ctx, row.ToHash, mail.Name(s.provider))
 		final(domain.EmailSuppressed, reasonBounced, "")

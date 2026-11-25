@@ -32,12 +32,17 @@ const (
 
 func (l pushLane) String() string { return [...]string{"urgent", "normal", "bulk"}[l] }
 
+// bulkPushKinds are the kinds sent in bulk (broadcasts, promotional
+// messages): their pushes wait behind every other push. Features register
+// their own kinds in init().
+var bulkPushKinds = map[string]bool{NotifyBroadcast: true}
+
 // laneFor picks the lane of a notification kind.
 func laneFor(kind string) pushLane {
-	switch kind {
-	case NotifyChatRequested, NotifyChatMissed, NotifyWaitlistAvailable:
+	switch {
+	case kind == NotifyChatRequested || kind == NotifyChatMissed || kind == NotifyWaitlistAvailable:
 		return laneUrgent
-	case NotifyBroadcast:
+	case bulkPushKinds[kind]:
 		return laneBulk
 	}
 	return laneNormal
@@ -208,6 +213,34 @@ func (s *PushService) enqueue(wait context.Context, job pushJob) bool {
 	}
 	s.drop(job)
 	return false
+}
+
+// WaitBulkRoom waits, bounded by ctx, until the bulk lane can take n more
+// jobs (at most its capacity). Bulk senders whose pushes go through the
+// notification dispatcher, where the fan-out never blocks and a full lane
+// drops, pace themselves with it. False when ctx ended (or the service
+// stopped) first; true at once when push is off.
+func (s *PushService) WaitBulkRoom(ctx context.Context, n int) bool {
+	if s == nil || !s.Enabled() {
+		return true
+	}
+	lane := s.lanes[laneBulk]
+	need := min(n, cap(lane))
+	if cap(lane)-len(lane) >= need {
+		return true
+	}
+	tick := time.NewTicker(100 * time.Millisecond)
+	defer tick.Stop()
+	for cap(lane)-len(lane) < need {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-s.stop:
+			return false
+		case <-tick.C:
+		}
+	}
+	return true
 }
 
 func (s *PushService) drop(job pushJob) {
