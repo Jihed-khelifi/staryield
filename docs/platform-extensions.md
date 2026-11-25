@@ -4200,3 +4200,33 @@ at the sign-up step. The contract (request and response, `steps`, `from`, `to`,
   machine (to be re-measured on the 200k-user load database): 30-day 3-step
   funnel 132 ms, 7-day 2-step 31 ms, 90-day 3-step 424 ms (the join form of
   the same stitching: 449 / 244 / 717 ms with sequential scans).
+
+### 27.6 Legal, privacy and performance follow-ups of the growth work
+
+- **Legal documents** (Terms, Privacy Policy, Refund Policy, en/fr/es) are
+  dated **2026-11-25**, with `LEGAL_VERSIONS` (the purchase consent evidence):
+  ship on or after that day (the API refuses consent dates in the future). The
+  growth clauses were fact-checked against the code: tarot birth cards (one,
+  two or three cards), the invite code in a signed-in client's shared result
+  link, when each referral message is sent (the reward e-mail is an account
+  message), the export (`lifecycle-messages.json`, checklist dismissal), the
+  reading summary, auto-away, alternative advisors, campaign parameters in our
+  e-mail links and the stitching of a browser's events to its account.
+- **Erasure:** the reading summary (`lifecycle_readers`) is deleted with the
+  account and never recomputed for an erased one; lifecycle messages stay on
+  the anonymised account.
+- **Analytics:** `referral.joined` and `referral.qualified` no longer carry
+  `referrer_id` (no event links an invited friend to the inviter);
+  `referral.granted` still names the inviter.
+- **Query plans at 200k users:** `InvitersAmong` (lifecycle funnel) probes
+  `referrals_referrer_status_idx` per account of the cohort instead of hashing
+  every referral (374 ms → 12 ms warm); the `after_first_reading` and
+  `win_back` due queries fetch each reader's account by `users_pkey` in band
+  order instead of hashing the band against a scan of `users` (win_back
+  1.3 s → 6 ms warm). Both use an `OFFSET 0` subquery so the planner keeps the
+  per-row probe.
+- **Tests:** the Go e2e suite runs in parallel shards, then the large-dataset
+  tests alone (`backend/README.md`, `make test-e2e-quick` skips the latter);
+  the web Playwright suite has `npm run test:e2e:full` (production build,
+  public pages in parallel, the shared-state journeys one at a time) and both
+  Playwright configs record video only with `E2E_VIDEO=1`.
