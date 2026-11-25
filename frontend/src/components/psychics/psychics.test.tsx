@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
@@ -8,6 +9,7 @@ import { axeViolations, renderWithI18n } from "@/test/render";
 
 const browse = vi.fn<(query: DirectoryQuery, signal?: AbortSignal) => Promise<DirectoryPage>>();
 const mine = vi.fn<() => Promise<Page<WaitlistEntry>>>();
+const join = vi.fn<(slug: string) => Promise<WaitlistEntry>>();
 const session = vi.hoisted(() => ({ status: "authenticated" as "authenticated" | "anonymous" | "loading" }));
 const replace = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace, push: vi.fn() }), usePathname: () => "/en/psychics" }));
@@ -18,7 +20,7 @@ const statusHandler = (data: { slug: string; status: PresenceStatus }) => handle
 vi.mock("@/lib/api/endpoints", () => ({
   psychicsApi: { browse: (q: DirectoryQuery, s?: AbortSignal) => browse(q, s) },
   requestsApi: {},
-  waitlistApi: { join: vi.fn(), leave: vi.fn(), mine: () => mine() },
+  waitlistApi: { join: (s: string) => join(s), leave: vi.fn(), mine: () => mine() },
 }));
 vi.mock("@/components/feedback/toast-provider", () => ({ useToast: () => ({ show: vi.fn(), showError: vi.fn() }) }));
 vi.mock("@/lib/auth/session-provider", () => ({
@@ -63,6 +65,7 @@ function page(n: number, items: AdvisorCard[], total: number): DirectoryPage {
 beforeEach(() => {
   browse.mockReset();
   mine.mockReset();
+  join.mockReset();
   mine.mockResolvedValue({ items: [] });
   replace.mockReset();
   session.status = "authenticated";
@@ -153,6 +156,33 @@ describe("PsychicsBrowse", () => {
     renderWithI18n(<PsychicsBrowse />);
     expect(await screen.findByText("No advisors are listed right now.")).toBeTruthy();
     expect(screen.queryByRole("navigation")).toBeNull();
+  });
+
+  it("shows a card online, dot and pill too, when its advisor turns out to be online (409)", async () => {
+    browse.mockResolvedValue(page(1, [advisor("ada", "offline"), advisor("bea", "busy")], 2));
+    join.mockRejectedValue(new ApiError({ code: "advisor_available", message: "online", status: 409 }));
+    renderWithI18n(<PsychicsBrowse />);
+    const bea = (await screen.findByRole("heading", { name: /Bea/ })).closest("article") as HTMLElement;
+    const button = bea.querySelector<HTMLButtonElement>("[data-testid=book-button]")!;
+    await waitFor(() => expect(button.disabled).toBe(false));
+    fireEvent.click(button);
+    await waitFor(() => expect(bea.getAttribute("data-status")).toBe("online"));
+    expect(bea.querySelector(".status-pill")?.textContent).toBe("● Online");
+    expect(bea.querySelector(".advisor-status-dot")?.className).toContain("status-dot online");
+    expect(bea.querySelector("[data-testid=book-button]")?.getAttribute("data-action")).toBe("chat");
+    // Online first: the card moved up.
+    expect(screen.getAllByRole("heading", { level: 2 })[0].textContent).toContain("Bea");
+  });
+
+  it("lets the desktop card grow to hold the book button instead of cutting it off (globals.css)", () => {
+    const css = readFileSync(`${process.cwd()}/src/app/globals.css`, "utf8");
+    const card = css.match(/\n\.advisor-card \{([^}]*)\}/)?.[1] ?? "";
+    expect(card).toMatch(/overflow: hidden;/);
+    // A minimum, never a fixed height, so the button under the profile bar stays inside the card.
+    expect(card).toMatch(/min-height: 498px;/);
+    expect(card).not.toMatch(/(^|[^-])height:/);
+    expect(css).toMatch(/\n\.advisor-profile-link \{[^}]*margin: auto -16px 0 -17px;/);
+    expect(css).toMatch(/\n\.advisor-card-book \{\s*margin: 12px 0 20px;\s*\}/);
   });
 
   it("applies live status changes to the cards on screen", async () => {

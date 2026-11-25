@@ -22,7 +22,7 @@ import { errorMessage, toApiError, type ApiError } from "@/lib/api/errors";
 import type { AdvisorCard, PresenceStatus, Psychic, Service } from "@/lib/api/types";
 import { track } from "@/lib/analytics";
 import { useSession } from "@/lib/auth/session-provider";
-import { applyStatusChange, useStatusChanges } from "@/lib/psychics-live";
+import { applyStatusChange, STATUS_NAME, useStatusChanges } from "@/lib/psychics-live";
 import { PsychicReviews } from "@/components/reviews/psychic-reviews";
 import { NumberedPager } from "@/components/ui/pagination";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
@@ -34,6 +34,7 @@ import { ServiceOrderForm } from "@/components/psychics/service-order-form";
 import { BookButton } from "@/components/booking/book-button";
 import { BookingBar, useBookingBarVisible } from "@/components/booking/booking-bar";
 import { WaitlistProvider } from "@/lib/booking/waitlist-provider";
+import { useOpenReading } from "@/lib/booking/use-open-reading";
 
 const statusCopy: Record<PresenceStatus, string> = {
   online: "● Online",
@@ -112,10 +113,7 @@ function AdvisorGridSkeleton() {
   );
 }
 
-/** Accessible status names (the desktop card shows a dot, mobile a pill). */
-const statusName: Record<PresenceStatus, string> = { online: "Online", busy: "Busy", away: "Away", offline: "Offline" };
-
-function AdvisorCardView({ advisor }: { advisor: AdvisorCard }) {
+function AdvisorCardView({ advisor, onAvailable }: { advisor: AdvisorCard; onAvailable: () => void }) {
   const { text, locale } = useI18n();
   // The booking button repeats on every card: it points at the advisor's name.
   const nameId = useId();
@@ -128,9 +126,9 @@ function AdvisorCardView({ advisor }: { advisor: AdvisorCard }) {
             {/* Figma desktop: a status dot before the name. Its shape also
                 changes (filled when available, hollow when offline), so the
                 status is not told by colour alone. */}
-            <span className={`advisor-status-dot ${advisor.status}`} aria-hidden title={text(statusName[advisor.status])} />
+            <span className={`advisor-status-dot status-dot ${advisor.status}`} aria-hidden title={text(STATUS_NAME[advisor.status])} />
             {text(advisor.name)}
-            <span className="sr-only">, {text(statusName[advisor.status])}</span>
+            <span className="sr-only">, {text(STATUS_NAME[advisor.status])}</span>
           </h2>
           <span className={`status-pill ${advisor.status === "online" ? "online" : ""}`} aria-hidden>
             {text(statusCopy[advisor.status])}
@@ -164,7 +162,7 @@ function AdvisorCardView({ advisor }: { advisor: AdvisorCard }) {
           </span>
           <span className="sr-only">: {text(advisor.name)}</span>
         </Link>
-        <BookButton advisor={advisor} placement="directory" size="full" describedBy={nameId} className="mt-3" />
+        <BookButton advisor={advisor} placement="directory" size="full" describedBy={nameId} className="advisor-card-book" onAvailable={onAvailable} />
       </div>
     </article>
   );
@@ -209,11 +207,11 @@ function PsychicsDirectory() {
       })
       .catch(() => {});
   }, [setData]);
-  useLiveStatuses(
-    (slug, status) => setData((d) => (d ? { ...d, items: applyStatusChange(d.items, slug, status) } : d)),
-    refresh,
-    true,
+  const patchStatus = useCallback(
+    (slug: string, status: PresenceStatus) => setData((d) => (d ? { ...d, items: applyStatusChange(d.items, slug, status) } : d)),
+    [setData],
   );
+  useLiveStatuses(patchStatus, refresh, true);
 
   function goTo(next: number) {
     setPage(next);
@@ -266,7 +264,7 @@ function PsychicsDirectory() {
             <div aria-busy={loading} className={loading ? "opacity-70 transition-opacity" : "transition-opacity"}>
               <div className="advisor-grid">
                 {data.items.map((advisor) => (
-                  <AdvisorCardView key={advisor.slug} advisor={advisor} />
+                  <AdvisorCardView key={advisor.slug} advisor={advisor} onAvailable={() => patchStatus(advisor.slug, "online")} />
                 ))}
               </div>
             </div>
@@ -350,6 +348,8 @@ function PsychicProfileView({ slug }: { slug: string }) {
 
   useEffect(load, [load]);
   useLiveStatuses((s, st) => setAdvisor((a) => (a && a.slug === s ? { ...a, status: st } : a)), load);
+  // A client in a reading with this advisor (from the chat's "View full profile") gets the way back to it.
+  const inReading = useOpenReading(slug, advisor?.status);
 
   if (!advisor) {
     return (
@@ -454,7 +454,7 @@ function PsychicProfileView({ slug }: { slug: string }) {
               <FreeChatBadge className="mt-4" />
               {/* One standard action for every status: chat, sign up, or the waiting list. */}
               <div className="mt-5" data-testid="profile-ctas">
-                <BookButton advisor={advisor} placement="profile_hero" size="lg" className="w-full" onAvailable={markOnline} />
+                <BookButton advisor={advisor} placement="profile_hero" size="lg" className="w-full" onAvailable={markOnline} inReading={inReading} />
               </div>
             </div>
           </div>
@@ -510,7 +510,7 @@ function PsychicProfileView({ slug }: { slug: string }) {
         </section>
         <PsychicReviews slug={slug} total={advisor.reviews_count} />
       </main>
-      <BookingBar advisor={advisor} onAvailable={markOnline} />
+      <BookingBar advisor={advisor} onAvailable={markOnline} inReading={inReading} />
       <MobileNavigation />
       <Sheet
         open={Boolean(service)}

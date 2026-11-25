@@ -137,7 +137,7 @@ describe("FeaturedAdvisors", () => {
     expect(leave).toHaveBeenCalledWith("solomon");
   });
 
-  it("switches to the chat button when the advisor came online meanwhile", async () => {
+  it("switches the card to online when the advisor came online meanwhile: button, badge and order", async () => {
     session = { status: "authenticated", user: { id: "u1", role: "client" } };
     featured.mockResolvedValue(three());
     join.mockRejectedValue(new ApiError({ code: "advisor_available", message: "online", status: 409 }));
@@ -146,9 +146,17 @@ describe("FeaturedAdvisors", () => {
     fireEvent.click(await ready("Theo", /Join the waiting list/));
     await waitFor(() => expect(within(card("Theo")).getByRole("link", { name: /Chat now/ })).toBeTruthy());
     expect(toastShow).toHaveBeenCalledWith(expect.objectContaining({ tone: "info", message: "Theo is online now. Start your chat." }));
+    expect(within(card("Theo")).getByText("Active Now")).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Ramone", "Theo", "Solomon"]);
+    // A patch, not a reload (the API's selection may lag the 409 by a few seconds).
+    expect(featured).toHaveBeenCalledOnce();
+    // Theo takes another client: the live change wins again, badge and button alike.
+    act(() => statusHandler({ slug: "theo", status: "busy" }));
+    expect(within(card("Theo")).getByText("Busy")).toBeTruthy();
+    expect(await within(card("Theo")).findByRole("button", { name: /Join the waiting list/ })).toBeTruthy();
   });
 
-  it("reports other join errors without changing the card", async () => {
+  it("reports other join errors without changing the card, and no retry where it cannot help", async () => {
     session = { status: "authenticated", user: { id: "u1", role: "client" } };
     featured.mockResolvedValue(three());
     const limit = new ApiError({ code: "limit_reached", message: "You can wait for up to 20 advisors at a time.", status: 409 });
@@ -156,7 +164,8 @@ describe("FeaturedAdvisors", () => {
     renderWithI18n(<FeaturedAdvisors />);
     await screen.findByRole("heading", { name: "Theo" });
     fireEvent.click(await ready("Theo", /Join the waiting list/));
-    await waitFor(() => expect(toastShow).toHaveBeenCalledWith(expect.objectContaining({ tone: "error", actionLabel: "Try again" })));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith(limit));
+    expect(toastShow).not.toHaveBeenCalled();
     expect(within(card("Theo")).getByRole("button", { name: /Join the waiting list/ })).toBeTruthy();
   });
 
@@ -183,6 +192,20 @@ describe("FeaturedAdvisors", () => {
     expect(names()).toEqual(["Solomon", "Theo", "Ramone"]);
     // The change also refetches the selection (the server order may differ).
     await waitFor(() => expect(featured.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it("refreshes every 30 seconds while the page is visible", async () => {
+    featured.mockResolvedValue(three());
+    vi.useFakeTimers();
+    try {
+      renderWithI18n(<FeaturedAdvisors />);
+      await act(async () => {});
+      expect(featured).toHaveBeenCalledOnce();
+      await act(async () => vi.advanceTimersByTime(30_000));
+      expect(featured).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("explains a failed load and retries", async () => {

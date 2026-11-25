@@ -188,7 +188,8 @@ test.describe("waiting list @responsive", () => {
     await page.goto(`/en/psychics/${SOLOMON.slug}`);
     const ctas = page.getByTestId("profile-ctas");
     await ctas.getByRole("button", { name: /Notify me when online|Join the waiting list/ }).click();
-    await expect(page.getByText("Solomon is online now. Start your chat.")).toBeVisible();
+    // The toast (the same words also reach the off-screen live region, so the locator is scoped).
+    await expect(page.locator(".toast").getByText("Solomon is online now. Start your chat.")).toBeVisible();
     await expect(ctas.getByRole("link", { name: /Chat now/ })).toBeVisible();
   });
 });

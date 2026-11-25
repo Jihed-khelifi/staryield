@@ -25,6 +25,15 @@ import { useAsync } from "@/lib/use-async";
 /** Open waiting lists per client are capped at 20 server-side, so one page of 50 holds them all. */
 const MINE_LIMIT = 50;
 
+/**
+ * How long a 409 `advisor_available` outranks the status the page shows,
+ * unless a live status change for that advisor comes first. Longer than the
+ * API's advisor catalogue snapshot (10 s), so a list reloaded meanwhile cannot
+ * bring the stale status back; after it, the page's own status (live or
+ * polled) is the truth again.
+ */
+export const AVAILABLE_HOLD_MS = 15_000;
+
 export type WaitlistResult = { ok: true } | { ok: false; error: ApiError };
 
 export type WaitlistValue = {
@@ -41,7 +50,8 @@ export type WaitlistValue = {
   /**
    * The server said this advisor is online (409 `advisor_available`) while the
    * page still shows `shownStatus`: every button for that advisor shows the
-   * chat until the shown status really changes.
+   * chat while the page shows that status, until the advisor's next live
+   * status change or for {@link AVAILABLE_HOLD_MS} at most.
    */
   markAvailable: (slug: string, shownStatus: PresenceStatus) => void;
   availableFrom: (slug: string) => PresenceStatus | null;
@@ -68,9 +78,43 @@ export function WaitlistProvider({ children }: { children: React.ReactNode }) {
     setOwnerSeen(owner);
     setOverrides({});
     setPendingBy({});
+    setAvailable({});
   }
 
   const fetched = React.useMemo(() => new Set((mine.data?.items ?? []).map((e) => e.slug)), [mine.data]);
+
+  const forgetAvailable = React.useCallback((slug: string) => {
+    setAvailable((m) => {
+      if (!(slug in m)) return m;
+      const rest = { ...m };
+      delete rest[slug];
+      return rest;
+    });
+  }, []);
+  // One hold timer per advisor; all cleared when the page goes.
+  const holds = React.useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  React.useEffect(() => {
+    const timers = holds.current;
+    return () => timers.forEach((t) => clearTimeout(t));
+  }, []);
+  const markAvailable = React.useCallback(
+    (slug: string, shownStatus: PresenceStatus) => {
+      setAvailable((m) => (m[slug] === shownStatus ? m : { ...m, [slug]: shownStatus }));
+      clearTimeout(holds.current.get(slug));
+      holds.current.set(
+        slug,
+        setTimeout(() => {
+          holds.current.delete(slug);
+          forgetAvailable(slug);
+        }, AVAILABLE_HOLD_MS),
+      );
+    },
+    [forgetAvailable],
+  );
+  // A live status change is newer than the 409: the page's status is the truth from then on.
+  useRealtimeEvent<{ slug?: string }>("psychic.status_changed", (d) => {
+    if (typeof d?.slug === "string") forgetAvailable(d.slug);
+  });
 
   // The server closes an entry when it tells the client the advisor is online
   // (kind `waitlist.available`, always in-app): every tab drops it at once.
@@ -119,11 +163,11 @@ export function WaitlistProvider({ children }: { children: React.ReactNode }) {
       pending: (slug) => pendingBy[slug] ?? null,
       join: (slug) => run(slug, "join"),
       leave: (slug) => run(slug, "leave"),
-      markAvailable: (slug, shownStatus) => setAvailable((m) => (m[slug] === shownStatus ? m : { ...m, [slug]: shownStatus })),
+      markAvailable,
       availableFrom: (slug) => available[slug] ?? null,
       demand,
     }),
-    [enabled, joined, pendingBy, run, available, demand],
+    [enabled, joined, pendingBy, run, markAvailable, available, demand],
   );
   return <WaitlistContext.Provider value={value}>{children}</WaitlistContext.Provider>;
 }

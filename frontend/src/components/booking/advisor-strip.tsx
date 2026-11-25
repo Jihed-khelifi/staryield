@@ -4,11 +4,10 @@
 import { useId, useMemo } from "react";
 
 import { useI18n } from "@/i18n/i18n-provider";
-import { psychicsApi } from "@/lib/api/endpoints";
 import type { FeaturedAdvisor } from "@/lib/api/types";
 import { WaitlistScope } from "@/lib/booking/waitlist-provider";
-import { applyStatusChange, sortByStatusTier, useStatusChanges } from "@/lib/psychics-live";
-import { useAsync } from "@/lib/use-async";
+import { sortByStatusTier } from "@/lib/psychics-live";
+import { useFeaturedAdvisors } from "@/lib/use-featured-advisors";
 import { cn } from "@/lib/utils";
 import { AdvisorStatusLine } from "@/components/booking/advisor-status-line";
 import { BookButton } from "@/components/booking/book-button";
@@ -18,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 /** At most this many advisors show in a strip. */
 export const STRIP_COUNT = 3;
 
-function StripRow({ advisor, placement }: { advisor: FeaturedAdvisor; placement: string }) {
+function StripRow({ advisor, placement, onAvailable }: { advisor: FeaturedAdvisor; placement: string; onAvailable: () => void }) {
   const { text } = useI18n();
   const nameId = useId();
   return (
@@ -32,7 +31,7 @@ function StripRow({ advisor, placement }: { advisor: FeaturedAdvisor; placement:
         </p>
         <AdvisorStatusLine status={advisor.status} ratePerMinute={advisor.rate_per_minute} className="mt-0.5 text-[13px]" />
       </div>
-      <BookButton advisor={advisor} placement={placement} describedBy={nameId} className="w-full sm:w-auto" />
+      <BookButton advisor={advisor} placement={placement} describedBy={nameId} className="w-full sm:w-auto" onAvailable={onAvailable} />
     </li>
   );
 }
@@ -57,9 +56,11 @@ function StripSkeleton() {
 /**
  * A compact "talk to an advisor" list (up to three, online first) with the
  * standard book button on each row, for the end of calculator results and
- * landing pages. It reads `GET /psychics/featured`, follows live status
- * changes, and shares one waiting-list read with the buttons (reusing the
- * page's provider when there is one).
+ * landing pages. It reads `GET /psychics/featured` and stays current like the
+ * home cards (`useFeaturedAdvisors`: a refresh every 30 s while visible, which
+ * is what visitors rely on, plus live status changes for members), and shares
+ * one waiting-list read with the buttons (reusing the page's provider when
+ * there is one).
  */
 export function AdvisorStrip({
   heading,
@@ -76,9 +77,8 @@ export function AdvisorStrip({
 }) {
   const { text } = useI18n();
   const headingId = useId();
-  const featured = useAsync((signal) => psychicsApi.featured(STRIP_COUNT, signal), []);
-  const { setData, reload } = featured;
-  useStatusChanges((slug, status) => setData((list) => (list ? { ...list, items: applyStatusChange(list.items, slug, status) } : list)));
+  const featured = useFeaturedAdvisors(STRIP_COUNT);
+  const { reload, markOnline } = featured;
   const items = useMemo(() => sortByStatusTier(featured.data?.items ?? []).slice(0, STRIP_COUNT), [featured.data]);
   const Heading = headingLevel === 2 ? "h2" : "h3";
 
@@ -104,7 +104,7 @@ export function AdvisorStrip({
         ) : (
           <ul className="flex flex-col gap-3">
             {items.map((advisor) => (
-              <StripRow key={advisor.slug} advisor={advisor} placement={placement} />
+              <StripRow key={advisor.slug} advisor={advisor} placement={placement} onAvailable={() => markOnline(advisor.slug)} />
             ))}
           </ul>
         )}

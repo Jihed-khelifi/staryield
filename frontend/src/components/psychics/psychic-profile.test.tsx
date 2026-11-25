@@ -2,12 +2,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
-import type { Page, PresenceStatus, Psychic, WaitlistEntry } from "@/lib/api/types";
+import type { ChatSession, Page, PresenceStatus, Psychic, WaitlistEntry } from "@/lib/api/types";
 import { axeViolations, renderWithI18n } from "@/test/render";
 
 const get = vi.fn<(slug: string) => Promise<Psychic>>();
 const mine = vi.fn<() => Promise<Page<WaitlistEntry>>>();
 const join = vi.fn<(slug: string) => Promise<WaitlistEntry>>();
+const sessions = vi.fn<(status?: string) => Promise<Page<ChatSession>>>();
 let session: { status: string; user: { id: string; role: string; age_status: string } | null } = { status: "anonymous", user: null };
 const handlers = new Map<string, (d: { slug: string; status: PresenceStatus }) => void>();
 const statusHandler = (d: { slug: string; status: PresenceStatus }) => handlers.forEach((h) => h(d));
@@ -17,6 +18,7 @@ vi.mock("@/lib/api/endpoints", () => ({
   psychicsApi: { get: (s: string) => get(s) },
   waitlistApi: { join: (s: string) => join(s), leave: vi.fn(), mine: () => mine() },
   requestsApi: {},
+  chatApi: { sessions: (status?: string) => sessions(status) },
 }));
 vi.mock("@/lib/auth/session-provider", () => ({
   useSession: () => ({ ...session, wallet: null, realtime: null }),
@@ -53,9 +55,13 @@ const theo = (status: PresenceStatus): Psychic => ({
   services: [],
 });
 
+const openSession = (slug: string) =>
+  ({ id: `s-${slug}`, status: "active", psychic: { id: `p-${slug}`, role: "psychic", name: slug, slug } }) as unknown as ChatSession;
+
 beforeEach(() => {
-  for (const f of [get, mine, join]) f.mockReset();
+  for (const f of [get, mine, join, sessions]) f.mockReset();
   mine.mockResolvedValue({ items: [] });
+  sessions.mockResolvedValue({ items: [] });
   handlers.clear();
   session = { status: "anonymous", user: null };
   window.history.replaceState(null, "", "/en/psychics/theo");
@@ -101,6 +107,46 @@ describe("PsychicProfile booking", () => {
     act(() => statusHandler({ slug: "theo", status: "online" }));
     await waitFor(() => expect(screen.getAllByRole("link", { name: /Chat now/ })).toHaveLength(2));
     for (const link of screen.getAllByRole("link", { name: /Chat now/ })) expect(link.getAttribute("href")).toBe("/en/chatroom?reader=theo");
+  });
+
+  it("takes a client in a reading with the advisor back to the chat, in the hero and the bar", async () => {
+    session = { status: "authenticated", user: { id: "u1", role: "client", age_status: "adult" } };
+    get.mockResolvedValue(theo("busy"));
+    sessions.mockResolvedValue({ items: [openSession("theo")] });
+    renderWithI18n(<PsychicProfile slug="theo" />);
+    await waitFor(() => expect(screen.getAllByRole("link", { name: /Back to chat/ })).toHaveLength(2));
+    for (const link of screen.getAllByRole("link", { name: /Back to chat/ })) expect(link.getAttribute("href")).toBe("/en/chatroom?reader=theo");
+    expect(screen.queryByRole("button", { name: /Join the waiting list/ })).toBeNull();
+    // Only the open readings are asked for.
+    expect(sessions).toHaveBeenCalledWith("requested,accepted,active,disconnected,held");
+  });
+
+  it("offers the waiting list when the client's open reading is with another advisor, and reads again when the status changes", async () => {
+    session = { status: "authenticated", user: { id: "u1", role: "client", age_status: "adult" } };
+    get.mockResolvedValue(theo("busy"));
+    sessions.mockResolvedValue({ items: [openSession("ramone")] });
+    renderWithI18n(<PsychicProfile slug="theo" />);
+    const hero = await screen.findByTestId("profile-ctas");
+    await within(hero).findByRole("button", { name: /Join the waiting list/ });
+    expect(sessions).toHaveBeenCalledOnce();
+    // Theo went online, then into a reading with this client: read again.
+    sessions.mockResolvedValue({ items: [openSession("theo")] });
+    act(() => statusHandler({ slug: "theo", status: "online" }));
+    act(() => statusHandler({ slug: "theo", status: "busy" }));
+    await within(hero).findByRole("link", { name: /Back to chat/ });
+    expect(sessions).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks nobody else about readings: visitors, or an advisor who is not busy", async () => {
+    get.mockResolvedValue(theo("busy"));
+    renderWithI18n(<PsychicProfile slug="theo" />);
+    await within(await screen.findByTestId("profile-ctas")).findByRole("link", { name: /Join the waiting list/ });
+    cleanup();
+    session = { status: "authenticated", user: { id: "u1", role: "client", age_status: "adult" } };
+    get.mockResolvedValue(theo("offline"));
+    renderWithI18n(<PsychicProfile slug="theo" />);
+    await within(await screen.findByTestId("profile-ctas")).findByRole("button", { name: /Notify me when online/ });
+    expect(sessions).not.toHaveBeenCalled();
   });
 
   it("shows advisor accounts why there is no action", async () => {

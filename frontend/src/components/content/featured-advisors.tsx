@@ -1,23 +1,20 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useId } from "react";
+import { useId } from "react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import type { Locale } from "@/i18n/config";
-import { psychicsApi } from "@/lib/api/endpoints";
-import type { FeaturedAdvisor, FeaturedList, PresenceStatus } from "@/lib/api/types";
+import type { FeaturedAdvisor, PresenceStatus } from "@/lib/api/types";
 import { WaitlistProvider } from "@/lib/booking/waitlist-provider";
-import { applyStatusChange, useStatusChanges } from "@/lib/psychics-live"; // revisions 6.0: live re-sort (§26.3)
-import { useAsync } from "@/lib/use-async";
+import { useFeaturedAdvisors } from "@/lib/use-featured-advisors"; // revisions 6.0: live re-sort (§26.3)
 import { formatRating } from "@/lib/format";
 import { FreeChatBadge } from "@/components/billing/free-chat-badge";
 import { BookButton } from "@/components/booking/book-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/feedback/error-state";
 
-/** How many advisors the home page shows, and how often it refreshes. */
+/** How many advisors the home page shows. */
 export const FEATURED_COUNT = 3;
-const REFRESH_MS = 30_000;
 const imgStar = "https://assets.staryield.net/assets/figma/d9e90.svg";
 const imgDivider = "https://assets.staryield.net/assets/figma/7bd7f.svg";
 
@@ -32,13 +29,6 @@ const badgeCopy: Record<PresenceStatus, string> = {
 export function reviewCountLabel(count: number, locale: Locale): string {
   if (count < 10) return count.toLocaleString(locale);
   return `${(Math.floor(count / 10) * 10).toLocaleString(locale)}+`;
-}
-
-/** Statuses can change between refreshes: the call to action follows them. */
-function withStatus(list: FeaturedList, slug: string, status: PresenceStatus): FeaturedList {
-  const cta = status === "online" ? ("chat" as const) : ("waitlist" as const);
-  const items = applyStatusChange(list.items, slug, status, (a) => ({ ...a, cta }));
-  return items === list.items ? list : { ...list, items };
 }
 
 function CardSkeleton() {
@@ -58,7 +48,7 @@ function CardSkeleton() {
   );
 }
 
-function FeaturedCard({ advisor }: { advisor: FeaturedAdvisor }) {
+function FeaturedCard({ advisor, onAvailable }: { advisor: FeaturedAdvisor; onAvailable: () => void }) {
   const { text, locale } = useI18n();
   const online = advisor.status === "online";
   // Buttons repeat on every card: they point at the advisor's name.
@@ -112,32 +102,16 @@ function FeaturedCard({ advisor }: { advisor: FeaturedAdvisor }) {
           </dd>
         </div>
       </dl>
-      <BookButton advisor={advisor} placement="home_featured" size="full" describedBy={nameId} />
+      <BookButton advisor={advisor} placement="home_featured" size="full" describedBy={nameId} onAvailable={onAvailable} />
     </article>
   );
 }
 
 function FeaturedCards() {
   const { text } = useI18n();
-  const featured = useAsync((signal) => psychicsApi.featured(FEATURED_COUNT, signal), []);
-  const { reload, setData } = featured;
-
-  // Refresh while visible; pause in background tabs.
-  useEffect(() => {
-    const tick = () => {
-      if (document.visibilityState === "visible") reload();
-    };
-    const id = window.setInterval(tick, REFRESH_MS);
-    document.addEventListener("visibilitychange", tick);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", tick);
-    };
-  }, [reload]);
-
-  // A status change re-sorts the cards and refreshes the selection (at most
-  // every 5 s): another advisor may now belong among the first cards.
-  useStatusChanges((slug, status) => setData((list) => (list ? withStatus(list, slug, status) : list)), reload);
+  // Refreshed while visible, re-sorted and refetched on live status changes.
+  const featured = useFeaturedAdvisors(FEATURED_COUNT);
+  const { reload, markOnline } = featured;
 
   const list = featured.data;
   return (
@@ -162,7 +136,7 @@ function FeaturedCards() {
       ) : list.items.length === 0 ? (
         <p className="font-serif text-[16px] text-white">{text("No advisors are listed right now.")}</p>
       ) : (
-        list.items.map((advisor) => <FeaturedCard key={advisor.slug} advisor={advisor} />)
+        list.items.map((advisor) => <FeaturedCard key={advisor.slug} advisor={advisor} onAvailable={() => markOnline(advisor.slug)} />)
       )}
     </div>
   );

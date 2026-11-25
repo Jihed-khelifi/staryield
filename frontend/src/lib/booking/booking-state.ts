@@ -52,7 +52,15 @@ export type BookingInput = {
   /** A join or leave request is in flight. */
   pending: "join" | "leave" | null;
   age: AgeStatus;
+  /** The signed-in client is in an open reading with this advisor (who then shows busy). */
+  inReading?: boolean;
 };
+
+/** What the line under "Chat now" says: free mode, the client's own free minutes, the new-member offer, or the rate. */
+export type ChatLine = "free_mode" | "own_minutes" | "signup_offer" | "rate";
+
+/** The viewer and site facts that decide the line under "Chat now". */
+export type ChatLineInput = Pick<BookingInput, "freeMode" | "session" | "role" | "freeMinutes" | "signupOfferMinutes">;
 
 export type BookingState = {
   action: BookingAction;
@@ -70,6 +78,7 @@ const COPY = {
   joined: { key: "✓ On the waiting list" },
   joining: { key: "Joining…" },
   view: { key: "View profile" },
+  backToChat: { key: "Back to chat" },
   advisorAccount: { key: "Advisor accounts can't book readings" },
   inReading: { key: "In a reading" },
   free: { key: "Free for a limited time" },
@@ -81,14 +90,30 @@ function minutesCopy(one: string, many: string, minutes: number): BookingCopy {
   return minutes === 1 ? { key: one } : { key: many, values: { value0: minutes } };
 }
 
-/** The line under "Chat now": the best true reason to start, by priority. */
+/**
+ * The best true reason to start, by priority. While the session loads only
+ * site-wide facts are known (free mode, else the rate): an offer is never
+ * shown to a viewer who may not be able to get it.
+ */
+export function chatLine(i: ChatLineInput): ChatLine {
+  if (i.freeMode) return "free_mode";
+  if (i.session === "authenticated" && i.role === "client" && i.freeMinutes > 0) return "own_minutes";
+  if (i.session === "anonymous" && i.signupOfferMinutes > 0) return "signup_offer";
+  return "rate";
+}
+
+/** The line under "Chat now". */
 function chatSublabel(i: BookingInput): BookingCopy {
-  if (i.freeMode) return COPY.free;
-  if (i.session === "authenticated" && i.role === "client" && i.freeMinutes > 0)
-    return minutesCopy("Use your free minute", "Use your {value0} free minutes", i.freeMinutes);
-  if (i.session === "anonymous" && i.signupOfferMinutes > 0)
-    return minutesCopy("1 free minute for new members", "{value0} free minutes for new members", i.signupOfferMinutes);
-  return { key: "{value0} credits/min", values: { value0: i.ratePerMinute } };
+  switch (chatLine(i)) {
+    case "free_mode":
+      return COPY.free;
+    case "own_minutes":
+      return minutesCopy("Use your free minute", "Use your {value0} free minutes", i.freeMinutes);
+    case "signup_offer":
+      return minutesCopy("1 free minute for new members", "{value0} free minutes for new members", i.signupOfferMinutes);
+    case "rate":
+      return { key: "{value0} credits/min", values: { value0: i.ratePerMinute } };
+  }
 }
 
 /** The line under the waiting-list label: only a busy advisor has something to say. */
@@ -119,9 +144,10 @@ export function bookingState(i: BookingInput): BookingState {
   });
 
   if (i.session === "loading") {
-    // Same look as the settled button of this advisor, so nothing jumps.
+    // Same shape as the settled button of this advisor, so nothing jumps; the
+    // line is free mode or the rate until the viewer is known.
     const shape = online
-      ? base("chat", COPY.chat, chatSublabel({ ...i, session: "anonymous" }), "primary")
+      ? base("chat", COPY.chat, chatSublabel(i), "primary")
       : base("join_waitlist", waitLabel(status), waitSublabel(status), "secondary");
     return { ...shape, disabled: true, reason: "session_loading" };
   }
@@ -136,7 +162,9 @@ export function bookingState(i: BookingInput): BookingState {
       : base("signup", waitLabel(status), waitSublabel(status), "secondary");
   }
 
-  // A signed-in client.
+  // A signed-in client. One in a reading with this advisor goes back to it
+  // (never onto the waiting list for their own reading).
+  if (i.inReading) return base("chat", COPY.backToChat, null, "primary");
   const gated = i.age !== "adult";
   const gate = <T extends BookingState>(state: T): T => (gated ? { ...state, reason: "age_gate" } : state);
 

@@ -15,14 +15,22 @@ export function useBookingBarVisible(): boolean {
 
 /**
  * The sticky booking bar of an advisor's profile on phones: who, whether they
- * are available, what it costs (the bar's status line, or the button's own
- * line when the advisor is online), and the standard book button, always
+ * are available, what it costs (the status line, or the button's own line
+ * when that line is the rate), and the standard book button, always
  * within thumb reach. It floats above the mobile tab bar (`.booking-bar` in
  * globals.css keeps the safe-area insets) and is hidden from the tablet width
  * up, where the hero button is always near. The page adds `has-booking-bar`
  * to its main element so the end of the page is never covered.
  */
-export function BookingBar({ advisor, onAvailable }: { advisor: Pick<Psychic, "slug" | "name" | "status" | "rate_per_minute">; onAvailable?: () => void }) {
+export function BookingBar({
+  advisor,
+  onAvailable,
+  inReading,
+}: {
+  advisor: Pick<Psychic, "slug" | "name" | "status" | "rate_per_minute">;
+  onAvailable?: () => void;
+  inReading?: boolean;
+}) {
   const { text } = useI18n();
   const nameId = useId();
   const visible = useBookingBarVisible();
@@ -35,7 +43,7 @@ export function BookingBar({ advisor, onAvailable }: { advisor: Pick<Psychic, "s
         </p>
         <AdvisorStatusLine status={advisor.status} ratePerMinute={advisor.rate_per_minute} className="mt-0.5 text-[12px] text-[var(--muted-ink)]" />
       </div>
-      <BookButton advisor={advisor} placement="profile_bar" describedBy={nameId} className="max-w-[62%] shrink-0" onAvailable={onAvailable} />
+      <BookButton advisor={advisor} placement="profile_bar" describedBy={nameId} className="max-w-[62%] shrink-0" onAvailable={onAvailable} inReading={inReading} />
     </aside>
   );
 }

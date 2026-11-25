@@ -107,7 +107,8 @@ test.describe("visitors", () => {
       await joined;
       const back = page.getByTestId("profile-ctas").getByTestId("book-button");
       await expect(back).toHaveAttribute("data-action", "leave_waitlist");
-      await expect(page.getByText("You're on Solomon's waiting list.")).toBeVisible();
+      // Scoped to the toast: the off-screen live region repeats the words.
+      await expect(page.locator(".toast").getByText("You're on Solomon's waiting list.")).toBeVisible();
 
       // Only once: a reload does not join again (the state comes from the list).
       let posts = 0;
@@ -148,7 +149,8 @@ test.describe("signed-in client", () => {
       await joined;
       await expect(button).toHaveAttribute("data-action", "leave_waitlist");
       await expect(button).toContainText("On the waiting list");
-      await expect(page.getByText("You're on Solomon's waiting list.")).toBeVisible();
+      // Scoped to the toast: the off-screen live region repeats the words.
+      await expect(page.locator(".toast").getByText("You're on Solomon's waiting list.")).toBeVisible();
 
       // The profile shows the same state, from a single read of the lists (hero and phone bar share it).
       let reads = 0;
@@ -172,14 +174,28 @@ test.describe("signed-in client", () => {
     }
   });
 
-  test("the directory cards carry the same button", async ({ page }) => {
+  test("the directory cards carry the same button, fully inside every card at every width", async ({ page }) => {
     await signIn(page, CLIENT.email, CLIENT.password);
-    await page.goto("/en/psychics");
-    const cards = page.locator("article.advisor-card");
-    await expect(cards.first()).toBeVisible();
-    const count = await cards.count();
-    await expect(cards.getByTestId("book-button")).toHaveCount(count);
-    await expectNoHorizontalScroll(page);
+    for (const width of [1440, 1024, 768, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/en/psychics");
+      const cards = page.locator("article.advisor-card");
+      await expect(cards.first()).toBeVisible();
+      const count = await cards.count();
+      await expect(cards.getByTestId("book-button")).toHaveCount(count);
+      await expect(cards.getByTestId("book-button").first()).toHaveAttribute("data-state", "ready");
+      // toBeVisible ignores clipping by the card's overflow: hidden, so compare the boxes.
+      const clipped = await cards.evaluateAll((articles) =>
+        articles.flatMap((article) => {
+          const card = article.getBoundingClientRect();
+          const button = article.querySelector('[data-testid="book-button"]')!.getBoundingClientRect();
+          const inside = button.top >= card.top && button.bottom <= card.bottom && button.left >= card.left && button.right <= card.right;
+          return inside ? [] : [`${article.querySelector("h2")?.textContent}: button ${button.top}-${button.bottom}, card ${card.top}-${card.bottom}`];
+        }),
+      );
+      expect(clipped, `${width}px`).toEqual([]);
+      await expectNoHorizontalScroll(page);
+    }
   });
 });
 

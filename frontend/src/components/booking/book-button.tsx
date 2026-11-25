@@ -5,17 +5,15 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n-provider";
-import { errorMessage } from "@/lib/api/errors";
+import { errorMessage, type ApiError } from "@/lib/api/errors";
 import type { PresenceStatus } from "@/lib/api/types";
 import { track } from "@/lib/analytics";
 import { useRequireAdult } from "@/lib/auth/age-gate";
-import { ageStatusOf } from "@/lib/auth/age-status";
-import { useSession } from "@/lib/auth/session-provider";
 import { rememberBookingIntent, takeBookingIntent } from "@/lib/booking/booking-intent";
 import { bookingState, type BookingCopy } from "@/lib/booking/booking-state";
+import { useBookingViewer } from "@/lib/booking/booking-viewer";
 import { useWaitlist } from "@/lib/booking/waitlist-provider";
 import { signupUrl } from "@/lib/navigation";
-import { useFreeMode, useSignupFreeMinutes } from "@/lib/site-config/site-config-provider";
 import { cn } from "@/lib/utils";
 import { announce } from "@/components/feedback/live-region";
 import { useToast } from "@/components/feedback/toast-provider";
@@ -54,6 +52,7 @@ export function BookButton({
   describedBy,
   className,
   onAvailable,
+  inReading = false,
 }: {
   advisor: BookAdvisor;
   /** Where the button sits ("home_featured", "directory", "profile_hero", ...): the analytics `placement`. */
@@ -64,36 +63,33 @@ export function BookButton({
   className?: string;
   /** The server said the advisor is online while the page showed them busy or away. */
   onAvailable?: () => void;
+  /** The viewer is in an open reading with this advisor (`useOpenReading`): the button goes back to it. */
+  inReading?: boolean;
 }) {
   const { text, locale } = useI18n();
   const toast = useToast();
-  const { status: sessionStatus, user, wallet } = useSession();
+  const viewer = useBookingViewer();
   const requireAdult = useRequireAdult();
   const waitlist = useWaitlist();
-  const freeMode = useFreeMode();
-  const signupOfferMinutes = useSignupFreeMinutes();
 
   const { slug, name, rate_per_minute } = advisor;
-  // A 409 `advisor_available` makes the chat show until the real status changes.
+  // A 409 `advisor_available` shows the chat while the page still shows the
+  // status of the click (see `markAvailable` for when that ends).
   const status: PresenceStatus = waitlist.availableFrom(slug) === advisor.status ? "online" : advisor.status;
-  const isClient = sessionStatus === "authenticated" && user?.role === "client";
-  const needsWaitlist = isClient && status !== "online";
+  const { isClient } = viewer;
+  const needsWaitlist = isClient && status !== "online" && !inReading;
   const { demand } = waitlist;
   React.useEffect(() => {
     if (needsWaitlist) demand();
   }, [needsWaitlist, demand]);
 
   const state = bookingState({
+    ...viewer,
     advisorStatus: status,
     ratePerMinute: rate_per_minute,
-    session: sessionStatus,
-    role: user?.role ?? null,
-    freeMinutes: wallet?.free_minutes ?? 0,
-    signupOfferMinutes,
-    freeMode,
     waitlist: isClient ? waitlist.joined(slug) : "not_joined",
     pending: isClient ? waitlist.pending(slug) : null,
-    age: ageStatusOf(user),
+    inReading: isClient && inReading,
   });
 
   const copy = (c: BookingCopy) => {
@@ -106,6 +102,13 @@ export function BookButton({
     announce(message);
   };
 
+  // "Try again" only where a retry can succeed (network, timeout, rate limit,
+  // server errors); a limit, a missing advisor or a refusal just says why.
+  const fail = (error: ApiError, retry: () => void) => {
+    if (error.retryable) toast.show({ tone: "error", message: text(errorMessage(error)), actionLabel: text("Try again"), onAction: retry });
+    else toast.showError(error);
+  };
+
   const join = async () => {
     const res = await waitlist.join(slug);
     if (res.ok) {
@@ -115,7 +118,7 @@ export function BookButton({
       onAvailable?.();
       say("info", text("{value0} is online now. Start your chat.", { value0: name }));
     } else {
-      toast.show({ tone: "error", message: text(errorMessage(res.error)), actionLabel: text("Try again"), onAction: () => void join() });
+      fail(res.error, () => void join());
     }
   };
 
@@ -124,7 +127,7 @@ export function BookButton({
     if (res.ok) {
       say("info", text("You left {value0}'s waiting list.", { value0: name }));
     } else {
-      toast.show({ tone: "error", message: text(errorMessage(res.error)), actionLabel: text("Try again"), onAction: () => void leave() });
+      fail(res.error, () => void leave());
     }
   };
 

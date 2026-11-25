@@ -29,7 +29,7 @@ vi.mock("@/lib/auth/session-provider", () => ({
   },
 }));
 
-const { WaitlistProvider, WaitlistScope, useWaitlist } = await import("@/lib/booking/waitlist-provider");
+const { AVAILABLE_HOLD_MS, WaitlistProvider, WaitlistScope, useWaitlist } = await import("@/lib/booking/waitlist-provider");
 
 const entry = (slug: string): WaitlistEntry => ({ slug, name: slug, image_url: "", status: "busy", joined_at: "2026-11-05T10:00:00Z" });
 
@@ -43,8 +43,9 @@ function Probe({ slugs, needs = true }: { slugs: string[]; needs?: boolean }) {
     <ul>
       {slugs.map((slug) => (
         <li key={slug} data-testid={slug}>
-          {w.joined(slug)}|{w.pending(slug) ?? "idle"}
+          {w.joined(slug)}|{w.pending(slug) ?? "idle"}|{w.availableFrom(slug) ?? "none"}
           <button onClick={() => void w.join(slug)}>join-{slug}</button>
+          <button onClick={() => w.markAvailable(slug, "busy")}>available-{slug}</button>
           <button onClick={() => void w.leave(slug)}>leave-{slug}</button>
         </li>
       ))}
@@ -202,6 +203,47 @@ describe("WaitlistProvider", () => {
     );
     await waitFor(() => expect(mine).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByTestId("theo").textContent).toMatch(/^not_joined/));
+  });
+
+  it("keeps an 'online now' (409) until that advisor's next live status change", async () => {
+    renderWithI18n(
+      <WaitlistProvider>
+        <Probe slugs={["ramone", "theo"]} />
+      </WaitlistProvider>,
+    );
+    fireEvent.click(screen.getByText("available-ramone"));
+    fireEvent.click(screen.getByText("available-theo"));
+    expect(screen.getByTestId("ramone").textContent).toMatch(/^\w+\|\w+\|busy/);
+    // Another advisor's change leaves it alone; Ramone's own ends it, whatever the new status.
+    act(() => emit("psychic.status_changed", { slug: "theo", status: "away" }));
+    expect(screen.getByTestId("ramone").textContent).toMatch(/^\w+\|\w+\|busy/);
+    expect(screen.getByTestId("theo").textContent).toMatch(/^\w+\|\w+\|none/);
+    act(() => emit("psychic.status_changed", { slug: "ramone", status: "busy" }));
+    expect(screen.getByTestId("ramone").textContent).toMatch(/^\w+\|\w+\|none/);
+  });
+
+  it("drops an 'online now' after the hold, and for another account", async () => {
+    vi.useFakeTimers();
+    try {
+      const view = () => (
+        <WaitlistProvider>
+          <Probe slugs={["ramone"]} needs={false} />
+        </WaitlistProvider>
+      );
+      const { rerender } = renderWithI18n(view());
+      fireEvent.click(screen.getByText("available-ramone"));
+      act(() => vi.advanceTimersByTime(AVAILABLE_HOLD_MS - 1));
+      expect(screen.getByTestId("ramone").textContent).toMatch(/^\w+\|\w+\|busy/);
+      act(() => vi.advanceTimersByTime(1));
+      expect(screen.getByTestId("ramone").textContent).toMatch(/^\w+\|\w+\|none/);
+
+      fireEvent.click(screen.getByText("available-ramone"));
+      session = { status: "authenticated", user: { id: "u2", role: "client" } };
+      rerender(view());
+      expect(screen.getByTestId("ramone").textContent).toMatch(/^\w+\|\w+\|none/);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("requires a provider, and WaitlistScope reuses the parent's", async () => {

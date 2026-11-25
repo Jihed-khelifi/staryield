@@ -73,8 +73,8 @@ describe("AdvisorStrip", () => {
     expect(rows().map((r) => within(r).getByText(/^(Ramone|Extra|Theo|Solomon)$/).textContent)).toEqual(["Ramone", "Extra", "Theo"]);
     const first = within(rows()[0]);
     expect(first.getByText("Online")).toBeTruthy();
-    // Online: the button's line carries the offer, so the row does not repeat a price.
-    expect(first.queryByTestId("advisor-price")).toBeNull();
+    // Online with the new-member offer on the button: the row still shows the rate, so the price is in view.
+    expect(first.getByTestId("advisor-price").textContent).toBe("30 credits/min");
     // Busy: the row says what a reading costs, the button offers the waiting list.
     const third = within(rows()[2]);
     expect(third.getByText("Busy")).toBeTruthy();
@@ -96,6 +96,40 @@ describe("AdvisorStrip", () => {
     act(() => statusHandler({ slug: "ramone", status: "away" }));
     await waitFor(() => expect(within(rows()[0]).getByText("Theo")).toBeTruthy());
     expect(within(rows()[0]).getByRole("link", { name: /Chat now/ })).toBeTruthy();
+  });
+
+  it("stays current for visitors, who have no realtime: a refresh every 30 seconds while visible", async () => {
+    featured
+      .mockResolvedValueOnce(list(advisor("ramone", "online"), advisor("theo", "busy")))
+      .mockResolvedValue(list(advisor("theo", "online"), advisor("ramone", "offline")));
+    vi.useFakeTimers();
+    try {
+      renderWithI18n(<AdvisorStrip heading="Talk to an advisor now" />);
+      await act(async () => {});
+      expect(within(rows()[0]).getByText("Ramone")).toBeTruthy();
+      // A background tab does not refresh...
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+      await act(async () => vi.advanceTimersByTime(30_000));
+      expect(featured).toHaveBeenCalledOnce();
+      // ...a visible one does: Ramone went offline, Theo came online and now leads.
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+      await act(async () => vi.advanceTimersByTime(30_000));
+      expect(featured).toHaveBeenCalledTimes(2);
+      expect(within(rows()[0]).getByText("Theo")).toBeTruthy();
+      expect(within(rows()[0]).getByRole("link", { name: /Chat now/ }).getAttribute("href")).toBe("/en/signup?next=%2Fen%2Fchatroom%3Freader%3Dtheo");
+      expect(within(rows()[1]).getByText("Offline")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+    }
+  });
+
+  it("refetches the selection after a live status change (another advisor may now belong in it)", async () => {
+    featured.mockResolvedValue(list(advisor("ramone", "online"), advisor("theo", "busy")));
+    renderWithI18n(<AdvisorStrip heading="Talk to an advisor now" />);
+    await screen.findAllByTestId("advisor-strip-item");
+    act(() => statusHandler({ slug: "ramone", status: "offline" }));
+    await waitFor(() => expect(featured).toHaveBeenCalledTimes(2));
   });
 
   it("says so when no advisor is listed", async () => {

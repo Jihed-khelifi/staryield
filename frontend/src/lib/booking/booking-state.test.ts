@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AgeStatus, PresenceStatus, Role } from "@/lib/api/types";
-import { bookingState, type BookingAction, type BookingInput, type BookingState } from "@/lib/booking/booking-state";
+import { bookingState, chatLine, type BookingAction, type BookingInput, type BookingState } from "@/lib/booking/booking-state";
 
 const base: BookingInput = {
   advisorStatus: "online",
@@ -158,8 +158,11 @@ describe("bookingState: accounts and gates", () => {
   it("holds the button while the session loads, looking like the settled one", () => {
     const online = state({ session: "loading", role: null });
     expect(online).toMatchObject({ action: "chat", label: { key: "Chat now" }, disabled: true, reason: "session_loading", tone: "primary" });
-    // No account is assumed: no wallet minutes, the visitor's offer is the line.
-    expect(state({ session: "loading", role: null, freeMinutes: 5, signupOfferMinutes: 10 }).sublabel?.key).toBe("{value0} free minutes for new members");
+    // No account is assumed either way: neither the wallet's minutes nor the
+    // new-member offer (an existing client may be loading), only the rate...
+    expect(state({ session: "loading", role: null, freeMinutes: 5, signupOfferMinutes: 10 }).sublabel).toEqual({ key: "{value0} credits/min", values: { value0: 30 } });
+    // ...or free mode, which is true for everyone.
+    expect(state({ session: "loading", role: null, freeMode: true, signupOfferMinutes: 10 }).sublabel).toEqual({ key: "Free for a limited time" });
     expect(state({ session: "loading", role: null, advisorStatus: "away" })).toMatchObject({
       action: "join_waitlist",
       label: { key: "Notify me when online" },
@@ -178,6 +181,16 @@ describe("bookingState: accounts and gates", () => {
   it("ignores the age of visitors and advisor accounts", () => {
     expect(state({ session: "anonymous", role: null, age: "restricted" }).reason).toBeNull();
     expect(state({ role: "psychic", age: "restricted" }).reason).toBe("advisor_account");
+  });
+
+  it("takes a client in a reading with the advisor back to it, never onto the waiting list for their own reading", () => {
+    const back = { action: "chat", label: { key: "Back to chat" }, sublabel: null, tone: "primary", disabled: false, reason: null };
+    for (const advisorStatus of ["busy", "away", "offline", "online"] as const) expect(state({ advisorStatus, inReading: true })).toEqual(back);
+    // Whatever the list or the age step says: they are already in the reading.
+    expect(state({ advisorStatus: "busy", inReading: true, waitlist: "joined", age: "restricted" })).toEqual(back);
+    // Only a signed-in client can be in a reading.
+    expect(state({ advisorStatus: "busy", inReading: true, session: "anonymous", role: null }).action).toBe("signup");
+    expect(state({ advisorStatus: "busy", inReading: true, role: "psychic" }).action).toBe("none");
   });
 
   it("falls back to the profile for a status it does not know", () => {
@@ -205,13 +218,14 @@ describe("bookingState: every combination", () => {
           for (const pending of [null, "join", "leave"] as const)
             for (const freeMode of [false, true])
               for (const freeMinutes of [0, 1, 7])
-                for (const signupOfferMinutes of [0, 1, 10]) {
-                  const input: BookingInput = { advisorStatus, ratePerMinute: 25, session, role, freeMinutes, signupOfferMinutes, freeMode, waitlist, pending, age };
-                  all.push({ input, out: bookingState(input) });
-                }
+                for (const signupOfferMinutes of [0, 1, 10])
+                  for (const inReading of [false, true]) {
+                    const input: BookingInput = { advisorStatus, ratePerMinute: 25, session, role, freeMinutes, signupOfferMinutes, freeMode, waitlist, pending, age, inReading };
+                    all.push({ input, out: bookingState(input) });
+                  }
 
   it("covers a large grid and is deterministic", () => {
-    expect(all.length).toBe(5 * 6 * 3 * 3 * 3 * 2 * 3 * 3);
+    expect(all.length).toBe(5 * 6 * 3 * 3 * 3 * 2 * 3 * 3 * 2);
     for (const { input, out } of all.slice(0, 500)) expect(bookingState(input)).toEqual(out);
   });
 
@@ -241,9 +255,11 @@ describe("bookingState: every combination", () => {
     }
   });
 
-  it("only offers the chat for an online advisor, and the waiting list for the others", () => {
+  it("only offers the chat for an online advisor (or the client's own reading), and the waiting list for the others", () => {
     for (const { input, out } of all) {
-      if (out.action === "chat") expect(input.advisorStatus).toBe("online");
+      const client = input.session === "authenticated" && input.role === "client";
+      if (out.action === "chat") expect(input.advisorStatus === "online" || (client && input.inReading)).toBe(true);
+      if (client && input.inReading && out.action !== "view") expect(out.action).toBe("chat");
       if (out.action === "join_waitlist" || out.action === "leave_waitlist") expect(input.advisorStatus).not.toBe("online");
     }
   });
@@ -255,11 +271,24 @@ describe("bookingState: every combination", () => {
         expect(input.session === "authenticated" && input.role === "client" && input.freeMinutes > 0 && !input.freeMode).toBe(true);
       }
       if (line.includes("for new members")) {
-        expect(input.session === "anonymous" || input.session === "loading").toBe(true);
+        expect(input.session).toBe("anonymous");
         expect(input.signupOfferMinutes).toBeGreaterThan(0);
         expect(input.freeMode).toBe(false);
       }
       if (line === "Free for a limited time") expect(input.freeMode).toBe(true);
     }
+  });
+});
+
+describe("chatLine", () => {
+  const viewer = { freeMode: false, session: "authenticated", role: "client", freeMinutes: 0, signupOfferMinutes: 10 } as const;
+  it("names the line under 'Chat now' by the same priority as the button", () => {
+    expect(chatLine({ ...viewer, freeMode: true, freeMinutes: 5 })).toBe("free_mode");
+    expect(chatLine({ ...viewer, freeMinutes: 5 })).toBe("own_minutes");
+    expect(chatLine(viewer)).toBe("rate");
+    expect(chatLine({ ...viewer, session: "anonymous", role: null })).toBe("signup_offer");
+    expect(chatLine({ ...viewer, session: "anonymous", role: null, signupOfferMinutes: 0 })).toBe("rate");
+    expect(chatLine({ ...viewer, session: "loading", role: null, freeMinutes: 5 })).toBe("rate");
+    expect(chatLine({ ...viewer, role: "psychic", freeMinutes: 5 })).toBe("rate");
   });
 });
