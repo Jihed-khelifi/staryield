@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { tarotBirthResult } from "@/lib/astro/tarot-birth-card";
@@ -11,7 +11,7 @@ vi.mock("@/lib/share/render-card", () => ({ renderShareCard: m.render }));
 vi.mock("@/lib/analytics", () => ({ track: m.track }));
 
 import type { CalculatorResult } from "@/components/calculators/calculate";
-import { ShareResultButton, ShareResultDialog } from "@/components/calculators/share-result";
+import { ShareResultButton, ShareResultDialog, ShareResultProvider } from "@/components/calculators/share-result";
 
 const RESULT: CalculatorResult = { kind: "tarot-birth-card", tarot: tarotBirthResult("1987-06-15")! };
 const PNG = new Blob(["png"], { type: "image/png" });
@@ -53,11 +53,29 @@ function openDialog() {
 }
 
 describe("ShareResultButton", () => {
-  it("is a labelled button", async () => {
-    const onClick = vi.fn();
-    renderWithI18n(<ShareResultButton onClick={onClick} />);
-    await userEvent.setup().click(screen.getByRole("button", { name: "Share your result" }));
-    expect(onClick).toHaveBeenCalled();
+  it("is a labelled button that opens the share dialog the result view provides", async () => {
+    const onShare = vi.fn();
+    renderWithI18n(
+      <ShareResultProvider onShare={onShare}>
+        <ShareResultButton />
+        <ShareResultButton />
+      </ShareResultProvider>,
+    );
+    const buttons = screen.getAllByRole("button", { name: "Share your result" });
+    expect(buttons).toHaveLength(2);
+    await userEvent.setup().click(buttons[1]);
+    expect(onShare).toHaveBeenCalledTimes(1);
+  });
+
+  it("is not there when there is nothing to share (no provider, or the sample)", () => {
+    const { rerender } = renderWithI18n(<ShareResultButton />);
+    expect(screen.queryByTestId("share-result-button")).toBeNull();
+    rerender(
+      <ShareResultProvider onShare={null}>
+        <ShareResultButton />
+      </ShareResultProvider>,
+    );
+    expect(screen.queryByTestId("share-result-button")).toBeNull();
   });
 });
 
@@ -133,16 +151,36 @@ describe("ShareResultDialog", () => {
     const writeText = vi.fn(async (value: string) => void value);
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     openDialog();
+    const feedback = screen.getByTestId("share-feedback");
     await u.click(await screen.findByTestId("share-copy"));
     expect(writeText).toHaveBeenCalledWith("http://localhost:3000/en/calculators/tarot-birth-card");
-    expect(await screen.findByText("Link copied.")).toBeTruthy();
+    expect(await within(feedback).findByText("Link copied.")).toBeTruthy();
     expect(m.track).toHaveBeenCalledWith("share_completed", { kind: "tarot-birth-card", method: "copy_link" });
 
     writeText.mockRejectedValueOnce(new Error("denied"));
     document.execCommand = vi.fn(() => false);
     await u.click(screen.getByTestId("share-copy"));
-    expect(await screen.findByText("Copy the link below.")).toBeTruthy();
+    expect(await within(feedback).findByText("Copy the link below.")).toBeTruthy();
     expect((screen.getByTestId("share-link-field") as HTMLInputElement).value).toBe("http://localhost:3000/en/calculators/tarot-birth-card");
+  });
+
+  it("says each outcome once, in the dialog's own status region, and again when it happens again", async () => {
+    const u = userEvent.setup();
+    const writeText = vi.fn(async (value: string) => void value);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    openDialog();
+    const feedback = screen.getByTestId("share-feedback");
+    expect(feedback.getAttribute("role")).toBe("status");
+    expect(feedback.getAttribute("aria-live")).toBe("polite");
+    await u.click(await screen.findByTestId("share-copy"));
+    const first = await within(feedback).findByText("Link copied.");
+    // Nothing else repeats it (the page's global live region announces after a short delay).
+    await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
+    expect(screen.getAllByText("Link copied.")).toHaveLength(1);
+    // The same outcome a second time is a new message for screen readers.
+    await u.click(screen.getByTestId("share-copy"));
+    await waitFor(() => expect(within(feedback).getByText("Link copied.")).not.toBe(first));
+    expect(screen.getAllByText("Link copied.")).toHaveLength(1);
   });
 
   it("offers a retry when the image cannot be created", async () => {

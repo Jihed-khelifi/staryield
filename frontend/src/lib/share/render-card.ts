@@ -226,7 +226,8 @@ export function drawShareCard(ctx: Ctx, spec: ShareCardSpec, images: (DrawableIm
 
   const shown = spec.artwork.map((art, i) => ({ art, image: images[i] ?? null })).filter((entry): entry is { art: ShareArtwork; image: DrawableImage } => entry.image !== null);
   const cards = shown.filter((entry) => entry.art.style === "card");
-  const emblem = cards.length ? null : (shown.find((entry) => entry.art.style === "emblem") ?? null);
+  // One sign glyph in the medallion, or the two signs of a cusp side by side.
+  const emblems = cards.length ? [] : shown.filter((entry) => entry.art.style === "emblem").slice(0, 2);
   let figureHeight = 0;
   let cardHeight = 0;
   let captionHeight = 0;
@@ -235,7 +236,7 @@ export function drawShareCard(ctx: Ctx, spec: ShareCardSpec, images: (DrawableIm
     const widths = cards.reduce((sum, entry) => sum + ratioOf(entry.image, entry.art), 0);
     cardHeight = Math.max(FIGURE_MIN, Math.min(CARD_MAX_HEIGHT, (CONTENT_WIDTH - CARD_GAP * (cards.length - 1)) / widths, room - captionHeight));
     figureHeight = cardHeight + captionHeight;
-  } else if (emblem || spec.badge) {
+  } else if (emblems.length || spec.badge) {
     figureHeight = Math.max(FIGURE_MIN, Math.min(MEDALLION_MAX, room));
   }
   const total = figureHeight + (figureHeight ? BLOCK_GAP : 0) + textHeight;
@@ -274,14 +275,19 @@ export function drawShareCard(ctx: Ctx, spec: ShareCardSpec, images: (DrawableIm
     const cy = y + r;
     drawMedallion(ctx, cx, cy, r);
     medallionDrawn = true;
-    if (emblem) {
-      // The glyph fits a box of half the medallion, keeping its proportions.
-      const box = r;
-      const ratio = ratioOf(emblem.image, emblem.art);
-      const w = ratio >= 1 ? box : box * ratio;
-      const h = ratio >= 1 ? box / ratio : box;
-      ctx.drawImage(emblem.image, cx - w / 2, cy - h / 2, w, h);
-      artworkDrawn++;
+    if (emblems.length) {
+      // A glyph fits a box of half the medallion (two glyphs: 0.62 of that
+      // each, side by side), keeping its proportions.
+      const box = emblems.length > 1 ? r * 0.62 : r;
+      const offset = emblems.length > 1 ? r * 0.36 : 0;
+      emblems.forEach((emblem, i) => {
+        const ratio = ratioOf(emblem.image, emblem.art);
+        const w = ratio >= 1 ? box : box * ratio;
+        const h = ratio >= 1 ? box / ratio : box;
+        const x = cx + (i === 0 ? -offset : offset);
+        ctx.drawImage(emblem.image, x - w / 2, cy - h / 2, w, h);
+        artworkDrawn++;
+      });
     } else if (spec.badge) {
       ctx.fillStyle = SHARE_PALETTE.goldDark;
       ctx.font = `600 ${Math.round(r * 0.95)}px ${fonts.display}`;

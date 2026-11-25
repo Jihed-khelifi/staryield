@@ -14,14 +14,14 @@ import { HOUSE_SYSTEM_NAMES } from "@/lib/astro/report-labels";
 import { lifePathSteps } from "@/lib/astro/report-steps";
 import { SIGN_FACTS, SIGN_INSIGHT, isSign } from "@/lib/astro/zodiac";
 import { birthDateOf, type CalculatorFormValues, type CalculatorKind } from "@/lib/schemas/calculator";
-import { natalHeadline } from "@/lib/share/card-spec";
+import { natalHeadline, sunCuspOf } from "@/lib/share/card-spec";
 import { BIRTH_DATA_NOTICE } from "@/components/calculators/birth-data-notice";
 import { lifePathResult, type LifePathResult } from "@/components/calculators/calculate";
 import { SpreadCardList, TarotSpread } from "@/components/calculators/tarot-spread";
 import { ZodiacWheel } from "@/components/astrology/ZodiacWheel";
 import { ChartExplorer } from "@/components/astrology/chart-explorer/chart-explorer";
 import { NumbersSummary } from "@/components/astrology/chart-explorer/numbers-summary";
-import { ShareResultButton } from "@/components/calculators/share-result";
+import { ShareResultButton, useShareResult } from "@/components/calculators/share-result";
 import { cn } from "@/lib/utils";
 
 const WALL_TIME_NOTES: Record<string, string> = {
@@ -37,7 +37,6 @@ export function ResultDate({
   onChange,
   sample = false,
   onEmail,
-  onShare,
   title,
 }: {
   values: CalculatorFormValues;
@@ -48,10 +47,10 @@ export function ResultDate({
   sample?: boolean;
   /** "E-mail me this report" (revisions 6.0, §26.4); omitted when the report cannot be e-mailed (sample, switched off). */
   onEmail?: () => void;
-  /** "Share your result" (omitted on the sample and while there is no result). */
-  onShare?: () => void;
 }) {
   const { text } = useI18n();
+  // "Share your result" when the result view offers it (not on the sample, not before the result).
+  const share = useShareResult();
   return (
     <section className="flex flex-col items-center gap-6 border-b border-[rgb(186_175_157/0.4)] bg-cream px-5 py-10 text-center md:px-20 md:py-16">
       <h1 tabIndex={-1} id="calculator-result-title" className="font-display text-[24px] tracking-[1.28px] uppercase outline-none md:text-[32px]">
@@ -62,7 +61,7 @@ export function ResultDate({
         <span className="sr-only">{text("Change birth date ({value0})", { value0: formatDateParts(birthDateOf(values.birth)) })}</span>
       </button>
       {details ? <div className="-mt-2 text-sm font-light">{details}</div> : null}
-      {onEmail || onShare ? (
+      {onEmail || share ? (
         <div className="flex flex-wrap items-center justify-center gap-3">
           {onEmail ? (
             <button type="button" className="calc-email-button" onClick={onEmail} data-testid="email-report-button">
@@ -70,7 +69,7 @@ export function ResultDate({
               {text("E-mail me this report")}
             </button>
           ) : null}
-          {onShare ? <ShareResultButton onClick={onShare} /> : null}
+          <ShareResultButton />
         </div>
       ) : null}
       {sample ? (
@@ -124,13 +123,11 @@ export function NatalResultView({
   result,
   houses,
   onEditBirth,
-  onShare,
 }: {
   result: NatalResult;
   houses: NatalHouseState;
   /** Back to the form to add a birth time and place. */
   onEditBirth: () => void;
-  onShare?: () => void;
 }) {
   const { text } = useI18n();
   const psychicsHref = usePsychicsHref();
@@ -142,11 +139,13 @@ export function NatalResultView({
     const { lifePath, cycles } = lifePathResult(chart.birth_date);
     return { lifePath: lifePath.number, personalYear: cycles.personalYear, personalMonth: cycles.personalMonth };
   }, [chart.birth_date]);
-  const addBirthData = (
-    <button type="button" className="ml-1 font-semibold underline underline-offset-4" onClick={onEditBirth} data-testid="add-birth-time">
+  const addBirthData = (testId = "add-birth-time") => (
+    <button type="button" className="ml-1 font-semibold underline underline-offset-4" onClick={onEditBirth} data-testid={testId}>
       {text("Add birth time and place")}
     </button>
   );
+  // A cusp day without a birth time: the headline names both signs, and this says why.
+  const sunCusp = sunCuspOf(chart);
   return (
     <>
       <section className="flex flex-col items-center bg-cream px-5 pt-14 pb-12 text-center md:px-12 md:pt-20 md:pb-16" aria-labelledby="chart-title" data-testid="natal-chart-section">
@@ -156,6 +155,13 @@ export function NatalResultView({
         <p className="mt-4 max-w-3xl font-display text-[20px] leading-snug tracking-[0.6px] text-[#17150f] uppercase md:text-[26px]" data-testid="big-three">
           {natalHeadline(chart, text)}
         </p>
+        {sunCusp ? (
+          <p className="mt-2 max-w-2xl text-sm text-[var(--muted-ink)]" data-testid="sun-uncertain">
+            {text("You were born on a cusp: the Sun moved from {value0} into {value1} that day.", { value0: text(sunCusp[0]), value1: text(sunCusp[1]) })}{" "}
+            {text("Your Sun sign needs your birth time and place.")}
+            {addBirthData("add-birth-time-cusp")}
+          </p>
+        ) : null}
         {chart.moon_sign_uncertain ? (
           <p className="mt-2 max-w-2xl text-sm text-[var(--muted-ink)]" data-testid="moon-uncertain">
             {text("The Moon changed signs on your birth date, so your Moon sign needs your birth time and place.")}
@@ -173,13 +179,13 @@ export function NatalResultView({
             timeNote={
               <>
                 {text("Add your birth time and place to see your rising sign and houses.")}
-                {addBirthData}
+                {addBirthData()}
               </>
             }
             placeNote={
               <>
                 {text("Your birth time was left out because no birthplace was given. Add your birthplace to use it.")}
-                {addBirthData}
+                {addBirthData()}
               </>
             }
           />
@@ -227,26 +233,35 @@ export function NatalResultView({
         title={text("Talk to an advisor about your chart")}
         body={text("A psychic advisor can walk you through your planets, your houses and this spread, for entertainment purposes only.")}
         href={psychicsHref}
-        onShare={onShare}
       />
     </>
   );
 }
 
-/** The closing call to action of a result: talk to an advisor, and share the result. */
-export function AdvisorCta({ title, body, href, onShare, children }: { title: string; body: string; href: string; onShare?: () => void; children?: React.ReactNode }) {
+/**
+ * The closing call to action of every result: talk to an advisor, and share
+ * the result when the result view offers it. `tone` follows the page's
+ * design: olive after light sections, paper after an olive one (Path of Life,
+ * Figma 482:2164); `footer` goes under the buttons.
+ */
+export function AdvisorCta({ title, body, href, tone = "olive", footer }: { title: string; body: string; href: string; tone?: "olive" | "paper"; footer?: React.ReactNode }) {
   const { text } = useI18n();
+  const paper = tone === "paper";
   return (
-    <section className="calc-olive flex flex-col items-center gap-5 px-5 py-12 text-center md:px-20 md:py-16" style={{ "--calc-texture": 0.62 } as React.CSSProperties} data-testid="advisor-cta">
-      <h2 className="max-w-[1000px] font-display text-[19px] leading-[1.5] tracking-[0.48px] text-black uppercase md:text-[24px]">{title}</h2>
-      <p className="max-w-[800px] text-base leading-normal text-black">{body}</p>
-      {children}
-      <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+    <section
+      className={cn("flex flex-col items-center text-center", paper ? "calc-paper gap-4 px-5 py-14 md:px-[120px] md:py-20" : "calc-olive gap-5 px-5 py-12 md:px-20 md:py-16")}
+      style={paper ? undefined : ({ "--calc-texture": 0.62 } as React.CSSProperties)}
+      data-testid="advisor-cta"
+    >
+      <h2 className={cn("max-w-[1000px] font-display text-[19px] leading-[1.5] tracking-[0.48px] uppercase md:text-[24px]", !paper && "text-black")}>{title}</h2>
+      <p className={cn("max-w-[800px] text-base leading-normal", paper ? "font-light" : "text-black")}>{body}</p>
+      <div className={cn("flex flex-wrap items-center justify-center gap-4", paper ? "pt-3" : "pt-2")}>
         <Link href={href} className="calc-cta-link" data-testid="advisor-cta-link">
           {text("Talk to an advisor")}
         </Link>
-        {onShare ? <ShareResultButton onClick={onShare} /> : null}
+        <ShareResultButton />
       </div>
+      {footer}
     </section>
   );
 }
@@ -256,13 +271,11 @@ export function SunSignResultView({
   result,
   onAddTime,
   chartHref,
-  onShare,
 }: {
   result: SunSignResult;
   onAddTime: () => void;
   /** The free natal chart calculator carrying the same birth details in its fragment. */
   chartHref: string;
-  onShare?: () => void;
 }) {
   const { text } = useI18n();
   const sign = isSign(result.sun_sign) ? result.sun_sign : null;
@@ -326,7 +339,7 @@ export function SunSignResultView({
           <Link href={chartHref} className="calc-cta-link" data-testid="full-chart-link">
             {text("See your full birth chart — free")}
           </Link>
-          {onShare ? <ShareResultButton onClick={onShare} /> : null}
+          <ShareResultButton />
         </div>
         <Lock>{text(BIRTH_DATA_NOTICE)}</Lock>
       </section>
@@ -335,7 +348,7 @@ export function SunSignResultView({
 }
 
 /** Path of Life: the three numbers, computed in the browser (Figma 482:2164). */
-export function LifePathResultView({ result, onShare }: { result: LifePathResult; onShare?: () => void }) {
+export function LifePathResultView({ result }: { result: LifePathResult }) {
   const { text, locale } = useI18n();
   const psychicsHref = usePsychicsHref();
   const numbers: Record<(typeof NUMBER_CARDS)[number]["key"], number> = {
@@ -385,23 +398,13 @@ export function LifePathResultView({ result, onShare }: { result: LifePathResult
           </p>
         </div>
       </section>
-      <section className="calc-paper flex flex-col items-center gap-4 px-5 py-14 text-center md:px-[120px] md:py-20">
-        <h2 className="max-w-[1000px] font-display text-[19px] leading-[1.5] tracking-[0.48px] uppercase md:text-[24px]">
-          {text("Get a deeper understanding of what a life path really means and the alignment that comes with it")}
-        </h2>
-        <p className="max-w-[800px] text-base leading-normal font-light">
-          {text(
-            "Chat with one of our psychic advisors to explore your chart and upcoming planetary transitions, for entertainment purposes only. ",
-          )}
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-3">
-          <Link href={psychicsHref} className="calc-cta-link" data-testid="advisor-cta-link">
-            {text("Click here!")}
-          </Link>
-          {onShare ? <ShareResultButton onClick={onShare} /> : null}
-        </div>
-        <Lock>{text(BIRTH_DATA_NOTICE)}</Lock>
-      </section>
+      <AdvisorCta
+        tone="paper"
+        title={text("Get a deeper understanding of what a life path really means and the alignment that comes with it")}
+        body={text("Chat with one of our psychic advisors to explore your chart and upcoming planetary transitions, for entertainment purposes only. ")}
+        href={psychicsHref}
+        footer={<Lock>{text(BIRTH_DATA_NOTICE)}</Lock>}
+      />
     </>
   );
 }

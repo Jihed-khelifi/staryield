@@ -5,7 +5,6 @@ import { AlertCircle, CheckCircle2, Download, Link2, Share2 } from "lucide-react
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { track } from "@/lib/analytics";
-import { announce } from "@/components/feedback/live-region";
 import type { CalculatorResult } from "@/components/calculators/calculate";
 import { useShareImage } from "@/components/calculators/use-share-image";
 import { shareCardSpec } from "@/lib/share/card-spec";
@@ -15,18 +14,38 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** "Share your result": opens the share dialog (one dialog per result, several buttons). */
-export function ShareResultButton({ onClick, className }: { onClick: () => void; className?: string }) {
+/**
+ * Opens the share dialog of the result on screen. The result view provides it
+ * once there is something of the visitor's to share (null on the sample and
+ * while the result loads), so the buttons placed through the result's
+ * sections need no prop.
+ */
+const ShareResultContext = React.createContext<(() => void) | null>(null);
+
+export function ShareResultProvider({ onShare, children }: { onShare: (() => void) | null; children: React.ReactNode }) {
+  return <ShareResultContext.Provider value={onShare}>{children}</ShareResultContext.Provider>;
+}
+
+/** The share dialog's opener, or null when this result cannot be shared. */
+export function useShareResult(): (() => void) | null {
+  return React.useContext(ShareResultContext);
+}
+
+/** "Share your result": opens the share dialog (one dialog per result, several buttons); nothing when there is nothing to share. */
+export function ShareResultButton({ className }: { className?: string }) {
   const { text } = useI18n();
+  const onShare = useShareResult();
+  if (!onShare) return null;
   return (
-    <button type="button" className={className ?? "calc-email-button"} onClick={onClick} data-testid="share-result-button">
+    <button type="button" className={className ?? "calc-email-button"} onClick={onShare} data-testid="share-result-button">
       <Share2 aria-hidden className="size-4" />
       {text("Share your result")}
     </button>
   );
 }
 
-type Feedback = { tone: "success" | "info" | "error"; message: string } | null;
+/** `seq` renews the message's node, so the same outcome twice ("Link copied.") is announced twice. */
+type Feedback = { tone: "success" | "info" | "error"; message: string; seq: number } | null;
 
 /**
  * The share dialog of a calculator result: the 9:16 image (rendered when it
@@ -39,7 +58,11 @@ export function ShareResultDialog({ result, open, onOpenChange }: { result: Calc
   const kind = result.kind;
   const spec = React.useMemo(() => shareCardSpec(result, text), [result, text]);
   const { state, retry } = useShareImage(spec, open);
-  const [feedback, setFeedback] = React.useState<Feedback>(null);
+  const [feedback, setFeedbackState] = React.useState<Feedback>(null);
+  const setFeedback = React.useCallback(
+    (next: Omit<NonNullable<Feedback>, "seq"> | null) => setFeedbackState((current) => (next ? { ...next, seq: (current?.seq ?? 0) + 1 } : null)),
+    [],
+  );
   const [manualLink, setManualLink] = React.useState(false);
   const [sharing, setSharing] = React.useState(false);
   const url = React.useMemo(() => (open ? calculatorShareUrl(kind, locale) : ""), [open, kind, locale]);
@@ -62,10 +85,10 @@ export function ShareResultDialog({ result, open, onOpenChange }: { result: Calc
   // Several buttons open this dialog (none is a Radix trigger): focus goes back to the one used.
   const opener = React.useRef<HTMLElement | null>(null);
 
+  // The dialog's own status region (a polite live region) announces the outcome, once.
   function done(method: ShareMethod, message: string) {
     track("share_completed", { kind, method });
     setFeedback({ tone: "success", message });
-    announce(message);
   }
 
   async function share() {
@@ -178,7 +201,7 @@ export function ShareResultDialog({ result, open, onOpenChange }: { result: Calc
 
           <div role="status" aria-live="polite" className="min-h-5 text-center text-sm" data-testid="share-feedback">
             {feedback ? (
-              <span className={feedback.tone === "error" ? "text-danger" : "inline-flex items-center gap-1.5"}>
+              <span key={feedback.seq} className={feedback.tone === "error" ? "text-danger" : "inline-flex items-center gap-1.5"}>
                 {feedback.tone === "success" ? <CheckCircle2 aria-hidden className="size-4 text-success" /> : null}
                 {feedback.message}
               </span>

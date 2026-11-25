@@ -23,7 +23,7 @@ import { rememberResult, type CalculatorResult } from "@/components/calculators/
 import { useCalculatorResult } from "@/components/calculators/use-calculator-result";
 import { LifePathResultView, NatalResultView, ResultDate, SunSignResultView } from "@/components/calculators/results";
 import { TarotBirthResultView } from "@/components/calculators/tarot-result";
-import { ShareResultDialog } from "@/components/calculators/share-result";
+import { ShareResultDialog, ShareResultProvider } from "@/components/calculators/share-result";
 import { isReportable } from "@/components/calculators/report-email";
 // revisions 6.0 (§26.4): the e-mailed report.
 import { ReportEmailDialog } from "@/components/calculators/report-email-dialog";
@@ -53,8 +53,12 @@ export function Calculator({
 }) {
   const { text } = useI18n();
   const hash = useLocationHash();
-  const sample = !hash && showResults;
-  const fragment = hash || (showResults ? SAMPLE_FRAGMENT : "");
+  // On `/results` the design's sample stands in for an empty fragment until
+  // the visitor asks for the form; from then on an empty fragment shows the
+  // form there too (clearing an already empty fragment changes nothing else).
+  const [sampleDismissed, setSampleDismissed] = React.useState(false);
+  const sample = !hash && showResults && !sampleDismissed;
+  const fragment = hash || (sample ? SAMPLE_FRAGMENT : "");
   const decoded = React.useMemo(() => decodeFragment(kind, fragment, text), [kind, fragment, text]);
   const [draft, setDraft] = React.useState<{ values: CalculatorFormValues; version: number; expandCusp: boolean }>(() => ({
     values: emptyCalculatorValues(kind),
@@ -65,6 +69,7 @@ export function Calculator({
 
   const showForm = React.useCallback((values: CalculatorFormValues, expandCusp = false) => {
     setDraft((d) => ({ values, version: d.version + 1, expandCusp }));
+    setSampleDismissed(true);
     writeLocationHash("", true);
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: 0 });
@@ -109,7 +114,8 @@ export function Calculator({
           values={decoded.values}
           sample={sample}
           focusOnMountRef={focusResult}
-          onEdit={(expandCusp) => showForm(decoded.values, expandCusp)}
+          // The sample's date is the design's: the visitor starts from an empty form.
+          onEdit={(expandCusp) => showForm(sample ? emptyCalculatorValues(kind) : decoded.values, expandCusp)}
           onCalculated={onCalculated}
           onHouseSystem={onHouseSystem}
         />
@@ -149,10 +155,11 @@ function ResultView({
   const key = `${kind}${encodeFragment(kind, values)}`;
   const { result, error, pending, reload } = useCalculatorResult(kind, values, key);
   const [shareOpen, setShareOpen] = React.useState(false);
+  const openShare = React.useCallback(() => setShareOpen(true), []);
   // revisions 6.0 (§26.4): "Save your reading" opens once a computed result has been on screen (never on the sample,
-  // and never for the tarot birth card, which has no e-mail report).
+  // and never for the tarot birth card, which has no e-mail report). It holds back while the share dialog is open.
   const emailable = isReportable(kind);
-  const report = useReportEmailPrompt(kind, emailable && Boolean(result) && !error && !sample);
+  const report = useReportEmailPrompt(kind, emailable && Boolean(result) && !error && !sample, shareOpen);
 
   React.useEffect(() => {
     if (!focusOnMountRef.current) return;
@@ -170,63 +177,63 @@ function ResultView({
   const details = result ? resultDetails(result, values, text) : null;
   // The sample date is the design's, not the visitor's: an image saying "My
   // tarot birth card is…" would not be theirs, so the sample offers no share.
-  const onShare = result && !sample ? () => setShareOpen(true) : undefined;
+  // Every share button of the result reads this opener from context.
+  const share = result && !sample ? openShare : null;
   const fatal = error && !result ? error : null;
   return (
-    <div data-testid="calculator-result" data-kind={kind} aria-busy={(!result && !error) || pending}>
-      <ResultDate
-        values={values}
-        title={kind === "tarot-birth-card" ? text("Tarot birth card calculated for:") : undefined}
-        details={details}
-        onChange={() => onEdit(false)}
-        sample={sample}
-        onEmail={result && !sample && emailable && report.available ? report.openManually : undefined}
-        onShare={onShare}
-      />
-      {fatal ? (
-        <section className="bg-cream px-5 py-16">
-          <ErrorState error={fatal} onRetry={reload} className="mx-auto max-w-xl" title={text("We could not calculate this result")} />
-        </section>
-      ) : !result ? (
-        <section className="flex flex-col items-center gap-6 bg-cream px-5 py-16" data-testid="calculator-loading">
-          <p role="status" className="sr-only">
-            {text("Calculating…")}
-          </p>
-          <Skeleton className="h-10 w-72" />
-          <Skeleton className="aspect-square w-full max-w-[560px] rounded-full" />
-        </section>
-      ) : result.kind === "natal-chart" ? (
-        <NatalResultView
-          result={result.natal}
-          houses={{ houseSystem: (values as NatalFormValues).houseSystem, onChange: onHouseSystem, updating: pending, error, onRetry: reload }}
-          onEditBirth={() => onEdit(false)}
-          onShare={onShare}
-        />
-      ) : result.kind === "astrology" ? (
-        <SunSignResultView
-          result={result.sun}
-          onAddTime={() => onEdit(true)}
-          chartHref={`/${locale}/calculators/natal-chart${natalFragmentFromSunSign(values as SunSignFormValues)}`}
-          onShare={onShare}
-        />
-      ) : result.kind === "tarot-birth-card" ? (
-        <TarotBirthResultView result={result.tarot} date={birthDateOf(values.birth)} onShare={onShare} />
-      ) : (
-        <LifePathResultView result={result.numbers} onShare={onShare} />
-      )}
-      {result && !sample ? <ShareResultDialog result={result} open={shareOpen} onOpenChange={setShareOpen} /> : null}
-      {result && !sample && emailable ? (
-        <ReportEmailDialog
-          kind={kind}
+    <ShareResultProvider onShare={share}>
+      <div data-testid="calculator-result" data-kind={kind} aria-busy={(!result && !error) || pending}>
+        <ResultDate
           values={values}
-          open={report.open}
-          onOpenChange={report.setOpen}
-          manual={report.manual}
-          prechecked={report.prechecked}
-          onSent={report.markSent}
+          title={kind === "tarot-birth-card" ? text("Tarot birth card calculated for:") : undefined}
+          details={details}
+          onChange={() => onEdit(false)}
+          sample={sample}
+          onEmail={result && !sample && emailable && report.available ? report.openManually : undefined}
         />
-      ) : null}
-    </div>
+        {fatal ? (
+          <section className="bg-cream px-5 py-16">
+            <ErrorState error={fatal} onRetry={reload} className="mx-auto max-w-xl" title={text("We could not calculate this result")} />
+          </section>
+        ) : !result ? (
+          <section className="flex flex-col items-center gap-6 bg-cream px-5 py-16" data-testid="calculator-loading">
+            <p role="status" className="sr-only">
+              {text("Calculating…")}
+            </p>
+            <Skeleton className="h-10 w-72" />
+            <Skeleton className="aspect-square w-full max-w-[560px] rounded-full" />
+          </section>
+        ) : result.kind === "natal-chart" ? (
+          <NatalResultView
+            result={result.natal}
+            houses={{ houseSystem: (values as NatalFormValues).houseSystem, onChange: onHouseSystem, updating: pending, error, onRetry: reload }}
+            onEditBirth={() => onEdit(false)}
+          />
+        ) : result.kind === "astrology" ? (
+          <SunSignResultView
+            result={result.sun}
+            onAddTime={() => onEdit(true)}
+            chartHref={`/${locale}/calculators/natal-chart${natalFragmentFromSunSign(values as SunSignFormValues)}`}
+          />
+        ) : result.kind === "tarot-birth-card" ? (
+          <TarotBirthResultView result={result.tarot} date={birthDateOf(values.birth)} />
+        ) : (
+          <LifePathResultView result={result.numbers} />
+        )}
+        {result && !sample ? <ShareResultDialog result={result} open={shareOpen} onOpenChange={setShareOpen} /> : null}
+        {result && !sample && emailable ? (
+          <ReportEmailDialog
+            kind={kind}
+            values={values}
+            open={report.open}
+            onOpenChange={report.setOpen}
+            manual={report.manual}
+            prechecked={report.prechecked}
+            onSent={report.markSent}
+          />
+        ) : null}
+      </div>
+    </ShareResultProvider>
   );
 }
 

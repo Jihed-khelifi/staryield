@@ -23,7 +23,7 @@ export type ShareArtwork = {
   /**
    * How it is drawn: "card" is a framed picture (tarot artwork, side by side
    * when there are several); "emblem" is a glyph drawn in gold inside the
-   * card's medallion (zodiac signs).
+   * card's medallion (a zodiac sign; the two signs of a cusp side by side).
    */
   style: "card" | "emblem";
   /** Small caption under the picture (a Roman numeral). */
@@ -59,16 +59,41 @@ function finish(spec: Omit<ShareCardSpec, "shareText" | "alt">, text: TranslateC
   };
 }
 
-/** The zodiac glyph of a sign (R2 artwork) as the card's emblem; none for an unknown sign. */
-function signEmblem(sign: string): ShareArtwork[] {
-  if (!isSign(sign)) return [];
-  const art = SIGN_ARTWORK[sign];
-  return [{ url: art.src, aspect: art.width / art.height, style: "emblem" }];
+/** The zodiac glyphs of the signs (R2 artwork) as the card's emblems; unknown signs are left out. */
+function signEmblems(...signs: string[]): ShareArtwork[] {
+  return signs.filter(isSign).map((sign) => {
+    const art = SIGN_ARTWORK[sign];
+    return { url: art.src, aspect: art.width / art.height, style: "emblem" as const };
+  });
 }
 
-/** "Sun in Pisces · Moon in Libra · Taurus rising": only the parts that are known. */
-export function natalHeadline(chart: { sun_sign: string; moon_sign?: string; moon_sign_uncertain?: boolean; rising_sign?: string }, text: TranslateCopy): string {
-  const parts = [text("Sun in {value0}", { value0: text(chart.sun_sign) })];
+type SunCertainty = { uncertain?: boolean; alternatives?: string[] } | { sun_sign_uncertain?: boolean; sun_sign_alternatives?: string[] };
+
+/**
+ * The two signs of a cusp birth day, in the order the Sun crossed them, when
+ * the birth time is unknown and the Sun changed signs that day (the sun sign
+ * result's `uncertain`, the natal chart's `sun_sign_uncertain`); null when
+ * the Sun sign is certain.
+ */
+export function sunCuspOf(sun: SunCertainty): [string, string] | null {
+  const [uncertain, alternatives] = "sun_sign_uncertain" in sun ? [sun.sun_sign_uncertain, sun.sun_sign_alternatives] : "uncertain" in sun ? [sun.uncertain, sun.alternatives] : [false, undefined];
+  const signs = alternatives ?? [];
+  const first = signs[0];
+  const last = signs[signs.length - 1];
+  return uncertain && first && last && first !== last ? [first, last] : null;
+}
+
+/**
+ * "Sun in Pisces · Moon in Libra · Taurus rising": only the parts that are
+ * known. A cusp day without a birth time names both possible Sun signs
+ * ("Sun in Aquarius or Pisces"); an uncertain Moon is left out.
+ */
+export function natalHeadline(
+  chart: { sun_sign: string; sun_sign_uncertain?: boolean; sun_sign_alternatives?: string[]; moon_sign?: string; moon_sign_uncertain?: boolean; rising_sign?: string },
+  text: TranslateCopy,
+): string {
+  const cusp = sunCuspOf(chart);
+  const parts = [cusp ? text("Sun in {value0} or {value1}", { value0: text(cusp[0]), value1: text(cusp[1]) }) : text("Sun in {value0}", { value0: text(chart.sun_sign) })];
   if (chart.moon_sign && !chart.moon_sign_uncertain) parts.push(text("Moon in {value0}", { value0: text(chart.moon_sign) }));
   if (chart.rising_sign) parts.push(text("{value0} rising", { value0: text(chart.rising_sign) }));
   return parts.join(" · ");
@@ -112,13 +137,26 @@ export function shareCardSpec(result: CalculatorResult, text: TranslateCopy): Sh
     }
     case "astrology": {
       const sign = result.sun.sun_sign;
+      const cusp = sunCuspOf(result.sun);
+      if (cusp)
+        // A cusp day without a birth time: both signs, and no element or modality (they differ).
+        return finish(
+          {
+            kind: result.kind,
+            eyebrow: text("Zodiac sign"),
+            headline: text("I was born on the {value0}–{value1} cusp", { value0: text(cusp[0]), value1: text(cusp[1]) }),
+            lines: [],
+            artwork: signEmblems(...cusp),
+          },
+          text,
+        );
       return finish(
         {
           kind: result.kind,
           eyebrow: text("Zodiac sign"),
           headline: text("I'm a {value0}", { value0: text(sign) }),
           lines: [[result.sun.element, result.sun.modality].filter(Boolean).map((word) => text(word)).join(" · ")].filter(Boolean),
-          artwork: signEmblem(sign),
+          artwork: signEmblems(sign),
         },
         text,
       );
@@ -131,7 +169,7 @@ export function shareCardSpec(result: CalculatorResult, text: TranslateCopy): Sh
           eyebrow: text("My birth chart"),
           headline: natalHeadline(chart, text),
           lines: [],
-          artwork: signEmblem(chart.sun_sign),
+          artwork: signEmblems(...(sunCuspOf(chart) ?? [chart.sun_sign])),
         },
         text,
       );

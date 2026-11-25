@@ -24,7 +24,7 @@ export function roleOf(index: number, count: number): string {
  * the date adds up and the constellation of cards that share the soul card.
  * Computed in the browser from the birth date alone.
  */
-export function TarotBirthResultView({ result, date, onShare }: { result: TarotBirthResult; date: string; onShare?: () => void }) {
+export function TarotBirthResultView({ result, date }: { result: TarotBirthResult; date: string }) {
   const { text } = useI18n();
   const psychicsHref = usePsychicsHref();
   const cards = result.birthCards;
@@ -145,7 +145,6 @@ export function TarotBirthResultView({ result, date, onShare }: { result: TarotB
         title={text("Talk to an advisor about your card")}
         body={text("Chat with one of our psychic advisors about what your birth card means for you, for entertainment purposes only.")}
         href={psychicsHref}
-        onShare={onShare}
       />
     </>
   );

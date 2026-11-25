@@ -179,6 +179,30 @@ describe("drawShareCard", () => {
     expect(drawShareCard(fakeContext().ctx, sign, [null], fonts, null)).toMatchObject({ medallionDrawn: false, artworkDrawn: 0 });
   });
 
+  it("draws the two signs of a cusp side by side in the medallion, or the one that loaded", () => {
+    const cusp: ShareCardSpec = { ...sign, headline: "I was born on the Aquarius–Pisces cusp", lines: [], artwork: [sign.artwork[0], { ...sign.artwork[0], url: "https://assets.staryield.net/assets/figma/pisces.svg" }] };
+    const { ctx, calls } = fakeContext();
+    const layout = drawShareCard(ctx, cusp, [image(374, 510), image(374, 510)], fonts, null);
+    expect(layout).toMatchObject({ medallionDrawn: true, artworkDrawn: 2 });
+    const [left, right] = calls.filter((c) => c.op === "drawImage").map((c) => c.args.slice(1) as number[]);
+    const [disc] = arcs(calls).map((c) => c.args as number[]);
+    const [mx, , radius] = disc;
+    // Mirror images around the centre, apart, each inside the medallion and the same size.
+    expect(left[0] + left[2] / 2 + right[0] + right[2] / 2).toBeCloseTo(2 * mx, 3);
+    expect(left[0] + left[2]).toBeLessThan(right[0]);
+    expect(left[2] / left[3]).toBeCloseTo(374 / 510, 3);
+    expect(right.slice(2)).toEqual(left.slice(2));
+    for (const [x, , w] of [left, right]) {
+      expect(x).toBeGreaterThan(mx - radius);
+      expect(x + w).toBeLessThan(mx + radius);
+    }
+    // One glyph failed to load: the other alone, centred.
+    const one = fakeContext();
+    expect(drawShareCard(one.ctx, cusp, [null, image(374, 510)], fonts, null).artworkDrawn).toBe(1);
+    const [x, , w] = one.calls.find((c) => c.op === "drawImage")!.args.slice(1) as number[];
+    expect(x + w / 2).toBeCloseTo(CARD_WIDTH / 2, 3);
+  });
+
   it("keeps the body between the eyebrow and the footer whatever the content", () => {
     const long = { ...tarot, headline: "Ma carte de naissance du tarot est La Roue de Fortune", lines: ["Carte d’âme : Le Bateleur"] };
     const three = { ...long, artwork: [...tarot.artwork, { ...tarot.artwork[1], caption: "XIX" }] };

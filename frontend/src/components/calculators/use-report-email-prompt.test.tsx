@@ -117,6 +117,25 @@ describe("useReportEmailPrompt: when the dialog opens by itself", () => {
     expect(result.current.open).toBe(true);
   });
 
+  it("holds back while another dialog is open, then counts again from zero without asking for the config again", async () => {
+    const { result, rerender } = renderHook(({ paused }) => useReportEmailPrompt("natal-chart", true, paused), { initialProps: { paused: false } });
+    await settle();
+    await advance(5000);
+    // The share dialog opens just before the 6 seconds: nothing pops up over it, whatever the scroll.
+    rerender({ paused: true });
+    await advance(60_000);
+    act(() => setScroll(0.9));
+    expect(result.current.open).toBe(false);
+    act(() => setScroll(0));
+    // It closes: a fresh 6 seconds.
+    rerender({ paused: false });
+    await advance(5900);
+    expect(result.current.open).toBe(false);
+    await advance(200);
+    expect(result.current.open).toBe(true);
+    expect(api.config).toHaveBeenCalledTimes(1);
+  });
+
   it("opens once per calculator per browser, and again 30 days after it was shown", async () => {
     const first = renderHook(() => useReportEmailPrompt("natal-chart", true));
     await settle();

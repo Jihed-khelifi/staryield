@@ -28,8 +28,8 @@ vi.mock("@/components/layout/public-frame", () => ({ PublicFrame: ({ children }:
 vi.mock("@/components/astrology/place-combobox", () => ({ PlaceCombobox: () => null }));
 vi.mock("@/components/calculators/report-email-dialog", () => ({ ReportEmailDialog: () => null }));
 vi.mock("@/components/calculators/use-report-email-prompt", () => ({
-  useReportEmailPrompt: (kind: string, active: boolean) => {
-    m.prompt(kind, active);
+  useReportEmailPrompt: (kind: string, active: boolean, paused = false) => {
+    m.prompt(kind, active, paused);
     return { available: true, prechecked: false, configFailed: false, open: false, manual: false, setOpen: vi.fn(), openManually: vi.fn(), markSent: vi.fn() };
   },
 }));
@@ -157,6 +157,109 @@ describe("natal chart calculator", () => {
     expect(await screen.findByText("Houses: Equal.")).toBeTruthy();
     expect(m.natal).toHaveBeenCalledTimes(3);
   });
+
+  it("names both Sun signs of a cusp day without a birth time, says why and leads to the form", async () => {
+    const u = userEvent.setup();
+    const chart = {
+      ...fixture.chart,
+      time_known: false,
+      has_location: false,
+      birth_date: "1990-02-19",
+      birth_time: undefined,
+      place: undefined,
+      rising_sign: undefined,
+      sun_sign: "Pisces",
+      sun_sign_uncertain: true,
+      sun_sign_alternatives: ["Aquarius", "Pisces"],
+      moon_sign_uncertain: false,
+    };
+    m.natal.mockResolvedValue({ ...fixture, chart });
+    at("/en/calculators/natal-chart", "#v=1&d=1990-02-19");
+    renderWithI18n(<Calculator kind="natal-chart" />);
+    expect((await screen.findByTestId("big-three")).textContent).toBe("Sun in Aquarius or Pisces · Moon in Libra");
+    const note = screen.getByTestId("sun-uncertain");
+    expect(note.textContent).toContain("You were born on a cusp: the Sun moved from Aquarius into Pisces that day.");
+    expect(note.textContent).toContain("Your Sun sign needs your birth time and place.");
+    await u.click(within(note).getByRole("button", { name: "Add birth time and place" }));
+    const form = await screen.findByTestId("calculator-form");
+    expect((form.querySelector('input[name="birth.year"]') as HTMLInputElement).value).toBe("1990");
+    expect(window.location.hash).toBe("");
+  });
+
+  it("does not show the cusp note when the Sun sign is certain", async () => {
+    m.natal.mockResolvedValue(fixture);
+    at("/en/calculators/natal-chart", NATAL_HASH);
+    renderWithI18n(<Calculator kind="natal-chart" />);
+    await screen.findByTestId("big-three");
+    expect(screen.queryByTestId("sun-uncertain")).toBeNull();
+  });
+});
+
+describe("the sample /results routes", () => {
+  it("'Change birth date' on the sample opens an empty form, and the visitor's own result follows", async () => {
+    const u = userEvent.setup();
+    at("/en/calculators/tarot-birth-card/results");
+    const { container } = renderWithI18n(<Calculator kind="tarot-birth-card" showResults />);
+    await screen.findByTestId("tarot-headline");
+    await u.click(screen.getByTestId("change-birth-date"));
+    const form = await screen.findByTestId("calculator-form");
+    expect(screen.queryByTestId("calculator-result")).toBeNull();
+    expect((form.querySelector('input[name="birth.year"]') as HTMLInputElement).value).toBe("");
+    expect(window.location.pathname).toBe("/en/calculators/tarot-birth-card/results");
+
+    fireEvent.change(container.querySelector('input[name="birth.day"]')!, { target: { value: "29" } });
+    fireEvent.change(container.querySelector('input[name="birth.month"]')!, { target: { value: "11" } });
+    fireEvent.change(container.querySelector('input[name="birth.year"]')!, { target: { value: "1990" } });
+    fireEvent.click(screen.getByTestId("calculator-submit"));
+    expect((await screen.findByTestId("tarot-headline")).textContent).toBe("Your tarot birth card is The Hierophant");
+    expect(window.location.hash).toBe("#v=1&d=1990-11-29");
+    expect(screen.queryByText("Sample date from the design. Change the birth date to calculate your own result.")).toBeNull();
+    expect(screen.getAllByTestId("share-result-button")).toHaveLength(2);
+
+    // Changing their own date on /results: the form again (with their date), not the sample.
+    await u.click(screen.getByTestId("change-birth-date"));
+    const again = await screen.findByTestId("calculator-form");
+    expect((again.querySelector('input[name="birth.year"]') as HTMLInputElement).value).toBe("1990");
+    expect(screen.queryByTestId("tarot-headline")).toBeNull();
+  });
+
+  it("'Add birth time and place' under the natal sample opens the form", async () => {
+    const u = userEvent.setup();
+    m.natal.mockResolvedValue({ ...fixture, chart: { ...fixture.chart, time_known: false, rising_sign: undefined, birth_date: "1945-04-30" } });
+    at("/en/calculators/natal-chart/results");
+    renderWithI18n(<Calculator kind="natal-chart" showResults />);
+    await screen.findByTestId("natal-wheel");
+    await u.click(screen.getByTestId("add-birth-time"));
+    expect(await screen.findByTestId("calculator-form")).toBeTruthy();
+    expect(screen.queryByTestId("natal-wheel")).toBeNull();
+  });
+});
+
+describe("path of life calculator", () => {
+  it("closes on the shared advisor CTA (clear link, share button, the birth data notice)", async () => {
+    at("/en/calculators/path-of-life", "#v=1&d=1990-11-29");
+    renderWithI18n(<Calculator kind="path-of-life" />);
+    const cta = await screen.findByTestId("advisor-cta");
+    expect(within(cta).getByRole("heading", { level: 2 }).textContent).toBe("Get a deeper understanding of what a life path really means and the alignment that comes with it");
+    expect(within(cta).getByRole("link", { name: "Talk to an advisor" }).getAttribute("href")).toBe("/en#psychics");
+    expect(within(cta).getByTestId("share-result-button")).toBeTruthy();
+    expect(cta.className).toContain("calc-paper");
+    expect(within(cta).queryByText("Click here!")).toBeNull();
+  });
+
+  it("holds the 'Save your reading' prompt back while the share dialog is open", async () => {
+    const u = userEvent.setup();
+    at("/en/calculators/path-of-life", "#v=1&d=1990-11-29");
+    renderWithI18n(<Calculator kind="path-of-life" />);
+    await screen.findByTestId("life-path-numbers");
+    expect(m.prompt).toHaveBeenLastCalledWith("path-of-life", true, false);
+    await u.click(screen.getAllByTestId("share-result-button")[0]);
+    expect(await screen.findByTestId("share-dialog")).toBeTruthy();
+    expect(m.prompt).toHaveBeenLastCalledWith("path-of-life", true, true);
+    await u.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByTestId("share-dialog")).toBeNull());
+    expect(m.prompt).toHaveBeenLastCalledWith("path-of-life", true, false);
+  });
 });
 
 describe("astrology calculator", () => {
@@ -200,7 +303,7 @@ describe("tarot birth card calculator", () => {
     expect(within(screen.getByTestId("advisor-cta")).getByRole("heading", { name: "Talk to an advisor about your card" })).toBeTruthy();
     // No e-mail report for this calculator: no button and no "Save your reading" prompt.
     expect(screen.queryByTestId("email-report-button")).toBeNull();
-    expect(m.prompt).toHaveBeenLastCalledWith("tarot-birth-card", false);
+    expect(m.prompt).toHaveBeenLastCalledWith("tarot-birth-card", false, false);
     expect(screen.getAllByTestId("share-result-button")).toHaveLength(2);
     expect(m.track).toHaveBeenCalledWith("calculator_completed", { kind: "tarot-birth-card" });
     expect(m.natal).not.toHaveBeenCalled();

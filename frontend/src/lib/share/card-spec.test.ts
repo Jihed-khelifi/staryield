@@ -10,7 +10,7 @@ import { LIFE_PATH_COPY } from "@/lib/astro/life-path-copy";
 import { tarotBirthResult } from "@/lib/astro/tarot-birth-card";
 import { lifePathReduction, personalCycles } from "@/lib/calculators";
 import type { CalculatorResult } from "@/components/calculators/calculate";
-import { SHARE_DOMAIN, natalHeadline, shareCardSpec } from "@/lib/share/card-spec";
+import { SHARE_DOMAIN, natalHeadline, shareCardSpec, sunCuspOf } from "@/lib/share/card-spec";
 import { calculatorShareUrl } from "@/lib/share/share-url";
 
 const text = createTranslateCopy(en);
@@ -70,6 +70,48 @@ describe("shareCardSpec", () => {
     const chart = natalResult.chart;
     expect(natalHeadline({ ...chart, rising_sign: undefined }, text)).toBe("Sun in Pisces · Moon in Libra");
     expect(natalHeadline({ ...chart, rising_sign: undefined, moon_sign_uncertain: true }, text)).toBe("Sun in Pisces");
+  });
+
+  // A cusp day without a birth time: the API's sign is the one at noon, which may not be the visitor's.
+  const cuspChart = {
+    ...natalResult.chart,
+    time_known: false,
+    rising_sign: undefined,
+    sun_sign_uncertain: true,
+    sun_sign_alternatives: ["Aquarius", "Pisces"],
+    moon_sign_uncertain: true,
+    moon_sign_alternatives: ["Libra", "Scorpio"],
+  };
+  const cuspSun = { sun_sign: "Pisces", uncertain: true, alternatives: ["Aquarius", "Pisces"], element: "Water", modality: "Mutable" };
+
+  it("natal: an uncertain Sun names both signs, never the noon guess alone, on the headline and the image", () => {
+    expect(natalHeadline(cuspChart, text)).toBe("Sun in Aquarius or Pisces");
+    const spec = shareCardSpec({ kind: "natal-chart", natal: { ...natalResult, chart: cuspChart } }, text);
+    expect(spec.headline).toBe("Sun in Aquarius or Pisces");
+    expect(spec.shareText).toBe(`Sun in Aquarius or Pisces — find yours at ${SHARE_DOMAIN}`);
+    expect(spec.artwork.map((a) => a.style)).toEqual(["emblem", "emblem"]);
+    expect(spec.artwork[0].url).not.toBe(spec.artwork[1].url);
+    expect(natalHeadline(cuspChart, createTranslateCopy(fr))).toBe("Soleil en Verseau ou en Poissons");
+    expect(natalHeadline(cuspChart, createTranslateCopy(es))).toBe("Sol en Acuario o en Piscis");
+  });
+
+  it("astrology: a cusp result says so instead of claiming one sign, without an element or modality", () => {
+    const spec = shareCardSpec({ kind: "astrology", sun: cuspSun }, text);
+    expect(spec.headline).toBe("I was born on the Aquarius–Pisces cusp");
+    expect(spec.lines).toEqual([]);
+    expect(spec.artwork).toHaveLength(2);
+    expect(spec.alt).toBe("Share image: I was born on the Aquarius–Pisces cusp");
+    expect(shareCardSpec({ kind: "astrology", sun: cuspSun }, createTranslateCopy(fr)).headline).toBe("Ma naissance tombe sur la cuspide Verseau–Poissons");
+    expect(shareCardSpec({ kind: "astrology", sun: cuspSun }, createTranslateCopy(es)).headline).toBe("Nací en la cúspide Acuario–Piscis");
+  });
+
+  it("sunCuspOf: both signs in the order the Sun crossed them, only when the API says the sign is uncertain", () => {
+    expect(sunCuspOf(cuspChart)).toEqual(["Aquarius", "Pisces"]);
+    expect(sunCuspOf(cuspSun)).toEqual(["Aquarius", "Pisces"]);
+    expect(sunCuspOf(natalResult.chart)).toBeNull();
+    expect(sunCuspOf({ uncertain: false, alternatives: ["Aquarius", "Pisces"] })).toBeNull();
+    expect(sunCuspOf({ uncertain: true, alternatives: [] })).toBeNull();
+    expect(sunCuspOf({ sun_sign_uncertain: true })).toBeNull();
   });
 
   it("never carries a birth date, time, place or name", () => {
