@@ -171,15 +171,21 @@ func (r *GormEmailRepository) DeliveryStats(ctx context.Context, since time.Time
 	return rows, err
 }
 
+// emailProblemPredicate selects the rows that did not go out or are being
+// retried after an error (the predicate of email_outbox_problems_idx).
+const emailProblemPredicate = "status IN ('failed', 'dead', 'suppressed', 'cancelled') OR (status = 'queued' AND last_error <> '')"
+
 func (r *GormEmailRepository) Problems(ctx context.Context, since time.Time, limit int) ([]domain.EmailOutbox, error) {
 	var out []domain.EmailOutbox
 	// Only metadata columns: the sealed recipient and body of a retrying row
-	// never leave the database here.
+	// never leave the database here. The status predicate is the literal
+	// predicate of the partial index email_outbox_problems_idx (migration
+	// 0040): with bind parameters Postgres cannot match the index once a
+	// cached statement runs on a generic plan. It holds no input.
 	err := database.Conn(ctx, r.db).Model(&domain.EmailOutbox{}).
 		Select("id, user_id, category, template, locale, status, status_reason, attempts, next_attempt_at, last_error, provider, created_at, updated_at").
+		Where(emailProblemPredicate).
 		Where("created_at >= ?", since).
-		Where("(status IN ? OR (status = ? AND last_error <> ''))",
-			[]domain.EmailStatus{domain.EmailFailed, domain.EmailDead, domain.EmailCancelled, domain.EmailSuppressed}, domain.EmailQueued).
 		Order("updated_at DESC, id DESC").Limit(clampLimit(limit, 20, 100)).Find(&out).Error
 	return out, err
 }
