@@ -16,8 +16,11 @@ import { Overview, useMyHoroscope } from "@/components/account/overview/overview
 import { ChartTab } from "@/components/account/chart/chart-tab";
 import { AccountSettings, SharedAccountSettings } from "@/components/account/settings/account-settings";
 import { PsychicSettings } from "@/components/psychic/settings/psychic-settings"; // advisor settings
+// growth: referrals — the invite link and counters, shared by the overview card and the invite page.
+import { ReferralProvider } from "@/lib/referrals/referral-provider";
+import { InvitePage } from "@/components/referrals/invite-page";
 
-export type AccountView = "overview" | "chart" | "settings" | "analytics";
+export type AccountView = "overview" | "chart" | "settings" | "analytics" | "invite";
 
 // Chart.js is only needed on the advisor analytics view.
 const PsychicAnalyticsView = dynamic(() => import("@/components/analytics/psychic-analytics").then((m) => m.PsychicAnalyticsView), {
@@ -43,9 +46,10 @@ export function Account({ view }: { view: AccountView }) {
     if (status === "anonymous") router.replace(loginUrl(locale));
   }, [status, locale, router]);
 
-  // Analytics are for advisors only.
+  // Analytics are for advisors only; inviting friends is for clients only.
   useEffect(() => {
     if (view === "analytics" && user && user.role !== "psychic") router.replace(`/${locale}/profile`);
+    if (view === "invite" && user && user.role !== "client") router.replace(`/${locale}/profile`);
   }, [view, user, locale, router]);
 
   const horoscope = useMyHoroscope(user);
@@ -110,6 +114,7 @@ export function Account({ view }: { view: AccountView }) {
               : [
                   ["Overview", "/profile", "overview"],
                   ["Chart", "/profile/chart", "chart"],
+                  ["Invite friends", "/profile/invite", "invite"], // growth: referrals
                   ["Settings", "/profile/settings", "settings"],
                 ]
             ).map(([label, href, id]) => (
@@ -123,34 +128,41 @@ export function Account({ view }: { view: AccountView }) {
             </button>
           </aside>
           <main className={`account-main account-${view}`}>
-            {view === "overview" ? (
-              user.role === "psychic" ? (
-                <PsychicOverview />
-              ) : (
-                <Overview name={name} user={user} horoscope={horoscope} />
-              )
-            ) : view === "analytics" ? (
-              <>
-                <ProfileTabs view={view} />
-                {user.role === "psychic" ? <PsychicAnalyticsView /> : null}
-              </>
-            ) : view === "settings" ? (
-              // Advisors get their own page (Figma 1219:1284) hosting the shared account sections.
-              // (its header actions are hidden on phones, so the tabs carry the navigation there).
-              user.role === "psychic" ? (
+            <ReferralProvider enabled={user.role === "client"}>
+              {view === "overview" ? (
+                user.role === "psychic" ? (
+                  <PsychicOverview />
+                ) : (
+                  <Overview name={name} user={user} horoscope={horoscope} />
+                )
+              ) : view === "analytics" ? (
                 <>
                   <ProfileTabs view={view} />
-                  <PsychicSettings SharedProvider={SharedAccountSettings} />
+                  {user.role === "psychic" ? <PsychicAnalyticsView /> : null}
+                </>
+              ) : view === "settings" ? (
+                // Advisors get their own page (Figma 1219:1284) hosting the shared account sections.
+                // (its header actions are hidden on phones, so the tabs carry the navigation there).
+                user.role === "psychic" ? (
+                  <>
+                    <ProfileTabs view={view} />
+                    <PsychicSettings SharedProvider={SharedAccountSettings} />
+                  </>
+                ) : (
+                  <AccountSettings />
+                )
+              ) : view === "invite" ? (
+                <>
+                  <ProfileTabs view={view} />
+                  {user.role === "client" ? <InvitePage /> : null}
                 </>
               ) : (
-                <AccountSettings />
-              )
-            ) : (
-              <>
-                <ProfileTabs view={view} />
-                <ChartTab name={name} user={user} />
-              </>
-            )}
+                <>
+                  <ProfileTabs view={view} />
+                  <ChartTab name={name} user={user} />
+                </>
+              )}
+            </ReferralProvider>
           </main>
         </div>
       </div>
@@ -179,6 +191,11 @@ function ProfileTabs({ view }: { view: AccountView }) {
             {text("Astrological chart ")}
           </Link>
         )}
+        {user?.role === "client" ? (
+          <Link href={`/${locale}/profile/invite`} className={view === "invite" ? "active" : ""}>
+            {text("Invite friends")}
+          </Link>
+        ) : null}
       </nav>
     </div>
   );

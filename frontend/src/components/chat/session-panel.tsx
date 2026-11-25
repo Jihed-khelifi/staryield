@@ -15,6 +15,7 @@ import { RatePrice } from "@/components/chat/rate-price";
 import { ReviewForm, ReviewThanks } from "@/components/reviews/review-form";
 import { TrustpilotReviewCollector } from "@/components/reviews/trustpilot-review-collector";
 import { WaitlistButton } from "@/components/waitlist/waitlist-button";
+import { ReferralPrompt } from "@/components/referrals/referral-prompt"; // growth: referrals
 
 type Props = {
   role: "client" | "psychic";
@@ -168,6 +169,8 @@ export function SessionPanel(p: Props) {
         ) : null}
         {/* Every client sees this, whatever they rated (or did not): Trustpilot forbids selective invitations and incentives. */}
         {p.role === "client" ? <TrustpilotReviewCollector placement="chat-summary" className="mt-3" /> : null}
+        {/* growth: referrals — after a real reading (at least one billed or free minute). */}
+        {p.role === "client" && (sum.session.billed_minutes > 0 || sum.session.free_minutes_used > 0) ? <ReferralPrompt className="mt-3" /> : null}
         <HiddenMessagesPrompt className="mt-3" />
         <Button variant="outline" className="mt-3" onClick={p.onDismissSummary}>
           {text("Close summary")}

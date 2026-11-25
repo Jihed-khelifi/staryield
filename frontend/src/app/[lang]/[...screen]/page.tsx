@@ -62,6 +62,7 @@ const accounts: Record<string, AccountView> = {
   "profile/chart": "chart",
   "profile/settings": "settings",
   "profile/analytics": "analytics",
+  "profile/invite": "invite", // growth: referrals
 };
 const emailLinks: Record<string, EmailLinkAction> = {
   "confirm-email": "confirm-email",
@@ -115,6 +116,7 @@ export async function generateMetadata({
     "profile/chart": "Natal Chart",
     "profile/settings": "Settings",
     "profile/analytics": "Analytics",
+    "profile/invite": "Invite friends", // growth: referrals
     credits: "Credits",
     "credits/return": "Payment", // revisions 6.0
     signup: "Sign up",

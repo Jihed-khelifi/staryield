@@ -524,6 +524,8 @@ export type AttributionInput = {
   first_seen_at?: string;
   /** Analytics visitor id (localStorage `staryield.aid`), only when analytics is allowed (§17). */
   anonymous_id?: string;
+  /** growth: referrals — the invite code kept from a `?ref=` link (src/lib/referral.ts). */
+  referral_code?: string;
 };
 
 export type NotificationKind =
@@ -560,6 +562,9 @@ export type NotificationKind =
   // --- end growth: e-mail verification ---
 
   // --- growth: referrals ---
+  | "referral.joined"
+  | "referral.qualified"
+  | "referral.reward_granted"
   // --- end growth: referrals ---
 
   // --- growth: lifecycle and onboarding ---
@@ -897,6 +902,8 @@ export type SiteConfig = {
   auth?: { google: boolean };
   /** Switched-off features (§25.1): absent from older APIs, which means false. */
   features?: { memberships: boolean };
+  /** growth: the invite program (read through `referralProgramOf`); absent from older APIs, which means off. */
+  referrals?: { enabled: boolean; reward_minutes: number; launched: boolean };
   generated_at: string;
 };
 
