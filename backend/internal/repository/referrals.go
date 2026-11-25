@@ -320,9 +320,11 @@ func (r *GormReferralRepository) Stats(ctx context.Context, referrerID uuid.UUID
 // HasInvited implements ReferralRepository: one probe of
 // referrals_referrer_status_idx.
 func (r *GormReferralRepository) HasInvited(ctx context.Context, referrerID uuid.UUID) (bool, error) {
-	var id uuid.UUID
-	err := r.conn(ctx).Model(&domain.Referral{}).Select("id").Where("referrer_id = ?", referrerID).Limit(1).Scan(&id).Error
-	return id != uuid.Nil, err
+	// Pluck into a slice: GORM's Scan takes a lone uuid.UUID ([16]byte) for a
+	// byte array and fails on the text value, so the step never completed.
+	var ids []uuid.UUID
+	err := r.conn(ctx).Model(&domain.Referral{}).Where("referrer_id = ?", referrerID).Limit(1).Pluck("id", &ids).Error
+	return len(ids) > 0, err
 }
 
 // InvitersAmong implements ReferralRepository: an index range of

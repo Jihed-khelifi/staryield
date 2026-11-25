@@ -3955,3 +3955,29 @@ What the build settled that §26 above left open or stated differently:
   Next.js, production runs vinext; the error-page and Stripe specs were also
   run against the vinext build served by `wrangler dev`
   (`docs/stripe-setup.md` §8).
+
+## 27. Growth conversion follow-ups
+
+The nine follow-ups of the growth funnel audit (design:
+`docs/superpowers/specs/2026-11-25-conversion-follow-ups-design.md`). Each
+subsection is owned by one slice of the work.
+
+### 27.1 FAQ answers
+
+_(slice E)_
+
+### 27.2 New advisor label, public header and advisor profile frame
+
+_(slice C)_
+
+### 27.3 Report next step, footnote, e-mail UTM tags, alternative advisors
+
+_(slice D)_
+
+### 27.4 Advisor auto-away after missed requests
+
+_(slice A)_
+
+### 27.5 Funnel visit stitching
+
+_(slice B)_
