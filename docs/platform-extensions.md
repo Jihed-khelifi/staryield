@@ -111,19 +111,21 @@ All under `/api/v1/admin`. Every mutation is audit-logged.
 
 | Method & path | Notes |
 | --- | --- |
-| `GET /users?q=&role=&status=&cursor=&limit=` | limit 50/200. `status`: `active|deactivated|banned|deleted`. Returns `AdminUserRow` page. |
+| `GET /users?q=&role=&status=&verified=&cursor=&limit=` | limit 50/200. `status`: `active|deactivated|banned|deleted`. `verified`: `true|false` (e-mail verification, §13.7; anything else is 422 `validation_failed`). Returns `AdminUserRow` page. |
 | `POST /users` | `{email, password, role, display_name?, locale?}` → `AdminUser` (201). Creating `role:"admin"` is 🔐. Use `/psychics` to create advisors. |
 | `GET /users/:id` | `AdminUser` |
 | `PATCH /users/:id` | `{display_name?, locale?, email?, role?, status?, status_reason?}`. `status:"banned"` requires `status_reason` and is 🔐; changing `role` to/from `admin` is 🔐. Cannot target yourself. Deactivate/ban revokes all sessions, ends live chats, closes realtime connections, hides a psychic from the directory. |
 | 🔐 `DELETE /users/:id` | `{reason}` → `204`. Soft delete + anonymisation: email becomes `deleted+<id>@deleted.invalid`, profile PII and avatar removed, sessions revoked, status `deleted`. Ledger/earnings history is kept (append-only). |
 | 🔐 `POST /users/:id/credits` | unchanged body `{amount, reason, idempotency_key}` → `Wallet`. |
 | `POST /users/:id/logout-all` | `204`. Revokes all main-site sessions. |
+| `POST /users/:id/email-verification` | Sends the user a new e-mail verification link (§13.7) → 202 `VerificationSent`. 409 `already_verified`; 429 `rate_limited` with `Retry-After` inside the 60 s cooldown (shared with the user's own resends); 404 unknown user; `invalid_state` for an inactive account. Audited `admin.email_verification_resent`. |
 
 ```ts
 type AdminUserRow = {
   id: string; email: string; role: "client"|"psychic"|"admin";
   status: "active"|"deactivated"|"banned"|"deleted"; status_reason?: string;
   display_name: string; locale: string; created_at: string; last_login_at?: string;
+  email_verified_at: string | null;   // growth: e-mail verification (§13.7)
 };
 type AdminUser = AdminUserRow & {
   deleted_at?: string;
@@ -989,6 +991,30 @@ Everything is under `/api/v1`. "Sensitive" routes ask for the current password a
 - When the grace period ends, the account eraser anonymises the account. It also:
   - ends the membership and forgets saved cards (billing);
   - deletes notes, push subscriptions, devices, consents, exports, waiting lists and the user's support requests.
+
+### 13.7 Growth: e-mail verification by secure link
+- Every password sign-up (client) gets a welcome e-mail (category `security`, template `email_verify`) with a single-use link
+  `{frontend}/{locale}/verify-email#token=<raw>`. The token travels in the URL fragment, so it never reaches a server log, a
+  proxy or a `Referer`. Google sign-ups and confirmed e-mail changes are verified already (`email_verified_at` is set).
+  - Token: 32 random bytes; only its SHA-256 is stored (`user_action_tokens`, purpose `email_verify`); expires after 48 h;
+    single use; its sealed payload `{email}` is bound to the token row and must match the account's current address.
+  - Accounts created by the team (advisors, admin-created users) get no welcome link; they or an admin can request one.
+- `POST /auth/email/verify {token}` (public, `auth` rate limit by IP, CSRF as usual) → 200
+  `{status: "verified"|"already_verified", email_verified: true}`. Unknown, expired, used, superseded, mismatching (the
+  address changed since) and inactive-account links all answer 400 `invalid_token` with the same message; a consumed link is
+  burnt even when it is refused. On success, after the commit: realtime `account.email_verified`
+  `{email_verified: true, email_verified_at}` to every tab and device of the user, in-app notification
+  `account.email_verified` (`{}`, link `/profile/settings#account`; the clients show their own toast for the event and do not
+  toast this notification a second time), audit `account.email_verified`, analytics `user.email_verified`, and the
+  `OnVerified` hooks (referral rewards).
+- `POST /me/email/verification` (any role with an unverified address; never age-gated) → 202
+  `VerificationSent {status: "sent", email: "m***@example.com", resend_available_at}`. Every previous open link stops working.
+  - 409 `already_verified`; 429 `rate_limited` with `Retry-After` within 60 s of the previous link (the cooldown is checked
+    under a row lock, so concurrent requests cannot race it); its own bucket of 5 per hour per user (fails closed).
+- `GET /me` gains `email_verified: boolean`; `GET /me/settings` already carries `account.email_verified`.
+- Frontend page `/{lang}/verify-email` (`noindex`, `referrer: no-referrer`) reads the fragment once, strips it from the address
+  bar and posts it at once (no extra click). Migration `0039_email_verification.sql` adds the partial indexes behind the admin
+  `verified` filter.
 
 ---
 
