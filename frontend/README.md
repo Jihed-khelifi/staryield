@@ -122,15 +122,21 @@ The API must list the web origin in `STARYIELD_SECURITY_ALLOWED_ORIGINS`. In pro
 ```bash
 # 1. Start the API with the seed (../backend README), e.g. on http://localhost:8080
 # 2. Run the suite
-E2E_API_URL=http://localhost:8080 npm run test:e2e
+E2E_API_URL=http://localhost:8080 npm run test:e2e        # one test at a time, next dev
+E2E_API_URL=http://localhost:8080 npm run test:e2e:full   # the whole suite, fast (below)
 npm run test:e2e:ui      # interactive runner
 ```
+
+`npm run test:e2e:full` (`scripts/e2e-run.mjs`) builds the site once and serves it with `next start` (no on-demand compilation, which is most of the CPU and time of a `next dev` run), then runs the specs of public pages (`PUBLIC_SPECS` in `playwright.config.ts`: no sign-in, no shared state) several files at a time, and then the specs that share the seed accounts, advisor availability or site settings one test at a time. Both phases always run. Extra arguments go to Playwright (`npm run test:e2e:full -- e2e/seo.spec.ts`). A new spec that only visits public pages belongs in `PUBLIC_SPECS`; anything that signs in, calls the admin API or changes settings must not.
 
 | Variable       | Default                 | Purpose                                                       |
 | -------------- | ----------------------- | ------------------------------------------------------------- |
 | `E2E_API_URL`  | `http://localhost:8080` | API origin (also passed to the dev server as `NEXT_PUBLIC_API_URL`) |
 | `E2E_BASE_URL` | `http://localhost:3000` | Site origin                                                    |
 | `E2E_CHROMIUM` | –                       | Optional Chromium binary path                                  |
+| `E2E_SERVER`   | `dev` (`prod` in `test:e2e:full`) | `prod`: `next build` + `next start` instead of `next dev`; the build inlines `E2E_API_URL` |
+| `E2E_WORKERS`  | `1` (`test:e2e:full`: a quarter of the CPUs, 2–4, for public pages) | Workers; only the `public-*` projects may use more than one |
+| `E2E_VIDEO`    | –                       | `1` also keeps a video of failing tests (off: encoding a video of every test costs a lot of CPU) |
 
 `@playwright/test` is pinned to 1.64.1, whose Chromium build (revision 1248) matches the cached browsers, so no download is needed. The API must allow the site origin (`STARYIELD_SECURITY_ALLOWED_ORIGINS`). Seed accounts: client `client@staryield.test` / `Cl1ent!Secure#2026`; advisors `<slug>@advisors.staryield.net` / `Psych1c!Secure#2026` (`ramone`, `theo`, `solomon`).
 
