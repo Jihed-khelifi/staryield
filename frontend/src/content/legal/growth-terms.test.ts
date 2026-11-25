@@ -247,3 +247,41 @@ describe("growth release: Terms of Use", () => {
     });
   });
 });
+
+/** Follow-ups (fact-check of the growth branch): auto-away, alternative advisors and the invite code in shared links. */
+describe("follow-ups: Terms of Use", () => {
+  const AUTO_AWAY: Record<Locale, RegExp> = {
+    en: /misses several chat requests in a row \(currently 3\) may be set to Away automatically and is told why; an Away advisor is not shown as online until they set themselves Online/,
+    fr: /manque plusieurs demandes de chat consécutives \(actuellement 3\) peut être réglé automatiquement sur absent et est informé du motif ; un conseiller absent n’est pas affiché comme en ligne tant qu’il ne s’est pas remis lui-même en ligne/,
+    es: /no atiende varias solicitudes de chat seguidas \(actualmente 3\) puede pasar automáticamente a ausente y se le informa del motivo; un asesor ausente no aparece como en línea hasta que él mismo se ponga en línea/,
+  };
+  const ALTERNATIVES: Record<Locale, RegExp> = {
+    en: /After a request that an advisor declined or did not answer, we may suggest other advisors who are online; the same status caveat applies/,
+    fr: /Après une demande qu’un conseiller a refusée ou à laquelle il n’a pas répondu, nous pouvons vous suggérer d’autres conseillers en ligne ; la même réserve sur le statut s’applique/,
+    es: /Después de una solicitud que un asesor rechazó o a la que no respondió, podemos sugerirle otros asesores que estén en línea; se aplica la misma salvedad sobre el estado/,
+  };
+  const AWAY_NOTICE: Record<Locale, RegExp> = {
+    en: /Advisors are also notified, in the app and, depending on their notification settings, by email and push, if their status is set to Away automatically \(\[Section 4\.17\]\(#booking-a-reading\)\)/,
+    fr: /Les conseillers sont également prévenus, dans l’application et, selon leurs paramètres de notification, par e-mail et par notification push, lorsque leur statut est automatiquement réglé sur absent \(\[section 4\.17\]\(#booking-a-reading\)\)/,
+    es: /Los asesores también reciben un aviso, en la aplicación y, según su configuración de notificaciones, por correo electrónico y como notificación push, cuando su estado se cambia automáticamente a ausente \(\[Sección 4\.17\]\(#booking-a-reading\)\)/,
+  };
+  const SHARE_CODE: Record<Locale, RegExp> = {
+    en: /If you are signed in as a client while the referral program is running, the link also contains your personal invite code, so that a friend who signs up from it counts as invited \(\[Section 4\.20\]\(#referral-program\)\)/,
+    fr: /Si vous êtes connecté en tant que client pendant que le programme de parrainage est en cours, le lien contient aussi votre code d’invitation personnel, afin qu’un ami qui s’inscrit à partir de ce lien soit compté comme invité \(\[section 4\.20\]\(#referral-program\)\)/,
+    es: /Si ha iniciado sesión como cliente mientras el programa de referidos está en marcha, el enlace también contiene su código de invitación personal, para que un amigo que se registre desde él cuente como invitado \(\[Sección 4\.20\]\(#referral-program\)\)/,
+  };
+
+  it.each(locales)("%s: 4.17 says an advisor who misses several requests in a row is set to Away and why, and that other advisors may be suggested", (l) => {
+    const text = clause(terms(l), "booking-a-reading");
+    expect(text).toMatch(AUTO_AWAY[l]);
+    expect(text).toMatch(ALTERNATIVES[l]);
+  });
+
+  it.each(locales)("%s: 4.13 tells advisors they are notified when their status is set to Away automatically", (l) => {
+    expect(clause(terms(l), "notifications")).toMatch(AWAY_NOTICE[l]);
+  });
+
+  it.each(locales)("%s: 4.19 says a signed-in client's shared link carries the personal invite code", (l) => {
+    expect(clause(terms(l), "sharing-your-results")).toMatch(SHARE_CODE[l]);
+  });
+});

@@ -196,6 +196,15 @@ func (s *LifecycleService) journeyAvailable(key string) bool {
 // Attach registers the settlement observer on the chat service.
 func (s *LifecycleService) Attach(chat *ChatService) { chat.OnSessionSettled(s.OnSessionSettled) }
 
+// PurgeForUser implements UserDataPurger (account erasure): the user's reading
+// summary (first and last reading date and count) is deleted. Their lifecycle
+// messages stay, attached to the anonymised account (Privacy Policy 2.18).
+func (s *LifecycleService) PurgeForUser(ctx context.Context, userID uuid.UUID) (int64, error) {
+	return s.d.Repo.PurgeReader(ctx, userID)
+}
+
+var _ UserDataPurger = (*LifecycleService)(nil)
+
 // OnSessionSettled records a completed reading: the client's reader row is
 // refreshed and the lifecycle messages that preceded the reading within the
 // attribution window are marked as converted (one UPDATE). It runs after the

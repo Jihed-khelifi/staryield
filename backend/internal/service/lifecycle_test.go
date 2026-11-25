@@ -30,6 +30,7 @@ type fakeLifecycleRepo struct {
 	dismissed *time.Time
 	converts  []convertCall
 	readers   []uuid.UUID
+	purged    []uuid.UUID
 	locked    bool // another instance holds the run lock
 }
 
@@ -101,6 +102,10 @@ func (f *fakeLifecycleRepo) Stats(context.Context, time.Time, int) ([]repository
 func (f *fakeLifecycleRepo) RecordReaders(_ context.Context, ids []uuid.UUID) error {
 	f.readers = append(f.readers, ids...)
 	return nil
+}
+func (f *fakeLifecycleRepo) PurgeReader(_ context.Context, id uuid.UUID) (int64, error) {
+	f.purged = append(f.purged, id)
+	return 1, nil
 }
 func (f *fakeLifecycleRepo) Convert(_ context.Context, u uuid.UUID, from, to time.Time) (int64, error) {
 	f.converts = append(f.converts, convertCall{u, from, to})
@@ -734,5 +739,17 @@ func TestLifecyclePushesUseTheBulkLane(t *testing.T) {
 	var off *PushService
 	if !off.WaitBulkRoom(context.Background(), 10) {
 		t.Fatal("push off: no wait")
+	}
+}
+
+func TestLifecyclePurgesTheReaderRowOnErasure(t *testing.T) {
+	f := newLifecycleFixture(t)
+	id := uuid.New()
+	n, err := f.svc.PurgeForUser(context.Background(), id)
+	if err != nil || n != 1 {
+		t.Fatalf("purge: %d %v", n, err)
+	}
+	if len(f.repo.purged) != 1 || f.repo.purged[0] != id {
+		t.Fatalf("purged: %v", f.repo.purged)
 	}
 }

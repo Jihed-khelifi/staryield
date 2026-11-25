@@ -106,6 +106,9 @@ type LifecycleRepository interface {
 	RecordReaders(ctx context.Context, clientIDs []uuid.UUID) error
 	// ReconcileReaders refreshes the readers of every reading settled since a time.
 	ReconcileReaders(ctx context.Context, since time.Time) (int, error)
+	// PurgeReader deletes the reader row of a user (account erasure). The
+	// user's lifecycle messages are kept, attached to the anonymised account.
+	PurgeReader(ctx context.Context, userID uuid.UUID) (int64, error)
 	// Convert marks the user's open reading-driven messages created in
 	// [from, to] as converted (one UPDATE) and returns how many.
 	Convert(ctx context.Context, userID uuid.UUID, from, to time.Time) (int64, error)
@@ -311,9 +314,17 @@ func (r *GormLifecycleRepository) Release(ctx context.Context, ids []uuid.UUID) 
 	return database.Conn(ctx, r.db).Where("id IN ?", ids).Delete(&domain.LifecycleMessage{}).Error
 }
 
+// PurgeReader implements LifecycleRepository (primary key lifecycle_readers_pkey).
+func (r *GormLifecycleRepository) PurgeReader(ctx context.Context, userID uuid.UUID) (int64, error) {
+	res := database.Conn(ctx, r.db).Table("lifecycle_readers").Where("user_id = ?", userID).Delete(nil)
+	return res.RowsAffected, res.Error
+}
+
 // RecordReaders implements LifecycleRepository. The row is recomputed from the
 // client's sessions, so running it twice (a retried hook, the reconciliation)
-// changes nothing.
+// changes nothing. An erased account gets no row: its sessions outlive the
+// erasure and a reading that settles after it (or the reconciliation) must not
+// bring the summary back.
 func (r *GormLifecycleRepository) RecordReaders(ctx context.Context, clientIDs []uuid.UUID) error {
 	if len(clientIDs) == 0 {
 		return nil
@@ -323,6 +334,7 @@ func (r *GormLifecycleRepository) RecordReaders(ctx context.Context, clientIDs [
 		SELECT client_id, min(settled_at), max(settled_at), count(*)
 		FROM chat_sessions
 		WHERE client_id IN ? AND status = 'settled' AND billed_minutes > 0 AND settled_at IS NOT NULL
+		  AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = chat_sessions.client_id AND u.status = 'deleted')
 		GROUP BY client_id
 		ON CONFLICT (user_id) DO UPDATE SET first_reading_at = EXCLUDED.first_reading_at,
 			last_reading_at = EXCLUDED.last_reading_at, readings = EXCLUDED.readings

@@ -248,7 +248,7 @@ func (s *ReferralService) Attribute(ctx context.Context, userID uuid.UUID, in *A
 	if !created {
 		return
 	}
-	s.d.Tracker.Track(ctx, "referral.joined", map[string]any{"referrer_id": inviter, "flagged": ref.Flagged, "status": string(ref.Status)})
+	s.d.Tracker.Track(ctx, "referral.joined", map[string]any{"flagged": ref.Flagged, "status": string(ref.Status)})
 	if ref.Status == domain.ReferralJoined && !ref.Flagged {
 		s.d.Notifier.Notify(ctx, NotificationSpec{Kind: NotifyReferralJoined, Data: map[string]any{}, Link: referralLink}, inviter)
 	}
@@ -356,7 +356,7 @@ func (s *ReferralService) Evaluate(ctx context.Context, refereeID uuid.UUID) {
 // minute and tells them then. Flagged referrals say nothing until an
 // administrator decides.
 func (s *ReferralService) afterQualified(ctx context.Context, r *domain.Referral, prog ReferralProgram) {
-	s.d.Tracker.Track(ctx, "referral.qualified", map[string]any{"referrer_id": r.ReferrerID, "minutes": r.RewardMinutes, "flagged": r.Flagged})
+	s.d.Tracker.Track(ctx, "referral.qualified", map[string]any{"minutes": r.RewardMinutes, "flagged": r.Flagged})
 	if r.Flagged {
 		return
 	}

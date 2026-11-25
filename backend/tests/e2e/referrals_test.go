@@ -393,6 +393,36 @@ func TestReferralLoopEndToEnd(t *testing.T) {
 	}
 }
 
+// The server events about a friend's sign-up and qualifying are the friend's
+// own: they never carry the inviter's id (Privacy Policy 2.21: no analytics
+// event identifies a friend you invited).
+func TestReferralEventsDoNotCarryTheInviterId(t *testing.T) {
+	e := newEnv(t)
+	e.resetReferrals(true, 5, 20)
+	psychic := e.createPsychic(40)
+	inviter := e.registerClient()
+	code := inviter.referrals().Code
+	friend := e.registerReferred(code, "")
+	e.readingOf(psychic, friend)
+	e.verifyEmail(friend.user.ID)
+	e.waitReferral(friend.user.ID, domain.ReferralQualified)
+	time.Sleep(200 * time.Millisecond)
+	e.app.Tracker.Stop(context.Background())
+	var joined, qualified int64
+	e.app.DB.Raw(`SELECT count(*) FROM analytics_events WHERE name = 'referral.joined' AND user_id = ?`, friend.user.ID).Row().Scan(&joined)
+	e.app.DB.Raw(`SELECT count(*) FROM analytics_events WHERE name = 'referral.qualified'`).Row().Scan(&qualified)
+	if joined != 1 || qualified < 1 {
+		t.Fatalf("events: joined %d, qualified %d", joined, qualified)
+	}
+	// referral.granted is about the inviter alone and keeps referrer_id; the other two never carry it.
+	var withInviter int64
+	e.app.DB.Raw(`SELECT count(*) FROM analytics_events WHERE name IN ('referral.joined', 'referral.qualified')
+		AND (properties::text LIKE ? OR properties::text LIKE '%referrer_id%')`, "%"+inviter.user.ID.String()+"%").Row().Scan(&withInviter)
+	if withInviter != 0 {
+		t.Fatalf("%d referral events carry the inviter", withInviter)
+	}
+}
+
 func TestReferralEndpointAccess(t *testing.T) {
 	e := newEnv(t)
 	e.resetReferrals(true, 5, 20)

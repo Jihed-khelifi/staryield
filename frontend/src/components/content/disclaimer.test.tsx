@@ -48,7 +48,7 @@ const FACTS: Record<Locale, Record<string, RegExp[]>> = {
   en: {
     [SECTION]: [/for entertainment purposes only/, /not predictions/, /medical, psychological, legal, financial, relationship or any other form of professional advice/],
     "natal-chart": [/full chart free of charge/, /rising sign and the houses need both a birth time and a birthplace/, /not statements of fact about you/, /do not predict events/],
-    "tarot-birth-cards": [/Mary K\. Greer/, /22 Major Arcana/, /Rider–Waite–Smith/, /Golden Dawn/, /birth date alone/, /not who you are or what will happen to you/],
+    "tarot-birth-cards": [/Mary K\. Greer/, /one, two or three of the 22 Major Arcana/, /for some dates, a card in between/, /Rider–Waite–Smith/, /Golden Dawn/, /birth date alone/, /not who you are or what will happen to you/],
     "life-path-numbers": [/Pythagorean numerology/, /master numbers 11, 22 and 33/, /symbolic/],
     "zodiac-compatibility": [/two sun signs only/, /love, friendship and work scores/, /fixed rule/, /traditional-astrology heuristic, not a measurement/, /not based on data about real couples/, /cannot tell whether a romantic relationship, a friendship or a working relationship will work/, /not relationship advice/],
     "sharing-results-and-invitations": [/not a prediction, a reading by an advisor or advice/, /must not promise predictions or outcomes/, /not responsible for what users write or post/, /for entertainment purposes only/],
@@ -57,7 +57,7 @@ const FACTS: Record<Locale, Record<string, RegExp[]>> = {
   fr: {
     [SECTION]: [/uniquement à des fins de divertissement/, /ce ne sont pas des prédictions/, /conseil médical, psychologique, juridique, financier, relationnel/],
     "natal-chart": [/gratuitement le thème complet/, /L’ascendant et les maisons nécessitent à la fois une heure et un lieu de naissance/, /ne prédisent aucun événement/],
-    "tarot-birth-cards": [/Mary K\. Greer/, /22 cartes des arcanes majeurs/, /Rider–Waite–Smith/, /Golden Dawn/, /uniquement de la date de naissance/],
+    "tarot-birth-cards": [/Mary K\. Greer/, /une, deux ou trois des 22 cartes des arcanes majeurs/, /pour certaines dates, une carte intermédiaire/, /Rider–Waite–Smith/, /Golden Dawn/, /uniquement de la date de naissance/],
     "life-path-numbers": [/numérologie pythagoricienne/, /nombres maîtres 11, 22 et 33/, /symboliques/],
     "zodiac-compatibility": [/deux signes solaires/, /scores d’amour, d’amitié et de travail/, /règle fixe/, /heuristique de l’astrologie traditionnelle, et non d’une mesure/, /aucune donnée concernant de vrais couples/, /ne peuvent pas dire si une relation/],
     "sharing-results-and-invitations": [/ni une prédiction, ni une consultation avec un conseiller, ni un conseil/, /ne devez ni promettre de prédiction/, /pas responsables de ce que les utilisateurs écrivent ou publient/, /à des fins de divertissement/],
@@ -66,7 +66,7 @@ const FACTS: Record<Locale, Record<string, RegExp[]>> = {
   es: {
     [SECTION]: [/únicamente con fines de entretenimiento/, /no son predicciones/, /asesoramiento médico, psicológico, jurídico, financiero, sentimental/],
     "natal-chart": [/gratis la carta completa/, /El ascendente y las casas requieren tanto la hora como el lugar de nacimiento/, /no predicen acontecimientos/],
-    "tarot-birth-cards": [/Mary K\. Greer/, /22 cartas de los arcanos mayores/, /Rider–Waite–Smith/, /Golden Dawn/, /únicamente de la fecha de nacimiento/],
+    "tarot-birth-cards": [/Mary K\. Greer/, /una, dos o tres de las 22 cartas de los arcanos mayores/, /en algunas fechas, una carta intermedia/, /Rider–Waite–Smith/, /Golden Dawn/, /únicamente de la fecha de nacimiento/],
     "life-path-numbers": [/numerología pitagórica/, /números maestros 11, 22 y 33/, /simbólicos/],
     "zodiac-compatibility": [/dos signos solares/, /puntuaciones de amor, amistad y trabajo/, /regla fija/, /heurística de la astrología tradicional, no una medición/, /no se basan en datos sobre parejas reales/, /no pueden decir si una relación/],
     "sharing-results-and-invitations": [/no es una predicción, ni una consulta con un asesor, ni asesoramiento/, /no debe prometer predicciones/, /No somos responsables de lo que los usuarios escriben o publican/, /con fines de entretenimiento/],

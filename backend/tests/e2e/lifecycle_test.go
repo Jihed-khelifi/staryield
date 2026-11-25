@@ -384,6 +384,39 @@ func TestLifecycleAfterFirstReadingNeedsTheReferralProgram(t *testing.T) {
 	}
 }
 
+// Account erasure deletes the client's reading summary (Privacy Policy 2.18);
+// the lifecycle messages stay, attached to the anonymised account.
+func TestLifecycleReaderRowIsErasedWithTheAccountAndMessagesStay(t *testing.T) {
+	e := newEnv(t)
+	e.lcStart()
+	e.app.Services.Lifecycle.SetReferralsEnabled(func(context.Context) bool { return true })
+	client := e.registerClient()
+	now := e.clock.Now()
+	e.lcReader(client.user.ID, now.Add(-30*time.Hour), now.Add(-30*time.Hour), 1)
+	e.lcRun()
+	if rows := e.lcMessages(client.user.ID, domain.JourneyAfterFirstReading); len(rows) != 1 {
+		t.Fatalf("messages before erasure: %+v", rows)
+	}
+	readers := func() int64 {
+		var n int64
+		e.app.DB.Table("lifecycle_readers").Where("user_id = ?", client.user.ID).Count(&n)
+		return n
+	}
+	if readers() != 1 {
+		t.Fatal("the reader row is missing before erasure")
+	}
+
+	admin := e.createAdmin()
+	admin.stepUp()
+	admin.must(http.StatusNoContent, http.MethodDelete, "/api/v1/admin/users/"+client.user.ID.String(), map[string]any{"reason": "GDPR erasure"}, nil)
+	if n := readers(); n != 0 {
+		t.Fatalf("the reading summary survived account erasure: %d", n)
+	}
+	if rows := e.lcMessages(client.user.ID, ""); len(rows) != 1 {
+		t.Fatalf("messages after erasure: %+v", rows)
+	}
+}
+
 func TestLifecycleWinBackCycles(t *testing.T) {
 	e := newEnv(t)
 	e.lcStart()

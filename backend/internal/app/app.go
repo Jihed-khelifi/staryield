@@ -631,6 +631,8 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 		Events: publisher, OnlineAdvisors: catalogSvc.OnlineCount, Push: pushSvc, Cache: kv, Clock: clk, Log: log.With(zap.String("component", "lifecycle")),
 		IPHashSecret: cfg.Analytics.IPHashSecret})
 	lifecycleSvc.Attach(chatSvc)
+	// Account erasure also deletes the user's reading summary (AddPurger).
+	eraser.AddPurger(lifecycleSvc)
 	services.Lifecycle = lifecycleSvc
 	// --- end growth: lifecycle and onboarding ---
 

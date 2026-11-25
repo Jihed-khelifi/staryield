@@ -466,7 +466,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "We send notifications about your account and activity — for example chat requests, the end of a reading and invitations to rate it, order updates, completed purchases and payment problems, credit adjustments, waiting-list alerts and, for advisors, new ratings and payout updates — as well as occasional announcements from Staryield. Notifications appear in the bell menu of the website in your chosen language and can be marked as read; we keep them for up to 180 days. Depending on your notification settings, we also send them by email and as browser push notifications. Messages that protect your account, such as a confirmation of a change to your email address, are always sent by email. In-app notifications are part of the Service; they are not marketing emails, and we only send marketing communications if you opt in. Signing out stops push notifications on that device."
+          "text": "We send notifications about your account and activity — for example chat requests, the end of a reading and invitations to rate it, order updates, completed purchases and payment problems, credit adjustments, waiting-list alerts and, for advisors, new ratings and payout updates — as well as occasional announcements from Staryield. Notifications appear in the bell menu of the website in your chosen language and can be marked as read; we keep them for up to 180 days. Depending on your notification settings, we also send them by email and as browser push notifications. Messages that protect your account, such as a confirmation of a change to your email address, are always sent by email. In-app notifications are part of the Service; they are not marketing emails, and we only send marketing communications if you opt in. Signing out stops push notifications on that device. Advisors are also notified, in the app and, depending on their notification settings, by email and push, if their status is set to Away automatically ([Section 4.17](#booking-a-reading))."
         },
         {
           "type": "p",
@@ -522,7 +522,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Advisor profiles and cards show a booking button for each advisor, and some calculator and guide pages may show it too. What it offers depends on the advisor’s live status: when the advisor is online, “Chat now” starts a request for a live chat; when the advisor is in a reading, away or offline, you can join their waiting list instead ([Section 4.15](#advisor-waiting-lists)). An advisor’s status can change at any moment: being shown as online does not guarantee that the advisor will accept your request or still be available when you send it."
+          "text": "Advisor profiles and cards show a booking button for each advisor, and some calculator and guide pages may show it too. What it offers depends on the advisor’s live status: when the advisor is online, “Chat now” starts a request for a live chat; when the advisor is in a reading, away or offline, you can join their waiting list instead ([Section 4.15](#advisor-waiting-lists)). An advisor’s status can change at any moment: being shown as online does not guarantee that the advisor will accept your request or still be available when you send it. An advisor who misses several chat requests in a row (currently 3) may be set to Away automatically and is told why; an Away advisor is not shown as online until they set themselves Online. After a request that an advisor declined or did not answer, we may suggest other advisors who are online; the same status caveat applies."
         },
         {
           "type": "p",
@@ -566,7 +566,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "You can save or share the result of our natal chart, life path number, zodiac sign and tarot birth card calculators as an image in 9:16 format, made on your device. The image shows your result with its artwork, the Staryield name and mark and the address staryield.net. It does not show your birth date, birth time, birthplace or name, and the link shared with it opens the calculator page without your birth details. We do not receive or keep the images you create."
+          "text": "You can save or share the result of our natal chart, life path number, zodiac sign and tarot birth card calculators as an image in 9:16 format, made on your device. The image shows your result with its artwork, the Staryield name and mark and the address staryield.net. It does not show your birth date, birth time, birthplace or name, and the link shared with it opens the calculator page without your birth details. If you are signed in as a client while the referral program is running, the link also contains your personal invite code, so that a friend who signs up from it counts as invited ([Section 4.20](#referral-program)). We do not receive or keep the images you create."
         },
         {
           "type": "p",

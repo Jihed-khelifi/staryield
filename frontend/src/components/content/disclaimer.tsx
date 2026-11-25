@@ -24,7 +24,7 @@ export default function ScreenDesktopLegalDisclaimer() {
       id: "tarot-birth-cards",
       label: text("Tarot birth cards."),
       body: text(
-        "Our tarot birth card calculator and pages use the method described by the tarot author Mary K. Greer: the numbers of a birth date are added together to point to one or two of the 22 Major Arcana cards (the personality card and the soul card, which are sometimes the same card), numbered as in the Rider–Waite–Smith deck and presented with their Golden Dawn attributions. The result depends on the birth date alone. A birth card is a symbol for reflection: it tells you what this tradition associates with a card, not who you are or what will happen to you.",
+        "Our tarot birth card calculator and pages use the method described by the tarot author Mary K. Greer: the numbers of a birth date are added together to point to one, two or three of the 22 Major Arcana cards (the personality card, the soul card and, for some dates, a card in between; when there is only one, it is both), numbered as in the Rider–Waite–Smith deck and presented with their Golden Dawn attributions. The result depends on the birth date alone. A birth card is a symbol for reflection: it tells you what this tradition associates with a card, not who you are or what will happen to you.",
       ),
     },
     {

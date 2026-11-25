@@ -213,7 +213,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Advisors. If you are an advisor, we also process your phone number, your earnings, withdrawal requests and payout details (bank account or PayPal address). Your phone number and payout details are encrypted at rest; payout details are revealed only to authorised staff, with an audit record, when processing a payment. A new profile photo may be reviewed before it is published. We record when you are online to show your availability and to calculate statistics such as your active hours, and we compute performance analytics from your readings and ratings, such as conversion and retention rates and the hours when clients request readings."
+          "text": "Advisors. If you are an advisor, we also process your phone number, your earnings, withdrawal requests and payout details (bank account or PayPal address). Your phone number and payout details are encrypted at rest; payout details are revealed only to authorised staff, with an audit record, when processing a payment. A new profile photo may be reviewed before it is published. We record when you are online to show your availability and to calculate statistics such as your active hours, and we compute performance analytics from your readings and ratings, such as conversion and retention rates and the hours when clients request readings. We also count the chat requests you missed in a row, to set you to Away automatically after a few."
         },
         {
           "type": "h3",
@@ -227,7 +227,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Our website keeps the campaign parameters of your first visit (UTM parameters such as source, medium and campaign, and the click code) in your browser's local storage for 30 days. If you create an account, these are sent with your sign-up and stored with your account, so we can measure which campaigns lead to sign-ups and purchases. We use this information only in aggregate to evaluate our marketing; we do not sell it. You can clear it at any time by clearing your browser's site data, and we do not record web analytics when your browser sends a Do Not Track or Global Privacy Control signal. Where the law requires your consent, we store campaign parameters and record analytics only after you allow them in your privacy preferences."
+          "text": "Our website keeps the campaign parameters of your first visit (UTM parameters such as source, medium and campaign, and the click code) in your browser's local storage for 30 days. If you create an account, these are sent with your sign-up and stored with your account, so we can measure which campaigns lead to sign-ups and purchases. We use this information only in aggregate to evaluate our marketing; we do not sell it. You can clear it at any time by clearing your browser's site data, and we do not record web analytics when your browser sends a Do Not Track or Global Privacy Control signal. Where the law requires your consent, we store campaign parameters and record analytics only after you allow them in your privacy preferences. Links in our e-mails may carry campaign parameters, which are handled in the same way."
         },
         {
           "type": "h3",
@@ -299,7 +299,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "To count how many different people open and use our calculators, our website stores a random identifier in your browser’s local storage (it is not derived from your name, email address or IP address) and records which calculator pages you open, whether you start a calculation and whether you see a result. If you create an account, this identifier is linked to it at sign-up, only when analytics are allowed, which lets us tell which visitors became members. We keep the campaign and short-link data of your first visit (UTM parameters and click code, see [Section 2.6](#marketing-attribution)) with the identifier."
+          "text": "To count how many different people open and use our calculators, our website stores a random identifier in your browser’s local storage (it is not derived from your name, email address or IP address) and records which calculator pages you open, whether you start a calculation and whether you see a result. If you create an account, this identifier is linked to it at sign-up, only when analytics are allowed, which lets us tell which visitors became members. In our reports, events recorded from your browser before you signed up are counted together with your account. We keep the campaign and short-link data of your first visit (UTM parameters and click code, see [Section 2.6](#marketing-attribution)) with the identifier."
         },
         {
           "type": "p",
@@ -406,7 +406,7 @@ const content: LegalDocumentContent = {
         {
           "type": "ul",
           "items": [
-            "Your personal code: an 8-character code created the first time you view your invitation link. Your link is our website’s address followed by that code, so a person who opens your link can be connected to your invitation.",
+            "Your personal code: an 8-character code created the first time you view your invitation link or open the share window. Your link is our website’s address followed by that code, so a person who opens your link can be connected to your invitation.",
             "Referral records: for each friend who signs up with a link, a record connecting the inviter’s account and the friend’s account, its status and dates (joined, qualified, rewarded or rejected), the number of reward minutes, the friend’s first qualifying reading, a keyed hash of the IP address the friend signed up from (never the address itself), any review flags and, if our team reviewed it, the decision, its reason and the administrator who took it.",
             "Abuse checks: when a friend signs up, we compare the keyed hash of their IP address with the keyed hashes of the IP addresses of the inviter’s signed-in devices seen in the last 30 days, and we count how many friends joined the same inviter in the last 24 hours. If analytics are allowed in the friend’s browser, we also check whether the random browser identifier described in [Section 2.10](#calculator-usage-measurement) is already linked to an account. A sign-up from a browser already linked to the inviter is not credited. A sign-up from the same network as one of the inviter’s devices, from a browser linked to another account, or when 10 or more friends have already joined the same inviter in the last 24 hours, is held for a person on our team to review, who approves or rejects it. These checks never use names, email addresses or messages."
           ]
@@ -417,7 +417,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Messages. We tell the inviter, in the app and by push if push notifications are on, when a friend joins or completes a reading, and by email when free minutes are added to their wallet, according to their notification settings. These are service messages about the program, not marketing."
+          "text": "Messages. We tell the inviter, in the app and by push if push notifications are on, when a friend signs up (not when a sign-up is held for review or rejected) and, only before the rewards are launched, when a friend who has also confirmed their email address completes a live reading and the invitation earns a reward. Once the rewards are launched, the inviter is told only when free minutes are added to their wallet; that message is an account message, sent by email whatever the inviter’s notification settings. The other messages follow their notification settings. These are service messages about the program, not marketing."
         },
         {
           "type": "p",
@@ -451,7 +451,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "Records and measurement. For each reminder we keep a record of which reminder it was, when it was sent or skipped (and why), the channels we tried and whether you completed a reading within the measurement period that followed (7 days unless our team sets another period, of up to 30 days). This record makes sure that a reminder is never sent twice and lets us see, in aggregate, whether reminders help; our administration console shows only totals and rates. If you hide the checklist, we record when you did so. These records are kept for as long as your account exists; when your account is erased, they stay attached only to the anonymised account. Clicks on the checklist and on its “Hide” button are measured as described in [Section 2.21](#feature-usage-measurement)."
+          "text": "Records and measurement. For each reminder we keep a record of which reminder it was, when it was sent or skipped (and why), the channels we tried and whether you completed a reading within the measurement period that followed (7 days unless our team sets another period, of up to 30 days). This record makes sure that a reminder is never sent twice and lets us see, in aggregate, whether reminders help; our administration console shows only totals and rates. If you hide the checklist, we record when you did so. These records are kept for as long as your account exists; when your account is erased, they stay attached only to the anonymised account. We also keep, for each client, a reading summary: the date of your first and of your last completed reading and how many you have had, which tells us when a reminder is due. This summary is deleted when your account is erased. Clicks on the checklist and on its “Hide” button are measured as described in [Section 2.21](#feature-usage-measurement)."
         },
         {
           "type": "h3",
@@ -491,7 +491,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "When you choose “Share”, your device’s share sheet passes the image, a short text and a link to the app you pick (for example a messaging or social media app), which handles them under its own terms and privacy policy. “Download image” saves the image on your device and “Copy link” copies the link. The link leads to the calculator page in your language and never contains your birth details. What you share, and with whom, is your choice."
+          "text": "When you choose “Share”, your device’s share sheet passes the image, a short text and a link to the app you pick (for example a messaging or social media app), which handles them under its own terms and privacy policy. “Download image” saves the image on your device and “Copy link” copies the link. The link leads to the calculator page in your language and never contains your birth details. If you are signed in as a client while the referral program is running, the link also contains your personal invite code, so that a friend who signs up from it counts as invited ([Section 2.17](#referral-program)). What you share, and with whom, is your choice."
         },
         {
           "type": "p",
@@ -922,7 +922,7 @@ const content: LegalDocumentContent = {
         },
         {
           "type": "p",
-          "text": "You can download a copy of your personal data at any time in your [account settings](/profile/settings), under Data & privacy. We prepare a ZIP file containing your account and profile, preferences and consents, signed-in devices, sign-in methods (such as the email address of a connected Google account), purchases and transactions, credit history, conversations (including replies and likes, and the advisor’s replies that were hidden from you while a reading was on hold) and the images you uploaded, saved messages, notifications and ratings. When it is ready, we notify you in the app and by email; the download link can be used once and the file is deleted after 7 days. Notes that advisors wrote about you are not part of this export because they contain the advisors’ own observations; you can request them through this [request form](/contact?topic=privacy), and our staff will provide them after reviewing your request. The export also includes a file with your referral code and invitation totals (referrals.json), which never shows who invited you or whom you invited."
+          "text": "You can download a copy of your personal data at any time in your [account settings](/profile/settings), under Data & privacy. We prepare a ZIP file containing your account and profile, preferences and consents, signed-in devices, sign-in methods (such as the email address of a connected Google account), purchases and transactions, credit history, conversations (including replies and likes, and the advisor’s replies that were hidden from you while a reading was on hold) and the images you uploaded, saved messages, notifications and ratings. When it is ready, we notify you in the app and by email; the download link can be used once and the file is deleted after 7 days. Notes that advisors wrote about you are not part of this export because they contain the advisors’ own observations; you can request them through this [request form](/contact?topic=privacy), and our staff will provide them after reviewing your request. The export also includes a file with your referral code and invitation totals (referrals.json), which never shows who invited you or whom you invited. It also includes a file with the records of the reminders we sent you (lifecycle-messages.json), and your account file (account.json) shows when you hid the “Get started” checklist."
         },
         {
           "type": "h4",

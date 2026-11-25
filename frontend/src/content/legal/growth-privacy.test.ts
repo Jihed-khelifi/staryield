@@ -227,3 +227,69 @@ describe("growth: Privacy Policy", () => {
     expect(added).not.toMatch(/accura|predict|healing|exactitude|prédi|guéri|exactitud|predic|sanaci/i);
   });
 });
+
+/** Follow-ups (fact-check of the growth branch): invite code in shared links, notices, lifecycle data, auto-away, UTM, funnel. */
+describe("follow-ups: Privacy Policy", () => {
+  const EXPECT: Record<string, Record<Locale, RegExp[]>> = {
+    "share-images": {
+      en: [/If you are signed in as a client while the referral program is running, the link also contains your personal invite code, so that a friend who signs up from it counts as invited \(\[Section 2\.17\]\(#referral-program\)\)/],
+      fr: [/Si vous êtes connecté en tant que client pendant que le programme de parrainage est en cours, le lien contient aussi votre code d’invitation personnel, afin qu’un ami qui s’inscrit à partir de ce lien soit compté comme invité/],
+      es: [/Si ha iniciado sesión como cliente mientras el programa de referidos está en marcha, el enlace también contiene su código de invitación personal, para que un amigo que se registre desde él cuente como invitado/],
+    },
+    "referral-program": {
+      en: [
+        /created the first time you view your invitation link or open the share window/,
+        /when a friend signs up \(not when a sign-up is held for review or rejected\) and, only before the rewards are launched, when a friend who has also confirmed their email address completes a live reading and the invitation earns a reward/,
+        /that message is an account message, sent by email whatever the inviter’s notification settings/,
+      ],
+      fr: [
+        /la première fois que vous affichez votre lien d’invitation ou que vous ouvrez la fenêtre de partage/,
+        /uniquement avant le lancement des récompenses, lorsqu’un ami qui a aussi confirmé son adresse e-mail termine une consultation en direct/,
+        /ce message est un message de compte, envoyé par e-mail quels que soient ses paramètres de notification/,
+      ],
+      es: [
+        /la primera vez que ve su enlace de invitación o abre la ventana para compartir/,
+        /solo antes del lanzamiento de las recompensas, cuando un amigo que además ha confirmado su correo electrónico completa una consulta en directo/,
+        /ese mensaje es un mensaje de cuenta, que se envía por correo electrónico sea cual sea su configuración de notificaciones/,
+      ],
+    },
+    "lifecycle-messages": {
+      en: [/a reading summary: the date of your first and of your last completed reading and how many you have had/, /This summary is deleted when your account is erased/],
+      fr: [/un résumé de ses consultations : la date de votre première et de votre dernière consultation terminée, et leur nombre/, /Ce résumé est supprimé lors de l’effacement de votre compte/],
+      es: [/un resumen de sus consultas: la fecha de su primera y de su última consulta completada y cuántas ha tenido/, /Este resumen se elimina cuando se borra su cuenta/],
+    },
+    "right-to-data-portability": {
+      en: [/the records of the reminders we sent you \(lifecycle-messages\.json\), and your account file \(account\.json\) shows when you hid the “Get started” checklist/],
+      fr: [/les enregistrements des rappels que nous vous avons envoyés \(lifecycle-messages\.json\), et le fichier de votre compte \(account\.json\) indique quand vous avez masqué la liste « Commencer »/],
+      es: [/los registros de los recordatorios que le enviamos \(lifecycle-messages\.json\), y el archivo de su cuenta \(account\.json\) indica cuándo ocultó la lista «Empezar»/],
+    },
+    "live-readings-ratings-and-notifications": {
+      en: [/We also count the chat requests you missed in a row, to set you to Away automatically after a few/],
+      fr: [/Nous comptons aussi les demandes de chat que vous avez manquées à la suite, afin de vous passer automatiquement sur absent après quelques-unes/],
+      es: [/También contamos las solicitudes de chat que no atendió seguidas, para pasarle automáticamente a ausente tras unas pocas/],
+    },
+    "marketing-attribution": {
+      en: [/Links in our e-mails may carry campaign parameters, which are handled in the same way/],
+      fr: [/Les liens de nos e-mails peuvent comporter des paramètres de campagne, qui sont traités de la même manière/],
+      es: [/Los enlaces de nuestros correos electrónicos pueden llevar parámetros de campaña, que se tratan de la misma manera/],
+    },
+    "calculator-usage-measurement": {
+      en: [/In our reports, events recorded from your browser before you signed up are counted together with your account/],
+      fr: [/Dans nos rapports, les événements enregistrés depuis votre navigateur avant votre inscription sont comptés avec votre compte/],
+      es: [/En nuestros informes, los eventos registrados desde tu navegador antes de que te registraras se cuentan junto con tu cuenta/],
+    },
+  };
+
+  it.each(locales)("%s: the follow-up sentences are in their clauses (invite code in links, notices, reading summary, export, auto-away, UTM, funnel)", (l) => {
+    for (const [id, byLocale] of Object.entries(EXPECT)) {
+      const text = clause(privacy(l), id);
+      for (const re of byLocale[l]) expect(text, `${l} #${id}`).toMatch(re);
+    }
+  });
+
+  it("en: the reward e-mail is described as an account message and the old notification wording is gone", () => {
+    const text = clause(privacy("en"), "referral-program");
+    expect(text).not.toMatch(/when a friend joins or completes a reading/);
+    expect(text).not.toMatch(/by email when free minutes are added to their wallet, according to their notification settings/);
+  });
+});
