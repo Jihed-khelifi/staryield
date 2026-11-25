@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
+	"github.com/Jihed-khelifi/staryield/backend/internal/mail"
 	"github.com/Jihed-khelifi/staryield/backend/internal/realtime"
 	"github.com/Jihed-khelifi/staryield/backend/internal/service"
 )
@@ -297,17 +298,20 @@ func TestReferralLoopEndToEnd(t *testing.T) {
 	if n := countReferralNotices(t, inviter, service.NotifyReferralRewardGranted); n != 1 {
 		t.Fatalf("%d grant notices", n)
 	}
-	var mailed bool
-	for _, m := range e.flushMail() {
-		if strings.EqualFold(m.To, inviter.user.Email) && strings.Contains(m.Subject, "free minutes were added") {
-			mailed = true
-			if m.Category != "account" || !strings.Contains(m.Text, "5 free minutes") || strings.Contains(m.Text, friend.user.Email) {
-				t.Fatalf("grant e-mail: %+v", m)
+	// The e-mail goes through the outbox (enqueued by the dispatcher's workers).
+	var grantMail *mail.Message
+	for deadline := time.Now().Add(10 * time.Second); grantMail == nil; time.Sleep(50 * time.Millisecond) {
+		for _, m := range e.flushMail() {
+			if strings.EqualFold(m.To, inviter.user.Email) && strings.Contains(m.Subject, "free minutes were added") {
+				grantMail = &m
 			}
 		}
+		if grantMail == nil && time.Now().After(deadline) {
+			t.Fatal("no e-mail about the added minutes")
+		}
 	}
-	if !mailed {
-		t.Fatal("no e-mail about the added minutes")
+	if grantMail.Category != "account" || !strings.Contains(grantMail.Text, "5 free minutes") || strings.Contains(grantMail.Text, friend.user.Email) {
+		t.Fatalf("grant e-mail: %+v", *grantMail)
 	}
 	r := e.referralOf(friend.user.ID)
 	if r.Status != domain.ReferralGranted || r.GrantedAt == nil {
@@ -339,6 +343,33 @@ func TestReferralLoopEndToEnd(t *testing.T) {
 	}
 	if n := countReferralNotices(t, inviter, service.NotifyReferralQualified); n != 1 {
 		t.Fatalf("a qualification after launch must not say 'pending': %d notices", n)
+	}
+
+	// The personal-data exports: the inviter's code and counters, the friend's
+	// "invited by a friend" — never who invited whom.
+	var mineExport struct {
+		Code      string `json:"code"`
+		Joined    int64  `json:"friends_joined"`
+		Completed int64  `json:"friends_completed_a_reading"`
+		Granted   int64  `json:"free_minutes_granted"`
+		Invited   bool   `json:"invited_by_a_friend"`
+	}
+	files := exportFiles(t, e, inviter)
+	if err := json.Unmarshal(files["referrals.json"], &mineExport); err != nil || mineExport.Code != mine.Code || mineExport.Joined != 2 ||
+		mineExport.Completed != 2 || mineExport.Granted != 10 || mineExport.Invited {
+		t.Fatalf("inviter's export: %+v %v %s", mineExport, err, files["referrals.json"])
+	}
+	friendFiles := exportFiles(t, e, friend)
+	for _, leak := range []string{inviter.user.ID.String(), inviter.user.Email, mine.Code} {
+		if strings.Contains(string(friendFiles["referrals.json"]), leak) {
+			t.Fatalf("the friend's export names the inviter (%q): %s", leak, friendFiles["referrals.json"])
+		}
+	}
+	var friendExport struct {
+		Invited bool `json:"invited_by_a_friend"`
+	}
+	if err := json.Unmarshal(friendFiles["referrals.json"], &friendExport); err != nil || !friendExport.Invited {
+		t.Fatalf("friend's export: %v %s", err, friendFiles["referrals.json"])
 	}
 
 	// Erasing the friend keeps the decision, without the friend; the inviter's
