@@ -166,7 +166,7 @@ func SeedCalculatorVisitors(ctx context.Context, db *gorm.DB, o CalculatorSeedOp
 		return res, err
 	}
 	if haveVisits {
-		return res, db.WithContext(ctx).Exec("ANALYZE web_visitors").Error
+		return res, analyzeCalculatorTables(ctx, db)
 	}
 
 	// Visits: 1-9 rows per visitor (about five), mostly in the visitor's
@@ -202,7 +202,15 @@ func SeedCalculatorVisitors(ctx context.Context, db *gorm.DB, o CalculatorSeedOp
 		WHERE w.anonymous_id = m.anonymous_id AND w.last_seen_at < m.d::timestamp AT TIME ZONE 'UTC' + interval '1 day' - interval '1 second'`, now, prefix+"%").Error; err != nil {
 		return res, fmt.Errorf("web visitors last seen: %w", err)
 	}
-	return res, db.WithContext(ctx).Exec("ANALYZE web_visitors").Error
+	return res, analyzeCalculatorTables(ctx, db)
+}
+
+// analyzeCalculatorTables refreshes the planner's statistics after a bulk
+// load: the reports read calculator_visits per visitor, and until autovacuum
+// gets to a million fresh rows the planner takes the table for empty (the
+// conversions report then outlasted a 15 s client timeout in the e2e suite).
+func analyzeCalculatorTables(ctx context.Context, db *gorm.DB) error {
+	return db.WithContext(ctx).Exec("ANALYZE web_visitors, calculator_visits").Error
 }
 
 func lower(s string) string {
