@@ -86,7 +86,14 @@ export function SiteHeader({
           ))}
         </nav>
         <div className="header-actions">
-          <LocaleSwitcher className={cn("rounded-full border border-gold/40 bg-cream/60 px-2 sm:px-3", signedIn && "max-md:hidden")} />
+          {/* §27.2: below 400px a signed-out visitor's bar keeps the compact Sign up; the language moves to the menu. */}
+          <LocaleSwitcher
+            className={cn(
+              "rounded-full border border-gold/40 bg-cream/60 px-2 sm:px-3",
+              signedIn && "max-md:hidden",
+              !signedIn && publicSite && "max-[399px]:hidden",
+            )}
+          />
           {/* revisions 3.0: chat shortcut with unread badge, every header, signed-in users only. */}
           <ChatShortcut />
           {!signedIn ? (

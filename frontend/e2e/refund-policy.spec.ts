@@ -2,6 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { expectNoA11yViolations } from "./a11y";
 import { expectNoHorizontalScroll } from "./helpers";
+import { LEGAL_VERSIONS } from "../src/lib/legal/versions";
+
+/** The Refund Policy's date as the page shows it (day.month.year). */
+const REFUND_DATE = LEGAL_VERSIONS.refund.split("-").reverse().join(".");
 
 /**
  * Refund & Cancellation Policy (`/refund-policy`, src/content/legal/refund, rendered with the
@@ -17,8 +21,8 @@ test.describe("refund policy", () => {
     await page.goto("/en/refund-policy");
     await expect(page).toHaveTitle(/^Refund Policy — /);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Refund & Cancellation Policy");
-    await expect(doc(page)).toContainText("Effective date: 19.11.2026");
-    await expect(doc(page)).toContainText("Last updated: 19.11.2026");
+    await expect(doc(page)).toContainText(`Effective date: ${REFUND_DATE}`);
+    await expect(doc(page)).toContainText(`Last updated: ${REFUND_DATE}`);
     await expect(doc(page).getByRole("link", { name: "Contact Support" }).first()).toHaveAttribute("href", "/en/contact");
     await expect(doc(page).getByRole("link", { name: "Go to Pricing" })).toHaveAttribute("href", "/en/pricing");
     for (const value of ["within 2 business days", "within 5 business days", "as STARYIELD MEDIA LLC"]) await expect(doc(page).locator("article")).toContainText(value);
