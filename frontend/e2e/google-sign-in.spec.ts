@@ -19,6 +19,10 @@ import { expectNoA11yViolations } from "./a11y";
 import { API_URL, signIn } from "./helpers";
 import { MockGoogle } from "./mock-google";
 
+// A production build (`next start`, test:e2e:full) only follows Google's own authorization URL
+// (lib/auth/google.ts authorizationTarget), so the local mock issuer needs `next dev`.
+test.skip(process.env.E2E_SERVER === "prod", "needs next dev: a production build never redirects to the local mock issuer (run npm run test:e2e -- e2e/google-sign-in.spec.ts)");
+
 const PASSWORD = "E2e!Secure#2026x";
 const PORT = Number(process.env.E2E_GOOGLE_MOCK_PORT ?? 19090);
 const mock = new MockGoogle({ port: PORT, clientId: "e2e-client", clientSecret: "e2e-secret" });

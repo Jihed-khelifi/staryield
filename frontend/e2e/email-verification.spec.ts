@@ -20,7 +20,8 @@ function linksFor(email: string): string[] {
   if (!LOG) return [];
   return readFileSync(LOG, "utf8")
     .split("\n")
-    .filter((line) => line.includes(`"to": "${email}"`))
+    // The console log (make run) prints "to": "…", the JSON log "to":"…".
+    .filter((line) => line.includes(`"to": "${email}"`) || line.includes(`"to":"${email}"`))
     .flatMap((line) => line.match(/\/en\/verify-email#token=[A-Za-z0-9_-]+/g) ?? []);
 }
 

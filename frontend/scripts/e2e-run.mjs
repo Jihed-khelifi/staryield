@@ -14,7 +14,9 @@
  *
  * Both phases always run; the exit code is non-zero when either failed. Extra
  * arguments go to both `playwright test` calls (a spec file, --grep, …). The
- * server's output is in test-results/e2e-server.log.
+ * server's output is in test-results/e2e-server.log. With the production
+ * server, e2e/google-sign-in.spec.ts skips itself: a production build only
+ * follows Google's own authorization URL, so its mock issuer needs next dev.
  *
  *   E2E_API_URL=http://localhost:18080 E2E_BASE_URL=http://localhost:13000 npm run test:e2e:full
  */
@@ -86,7 +88,7 @@ function phase(name, projects, count) {
   const args = ["playwright", "test", ...projects.flatMap((p) => ["--project", p]), "--pass-with-no-tests", ...extra];
   const run = spawnSync("npx", args, {
     stdio: "inherit",
-    env: { ...process.env, E2E_BASE_URL: base, E2E_API_URL: api, E2E_WORKERS: String(count) },
+    env: { ...process.env, E2E_BASE_URL: base, E2E_API_URL: api, E2E_WORKERS: String(count), E2E_SERVER: mode },
   });
   const s = Math.round((Date.now() - t0) / 1000);
   console.log(`e2e: ${name}: ${run.status === 0 ? "passed" : "FAILED"} in ${Math.floor(s / 60)}m${String(s % 60).padStart(2, "0")}s`);
