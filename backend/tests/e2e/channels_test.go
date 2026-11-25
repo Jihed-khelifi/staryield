@@ -22,10 +22,16 @@ func (e *env) setPrefs(userID uuid.UUID, prefs map[string]any) {
 	}
 }
 
-func (e *env) outbox(userID uuid.UUID) []domain.EmailOutbox {
+// outbox lists a user's outbox rows, oldest first; with templates, only those
+// (a password sign-up also queues the welcome e-mail, template email_verify).
+func (e *env) outbox(userID uuid.UUID, templates ...string) []domain.EmailOutbox {
 	e.t.Helper()
 	var rows []domain.EmailOutbox
-	if err := e.app.DB.Where("user_id = ?", userID).Order("created_at ASC").Find(&rows).Error; err != nil {
+	q := e.app.DB.Where("user_id = ?", userID)
+	if len(templates) > 0 {
+		q = q.Where("template IN ?", templates)
+	}
+	if err := q.Order("created_at ASC").Find(&rows).Error; err != nil {
 		e.t.Fatal(err)
 	}
 	return rows
@@ -44,6 +50,7 @@ func sentTo(msgs []mail.Message, to string) []mail.Message {
 func TestNotificationEmailsFollowPreferences(t *testing.T) {
 	e := newEnv(t)
 	c := e.registerClient()
+	e.skipWelcomeMail()
 
 	// Notification e-mail is on by default and in the user's language.
 	e.setPrefs(c.user.ID, map[string]any{})
@@ -102,7 +109,7 @@ func TestOutboxSealsAndWipesBodies(t *testing.T) {
 	e := newEnv(t)
 	c := e.registerClient()
 	c.must(http.StatusAccepted, http.MethodPost, "/api/v1/auth/password/forgot", map[string]any{"email": c.user.Email}, nil)
-	rows := e.outbox(c.user.ID)
+	rows := e.outbox(c.user.ID, "password_reset")
 	if len(rows) != 1 || rows[0].Status != domain.EmailQueued || rows[0].Category != domain.EmailSecurity {
 		t.Fatalf("outbox: %+v", rows)
 	}
@@ -111,7 +118,7 @@ func TestOutboxSealsAndWipesBodies(t *testing.T) {
 		t.Fatal("recipient or link stored in clear")
 	}
 	e.flushMail()
-	rows = e.outbox(c.user.ID)
+	rows = e.outbox(c.user.ID, "password_reset")
 	if rows[0].Status != domain.EmailSent || rows[0].PayloadSealed != "" || rows[0].ToSealed != "" || rows[0].SentAt == nil || rows[0].Attempts != 1 {
 		t.Fatalf("after delivery: %+v", rows[0])
 	}
@@ -120,12 +127,13 @@ func TestOutboxSealsAndWipesBodies(t *testing.T) {
 func TestOutboxRetriesAndSuppressesBounces(t *testing.T) {
 	e := newEnv(t)
 	c := e.registerClient()
+	e.skipWelcomeMail()
 	e.mail.SetFail(func(mail.Message) (mail.Result, error) {
 		return mail.Result{}, &mail.SendError{Status: 429, Code: 10004, Reason: "email.sending.error.throttled", Retryable: true}
 	})
 	e.notify(service.NotificationSpec{Kind: service.NotifyWithdrawal, Data: map[string]any{"status": "paid", "amount_credits": 2500}}, c.user.ID)
 	e.flushMail()
-	row := e.outbox(c.user.ID)[0]
+	row := e.outbox(c.user.ID, "notification:"+service.NotifyWithdrawal)[0]
 	if row.Status != domain.EmailQueued || row.Attempts != 1 || !strings.Contains(row.LastError, "10004") || !row.NextAttemptAt.After(e.clock.Now()) {
 		t.Fatalf("after throttling: %+v", row)
 	}
@@ -165,17 +173,18 @@ func TestOutboxRetriesAndSuppressesBounces(t *testing.T) {
 func TestMarketingNeverReachesTheProvider(t *testing.T) {
 	e := newEnv(t)
 	optedIn, optedOut := e.registerClient(), e.registerClient()
+	e.skipWelcomeMail()
 	e.setPrefs(optedIn.user.ID, map[string]any{"notify_marketing": true})
 	e.notify(service.NotificationSpec{Kind: service.NotifyBroadcast, Data: map[string]any{
 		"title": map[string]any{"en": "New moon tonight"}, "body": map[string]any{"en": "Join us"}}}, optedIn.user.ID, optedOut.user.ID)
 	if msgs := e.flushMail(); len(sentTo(msgs, optedIn.user.Email))+len(sentTo(msgs, optedOut.user.Email)) != 0 {
 		t.Fatalf("marketing e-mail sent: %+v", msgs)
 	}
-	if rows := e.outbox(optedIn.user.ID); len(rows) != 1 || rows[0].Status != domain.EmailCancelled || rows[0].StatusReason != "no_marketing_provider" ||
+	if rows := e.outbox(optedIn.user.ID, "notification:"+service.NotifyBroadcast); len(rows) != 1 || rows[0].Status != domain.EmailCancelled || rows[0].StatusReason != "no_marketing_provider" ||
 		rows[0].PayloadSealed != "" {
 		t.Fatalf("opted-in marketing row: %+v", rows)
 	}
-	if rows := e.outbox(optedOut.user.ID); len(rows) != 0 {
+	if rows := e.outbox(optedOut.user.ID, "notification:"+service.NotifyBroadcast); len(rows) != 0 {
 		t.Fatalf("marketing queued without opt-in: %+v", rows)
 	}
 }
@@ -183,6 +192,7 @@ func TestMarketingNeverReachesTheProvider(t *testing.T) {
 func TestDailyEmailCap(t *testing.T) {
 	e := newEnv(t, func(c *configAlias) { c.Mail.DailyCap = 2 })
 	c := e.registerClient()
+	e.skipWelcomeMail()
 	for i := 0; i < 3; i++ {
 		e.notify(service.NotificationSpec{Kind: service.NotifyChatMissed, Data: map[string]any{"client_name": "Nova"}}, c.user.ID)
 	}

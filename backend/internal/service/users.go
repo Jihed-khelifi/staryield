@@ -87,6 +87,11 @@ type UserView struct {
 	// AgeStatus is the 18+ gate status (revisions 5.0, §24.6):
 	// "adult", "birth_date_required" or "restricted".
 	AgeStatus domain.AgeStatus `json:"age_status"`
+	// EmailVerified: the address was confirmed (growth: e-mail verification).
+	EmailVerified bool `json:"email_verified"`
+	// EmailVerification is the open verification link of an unverified
+	// address (null when verified or when no link is waiting in the inbox).
+	EmailVerification *PendingVerification `json:"email_verification"`
 }
 
 // ProfileUpdate is a partial profile update (nil fields are unchanged).
@@ -131,6 +136,10 @@ type UserService struct {
 	avatar     AvatarSettings
 	// age applies the 18+ gate to birth-date writes (revisions 5.0, §24.6).
 	age ageGuard
+	// pendingVerification describes the open verification link of an
+	// unverified address (growth: e-mail verification; see
+	// SetVerificationLookup).
+	pendingVerification func(ctx context.Context, userID uuid.UUID) (*PendingVerification, error)
 }
 
 // NewUserService wires the user service.
@@ -169,7 +178,12 @@ func (s *UserService) Me(ctx context.Context, userID uuid.UUID) (*UserView, erro
 	}
 	view := &UserView{ID: u.ID, Email: u.Email, Role: string(u.Role), Status: string(u.Status),
 		DisplayName: u.DisplayName, Locale: u.Locale, CreatedAt: u.CreatedAt, Profile: profileView(p),
-		AgeStatus: u.AgeStatus()}
+		AgeStatus: u.AgeStatus(), EmailVerified: u.EmailVerifiedAt != nil}
+	if u.EmailVerifiedAt == nil && s.pendingVerification != nil {
+		if view.EmailVerification, err = s.pendingVerification(ctx, userID); err != nil {
+			return nil, apperror.Internal(err)
+		}
+	}
 	if w, err := s.wallets.Get(ctx, userID); err == nil {
 		wv := walletView(w)
 		view.Wallet = &wv

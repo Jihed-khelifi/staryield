@@ -14,19 +14,20 @@ const push = vi.fn();
 const toastShow = vi.fn();
 const toastError = vi.fn();
 let session: { status: string; user: { id: string; role: string } | null } = { status: "anonymous", user: null };
-let statusHandler: ((d: { slug: string; status: PresenceStatus }) => void) | null = null;
+// Every subscriber (the cards and the waiting-list provider) hears a change, one slot per call site.
+const handlers = new Map<string, (d: { slug: string; status: PresenceStatus }) => void>();
+const statusHandler = (d: { slug: string; status: PresenceStatus }) => handlers.forEach((h) => h(d));
 
 vi.mock("@/lib/api/endpoints", () => ({
   psychicsApi: { featured: (limit?: number, signal?: AbortSignal) => featured(limit, signal) },
   waitlistApi: { join: (s: string) => join(s), leave: (s: string) => leave(s), mine: () => mine() },
 }));
 vi.mock("@/lib/auth/session-provider", () => ({
-  useSession: () => ({ ...session, realtime: null }),
+  useSession: () => ({ ...session, wallet: null, realtime: null }),
   useRealtimeEvent: (type: string, handler: (d: { slug: string; status: PresenceStatus }) => void) => {
-    if (type === "psychic.status_changed") statusHandler = handler;
+    if (type === "psychic.status_changed") handlers.set(new Error().stack?.split("\n")[2] ?? "x", handler);
   },
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("@/components/feedback/toast-provider", () => ({ useToast: () => ({ show: toastShow, showError: toastError }) }));
 vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
 
@@ -56,6 +57,13 @@ const three = (): FeaturedList => ({
   generated_at: "2026-11-05T12:00:00Z",
 });
 
+/** A client's waiting-list buttons are held until the one read of the lists is back. */
+async function ready(name: string, pattern: RegExp) {
+  const button = (await within(card(name)).findByRole("button", { name: pattern })) as HTMLButtonElement;
+  await waitFor(() => expect(button.disabled).toBe(false));
+  return button;
+}
+
 function card(name: string) {
   return screen.getByRole("heading", { name }).closest("article") as HTMLElement;
 }
@@ -63,7 +71,7 @@ function card(name: string) {
 beforeEach(() => {
   for (const f of [featured, join, leave, mine, push, toastShow, toastError]) f.mockReset();
   session = { status: "anonymous", user: null };
-  statusHandler = null;
+  handlers.clear();
   mine.mockResolvedValue({ items: [] });
 });
 afterEach(cleanup);
@@ -89,22 +97,23 @@ describe("FeaturedAdvisors", () => {
     expect(ramone.getByText("Active Now")).toBeTruthy();
     expect(ramone.getByText("30 credits / min")).toBeTruthy();
     expect(ramone.getByText("4.9 (420+ reviews)")).toBeTruthy();
-    expect(ramone.getByRole("link", { name: /Start 1-on-1 Chat/ }).getAttribute("href")).toBe("/en/chatroom?reader=ramone");
+    expect(ramone.getByRole("link", { name: /Chat now/ }).getAttribute("href")).toBe("/en/signup?next=%2Fen%2Fchatroom%3Freader%3Dramone");
 
     expect(within(card("Theo")).getByText("Busy")).toBeTruthy();
     expect(within(card("Theo")).getByText("4.9 (7 reviews)")).toBeTruthy();
     expect(within(card("Solomon")).getByText("New advisor")).toBeTruthy();
-    expect(within(card("Solomon")).getByRole("button", { name: /Join Waiting List/ })).toBeTruthy();
+    expect(within(card("Solomon")).getByRole("link", { name: /Notify me when online/ })).toBeTruthy();
     expect(await axeViolations()).toEqual([]);
   });
 
-  it("sends visitors to sign in before joining a waiting list", async () => {
+  it("sends visitors to sign up before joining a waiting list, and reads no waiting list for them", async () => {
     featured.mockResolvedValue(three());
     renderWithI18n(<FeaturedAdvisors />);
     await screen.findByRole("heading", { name: "Theo" });
-    fireEvent.click(within(card("Theo")).getByRole("button", { name: /Join Waiting List/ }));
-    expect(push).toHaveBeenCalledWith(expect.stringMatching(/^\/en\/login\?next=/));
+    const link = within(card("Theo")).getByRole("link", { name: /Join the waiting list/ });
+    expect(link.getAttribute("href")).toBe("/en/signup?next=%2Fen%2Fpsychics%2Ftheo");
     expect(join).not.toHaveBeenCalled();
+    expect(mine).not.toHaveBeenCalled();
   });
 
   it("lets a client join and leave, keeping joined lists from the server", async () => {
@@ -116,48 +125,59 @@ describe("FeaturedAdvisors", () => {
     renderWithI18n(<FeaturedAdvisors />);
     await screen.findByRole("heading", { name: "Theo" });
     await waitFor(() => expect(within(card("Solomon")).getByRole("button", { name: /On the waiting list/ })).toBeTruthy());
+    expect(mine).toHaveBeenCalledOnce(); // one read serves every card
 
-    fireEvent.click(within(card("Theo")).getByRole("button", { name: /Join Waiting List/ }));
+    fireEvent.click(await ready("Theo", /Join the waiting list/));
     await waitFor(() => expect(within(card("Theo")).getByRole("button", { name: /On the waiting list/ })).toBeTruthy());
     expect(join).toHaveBeenCalledWith("theo");
     expect(toastShow).toHaveBeenCalledWith(expect.objectContaining({ tone: "success" }));
 
     fireEvent.click(within(card("Solomon")).getByRole("button", { name: /On the waiting list/ }));
-    await waitFor(() => expect(within(card("Solomon")).getByRole("button", { name: /Join Waiting List/ })).toBeTruthy());
+    await waitFor(() => expect(within(card("Solomon")).getByRole("button", { name: /Notify me when online/ })).toBeTruthy());
     expect(leave).toHaveBeenCalledWith("solomon");
   });
 
-  it("switches to the chat button when the advisor came online meanwhile", async () => {
+  it("switches the card to online when the advisor came online meanwhile: button, badge and order", async () => {
     session = { status: "authenticated", user: { id: "u1", role: "client" } };
     featured.mockResolvedValue(three());
     join.mockRejectedValue(new ApiError({ code: "advisor_available", message: "online", status: 409 }));
     renderWithI18n(<FeaturedAdvisors />);
     await screen.findByRole("heading", { name: "Theo" });
-    fireEvent.click(within(card("Theo")).getByRole("button", { name: /Join Waiting List/ }));
-    await waitFor(() => expect(within(card("Theo")).getByRole("link", { name: /Start 1-on-1 Chat/ })).toBeTruthy());
+    fireEvent.click(await ready("Theo", /Join the waiting list/));
+    await waitFor(() => expect(within(card("Theo")).getByRole("link", { name: /Chat now/ })).toBeTruthy());
     expect(toastShow).toHaveBeenCalledWith(expect.objectContaining({ tone: "info", message: "Theo is online now. Start your chat." }));
+    expect(within(card("Theo")).getByText("Active Now")).toBeTruthy();
+    expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Ramone", "Theo", "Solomon"]);
+    // A patch, not a reload (the API's selection may lag the 409 by a few seconds).
+    expect(featured).toHaveBeenCalledOnce();
+    // Theo takes another client: the live change wins again, badge and button alike.
+    act(() => statusHandler({ slug: "theo", status: "busy" }));
+    expect(within(card("Theo")).getByText("Busy")).toBeTruthy();
+    expect(await within(card("Theo")).findByRole("button", { name: /Join the waiting list/ })).toBeTruthy();
   });
 
-  it("reports other join errors without changing the card", async () => {
+  it("reports other join errors without changing the card, and no retry where it cannot help", async () => {
     session = { status: "authenticated", user: { id: "u1", role: "client" } };
     featured.mockResolvedValue(three());
     const limit = new ApiError({ code: "limit_reached", message: "You can wait for up to 20 advisors at a time.", status: 409 });
     join.mockRejectedValue(limit);
     renderWithI18n(<FeaturedAdvisors />);
     await screen.findByRole("heading", { name: "Theo" });
-    fireEvent.click(within(card("Theo")).getByRole("button", { name: /Join Waiting List/ }));
+    fireEvent.click(await ready("Theo", /Join the waiting list/));
     await waitFor(() => expect(toastError).toHaveBeenCalledWith(limit));
-    expect(within(card("Theo")).getByRole("button", { name: /Join Waiting List/ })).toBeTruthy();
+    expect(toastShow).not.toHaveBeenCalled();
+    expect(within(card("Theo")).getByRole("button", { name: /Join the waiting list/ })).toBeTruthy();
   });
 
   it("follows live status changes", async () => {
     featured.mockResolvedValue(three());
     renderWithI18n(<FeaturedAdvisors />);
     await screen.findByRole("heading", { name: "Ramone" });
-    act(() => statusHandler?.({ slug: "ramone", status: "busy" }));
-    expect(within(card("Ramone")).getByRole("button", { name: /Join Waiting List/ })).toBeTruthy();
-    act(() => statusHandler?.({ slug: "solomon", status: "online" }));
-    expect(within(card("Solomon")).getByRole("link", { name: /Start 1-on-1 Chat/ })).toBeTruthy();
+    act(() => statusHandler({ slug: "ramone", status: "busy" }));
+    expect(within(card("Ramone")).getByRole("link", { name: /Join the waiting list/ })).toBeTruthy();
+    act(() => statusHandler({ slug: "solomon", status: "online" }));
+    expect(within(card("Solomon")).getByRole("link", { name: /Chat now/ })).toBeTruthy();
+    expect(within(card("Solomon")).getByRole("link", { name: /Chat now/ }).getAttribute("href")).toContain("/signup?next=");
   });
 
   it("re-sorts the cards by status tier on live changes and refreshes the selection", async () => {
@@ -166,12 +186,26 @@ describe("FeaturedAdvisors", () => {
     await screen.findByRole("heading", { name: "Ramone" });
     const names = () => screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
     expect(names()).toEqual(["Ramone", "Theo", "Solomon"]);
-    act(() => statusHandler?.({ slug: "solomon", status: "away" }));
+    act(() => statusHandler({ slug: "solomon", status: "away" }));
     expect(names()).toEqual(["Ramone", "Solomon", "Theo"]); // online, away, busy
-    act(() => statusHandler?.({ slug: "ramone", status: "offline" }));
+    act(() => statusHandler({ slug: "ramone", status: "offline" }));
     expect(names()).toEqual(["Solomon", "Theo", "Ramone"]);
     // The change also refetches the selection (the server order may differ).
     await waitFor(() => expect(featured.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it("refreshes every 30 seconds while the page is visible", async () => {
+    featured.mockResolvedValue(three());
+    vi.useFakeTimers();
+    try {
+      renderWithI18n(<FeaturedAdvisors />);
+      await act(async () => {});
+      expect(featured).toHaveBeenCalledOnce();
+      await act(async () => vi.advanceTimersByTime(30_000));
+      expect(featured).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("explains a failed load and retries", async () => {

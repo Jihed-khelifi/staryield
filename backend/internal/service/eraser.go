@@ -65,7 +65,10 @@ type EraserDeps struct {
 	Identities UserDataPurger
 	// Refunds: the free text of refund requests (revisions 5.0, §24.4); the
 	// requests themselves stay as financial records.
-	Refunds     UserDataPurger
+	Refunds UserDataPurger
+	// Extra: purgers added by features with AddPurger, run after the slots
+	// above (SetCalculators and the other slots never replace them).
+	Extra       []UserDataPurger
 	AvatarStore storage.ObjectStore
 	ExportStore storage.ObjectStore
 	Auth        *AuthService
@@ -239,7 +242,8 @@ func (e *AccountEraser) eraseExtras(ctx context.Context, id uuid.UUID, now time.
 			return err
 		}
 	}
-	for _, p := range []UserDataPurger{e.d.Waitlist, e.d.Support, e.d.Advisor, e.d.Calculators, e.d.ChatData, e.d.Identities, e.d.Refunds} {
+	purgers := []UserDataPurger{e.d.Waitlist, e.d.Support, e.d.Advisor, e.d.Calculators, e.d.ChatData, e.d.Identities, e.d.Refunds}
+	for _, p := range append(purgers, e.d.Extra...) {
 		if p == nil {
 			continue
 		}

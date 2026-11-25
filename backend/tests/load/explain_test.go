@@ -241,6 +241,12 @@ func TestExplainHotQueries(t *testing.T) {
 	checks = append(checks, paymentOpsChecks(live, ids)...)
 	// revisions 6.0 (§26.4): e-mail leads of the calculators' report
 	checks = append(checks, reportLeadChecks(live)...)
+	// growth: lifecycle messaging and the onboarding checklist
+	checks = append(checks, lifecycleChecks(live)...)
+	// growth: e-mail verification (token lookups, admin filter)
+	checks = append(checks, emailVerificationChecks(live)...)
+	// growth: the referral loop
+	checks = append(checks, referralChecks(live)...)
 
 	var lines []string
 	for _, qc := range checks {
@@ -451,6 +457,9 @@ func calculatorChecks(s calculatorSample) []queryCheck {
 	filtered.Kind, filtered.Source = "natal-chart", &instagram
 	byLink := month
 	byLink.LinkID = &s.link
+	// growth: the tarot birth card calculator (migration 0038), filtered on its own.
+	tarot := month
+	tarot.Kind = domain.CalcTarotBirth
 	checks := []queryCheck{
 		{"calculators: totals (30 days)", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
 			_, _ = repository.NewCalculatorRepository(d).Totals(ctx, month)
@@ -481,6 +490,15 @@ func calculatorChecks(s calculatorSample) []queryCheck {
 		}},
 		{"calculators: link totals", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
 			_, _ = repository.NewCalculatorRepository(d).Totals(ctx, byLink)
+		}},
+		{"calculators: tarot birth card totals", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).Totals(ctx, tarot)
+		}},
+		{"calculators: tarot birth card by locale", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).ByDimension(ctx, tarot, "locale")
+		}},
+		{"calculators: tarot birth card series", 400 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
+			_, _ = repository.NewCalculatorRepository(d).Series(ctx, tarot, "day")
 		}},
 		{"calculators: conversions page 1 (12 months)", 250 * time.Millisecond, func(ctx context.Context, d *gorm.DB) {
 			_, _ = repository.NewCalculatorRepository(d).Conversions(ctx, year, nil, 26)

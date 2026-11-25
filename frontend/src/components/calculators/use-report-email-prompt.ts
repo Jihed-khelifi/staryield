@@ -32,8 +32,13 @@ export type ReportEmailPrompt = {
  * time or the visitor scrolled 60 % of the page, whichever comes first. It
  * never opens on the sample route (`active` false) nor when the API says the
  * report is switched off. The button opens it any time.
+ *
+ * `paused` holds it back while another dialog of the result is open (the
+ * share dialog): the count stops and starts again from zero once that dialog
+ * closes, so the prompt never stacks on top of it. Pausing keeps the config
+ * already read (no new request).
  */
-export function useReportEmailPrompt(kind: CalculatorKind, active: boolean): ReportEmailPrompt {
+export function useReportEmailPrompt(kind: CalculatorKind, active: boolean, paused = false): ReportEmailPrompt {
   const config = useAsync<ReportEmailConfig>((signal) => reportEmailApi.config(signal), [kind], active);
   const [open, setOpenState] = React.useState(false);
   const [manual, setManual] = React.useState(false);
@@ -42,7 +47,7 @@ export function useReportEmailPrompt(kind: CalculatorKind, active: boolean): Rep
 
   const settled = active && !config.loading;
   const available = !(config.data && !config.data.enabled);
-  const armed = settled && available && !open && !shown && mayPrompt(kind);
+  const armed = settled && available && !paused && !open && !shown && mayPrompt(kind);
 
   const show = React.useCallback(() => {
     rememberPrompt(kind);

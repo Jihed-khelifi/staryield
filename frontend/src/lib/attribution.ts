@@ -14,6 +14,7 @@
  */
 import type { AttributionInput } from "@/lib/api/types";
 import { analyticsAnonymousId, track } from "@/lib/analytics";
+import { referralCodeForSignup } from "@/lib/referral"; // growth: referrals
 
 export const ATTRIBUTION_KEY = "staryield.attribution";
 export const ATTRIBUTION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -191,5 +192,8 @@ export function attributionForSignup(now = Date.now()): AttributionInput | undef
   // touch, and never when the visitor opted out of analytics.
   const anonymousId = analyticsAnonymousId();
   if (anonymousId) out.anonymous_id = anonymousId;
+  // growth: referrals — the invite link this visitor arrived with (first valid one, 30 days).
+  const referralCode = referralCodeForSignup(now);
+  if (referralCode) out.referral_code = referralCode;
   return Object.keys(out).length > 0 ? out : undefined;
 }

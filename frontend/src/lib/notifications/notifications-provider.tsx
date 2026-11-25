@@ -27,6 +27,7 @@ import { toApiError, type ApiError } from "@/lib/api/errors";
 import type { AppNotification, NotificationReadEvent } from "@/lib/api/types";
 import { useRealtimeEvent, useSession } from "@/lib/auth/session-provider";
 import { logger } from "@/lib/logger";
+import { isAnnouncedElsewhere } from "@/lib/notifications/email-verified-copy";
 import { notificationDestination, notificationText } from "@/lib/notifications/notification-copy";
 import { useMembershipsEnabled } from "@/lib/site-config/site-config-provider";
 import { announce } from "@/components/feedback/live-region";
@@ -319,6 +320,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     update(userId, (s) => ({ ...s, items: s.loaded ? [n, ...s.items] : s.items, unread: n.read_at ? s.unread : s.unread + 1 }));
     // The chatroom already announces chat requests itself.
     if (n.kind === "chat.requested" && pathRef.current?.includes("/chatroom")) return;
+    // Growth: kinds the app already announced from their own realtime event (no second toast).
+    if (isAnnouncedElsewhere(n.kind)) return;
     const copy = notificationText(n, locale, text, { memberships });
     const href = notificationDestination(n, locale);
     toast.show({

@@ -15,6 +15,9 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { ClientOrders } from "@/components/account/orders";
+import { OnboardingChecklist } from "@/components/account/overview/onboarding-checklist";
+import { EmailVerificationNotice } from "@/components/account/email-verification-notice"; // growth: e-mail verification
+import { ReferralCard } from "@/components/referrals/referral-card"; // growth: referrals
 
 /**
  * The client's daily reading for their own sun sign (`GET /me/horoscope`,
@@ -195,12 +198,15 @@ export function Overview({ name, user, horoscope }: { name: string; user: User; 
       </section>
 
       {/* --- growth: e-mail verification --- */}
+      <EmailVerificationNotice />
       {/* --- end growth: e-mail verification --- */}
 
       {/* --- growth: lifecycle and onboarding --- */}
+      <OnboardingChecklist />
       {/* --- end growth: lifecycle and onboarding --- */}
 
       {/* --- growth: referrals --- */}
+      <ReferralCard />
       {/* --- end growth: referrals --- */}
 
       {/* Phones read the horoscope before the calendar (867:16324). */}

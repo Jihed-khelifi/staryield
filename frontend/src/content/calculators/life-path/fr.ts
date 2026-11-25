@@ -77,6 +77,10 @@ const content: ArticleContent = {
             { title: "Chemin de vie 9", subtitle: "L’Humaniste", body: ["Compassion universelle, maturité artistique, altruisme et accomplissement.", "Se détacher du passé et poser des limites saines."] },
           ],
         },
+        {
+          type: "p",
+          text: "Retrouvez la signification complète de chaque nombre, nombres maîtres compris, avec ses forces, ses défis, sa vie amoureuse et ses nombres compatibles, dans notre [guide des chemins de vie](/life-path-number).",
+        },
       ],
     },
     {

@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { defaultLocale, locales } from "@/i18n/config"
 import { isRefundAlias } from "@/lib/legal/refund-aliases" // revisions 5.1
+import { canonicalPairPath } from "@/content/seo/compatibility/data" // growth: seo
 
 const LOCALE_COOKIE = "STARYIELD_LOCALE"
 
@@ -37,6 +38,15 @@ export function proxy(request: NextRequest) {
   if ((segments.length === 1 && isRefundAlias(segments[0])) || (explicit && isRefundAlias(segments[1]))) {
     const target = request.nextUrl.clone()
     target.pathname = `/${explicit ?? getLocale(request)}/refund-policy`
+    return NextResponse.redirect(target, 308)
+  }
+
+  // growth (seo): a reversed sign pairing (/compatibility/leo-and-aries, with or without a locale)
+  // goes permanently (308) to its canonical page (/{locale}/compatibility/aries-and-leo), in one hop.
+  const pair = canonicalPairPath(pathname)
+  if (pair) {
+    const target = request.nextUrl.clone()
+    target.pathname = pair.startsWith("/compatibility/") ? `/${getLocale(request)}${pair}` : pair
     return NextResponse.redirect(target, 308)
   }
 

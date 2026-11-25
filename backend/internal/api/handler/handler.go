@@ -94,12 +94,15 @@ type Services struct {
 	CalculatorReport *service.CalculatorReportService
 
 	// --- growth: e-mail verification ---
+	EmailVerification *service.EmailVerificationService
 	// --- end growth: e-mail verification ---
 
 	// --- growth: referrals ---
+	Referrals *service.ReferralService
 	// --- end growth: referrals ---
 
 	// --- growth: lifecycle and onboarding ---
+	Lifecycle *service.LifecycleService
 	// --- end growth: lifecycle and onboarding ---
 }
 

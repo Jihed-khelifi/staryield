@@ -601,18 +601,50 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	services.CalculatorReport = reportSvc
 
 	// --- growth: e-mail verification ---
+	verifySvc := service.NewEmailVerificationService(service.EmailVerificationDeps{Tx: txm, Users: users, Actions: actionsRepo,
+		Mail: mailSvc, Suppressions: mailSvc, Sealer: sealer, Events: publisher, Notifier: dispatcher, Audit: audit, Tracker: track, Clock: clk,
+		Settings: service.EmailVerificationSettings{FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret}})
+	authSvc.AddRegistrationHook(verifySvc.OnRegistered)
+	userSvc.SetVerificationLookup(verifySvc.Pending)
+	services.EmailVerification = verifySvc
 	// --- end growth: e-mail verification ---
 
 	// growth: e-mail delivery (the admin console's test sends are audited).
 	mailSvc.WithAudit(audit, cfg.Analytics.IPHashSecret)
 
 	// --- growth: referrals ---
+	// A friend's reading or verified address qualifies the invite (post-commit
+	// hooks); the minutes are granted by the referral-grants job after launch.
+	// Account erasure also deletes the user's code and invites (AddPurger).
+	referralSvc := service.NewReferralService(service.ReferralDeps{Tx: txm, Repo: repository.NewReferralRepository(db), Audit: audit,
+		Wallet: walletSvc, Program: siteSvc.ReferralProgram, Launch: siteSvc.LaunchReferralRewards, Notifier: dispatcher,
+		Events: publisher, Tracker: track, Clock: clk,
+		Cfg: service.ReferralSettings{FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret}})
+	chatSvc.OnSessionSettled(referralSvc.OnSessionSettled)
+	eraser.AddPurger(referralSvc)
+	services.Referrals = referralSvc
 	// --- end growth: referrals ---
 
 	// --- growth: lifecycle and onboarding ---
+	lifecycleSvc := service.NewLifecycleService(service.LifecycleDeps{Tx: txm, Repo: repository.NewLifecycleRepository(db),
+		Site: repository.NewSiteRepository(db), Contacts: repository.NewContactRepository(db), Audit: audit, Notifier: dispatcher,
+		Events: publisher, OnlineAdvisors: catalogSvc.OnlineCount, Push: pushSvc, Cache: kv, Clock: clk, Log: log.With(zap.String("component", "lifecycle")),
+		IPHashSecret: cfg.Analytics.IPHashSecret})
+	lifecycleSvc.Attach(chatSvc)
+	services.Lifecycle = lifecycleSvc
 	// --- end growth: lifecycle and onboarding ---
 
 	// --- growth: cross-stream hooks ---
+	// A verified address is one of the two conditions of a referral reward
+	// (the other is a completed reading, observed through OnSessionSettled).
+	verifySvc.OnVerified(referralSvc.OnEmailVerified)
+	// Lifecycle: the verification reminder sends a fresh link; the invite
+	// journey runs only while the referral program is on; the onboarding
+	// checklist and the admin funnel read the invite counts.
+	lifecycleSvc.SetVerificationReminder(verifySvc.SendReminder)
+	lifecycleSvc.SetReferralsEnabled(referralSvc.Enabled)
+	lifecycleSvc.SetInvitedFriends(referralSvc.InvitedFriends)
+	lifecycleSvc.SetInvitedCohort(referralSvc.InvitersAmong)
 	// --- end growth: cross-stream hooks ---
 
 	cookieNames := api.CookieNamesFor(cfg.Security)
@@ -700,9 +732,13 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	// end revisions 3.0: support desk
 
 	// --- growth jobs: referrals ---
+	scheduler.WithJobs(
+		worker.Job{Name: service.ReferralGrantJob, Every: time.Minute, Wake: referralSvc.Wake(), Run: referralSvc.RunGrants},
+		worker.Job{Name: service.ReferralSweepJob, Every: 5 * time.Minute, Run: referralSvc.RunSweep})
 	// --- end growth jobs: referrals ---
 
 	// --- growth jobs: lifecycle and onboarding ---
+	scheduler.WithJobs(worker.Job{Name: service.LifecycleJob, Every: 5 * time.Minute, Run: lifecycleSvc.RunDue})
 	// --- end growth jobs: lifecycle and onboarding ---
 
 	return &App{

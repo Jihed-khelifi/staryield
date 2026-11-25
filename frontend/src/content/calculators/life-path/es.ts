@@ -77,6 +77,10 @@ const content: ArticleContent = {
             { title: "Camino de Vida 9", subtitle: "El Humanitario", body: ["Compasión universal, madurez artística, altruismo y plenitud.", "Soltar los apegos del pasado y establecer límites sanos."] },
           ],
         },
+        {
+          type: "p",
+          text: "Lee el significado completo de cada número, incluidos los números maestros, con sus fortalezas, sus retos, su vida amorosa y sus números compatibles, en nuestra [guía de los caminos de vida](/life-path-number).",
+        },
       ],
     },
     {

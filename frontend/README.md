@@ -26,14 +26,25 @@ Open http://localhost:3000/en. The existing `/en`, `/fr`, and `/es` locale routi
 | -------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Public         | `/`, `/about`, `/reviews`, `/standards`, `/faq`, `/contact`, `/disclaimer`, `/terms`, `/privacy`                        |
 | Authentication | `/signup`, `/signup/password`, `/signup/birth`, `/signup/offer`, `/login`, `/forgot-password`                           |
-| Calculators    | `/calculators/natal-chart`, `/calculators/path-of-life`, `/calculators/astrology`; each has a `/results` reference view |
+| Calculators    | `/calculators/natal-chart`, `/calculators/path-of-life`, `/calculators/astrology`, `/calculators/tarot-birth-card`; each has a `/results` reference view |
 | Psychics       | `/psychics`, `/psychics/ramone`, `/psychics/theo`, `/psychics/solomon`                                                  |
 | Account        | `/profile`, `/profile/chart`, `/profile/settings`, `/profile/analytics` (advisors only)                                 |
 | Credits        | `/credits` opens the credit checkout dialog                                                                             |
 | Chat           | `/chatroom?reader=ramone`, `?reader=theo`, `?reader=solomon`; `&review=<session_id>` opens the rating dialog            |
 | Short links    | `/go/<code>` (outside the locale tree) → `${NEXT_PUBLIC_API_URL}/l/<code>`                                              |
+| Search pages   | `/life-path-number` + `/1`…`/9`, `/11`, `/22`, `/33`; `/tarot-birth-card` + the 22 Major Arcana slugs; `/compatibility` + the 78 `<sign>-and-<sign>` pairs |
+| Crawlers       | `/robots.txt`, `/sitemap.xml` (outside the locale tree)                                                                 |
+
+Calculators (growth): every visitor of the natal chart calculator gets the full chart explorer of `/profile/chart` (wheel and planet rows with interpretations, element and modality balance, house system switch that recalculates in place and updates `h=` in the fragment, the chart as tables) from `src/components/astrology/chart-explorer/`, shared with the signed-in chart tab. The tarot birth card calculator (`#v=1&d=YYYY-MM-DD`) runs in the browser. Every result can be exported as a 9:16 PNG (1080 × 1920) with "staryield.net" on it (`src/lib/share/`: card specs per calculator without any birth data, a canvas renderer with the site's fonts and R2 artwork, the share URL builder) and shared through the Web Share API, downloaded or linked; the sample `/results` views offer no share because their date is not the visitor's. The share buttons anywhere in a result read the dialog's opener from `ShareResultProvider` (no props), and the "Save your reading" prompt waits while the share dialog is open. A cusp birth day without a birth time names both possible Sun signs, on the page and on the image.
 
 Desktop and mobile references share reusable headers, navigation, footer, portraits, form controls, checkout, chart components, and advisor data. Public desktop layouts reflow on tablets and phones. Planet cards use keyboard-accessible dialogs; mobile conversation details and inbox use sheets. FAQ items expand and legal contents navigate to semantic section headings.
+
+## Search engine optimisation
+
+* **Metadata** (`src/lib/seo/site.ts`, `src/lib/seo/pages.ts`): `metadataBase` is `NEXT_PUBLIC_SITE_URL` (default `https://staryield.net`). Every indexable page has a translated, keyword-aware title and description, an absolute canonical URL, `hreflang` alternates for `en`, `fr`, `es` and `x-default` (English), an Open Graph card (site name, locale, R2 image) and a `summary_large_image` Twitter card. One-time links, private pages, the sign-in steps, the sample results and the directory stay `noindex`.
+* **Crawlers**: `src/app/sitemap.ts` lists every indexable URL × 3 locales with its alternates and the content's own `lastmod` (constants in the content modules, never the request time); `src/app/robots.ts` blocks private and utility paths (`src/lib/seo/robots.ts`) and points to the sitemap.
+* **Structured data** (`src/lib/seo/jsonld.ts`, rendered escaped by `<JsonLd>`): Organization + WebSite on the home page, BreadcrumbList on content, calculator and search pages, FAQPage where the questions and answers are on the page (search pages, calculator articles, whose answers are in the HTML while closed). Nothing the page does not show.
+* **Search pages** (`src/content/seo/**`, rendered by `src/components/seo/seo-article.tsx`): one page per Life Path number, tarot birth card and sign pairing, plus a hub per family, in three languages. Facts live in `data.ts`, the per-locale copy in `en.ts` / `fr.ts` / `es.ts`; the 78 pairings are composed from typed building blocks (relationship × element pair × modality pair × sign profiles). Every page opens with a direct answer and ends with a calculator: the birth-date form opens `/calculators/path-of-life` or `/calculators/tarot-birth-card` with `#v=1&d=YYYY-MM-DD`; the compatibility calculator asks the API for both sun signs (cusp birthdays let the visitor choose) and opens the canonical pair. Reversed pairs (`leo-and-aries`) redirect permanently (308) in the proxy.
 
 ## Cloudflare Workers deployment
 

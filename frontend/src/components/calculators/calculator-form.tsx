@@ -19,7 +19,7 @@ import {
   type CalculatorKind,
   type CalculatorPlace,
 } from "@/lib/schemas/calculator";
-import { BIRTH_DATA_NOTICE } from "@/components/calculators/birth-data-notice";
+import { BIRTH_DATA_NOTICE, TAROT_BIRTH_NOTICE } from "@/components/calculators/birth-data-notice";
 import { calculate, type CalculatorResult } from "@/components/calculators/calculate";
 import { PlaceCombobox } from "@/components/astrology/place-combobox";
 import { RadiantPanel } from "@/components/forms/radiant-panel";
@@ -38,6 +38,16 @@ const DESCRIPTIONS: Record<CalculatorKind, string> = {
     "Your birth date holds the mathematical blueprint of your destiny. We use it to calculate your Life Path number—the primary force shaping your journey.",
   astrology:
     "Discover your zodiac sign instantly — enter your birth date and uncover the traits, elements, and cosmic insights tied to your star sign.",
+  "tarot-birth-card":
+    "Your birth date adds up to one, two or three cards of the Major Arcana. Enter it to reveal your personality card, your soul card and what they say about you.",
+};
+
+/** What happens to the birth data, per calculator (the tarot birth card never leaves the browser). */
+const NOTICES: Record<CalculatorKind, string> = {
+  "natal-chart": BIRTH_DATA_NOTICE,
+  astrology: BIRTH_DATA_NOTICE,
+  "path-of-life": BIRTH_DATA_NOTICE,
+  "tarot-birth-card": TAROT_BIRTH_NOTICE,
 };
 
 const HOUSE_OPTIONS: { value: HouseSystem; label: string; hint: string }[] = [
@@ -58,7 +68,7 @@ type Props = {
   onCalculated: (values: CalculatorFormValues, result: CalculatorResult) => void;
 };
 
-/** The calculator's input card (Figma 478:1781, 478:2031, 478:2245). */
+/** The calculator's input card (Figma 478:1781, 478:2031, 478:2245; the tarot birth card reuses the date-only card). */
 export function CalculatorForm({ kind, initialValues, serverError, invalidLink = false, expandCusp = false, onCalculated }: Props) {
   const { text } = useI18n();
   const form = useSchemaForm(calculatorSchemas[kind] as never, { defaultValues: initialValues as never }) as unknown as UseFormReturn<FieldValues>;
@@ -253,7 +263,7 @@ export function CalculatorForm({ kind, initialValues, serverError, invalidLink =
             </Button>
             <p className="flex items-center justify-center gap-1.5 text-center text-xs text-[#6b6550]">
               <LockKeyhole aria-hidden className="size-3 shrink-0" />
-              {text(BIRTH_DATA_NOTICE)}
+              {text(NOTICES[kind])}
             </p>
           </div>
         </form>

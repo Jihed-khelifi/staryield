@@ -1,5 +1,5 @@
 /**
- * The three public calculators' forms (react-hook-form + yup). The same
+ * The public calculators' forms (react-hook-form + yup). The same
  * schemas validate the state restored from the URL fragment, so a shared or
  * edited link can never send anything a visitor could not have typed.
  *
@@ -9,7 +9,7 @@
  *   `place_id`); the house system.
  * - Astrology (sun sign): date; time and place are optional and only refine
  *   cusp birthdays, with the same time-needs-a-place rule.
- * - Path of Life: date only (computed in the browser).
+ * - Path of Life and Tarot birth card: date only (computed in the browser).
  */
 import * as yup from "yup";
 
@@ -17,7 +17,7 @@ import type { TranslateCopy } from "@/i18n/translate-copy";
 import { HOUSE_SYSTEMS, type HouseSystem } from "@/lib/api/astrology";
 import { birthPartsRule, type BirthParts } from "@/lib/schemas/common";
 
-export type CalculatorKind = "natal-chart" | "astrology" | "path-of-life";
+export type CalculatorKind = "natal-chart" | "astrology" | "path-of-life" | "tarot-birth-card";
 
 /** A gazetteer place picked from the suggestions ("gn:2988507"; legacy "paris-fr"). */
 export type CalculatorPlace = { id: string; label: string };
@@ -101,6 +101,7 @@ export const calculatorSchemas = {
   "natal-chart": natalSchema,
   astrology: sunSignSchema,
   "path-of-life": lifePathSchema,
+  "tarot-birth-card": lifePathSchema,
 } as const;
 
 /** "YYYY-MM-DD" of validated parts. */

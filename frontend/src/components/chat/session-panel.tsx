@@ -14,7 +14,9 @@ import { HiddenMessagesPrompt } from "@/components/chat/hidden-messages-prompt";
 import { RatePrice } from "@/components/chat/rate-price";
 import { ReviewForm, ReviewThanks } from "@/components/reviews/review-form";
 import { TrustpilotReviewCollector } from "@/components/reviews/trustpilot-review-collector";
-import { WaitlistButton } from "@/components/waitlist/waitlist-button";
+import { ReferralPrompt } from "@/components/referrals/referral-prompt"; // growth: referrals
+import { BookButton } from "@/components/booking/book-button";
+import { WaitlistScope } from "@/lib/booking/waitlist-provider";
 
 type Props = {
   role: "client" | "psychic";
@@ -168,6 +170,8 @@ export function SessionPanel(p: Props) {
         ) : null}
         {/* Every client sees this, whatever they rated (or did not): Trustpilot forbids selective invitations and incentives. */}
         {p.role === "client" ? <TrustpilotReviewCollector placement="chat-summary" className="mt-3" /> : null}
+        {/* growth: referrals — after a real reading (at least one billed or free minute). */}
+        {p.role === "client" && (sum.session.billed_minutes > 0 || sum.session.free_minutes_used > 0) ? <ReferralPrompt className="mt-3" /> : null}
         <HiddenMessagesPrompt className="mt-3" />
         <Button variant="outline" className="mt-3" onClick={p.onDismissSummary}>
           {text("Close summary")}
@@ -194,7 +198,15 @@ export function SessionPanel(p: Props) {
         <p className="font-semibold">{text(unavailableCopy[p.counterpart.status!] ?? unavailableCopy.offline, { value0: name })}</p>
         <p className="text-xs">{text("Join the waiting list and we'll let you know when they're online.")}</p>
         <HiddenMessagesPrompt className="mb-3" />
-        <WaitlistButton slug={p.counterpart.slug} name={p.counterpart.name} onAvailable={p.onAdvisorAvailable} className="mt-3 w-full sm:w-auto sm:px-6" />
+        {/* The standard book button: the same waiting-list state and copy as the profile and the cards. */}
+        <WaitlistScope>
+          <BookButton
+            advisor={{ slug: p.counterpart.slug, name: p.counterpart.name, status: p.counterpart.status!, rate_per_minute: p.rate }}
+            placement="chatroom"
+            onAvailable={p.onAdvisorAvailable}
+            className="mt-3 w-full sm:w-auto sm:px-6"
+          />
+        </WaitlistScope>
         {errorBlock}
       </div>
     );

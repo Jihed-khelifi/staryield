@@ -1,12 +1,13 @@
 /**
  * Long-form articles shown under each calculator's results (Figma
- * 482:2010 natal, 1279:1749 path of life, 482:2275 astrology).
+ * 482:2010 natal, 1279:1749 path of life, 482:2275 astrology; the tarot
+ * birth card follows the same layout).
  *
  * Inline text may use `**bold**` and `[label](href)` links (internal paths,
  * `#anchors` and `mailto:` only). Ids and structure must be identical in
  * every locale; `npm run test:content` enforces it.
  */
-export type ArticleKind = "natal" | "life-path" | "astrology";
+export type ArticleKind = "natal" | "life-path" | "astrology" | "tarot-birth-card";
 
 export type ArticleImage = {
   /** Absolute https://assets.staryield.net URL registered in r2-images.json. */

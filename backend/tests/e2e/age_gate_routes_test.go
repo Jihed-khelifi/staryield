@@ -33,6 +33,11 @@ type ageExemption struct {
 var agePending = map[string]bool{}
 
 var ageExempt = []ageExemption{
+	// growth: e-mail verification. Verifying an address must work for everyone
+	// (listed before the wildcards below, which would cover them too).
+	{"POST /api/v1/auth/email/verify", "opening the e-mail verification link (public: it may be opened signed out, on another device)"},
+	{"POST /api/v1/me/email/verification", "resending the verification link: verifying an address must work for everyone"},
+
 	// Sign-in, sign-up and the like: nobody is signed in yet, or may not be.
 	{"* /api/v1/auth/", "authentication, sign-up, sign-in methods and reactivation (never gated)"},
 	{"* /api/v1/webhooks/", "provider webhooks (no principal)"},
@@ -60,7 +65,16 @@ var ageExempt = []ageExemption{
 	{"POST /api/v1/calculators/report-email", "public calculators' e-mail report (no account needed)"},
 	{"POST /api/v1/marketing/unsubscribe", "public unsubscribe link (never gated)"},
 
+	// growth: lifecycle and onboarding. The "Get started" checklist states the
+	// client's own progress and only hides or shows a card: no client action,
+	// so an account without an adult date of birth still sees it (its first
+	// step leads to the settings where the date is entered).
+	{"GET /api/v1/me/onboarding", "the client's own onboarding checklist (read-only account facts)"},
+	{"POST /api/v1/me/onboarding/dismiss", "hiding the onboarding checklist (no client action)"},
+	{"DELETE /api/v1/me/onboarding/dismiss", "showing the onboarding checklist again (no client action)"},
+
 	// The signed-in person's own data and rights.
+	{"GET /api/v1/me/referrals", "growth: the client's own invite code and counters; no money moves and no advisor is contacted (the rewards need a settled reading, which is gated)"},
 	{"* /api/v1/me", "profile, birth data, settings, notifications, support, devices, exports, deactivation, closure (never gated: privacy rights)"},
 	{"GET /api/v1/custom-requests", "reading requests (the profile overview lists them), already placed"},
 	{"GET /api/v1/custom-requests/:id", "reading a request already placed"},

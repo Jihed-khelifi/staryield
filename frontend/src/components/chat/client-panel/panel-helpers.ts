@@ -4,7 +4,7 @@
 import { errorMessage, toApiError } from "@/lib/api/errors";
 import type { ClientProfile } from "@/lib/api/types";
 import { relativeTime } from "@/lib/notifications/notification-copy";
-import { planetSymbol } from "@/components/account/chart-copy";
+import { planetSymbol } from "@/components/astrology/chart-explorer/chart-copy";
 
 /** Placements shown before "+ expand" (Figma 1172:1191). */
 export const PLACEMENTS_PREVIEW = 3;

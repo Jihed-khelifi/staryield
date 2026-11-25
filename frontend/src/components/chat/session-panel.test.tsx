@@ -10,7 +10,13 @@ import { WithSiteConfig } from "@/test/site-config";
 
 vi.mock("next/link", () => ({ default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a> }));
 vi.mock("@/components/reviews/review-form", () => ({ ReviewForm: () => null, ReviewThanks: () => null }));
-vi.mock("@/components/waitlist/waitlist-button", () => ({ WaitlistButton: () => null }));
+// The standard book button is tested on its own: here, what the waiting card hands it.
+vi.mock("@/components/booking/book-button", () => ({
+  BookButton: ({ advisor, placement }: { advisor: Record<string, unknown>; placement: string }) => (
+    <span data-testid="book-button-stub" data-placement={placement} data-advisor={JSON.stringify(advisor)} />
+  ),
+}));
+vi.mock("@/lib/booking/waitlist-provider", () => ({ WaitlistScope: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("@/components/reviews/trustpilot-review-collector", () => ({
   TrustpilotReviewCollector: ({ placement }: { placement: string }) => <div data-testid="trustpilot-widget" data-placement={placement} />,
 }));
@@ -45,6 +51,21 @@ const wrap = (p: Partial<React.ComponentProps<typeof SessionPanel>>) => (
 );
 
 afterEach(() => cleanup());
+
+describe("SessionPanel waiting card", () => {
+  it("offers the standard book button when the advisor cannot chat", () => {
+    render(wrap({ counterpart: { id: "p1", role: "psychic", name: "Theo", slug: "theo", status: "busy" } }));
+    expect(screen.getByTestId("chat-waitlist-card").textContent).toContain("Theo is in another reading right now.");
+    const stub = screen.getByTestId("book-button-stub");
+    expect(stub.getAttribute("data-placement")).toBe("chatroom");
+    expect(JSON.parse(stub.getAttribute("data-advisor")!)).toEqual({ slug: "theo", name: "Theo", status: "busy", rate_per_minute: 4 });
+  });
+
+  it("shows the start card instead while the advisor is online", () => {
+    render(wrap({}));
+    expect(screen.queryByTestId("book-button-stub")).toBeNull();
+  });
+});
 
 describe("SessionPanel free mode", () => {
   it("normally shows the rate and the balance", () => {

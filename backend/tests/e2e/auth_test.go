@@ -160,6 +160,7 @@ func TestLoginLockoutAndGenericErrors(t *testing.T) {
 func TestPasswordResetFlow(t *testing.T) {
 	e := newEnv(t)
 	c := e.registerClient()
+	e.skipWelcomeMail()
 	anon := e.client()
 
 	// Unknown e-mail: same response, no mail.

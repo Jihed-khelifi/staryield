@@ -434,7 +434,8 @@ func (r *GormAccountRepository) DueClosures(ctx context.Context, now time.Time, 
 // ---------------------------------------------------------------------------
 
 // exportColumns are the owner columns export reads may filter on.
-var exportColumns = map[string]bool{"user_id": true, "client_id": true, "psychic_id": true, "uploader_id": true, "author_id": true, "ticket_id": true}
+var exportColumns = map[string]bool{"user_id": true, "client_id": true, "psychic_id": true, "uploader_id": true, "author_id": true, "ticket_id": true,
+	"referrer_id": true, "referee_id": true} // growth: referrals
 
 // ExportDataRepository reads a user's personal data for an export. Reads
 // are bounded and oldest first.

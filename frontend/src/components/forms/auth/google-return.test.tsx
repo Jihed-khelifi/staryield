@@ -7,6 +7,7 @@ import type * as React from "react";
 import { ApiError } from "@/lib/api/errors";
 import { axeViolations, renderWithI18n, stubResizeObserver } from "@/test/render";
 import { browser, rememberGoogleIntent } from "@/lib/auth/google";
+import { REFERRAL_KEY } from "@/lib/referral";
 import { GoogleReturn } from "@/components/forms/auth/google-return";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
@@ -59,8 +60,12 @@ function visit(query: string) {
 const apiError = (code: string, status = 400) => new ApiError({ code, message: code, status });
 
 beforeAll(stubResizeObserver);
+// growth: referrals — an invite stored by an earlier visit with ?ref=.
+const storeInvite = () => localStorage.setItem(REFERRAL_KEY, JSON.stringify({ code: "ABCD2345", first_seen_at: new Date().toISOString() }));
+
 beforeEach(() => {
   sessionStorage.clear();
+  localStorage.clear();
   api.me.mockResolvedValue(client);
   assign = vi.spyOn(browser, "assign").mockImplementation(() => {});
 });
@@ -137,10 +142,28 @@ describe("GoogleReturn: signed in / up / linked", () => {
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/en/chatroom"));
   });
 
-  it("signed_up continues at the birth step", async () => {
-    visit("?result=signed_up&next=%2Fprofile");
+  it("signed_up continues at the birth step and forgets the invite it used", async () => {
+    storeInvite();
+    visit("?result=signed_up");
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/en/signup/birth"));
     expect(setUser).toHaveBeenCalledWith(client);
+    expect(localStorage.getItem(REFERRAL_KEY)).toBeNull();
+  });
+
+  it("signed_in keeps a stored invite (no account was created)", async () => {
+    storeInvite();
+    visit("?result=signed_in");
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/en/profile"));
+    expect(localStorage.getItem(REFERRAL_KEY)).not.toBeNull();
+  });
+
+  it("signed_up keeps where the person was heading (a book button's chat) for after the birth step", async () => {
+    visit(`?result=signed_up&next=${encodeURIComponent("/chatroom?reader=theo")}`);
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith(`/en/signup/birth?next=${encodeURIComponent("/en/chatroom?reader=theo")}`));
+    cleanup();
+    router.replace.mockClear();
+    visit("?result=signed_up&next=https%3A%2F%2Fevil.example");
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/en/signup/birth"));
   });
 
   it("linked goes to the settings with a success toast", async () => {
@@ -180,6 +203,7 @@ describe("GoogleReturn: signup_consent", () => {
 
   it("asks for the terms, then creates the account and continues at the birth step", async () => {
     const u = userEvent.setup();
+    storeInvite();
     api.googleComplete.mockResolvedValue({ user: client });
     visit("?result=signup_consent");
     expect(await screen.findByRole("heading", { name: "Create your Staryield account" })).toBeTruthy();
@@ -198,6 +222,16 @@ describe("GoogleReturn: signup_consent", () => {
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/en/signup/birth"));
     expect(api.googleComplete).toHaveBeenCalledWith({ accept_terms: true, locale: "en", attribution: undefined });
     expect(setUser).toHaveBeenCalledWith(client);
+    expect(localStorage.getItem(REFERRAL_KEY)).toBeNull(); // the invite was used by this account
+  });
+
+  it("keeps where the person was heading for after the birth step", async () => {
+    const u = userEvent.setup();
+    api.googleComplete.mockResolvedValue({ user: client });
+    visit(`?result=signup_consent&next=${encodeURIComponent("/psychics/theo")}`);
+    await u.click(await screen.findByRole("checkbox"));
+    await u.click(screen.getByRole("button", { name: "Create account" }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith(`/en/signup/birth?next=${encodeURIComponent("/en/psychics/theo")}`));
   });
 
   it("sends the first-touch attribution, and retries without it when the API rejects it", async () => {
@@ -228,6 +262,7 @@ describe("GoogleReturn: signup_consent", () => {
 
   it("points to Log In when the address was registered meanwhile", async () => {
     const u = userEvent.setup();
+    storeInvite();
     api.googleComplete.mockRejectedValue(apiError("email_taken", 409));
     visit("?result=signup_consent");
     await u.click(await screen.findByRole("checkbox"));
@@ -235,6 +270,7 @@ describe("GoogleReturn: signup_consent", () => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("An account with this email already exists.");
     expect(within(alert).getByRole("link", { name: "Log In" }).getAttribute("href")).toBe("/en/login");
+    expect(localStorage.getItem(REFERRAL_KEY)).not.toBeNull(); // no account was created: the invite stays
   });
 });
 

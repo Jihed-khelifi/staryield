@@ -172,6 +172,11 @@ const content: ArticleContent = {
             "**Casa 4 / Casa 10 (el eje del origen y del estatus):** Equilibra la vida doméstica privada, la seguridad familiar y las raíces psicológicas con los objetivos profesionales públicos, la reputación y el deber social.",
           ],
         },
+        {
+          type: "p",
+          weight: "light",
+          text: "¿Lees una carta en pareja? Toda comparación de cartas empieza por los signos solares: descubre cómo se encuentra el tuyo con el de otra persona en nuestra [guía de compatibilidad de los signos](/compatibility), que cubre las 78 combinaciones.",
+        },
       ],
     },
   ],

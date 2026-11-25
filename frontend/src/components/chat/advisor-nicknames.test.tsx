@@ -21,7 +21,7 @@ vi.mock("@/lib/api/endpoints", () => ({
   notesApi: { list: vi.fn().mockResolvedValue({ items: [] }), create: vi.fn(), update: vi.fn(), remove: vi.fn(), shared: vi.fn() },
 }));
 vi.mock("@/components/reviews/review-form", () => ({ ReviewForm: () => null, ReviewThanks: () => null }));
-vi.mock("@/components/waitlist/waitlist-button", () => ({ WaitlistButton: () => null }));
+vi.mock("@/components/booking/book-button", () => ({ BookButton: () => null }));
 vi.mock("@/components/layout/site-header", () => ({ MOBILE_NAV_LINKS: [], isMobileNavActive: () => false }));
 vi.mock("@/components/layout/user-menu", () => ({ UserAvatar: () => null }));
 vi.mock("@/components/notifications/notification-bell", () => ({ NotificationBell: () => null }));

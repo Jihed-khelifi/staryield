@@ -1,25 +1,38 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { ApiError } from "@/lib/api/errors";
-import type { AdvisorCard, DirectoryPage, DirectoryQuery, PresenceStatus } from "@/lib/api/types";
+import type { AdvisorCard, DirectoryPage, DirectoryQuery, Page, PresenceStatus, WaitlistEntry } from "@/lib/api/types";
 import { axeViolations, renderWithI18n } from "@/test/render";
 
 const browse = vi.fn<(query: DirectoryQuery, signal?: AbortSignal) => Promise<DirectoryPage>>();
+const mine = vi.fn<() => Promise<Page<WaitlistEntry>>>();
+const join = vi.fn<(slug: string) => Promise<WaitlistEntry>>();
 const session = vi.hoisted(() => ({ status: "authenticated" as "authenticated" | "anonymous" | "loading" }));
 const replace = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace, push: vi.fn() }), usePathname: () => "/en/psychics" }));
-let statusHandler: ((data: { slug: string; status: PresenceStatus }) => void) | null = null;
+// Every subscriber (the page and the waiting-list provider) hears a change, one slot per call site.
+const handlers = new Map<string, (data: { slug: string; status: PresenceStatus }) => void>();
+const statusHandler = (data: { slug: string; status: PresenceStatus }) => handlers.forEach((h) => h(data));
 
 vi.mock("@/lib/api/endpoints", () => ({
   psychicsApi: { browse: (q: DirectoryQuery, s?: AbortSignal) => browse(q, s) },
   requestsApi: {},
+  waitlistApi: { join: (s: string) => join(s), leave: vi.fn(), mine: () => mine() },
 }));
+vi.mock("@/components/feedback/toast-provider", () => ({ useToast: () => ({ show: vi.fn(), showError: vi.fn() }) }));
 vi.mock("@/lib/auth/session-provider", () => ({
-  useSession: () => ({ realtime: null, status: session.status, user: null, wallet: null, setWallet: () => {} }),
+  useSession: () => ({
+    realtime: null,
+    status: session.status,
+    user: session.status === "authenticated" ? { id: "u1", role: "client", age_status: "adult" } : null,
+    wallet: null,
+    setWallet: () => {},
+  }),
   useRealtimeEvent: (type: string, handler: (data: { slug: string; status: PresenceStatus }) => void) => {
-    if (type === "psychic.status_changed") statusHandler = handler;
+    if (type === "psychic.status_changed") handlers.set(new Error().stack?.split("\n")[2] ?? "x", handler);
   },
 }));
 vi.mock("@/components/layout/site-header", () => ({ SiteHeader: () => null, MobileNavigation: () => null }));
@@ -51,9 +64,12 @@ function page(n: number, items: AdvisorCard[], total: number): DirectoryPage {
 
 beforeEach(() => {
   browse.mockReset();
+  mine.mockReset();
+  join.mockReset();
+  mine.mockResolvedValue({ items: [] });
   replace.mockReset();
   session.status = "authenticated";
-  statusHandler = null;
+  handlers.clear();
   window.history.replaceState(null, "", "/en/psychics");
   Element.prototype.scrollIntoView = vi.fn();
 });
@@ -81,6 +97,22 @@ describe("PsychicsBrowse", () => {
     expect(screen.getAllByRole("link", { name: /View full profile/ }).map((a) => a.getAttribute("href"))).toEqual(["/en/psychics/ada", "/en/psychics/bea"]);
     expect(screen.getByRole("button", { name: "Go to page 1" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Go to page 2" }).getAttribute("aria-current")).toBe("page");
+    expect(await axeViolations()).toEqual([]);
+  });
+
+  it("puts the standard book button on every card, with one waiting-list read", async () => {
+    browse.mockResolvedValue(page(1, [advisor("ada", "online"), advisor("bea", "busy"), advisor("cyd", "offline")], 3));
+    mine.mockResolvedValue({ items: [{ slug: "cyd", name: "Cyd", image_url: "", status: "offline", joined_at: "2026-11-05T10:00:00Z" }] });
+    renderWithI18n(<PsychicsBrowse />);
+    await screen.findByRole("heading", { name: /Ada/ });
+    const buttons = screen.getAllByTestId("book-button");
+    expect(buttons.map((b) => b.getAttribute("data-action"))).toEqual(["chat", "join_waitlist", "join_waitlist"]);
+    expect(screen.getByRole("link", { name: /Chat now/ }).getAttribute("href")).toBe("/en/chatroom?reader=ada");
+    await waitFor(() => expect(buttons[2].getAttribute("data-action")).toBe("leave_waitlist"));
+    expect(mine).toHaveBeenCalledOnce();
+    // Each button is described by its advisor's heading.
+    const describedBy = buttons[1].getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(describedBy)?.textContent).toContain("Bea");
     expect(await axeViolations()).toEqual([]);
   });
 
@@ -126,6 +158,33 @@ describe("PsychicsBrowse", () => {
     expect(screen.queryByRole("navigation")).toBeNull();
   });
 
+  it("shows a card online, dot and pill too, when its advisor turns out to be online (409)", async () => {
+    browse.mockResolvedValue(page(1, [advisor("ada", "offline"), advisor("bea", "busy")], 2));
+    join.mockRejectedValue(new ApiError({ code: "advisor_available", message: "online", status: 409 }));
+    renderWithI18n(<PsychicsBrowse />);
+    const bea = (await screen.findByRole("heading", { name: /Bea/ })).closest("article") as HTMLElement;
+    const button = bea.querySelector<HTMLButtonElement>("[data-testid=book-button]")!;
+    await waitFor(() => expect(button.disabled).toBe(false));
+    fireEvent.click(button);
+    await waitFor(() => expect(bea.getAttribute("data-status")).toBe("online"));
+    expect(bea.querySelector(".status-pill")?.textContent).toBe("● Online");
+    expect(bea.querySelector(".advisor-status-dot")?.className).toContain("status-dot online");
+    expect(bea.querySelector("[data-testid=book-button]")?.getAttribute("data-action")).toBe("chat");
+    // Online first: the card moved up.
+    expect(screen.getAllByRole("heading", { level: 2 })[0].textContent).toContain("Bea");
+  });
+
+  it("lets the desktop card grow to hold the book button instead of cutting it off (globals.css)", () => {
+    const css = readFileSync(`${process.cwd()}/src/app/globals.css`, "utf8");
+    const card = css.match(/\n\.advisor-card \{([^}]*)\}/)?.[1] ?? "";
+    expect(card).toMatch(/overflow: hidden;/);
+    // A minimum, never a fixed height, so the button under the profile bar stays inside the card.
+    expect(card).toMatch(/min-height: 498px;/);
+    expect(card).not.toMatch(/(^|[^-])height:/);
+    expect(css).toMatch(/\n\.advisor-profile-link \{[^}]*margin: auto -16px 0 -17px;/);
+    expect(css).toMatch(/\n\.advisor-card-book \{\s*margin: 12px 0 20px;\s*\}/);
+  });
+
   it("applies live status changes to the cards on screen", async () => {
     // The quiet refresh that follows a status change reads the server's state.
     const server = new Map<string, PresenceStatus>([["ada", "offline"], ["bea", "offline"]]);
@@ -134,7 +193,7 @@ describe("PsychicsBrowse", () => {
     await screen.findByRole("heading", { name: /Ada/ });
     expect(screen.queryByText("● Online")).toBeNull();
     server.set("bea", "online");
-    act(() => statusHandler?.({ slug: "bea", status: "online" }));
+    act(() => statusHandler({ slug: "bea", status: "online" }));
     await waitFor(() => expect(screen.getAllByText("● Online")).toHaveLength(1));
     expect(screen.getAllByText("● Offline")).toHaveLength(1);
   });
@@ -151,7 +210,7 @@ describe("PsychicsBrowse", () => {
     );
     const change = (slug: string, status: PresenceStatus) => {
       server.set(slug, status);
-      act(() => statusHandler?.({ slug, status }));
+      act(() => statusHandler({ slug, status }));
     };
     renderWithI18n(<PsychicsBrowse />);
     await screen.findByRole("heading", { name: /Ada/ });
@@ -171,7 +230,7 @@ describe("PsychicsBrowse", () => {
     browse.mockImplementation(() => new Promise<DirectoryPage>((resolve) => (answer = resolve)));
     renderWithI18n(<PsychicsBrowse />);
     await screen.findByRole("heading", { name: /Ada/ });
-    act(() => statusHandler?.({ slug: "cyd", status: "online" }));
+    act(() => statusHandler({ slug: "cyd", status: "online" }));
     expect(names()).toEqual(["Ada", "Cyd", "Bea"]);
     await waitFor(() => expect(browse).toHaveBeenCalledTimes(2));
     expect(names()).toEqual(["Ada", "Cyd", "Bea"]);
@@ -188,13 +247,13 @@ describe("PsychicsBrowse", () => {
     try {
       // The server now ranks bea first: the quiet refresh brings that order.
       browse.mockResolvedValue(page(1, [advisor("bea", "online"), advisor("ada")], 2));
-      act(() => statusHandler?.({ slug: "bea", status: "online" }));
+      act(() => statusHandler({ slug: "bea", status: "online" }));
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0);
       });
       expect(browse).toHaveBeenCalledTimes(2);
       expect(browse.mock.calls[1][0]).toEqual({ page: 1, page_size: DIRECTORY_PAGE_SIZE });
-      for (let i = 0; i < 5; i++) act(() => statusHandler?.({ slug: "ada", status: i % 2 ? "online" : "busy" }));
+      for (let i = 0; i < 5; i++) act(() => statusHandler({ slug: "ada", status: i % 2 ? "online" : "busy" }));
       await act(async () => {
         await vi.advanceTimersByTimeAsync(4_900);
       });
@@ -215,7 +274,7 @@ describe("PsychicsBrowse", () => {
     renderWithI18n(<PsychicsBrowse />);
     await screen.findByRole("heading", { name: /Ada/ });
     browse.mockRejectedValueOnce(new ApiError({ code: "service_unavailable", message: "down", status: 503 }));
-    act(() => statusHandler?.({ slug: "bea", status: "online" }));
+    act(() => statusHandler({ slug: "bea", status: "online" }));
     await waitFor(() => expect(browse).toHaveBeenCalledTimes(2));
     expect(names()).toEqual(["Bea", "Ada"]);
     expect(screen.queryByRole("alert")).toBeNull();
