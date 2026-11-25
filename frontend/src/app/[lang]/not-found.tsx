@@ -20,6 +20,7 @@ export default function NotFound() {
     ["Natal Chart", "/calculators/natal-chart"],
     ["Path of Life", "/calculators/path-of-life"],
     ["Astrology", "/calculators/astrology"],
+    ["Tarot Birth Card", "/calculators/tarot-birth-card"],
     ["Contact Us", "/contact"],
   ];
   return (

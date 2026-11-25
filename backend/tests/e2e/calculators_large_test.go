@@ -135,7 +135,8 @@ func TestCalculatorLargeDataset(t *testing.T) {
 	}
 
 	// Other views of the same year.
-	for _, extra := range []string{"&interval=week", "&interval=month", "&kind=natal-chart&locale=fr", "&source=instagram", "&source=%28direct%29&kind=astrology"} {
+	for _, extra := range []string{"&interval=week", "&interval=month", "&kind=natal-chart&locale=fr", "&source=instagram", "&source=%28direct%29&kind=astrology",
+		"&kind=tarot-birth-card", "&kind=tarot-birth-card&locale=es&interval=week"} {
 		t0 := time.Now()
 		rr := calcReport(t, admin, q+extra)
 		if time.Since(t0) > budget || rr.Totals.Visitors == 0 || rr.Totals.Visitors > tot.Visitors {
@@ -187,18 +188,18 @@ func TestCalculatorLargeDataset(t *testing.T) {
 	t.Logf("%d conversions in %d pages", len(all), pages)
 
 	// Heavy concurrent reads (different queries, so the cache cannot help).
-	kinds := []string{"", "natal-chart", "path-of-life", "astrology"}
+	kinds := []string{"", "natal-chart", "path-of-life", "astrology", "tarot-birth-card"}
 	locales := []string{"", "en", "fr", "es"}
 	var wg sync.WaitGroup
 	errs := make(chan string, 64)
 	t0 = time.Now()
-	for i := 0; i < 16; i++ {
+	for i := 0; i < 16; i++ { // 16 distinct (kind, locale) pairs
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
 			cc := *admin // own CSRF field, shared session cookies
 			c := &cc
-			qq := fmt.Sprintf("%s&kind=%s&locale=%s&interval=week", q, kinds[i%4], locales[(i/4)%4])
+			qq := fmt.Sprintf("%s&kind=%s&locale=%s&interval=week", q, kinds[i%5], locales[(i/5)%4])
 			r := c.call(http.MethodGet, "/api/v1/admin/analytics/calculators?"+qq, nil)
 			if r.status != http.StatusOK {
 				errs <- fmt.Sprintf("%s: %d %s", qq, r.status, r.body)

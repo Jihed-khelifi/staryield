@@ -72,6 +72,7 @@ const calculatorKinds: CalculatorKind[] = [
   "natal-chart",
   "path-of-life",
   "astrology",
+  "tarot-birth-card",
 ];
 type RouteProps = { params: Promise<{ lang: string; screen: string[] }> };
 
@@ -127,6 +128,7 @@ export async function generateMetadata({
     "calculators/natal-chart": "Natal Chart",
     "calculators/path-of-life": "Life Path",
     "calculators/astrology": "Astrology",
+    "calculators/tarot-birth-card": "Tarot Birth Card Calculator",
     "auth/google": "Log in",
     "confirm-email": "Confirm your email",
     "cancel-email-change": "Email change",
@@ -165,7 +167,9 @@ export async function generateMetadata({
       ? text("Simple, transparent pricing: start with free minutes, then choose a one-time credit pack. No subscriptions and no automatic top-ups.")
       : route === "refund-policy"
         ? text("How refunds work for Staryield credit packs, promotional credits and readings, and how to request one.")
-        : undefined;
+        : route.replace(/\/results$/, "") === "calculators/tarot-birth-card"
+          ? text("Find your tarot birth card from your date of birth: your personality and soul cards from the Major Arcana, how the numbers add up and what they mean. Free, for entertainment.")
+          : undefined;
   return {
     ...(description ? { description } : {}),
     title:

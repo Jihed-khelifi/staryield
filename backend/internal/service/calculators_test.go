@@ -25,7 +25,7 @@ func TestCalculatorPathRegex(t *testing.T) {
 	good := []string{
 		"/en/calculators/natal-chart", "/fr/calculators/natal-chart", "/es/calculators/natal-chart",
 		"/en/calculators/path-of-life", "/fr/calculators/path-of-life/results", "/es/calculators/astrology",
-		"/en/calculators/astrology/results",
+		"/en/calculators/astrology/results", "/en/calculators/tarot-birth-card", "/es/calculators/tarot-birth-card/results",
 	}
 	for _, p := range good {
 		if CalculatorKindOfPath(p) == "" {
@@ -35,9 +35,12 @@ func TestCalculatorPathRegex(t *testing.T) {
 	if CalculatorKindOfPath("/fr/calculators/path-of-life/results") != "path-of-life" {
 		t.Fatal("kind of results page")
 	}
+	if CalculatorKindOfPath("/fr/calculators/tarot-birth-card") != "tarot-birth-card" {
+		t.Fatal("kind of tarot birth card page")
+	}
 	bad := []string{
 		"", "/", "/en", "/en/calculators", "/en/calculators/", "/de/calculators/natal-chart", "/EN/calculators/natal-chart",
-		"/calculators/natal-chart", "/en/calculators/tarot", "/en/calculators/natal-chart/", "/en/calculators/natal-chart/result",
+		"/calculators/natal-chart", "/en/calculators/tarot", "/en/calculators/tarot-birth", "/en/calculators/tarot-birth-card/", "/en/calculators/natal-chart/", "/en/calculators/natal-chart/result",
 		"/en/calculators/natal-chart/results/extra", "/en/calculators/natal-chart?x=1", "/en/calculators/natal-chart#top",
 		"/en/psychics", "/en/calculators/natal-chartx", "/xx/en/calculators/natal-chart", "https://staryield.net/en/calculators/natal-chart",
 		"/en/calculators/natal-chart\n", "/en//calculators/natal-chart",
@@ -382,7 +385,7 @@ func TestCalculatorReportShapeAndCache(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(r.ByKind) != 3 || r.ByKind[0].Kind != "natal-chart" || r.ByKind[2].Kind != "astrology" || r.ByKind[2].Visitors != 7 || r.ByKind[0].Visitors != 0 {
+	if len(r.ByKind) != 4 || r.ByKind[3].Kind != "tarot-birth-card" || r.ByKind[0].Kind != "natal-chart" || r.ByKind[2].Kind != "astrology" || r.ByKind[2].Visitors != 7 || r.ByKind[0].Visitors != 0 {
 		t.Fatalf("by_kind: %+v", r.ByKind)
 	}
 	if len(r.ByLocale) != 3 || r.ByLocale[0].Locale != "en" || r.ByLocale[2].Locale != "es" {

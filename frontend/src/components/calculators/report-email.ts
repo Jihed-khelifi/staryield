@@ -20,6 +20,11 @@ export const PROMPT_QUIET_MS = 30 * 24 * 60 * 60 * 1000;
 
 const STORAGE_PREFIX = "staryield.report-email.";
 
+/** The e-mail report supports the three original calculators only (the tarot birth card has none). */
+export function isReportable(kind: CalculatorKind): boolean {
+  return kind !== "tarot-birth-card";
+}
+
 /**
  * The request body of the calculator's own API: the same payload the page
  * sent to calculate the result, so the server validates it with the same
@@ -27,6 +32,7 @@ const STORAGE_PREFIX = "staryield.report-email.";
  * the numerology request (birth date and the visitor's zone for "today").
  */
 export function reportInput(kind: CalculatorKind, values: CalculatorFormValues, timeZone = browserTimeZone()): ReportEmailRequest["input"] {
+  if (!isReportable(kind)) throw new RangeError(`${kind} has no e-mail report`);
   if (kind === "natal-chart") return natalPayload(values as NatalFormValues);
   if (kind === "astrology") return sunSignPayload(values as SunSignFormValues);
   return { birth_date: birthDateOf((values as LifePathFormValues).birth), ...(timeZone ? { tz: timeZone } : {}) };

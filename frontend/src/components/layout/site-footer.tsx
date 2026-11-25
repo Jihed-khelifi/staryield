@@ -16,6 +16,7 @@ const groups = [
       ["Natal Charts", "/calculators/natal-chart"],
       ["Path of life", "/calculators/path-of-life"],
       ["Astrology", "/calculators/astrology"],
+      ["Tarot birth card", "/calculators/tarot-birth-card"],
       ["Sign Up | Sign In", "/signup"],
     ],
   },

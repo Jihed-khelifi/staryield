@@ -26,6 +26,7 @@ export const FRAGMENT_VERSION = "1";
 /** Keys each calculator accepts, in their canonical order. */
 const KEYS: Record<CalculatorKind, readonly string[]> = {
   "path-of-life": ["v", "d"],
+  "tarot-birth-card": ["v", "d"],
   astrology: ["v", "d", "t", "p"],
   "natal-chart": ["v", "d", "t", "p", "h"],
 };
@@ -121,4 +122,12 @@ export function decodeFragment(kind: CalculatorKind, hash: string, text: Transla
 /** True when `hash` holds calculator state (used to clear stale fragments). */
 export function hasCalculatorFragment(hash: string): boolean {
   return /(^#|^)v=/.test(hash);
+}
+
+/**
+ * The natal chart calculator's fragment for the birth details of a sun sign
+ * result: the same date, time and place, so the full chart is one click away.
+ */
+export function natalFragmentFromSunSign(values: SunSignFormValues): string {
+  return encodeFragment("natal-chart", { birth: values.birth, timeUnknown: !values.birth.time, place: values.place, houseSystem: "placidus" });
 }

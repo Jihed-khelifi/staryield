@@ -178,7 +178,7 @@ func SeedCalculatorVisitors(ctx context.Context, db *gorm.DB, o CalculatorSeedOp
 		           -- converted visitors browse before they sign up
 		           WHEN v.signed_up_at IS NOT NULL THEN ((v.h / 13) % GREATEST(1, extract(epoch FROM (v.signed_up_at - v.first_seen_at))::bigint)) * interval '1 second'
 		           ELSE (v.h / 13) % 30 * interval '1 day' END)::date), v.anonymous_id,
-		       CASE WHEN v.h % 100 < 50 THEN 'natal-chart' WHEN v.h % 100 < 70 THEN 'path-of-life' ELSE 'astrology' END,
+		       CASE WHEN v.h % 100 < 45 THEN 'natal-chart' WHEN v.h % 100 < 62 THEN 'path-of-life' WHEN v.h % 100 < 82 THEN 'astrology' ELSE 'tarot-birth-card' END,
 		       CASE WHEN (v.h / 100) % 100 < 95 THEN v.first_locale ELSE (ARRAY['en','fr','es'])[1 + (v.h / 10000) % 3] END,
 		       (1 + (v.h / 1000000) % 3)::int,
 		       CASE WHEN (v.h / 7) % 100 < 45 THEN 1 ELSE 0 END,

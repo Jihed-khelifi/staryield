@@ -11,16 +11,17 @@ const (
 	CalcNatalChart  = "natal-chart"
 	CalcPathOfLife  = "path-of-life"
 	CalcAstrology   = "astrology"
+	CalcTarotBirth  = "tarot-birth-card"
 	CalculatorsPath = "calculators"
 )
 
-// CalculatorKinds lists the three calculators in display order.
-var CalculatorKinds = []string{CalcNatalChart, CalcPathOfLife, CalcAstrology}
+// CalculatorKinds lists the calculators in display order.
+var CalculatorKinds = []string{CalcNatalChart, CalcPathOfLife, CalcAstrology, CalcTarotBirth}
 
 // CalculatorLocales lists the locales of the site in display order.
 var CalculatorLocales = []string{"en", "fr", "es"}
 
-// ValidCalculatorKind reports whether k is one of the three calculators.
+// ValidCalculatorKind reports whether k is one of the calculators.
 func ValidCalculatorKind(k string) bool {
 	for _, v := range CalculatorKinds {
 		if v == k {

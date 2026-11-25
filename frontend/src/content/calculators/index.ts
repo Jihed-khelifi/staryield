@@ -13,12 +13,16 @@ import lifePathFr from "@/content/calculators/life-path/fr";
 import astrologyEn from "@/content/calculators/astrology/en";
 import astrologyEs from "@/content/calculators/astrology/es";
 import astrologyFr from "@/content/calculators/astrology/fr";
+import tarotBirthEn from "@/content/calculators/tarot-birth-card/en";
+import tarotBirthEs from "@/content/calculators/tarot-birth-card/es";
+import tarotBirthFr from "@/content/calculators/tarot-birth-card/fr";
 
 /** Server-only content: render through <CalculatorArticle> from a server component. */
 export const calculatorArticles: Record<ArticleKind, Record<Locale, ArticleContent>> = {
   natal: { en: natalEn, es: natalEs, fr: natalFr },
   "life-path": { en: lifePathEn, es: lifePathEs, fr: lifePathFr },
   astrology: { en: astrologyEn, es: astrologyEs, fr: astrologyFr },
+  "tarot-birth-card": { en: tarotBirthEn, es: tarotBirthEs, fr: tarotBirthFr },
 };
 
 /** Route segment (`/calculators/<kind>`) → article. */
@@ -26,6 +30,7 @@ export const articleKindForCalculator = {
   "natal-chart": "natal",
   "path-of-life": "life-path",
   astrology: "astrology",
+  "tarot-birth-card": "tarot-birth-card",
 } as const satisfies Record<string, ArticleKind>;
 
 export type CalculatorRouteKind = keyof typeof articleKindForCalculator;

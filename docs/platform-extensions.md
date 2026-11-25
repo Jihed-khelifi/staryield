@@ -1400,10 +1400,11 @@ type AdminReportContext = {
 
 ## 17. Calculator usage and conversion analytics
 
-Measures how many distinct visitors open and use the three calculators
-(`/{lang}/calculators/natal-chart|path-of-life|astrology`, every locale), where
-they came from (UTM, short links) and who signed up afterwards. Migration
-`0018_web_visitors.sql`.
+Measures how many distinct visitors open and use the calculators
+(`/{lang}/calculators/natal-chart|path-of-life|astrology|tarot-birth-card`,
+every locale), where they came from (UTM, short links) and who signed up
+afterwards. Migration `0018_web_visitors.sql` (growth: `0038_calculator_tarot.sql`
+adds `tarot-birth-card` to the `calculator_visits.kind` CHECK).
 
 Collection (browser → `POST /analytics/events`, unchanged envelope):
 
@@ -1412,7 +1413,7 @@ Collection (browser → `POST /analytics/events`, unchanged envelope):
   utm_campaign, utm_content, utm_term, has_click` and the new `click_id`
   (the `sy_click` value).
 - A **visit** is a `page_view` whose path matches
-  `^/(en|fr|es)/calculators/(natal-chart|path-of-life|astrology)(/results)?$`;
+  `^/(en|fr|es)/calculators/(natal-chart|path-of-life|astrology|tarot-birth-card)(/results)?$`;
   a **try** is `calculator_started`; a **result** is `calculator_completed`
   (`properties.kind`).
 - A visitor is the browser's random `anonymous_id` (localStorage
@@ -1460,7 +1461,7 @@ Definitions for a window (`to` exclusive):
 `source` filters on `utm_source`; `(direct)` selects visitors without one.
 
 ```ts
-type CalculatorKind = "natal-chart" | "path-of-life" | "astrology";
+type CalculatorKind = "natal-chart" | "path-of-life" | "astrology" | "tarot-birth-card";
 type CalculatorTotals = {
   visitors: number; signed_in_visitors: number; existing_users: number;
   tried: number; completed: number; signups: number;
@@ -1469,7 +1470,7 @@ type CalculatorTotals = {
 type CalculatorReport = {
   range: { from: string; to: string; interval: "hour" | "day" | "week" | "month" };
   totals: CalculatorTotals;
-  by_kind: ({ kind: CalculatorKind } & CalculatorTotals)[];          // always all three
+  by_kind: ({ kind: CalculatorKind } & CalculatorTotals)[];          // always every calculator
   by_locale: ({ locale: "en" | "fr" | "es" } & CalculatorTotals)[];  // always all three
   by_source: { source: string; medium: string; campaign: string; visitors: number; tried: number; signups: number }[];  // top 50, "(direct)" without UTM
   by_link: { link_id: string; code: string; label: string; campaign_name?: string; visitors: number; tried: number; signups: number }[];  // top 50
