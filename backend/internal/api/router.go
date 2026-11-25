@@ -314,6 +314,11 @@ func NewRouter(d Deps) *echo.Echo {
 	// --- end growth: e-mail verification ---
 
 	// --- growth: referrals ---
+	// The invite link and counters of a client. Not behind ageGate: it reads
+	// the caller's own code and counters (no money, no advisor contact) and the
+	// overview card must load for a client still completing their birth date;
+	// the rewards need a settled reading, which is gated.
+	me.GET("/referrals", h.MyReferrals, client)
 	// --- end growth: referrals ---
 
 	// --- growth: lifecycle and onboarding ---
@@ -699,6 +704,15 @@ func NewRouter(d Deps) *echo.Echo {
 	// --- end growth admin: e-mail verification ---
 
 	// --- growth admin: referrals ---
+	// Reads are open to every admin; decisions, settings and the launch need a
+	// fresh step-up and are audited by the service.
+	ad.GET("/referrals", h.AdminReferrals)
+	ad.GET("/referrals/summary", h.AdminReferralSummary)
+	ad.POST("/referrals/launch", h.AdminLaunchReferrals, stepUp, adminRL)
+	ad.POST("/referrals/:id/approve", h.AdminApproveReferral, stepUp, adminRL)
+	ad.POST("/referrals/:id/reject", h.AdminRejectReferral, stepUp, adminRL)
+	ad.GET("/site/referral-program", h.AdminReferralProgram)
+	ad.PUT("/site/referral-program", h.AdminUpdateReferralProgram, stepUp, adminRL)
 	// --- end growth admin: referrals ---
 
 	// --- growth admin: lifecycle and onboarding ---

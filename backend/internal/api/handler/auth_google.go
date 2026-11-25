@@ -149,6 +149,9 @@ func (h *Handler) afterSignup(ctx context.Context, userID uuid.UUID, loc string,
 		h.svc.Calculators.LinkSignup(ctx, userID, loc, attribution)
 	}
 	// --- growth: referrals (sign-up attribution) ---
+	if h.svc.Referrals != nil {
+		h.svc.Referrals.Attribute(ctx, userID, attribution)
+	}
 	// --- end growth: referrals (sign-up attribution) ---
 }
 

@@ -97,6 +97,7 @@ type Services struct {
 	// --- end growth: e-mail verification ---
 
 	// --- growth: referrals ---
+	Referrals *service.ReferralService
 	// --- end growth: referrals ---
 
 	// --- growth: lifecycle and onboarding ---
