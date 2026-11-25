@@ -100,6 +100,13 @@ func referralPlans(s referralSample) []referralPlan {
 		{"referrals: qualifying reading of a friend", func(ctx context.Context, r repository.ReferralRepository) {
 			_, _ = r.QualifyingSession(ctx, s.referee)
 		}, "chat_sessions", "", 10 * time.Millisecond},
+		// growth (wiring): the lifecycle onboarding checklist and admin funnel.
+		{"referrals: invited anyone (onboarding checklist)", func(ctx context.Context, r repository.ReferralRepository) {
+			_, _ = r.HasInvited(ctx, s.inviter)
+		}, "referrals", "referrals_referrer_status_idx", 5 * time.Millisecond},
+		{"referrals: inviters among a 30-day sign-up cohort (lifecycle funnel)", func(ctx context.Context, r repository.ReferralRepository) {
+			_, _ = r.InvitersAmong(ctx, now.AddDate(0, 0, -30), now)
+		}, "referrals", "", 250 * time.Millisecond},
 		{"referrals: rewarded friends (cap)", func(ctx context.Context, r repository.ReferralRepository) {
 			_, _ = r.Rewarded(ctx, s.inviter)
 		}, "referrals", "referrals_referrer_status_idx", 10 * time.Millisecond},
