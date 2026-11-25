@@ -32,7 +32,18 @@ export type ClientEventName =
   | "locale_changed"
   | "chat_opened"
   | "campaign_landing"
-  | "chat_report_submitted";
+  | "chat_report_submitted"
+  // growth (backend ClientEvents): result sharing {kind, method}, the standard book
+  // button {slug, status, placement, action}, referral sharing {method} and landing,
+  // onboarding checklist clicks {step} and dismissal.
+  | "share_opened"
+  | "share_completed"
+  | "book_cta_clicked"
+  | "referral_link_copied"
+  | "referral_link_shared"
+  | "referral_landing"
+  | "onboarding_step_clicked"
+  | "onboarding_dismissed";
 
 type Queued = {
   event_id: string;

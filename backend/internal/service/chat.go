@@ -72,6 +72,20 @@ type ChatService struct {
 	aliases *aliasStore
 	// holds is the free-trial hold's wiring (revisions 6.0, §26.1; chat_holds.go).
 	holds holdWiring
+	// settledHooks run after commit when a session becomes settled (growth:
+	// referral qualification, lifecycle messaging); see OnSessionSettled.
+	settledHooks []func(ctx context.Context, s domain.Session)
+}
+
+// OnSessionSettled adds a callback run once per session, after the commit of
+// the transaction that settled it (never for settlement retries of an already
+// settled session), with a context detached from that transaction. Hooks get a
+// copy of the session and must not block: they log their own errors. Install
+// them at start-up only.
+func (c *ChatService) OnSessionSettled(fn func(ctx context.Context, s domain.Session)) {
+	if fn != nil {
+		c.settledHooks = append(c.settledHooks, fn)
+	}
 }
 
 // SetDiscounts installs the member discount lookup (billing.DiscountFor).
@@ -769,7 +783,18 @@ func (c *ChatService) settle(ctx context.Context, sessionID uuid.UUID) (*domain.
 		}
 		now := c.clock.Now()
 		s.Status, s.SettledAt, s.PsychicEarnings = domain.SessionSettled, &now, net
-		return c.chat.SaveSession(ctx, s)
+		if err := c.chat.SaveSession(ctx, s); err != nil {
+			return err
+		}
+		if len(c.settledHooks) > 0 {
+			settled := *s
+			database.AfterCommit(ctx, func(ctx context.Context) {
+				for _, hook := range c.settledHooks {
+					hook(ctx, settled)
+				}
+			})
+		}
+		return nil
 	})
 	if err != nil {
 		return out, err
