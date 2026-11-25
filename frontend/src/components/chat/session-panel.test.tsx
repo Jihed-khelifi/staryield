@@ -16,6 +16,13 @@ vi.mock("@/components/booking/book-button", () => ({
     <span data-testid="book-button-stub" data-placement={placement} data-advisor={JSON.stringify(advisor)} />
   ),
 }));
+vi.mock("@/components/booking/advisor-strip", () => ({
+  AdvisorStrip: ({ heading, placement, excludeSlug }: { heading: string; placement: string; excludeSlug?: string }) => (
+    <section data-testid="advisor-strip-stub" data-placement={placement} data-exclude={excludeSlug}>
+      <h2>{heading}</h2>
+    </section>
+  ),
+}));
 vi.mock("@/lib/booking/waitlist-provider", () => ({ WaitlistScope: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("@/components/reviews/trustpilot-review-collector", () => ({
   TrustpilotReviewCollector: ({ placement }: { placement: string }) => <div data-testid="trustpilot-widget" data-placement={placement} />,
@@ -64,6 +71,47 @@ describe("SessionPanel waiting card", () => {
   it("shows the start card instead while the advisor is online", () => {
     render(wrap({}));
     expect(screen.queryByTestId("book-button-stub")).toBeNull();
+  });
+});
+
+describe("SessionPanel alternative advisors", () => {
+  const ended = (end_reason: string, status = "declined") => ({ id: "s1", status, end_reason }) as never;
+
+  it.each([
+    ["declined", "declined"],
+    ["request_timeout", "expired"],
+  ])("a client whose request ended %s sees other advisors online, without that advisor", (reason, status) => {
+    render(wrap({ session: ended(reason, status) }));
+    expect(screen.getByRole("heading", { name: "Other advisors online now" })).toBeTruthy();
+    const strip = screen.getByTestId("advisor-strip-stub");
+    expect(strip.getAttribute("data-placement")).toBe("chat_alternatives");
+    expect(strip.getAttribute("data-exclude")).toBe("theo");
+    // the existing start card stays
+    expect(screen.getByTestId("start-note")).toBeTruthy();
+  });
+
+  it("also shows them next to the waiting-list card when the advisor went away", () => {
+    render(wrap({ session: ended("declined"), counterpart: { id: "p1", role: "psychic", name: "Theo", slug: "theo", status: "away" } as never }));
+    expect(screen.getByTestId("chat-waitlist-card")).toBeTruthy();
+    expect(screen.getByTestId("advisor-strip-stub").getAttribute("data-exclude")).toBe("theo");
+  });
+
+  it.each([
+    ["completed", "ended"],
+    ["client_ended", "ended"],
+    ["cancelled", "cancelled"],
+  ])("not after a session that ended %s", (reason, status) => {
+    render(wrap({ session: ended(reason, status) }));
+    expect(screen.queryByTestId("advisor-strip-stub")).toBeNull();
+  });
+
+  it("not before any session, and never on the advisor's side", () => {
+    render(wrap({}));
+    expect(screen.queryByTestId("advisor-strip-stub")).toBeNull();
+    cleanup();
+    render(wrap({ role: "psychic", session: ended("declined") }));
+    expect(screen.queryByTestId("advisor-strip-stub")).toBeNull();
+    expect(screen.getByText("The advisor declined this request.")).toBeTruthy();
   });
 });
 

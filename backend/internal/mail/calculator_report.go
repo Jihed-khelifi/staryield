@@ -92,7 +92,7 @@ func CalculatorReport(d CalculatorReportData) (Content, error) {
 	t := tr(locale)
 	lbl := func(key string) string { return rc.Label(locale, key) }
 	home := strings.TrimRight(d.FrontendURL, "/") + "/" + locale
-	psychics := Action{Label: lbl("clickHere"), URL: home + "#psychics"}
+	psychics := Action{Label: lbl("clickHere"), URL: withUTM(home+"#psychics", d.Kind)}
 
 	c := Content{
 		Subject:   t(reportSubject(d.Kind)),
@@ -121,7 +121,7 @@ func CalculatorReport(d CalculatorReportData) (Content, error) {
 		c.Sections = append(c.Sections, Section{Note: foot})
 	}
 	if d.ViewPath != "" {
-		c.Action = &Action{Label: t("View your report"), URL: AppURL(d.FrontendURL, locale, d.ViewPath)}
+		c.Action = &Action{Label: t("View your report"), URL: withUTM(AppURL(d.FrontendURL, locale, d.ViewPath), d.Kind)}
 		c.Note = t("The link opens your result again and contains the details you entered. Keep it private.")
 	}
 	if d.UnsubscribePath != "" {
@@ -129,6 +129,32 @@ func CalculatorReport(d CalculatorReportData) (Content, error) {
 		c.ListUnsubscribe = AppURL(d.FrontendURL, locale, d.UnsubscribePath)
 	}
 	return c, nil
+}
+
+// withUTM tags a link that brings the reader back to the site from the report
+// e-mail: utm_source=staryield, utm_medium=email, utm_campaign=calculator_report
+// and utm_content=<kind>. The tags go after any existing query (joined with &)
+// and before the #fragment, which is copied byte for byte (the "View your
+// report" fragment carries the visitor's input). A URL that does not parse is
+// returned as it was. Never used for the unsubscribe link or for the site's own
+// internal links (they would overwrite the visitor's first-touch source).
+func withUTM(rawURL, kind string) string {
+	base, fragment, hasFragment := strings.Cut(rawURL, "#")
+	u, err := url.Parse(base)
+	if err != nil {
+		return rawURL
+	}
+	tags := "utm_source=staryield&utm_medium=email&utm_campaign=calculator_report&utm_content=" + url.QueryEscape(kind)
+	if u.RawQuery != "" {
+		u.RawQuery += "&" + tags
+	} else {
+		u.RawQuery = tags
+	}
+	out := u.String()
+	if hasFragment {
+		out += "#" + fragment
+	}
+	return out
 }
 
 func localeOf(l string) string {
@@ -281,7 +307,7 @@ func sunSections(rc *reportcopy.Copy, locale string, d CalculatorReportData, hom
 	}
 	head.Items = []Item{item}
 	cta := Section{Title: lbl("zodiacCtaTitle"), Paragraphs: []string{lbl("zodiacCtaBody")},
-		Action: &Action{Label: lbl("signUp"), URL: home + "/signup"}}
+		Action: &Action{Label: lbl("signUp"), URL: withUTM(home+"/signup", d.Kind)}}
 	return []Section{head, cta}
 }
 

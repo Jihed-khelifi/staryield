@@ -60,13 +60,14 @@ function StripSkeleton() {
  * home cards (`useFeaturedAdvisors`: a refresh every 30 s while visible, which
  * is what visitors rely on, plus live status changes for members), and shares
  * one waiting-list read with the buttons (reusing the page's provider when
- * there is one).
+ * there is one). With `excludeSlug` it is the "other advisors" suggestion after a declined request.
  */
 export function AdvisorStrip({
   heading,
   placement = "advisor_strip",
   headingLevel = 2,
   className,
+  excludeSlug,
 }: {
   /** The section heading (English source copy, translated here). */
   heading: string;
@@ -74,13 +75,27 @@ export function AdvisorStrip({
   placement?: string;
   headingLevel?: 2 | 3;
   className?: string;
+  /**
+   * An advisor who must not appear (the one who just declined or missed a request): the strip then
+   * asks for one advisor more, keeps up to three others who are online, and renders nothing at all
+   * (no heading) while loading, on failure or when nobody else is online.
+   */
+  excludeSlug?: string;
 }) {
   const { text } = useI18n();
   const headingId = useId();
-  const featured = useFeaturedAdvisors(STRIP_COUNT);
+  const featured = useFeaturedAdvisors(excludeSlug ? STRIP_COUNT + 1 : STRIP_COUNT);
   const { reload, markOnline } = featured;
-  const items = useMemo(() => sortByStatusTier(featured.data?.items ?? []).slice(0, STRIP_COUNT), [featured.data]);
+  // With an exclusion the strip is the "online now" suggestion: only advisors who can chat, never the excluded one.
+  const items = useMemo(() => {
+    const all = featured.data?.items ?? [];
+    const shown = excludeSlug ? all.filter((a) => a.slug !== excludeSlug && a.status === "online") : all;
+    return sortByStatusTier(shown).slice(0, STRIP_COUNT);
+  }, [featured.data, excludeSlug]);
   const Heading = headingLevel === 2 ? "h2" : "h3";
+
+  // An optional suggestion never shows an orphan heading, a skeleton or an error.
+  if (excludeSlug && (featured.data === null || items.length === 0)) return null;
 
   return (
     <WaitlistScope>

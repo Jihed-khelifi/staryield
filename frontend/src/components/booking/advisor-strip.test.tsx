@@ -167,4 +167,41 @@ describe("AdvisorStrip", () => {
     await waitFor(() => expect(mine).toHaveBeenCalledOnce());
     expect(screen.getByRole("heading", { level: 3, name: "Two" })).toBeTruthy();
   });
+
+  it("never shows the excluded advisor: asks for one more, filters, keeps three online ones", async () => {
+    featured.mockResolvedValue(list(advisor("theo", "online"), advisor("ramone", "online"), advisor("solomon", "online"), advisor("extra", "online")));
+    renderWithI18n(<AdvisorStrip heading="Other advisors online now" placement="chat_alternatives" excludeSlug="theo" />);
+    await screen.findAllByTestId("advisor-strip-item");
+    expect(featured.mock.calls[0][0]).toBe(4);
+    expect(rows()).toHaveLength(3);
+    expect(screen.queryByText("Theo")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Other advisors online now" })).toBeTruthy();
+  });
+
+  it("with an exclusion shows only advisors who are online", async () => {
+    featured.mockResolvedValue(list(advisor("theo", "online"), advisor("ramone", "online"), advisor("solomon", "busy"), advisor("extra", "offline")));
+    renderWithI18n(<AdvisorStrip heading="Other advisors online now" excludeSlug="theo" />);
+    await screen.findAllByTestId("advisor-strip-item");
+    expect(rows().map((r) => within(r).getByText(/^(Ramone|Solomon|Extra)$/).textContent)).toEqual(["Ramone"]);
+  });
+
+  it("hides when every advisor is excluded: no orphan heading, no empty message", async () => {
+    featured.mockResolvedValue(list(advisor("theo", "online")));
+    const { container } = renderWithI18n(<AdvisorStrip heading="Other advisors online now" excludeSlug="theo" />);
+    await waitFor(() => expect(featured).toHaveBeenCalledOnce());
+    await act(async () => {});
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.queryByText("No advisors are listed right now.")).toBeNull();
+    expect(screen.queryByTestId("advisor-strip")).toBeNull();
+    expect(container.textContent).toBe("");
+  });
+
+  it("with an exclusion shows nothing while loading and when the load fails", async () => {
+    featured.mockRejectedValue(new ApiError({ code: "network_error", message: "offline", status: 0 }));
+    const { container } = renderWithI18n(<AdvisorStrip heading="Other advisors online now" excludeSlug="theo" />);
+    expect(container.textContent).toBe("");
+    await waitFor(() => expect(featured).toHaveBeenCalledOnce());
+    await act(async () => {});
+    expect(container.textContent).toBe("");
+  });
 });

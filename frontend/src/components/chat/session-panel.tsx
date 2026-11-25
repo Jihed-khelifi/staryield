@@ -15,6 +15,7 @@ import { RatePrice } from "@/components/chat/rate-price";
 import { ReviewForm, ReviewThanks } from "@/components/reviews/review-form";
 import { TrustpilotReviewCollector } from "@/components/reviews/trustpilot-review-collector";
 import { ReferralPrompt } from "@/components/referrals/referral-prompt"; // growth: referrals
+import { AdvisorStrip } from "@/components/booking/advisor-strip";
 import { BookButton } from "@/components/booking/book-button";
 import { WaitlistScope } from "@/lib/booking/waitlist-provider";
 
@@ -43,6 +44,9 @@ type Props = {
   /** Free mode (display only): no credit amounts and no top-up prompts for clients. */
   free?: boolean;
 };
+
+/** End reasons of a request nobody answered: the client may want another advisor. */
+const UNANSWERED_REASONS = new Set(["declined", "request_timeout"]);
 
 const unavailableCopy: Record<string, string> = {
   busy: "{value0} is in another reading right now.",
@@ -190,43 +194,54 @@ export function SessionPanel(p: Props) {
 
   const offline = p.counterpart.status && p.counterpart.status !== "online";
   const free = p.wallet?.free_minutes ?? 0;
+  // A declined or unanswered request is not a dead end: other advisors who are online now (client side only).
+  const alternatives =
+    s?.end_reason && UNANSWERED_REASONS.has(s.end_reason) ? (
+      <AdvisorStrip heading="Other advisors online now" placement="chat_alternatives" headingLevel={3} excludeSlug={p.counterpart.slug} className="mt-3" />
+    ) : null;
   if (offline && p.counterpart.slug) {
     // Not a dead end: wait for the advisor instead.
     return (
-      <div className="chat-session-card" data-testid="chat-waitlist-card">
-        {s && endReasonCopy[s.end_reason ?? ""] ? <p className="mb-2 text-xs">{text(endReasonCopy[s.end_reason!])}</p> : null}
-        <p className="font-semibold">{text(unavailableCopy[p.counterpart.status!] ?? unavailableCopy.offline, { value0: name })}</p>
-        <p className="text-xs">{text("Join the waiting list and we'll let you know when they're online.")}</p>
-        <HiddenMessagesPrompt className="mb-3" />
-        {/* The standard book button: the same waiting-list state and copy as the profile and the cards. */}
-        <WaitlistScope>
-          <BookButton
-            advisor={{ slug: p.counterpart.slug, name: p.counterpart.name, status: p.counterpart.status!, rate_per_minute: p.rate }}
-            placement="chatroom"
-            onAvailable={p.onAdvisorAvailable}
-            className="mt-3 w-full sm:w-auto sm:px-6"
-          />
-        </WaitlistScope>
-        {errorBlock}
-      </div>
+      <>
+        <div className="chat-session-card" data-testid="chat-waitlist-card">
+          {s && endReasonCopy[s.end_reason ?? ""] ? <p className="mb-2 text-xs">{text(endReasonCopy[s.end_reason!])}</p> : null}
+          <p className="font-semibold">{text(unavailableCopy[p.counterpart.status!] ?? unavailableCopy.offline, { value0: name })}</p>
+          <p className="text-xs">{text("Join the waiting list and we'll let you know when they're online.")}</p>
+          <HiddenMessagesPrompt className="mb-3" />
+          {/* The standard book button: the same waiting-list state and copy as the profile and the cards. */}
+          <WaitlistScope>
+            <BookButton
+              advisor={{ slug: p.counterpart.slug, name: p.counterpart.name, status: p.counterpart.status!, rate_per_minute: p.rate }}
+              placement="chatroom"
+              onAvailable={p.onAdvisorAvailable}
+              className="mt-3 w-full sm:w-auto sm:px-6"
+            />
+          </WaitlistScope>
+          {errorBlock}
+        </div>
+        {alternatives}
+      </>
     );
   }
   return (
-    <div className="chat-session-card">
-      {s && endReasonCopy[s.end_reason ?? ""] ? <p className="mb-2 text-xs">{text(endReasonCopy[s.end_reason!])}</p> : null}
-      <HiddenMessagesPrompt className="mb-3" />
-      <p className="font-semibold">{text("Start a private live chat with {value0}", { value0: name })}</p>
-      <p className="text-xs" data-testid="start-note">
-        {p.free
-          ? text("Chat is free right now. Staryield covers the cost.")
-          : free > 0
-          ? text("{value0} free minutes, then {value1} credits per started minute.", { value0: free, value1: p.rate })
-          : text("{value0} credits per started minute. Balance: {value1} credits.", { value0: p.rate, value1: (p.wallet?.balance ?? 0).toLocaleString(locale) })}
-      </p>
-      <Button className="gold-button mt-3" onClick={p.onStart} disabled={p.busy || Boolean(offline)} aria-busy={p.busy}>
-        {text(offline ? "Advisor unavailable" : p.busy ? "Sending request…" : "♧ Start live chat ")}
-      </Button>
-      {errorBlock}
-    </div>
+    <>
+      <div className="chat-session-card">
+        {s && endReasonCopy[s.end_reason ?? ""] ? <p className="mb-2 text-xs">{text(endReasonCopy[s.end_reason!])}</p> : null}
+        <HiddenMessagesPrompt className="mb-3" />
+        <p className="font-semibold">{text("Start a private live chat with {value0}", { value0: name })}</p>
+        <p className="text-xs" data-testid="start-note">
+          {p.free
+            ? text("Chat is free right now. Staryield covers the cost.")
+            : free > 0
+            ? text("{value0} free minutes, then {value1} credits per started minute.", { value0: free, value1: p.rate })
+            : text("{value0} credits per started minute. Balance: {value1} credits.", { value0: p.rate, value1: (p.wallet?.balance ?? 0).toLocaleString(locale) })}
+        </p>
+        <Button className="gold-button mt-3" onClick={p.onStart} disabled={p.busy || Boolean(offline)} aria-busy={p.busy}>
+          {text(offline ? "Advisor unavailable" : p.busy ? "Sending request…" : "♧ Start live chat ")}
+        </Button>
+        {errorBlock}
+      </div>
+      {alternatives}
+    </>
   );
 }

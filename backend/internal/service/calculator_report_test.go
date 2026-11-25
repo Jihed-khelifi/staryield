@@ -277,7 +277,7 @@ func TestReportQueuesTheRecalculatedReportAndStoresALeadWithoutBirthDetails(t *t
 		if req.To != email || req.Template != ReportEmailTemplate || req.Category != domain.EmailAccount || req.UserID != nil || req.Locale != "en" {
 			t.Fatalf("%s: request %+v", kind, req)
 		}
-		if req.Content.Action == nil || !strings.HasPrefix(req.Content.Action.URL, "https://staryield.net/en/calculators/"+kind+"#v=1&d=1990-") {
+		if req.Content.Action == nil || !strings.HasPrefix(req.Content.Action.URL, "https://staryield.net/en/calculators/"+kind+"?utm_source=staryield&utm_medium=email&utm_campaign=calculator_report&utm_content="+kind+"#v=1&d=1990-") {
 			t.Fatalf("%s: view link %+v", kind, req.Content.Action)
 		}
 		if len(req.Content.Sections) == 0 || req.Content.Subject == "" {

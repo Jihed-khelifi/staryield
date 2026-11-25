@@ -9,9 +9,11 @@ import { reportEmailApi, type ReportEmailLocale, type ReportEmailRequest } from 
 import { errorMessage, toApiError, type ApiError } from "@/lib/api/errors";
 import { useSession } from "@/lib/auth/session-provider";
 import { keepFocusOnPress } from "@/lib/forms/submit-press";
+import { signupUrl } from "@/lib/navigation";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import type { CalculatorFormValues, CalculatorKind } from "@/lib/schemas/calculator";
 import { reportEmailSchema, type ReportEmailValues } from "@/lib/schemas/report-email";
+import { AdvisorStrip } from "@/components/booking/advisor-strip";
 import { announce } from "@/components/feedback/live-region";
 import { reportInput } from "@/components/calculators/report-email";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,17 @@ export type ReportEmailDialogProps = {
   /** The report was e-mailed. */
   onSent?: () => void;
 };
+
+const noSubscription = () => () => {};
+
+/**
+ * The calculator's own path (locale-prefixed, no query and no `#v=` fragment: that holds the birth details),
+ * for the sign-up link's `?next=`. Empty on the server and during hydration.
+ */
+function useCalculatorPath(locale: string, kind: CalculatorKind): string {
+  const pathname = React.useSyncExternalStore(noSubscription, () => window.location.pathname, () => "");
+  return pathname.startsWith(`/${locale}/`) ? pathname : `/${locale}/calculators/${kind}`;
+}
 
 /** English copy of a failed request (translated with `text()`); the report has its own wording for a few codes. */
 export function reportEmailErrorCopy(error: ApiError): string {
@@ -96,7 +109,8 @@ function ReportEmailBody({
   onSent,
 }: Pick<ReportEmailDialogProps, "kind" | "values" | "prechecked" | "onSent"> & { onClose: () => void }) {
   const { text, locale } = useI18n();
-  const { user } = useSession();
+  const { user, status } = useSession();
+  const calculatorPath = useCalculatorPath(locale, kind);
   const form = useSchemaForm(reportEmailSchema, { defaultValues: { email: user?.email ?? "", marketing: prechecked, website: "" } });
   const [sentTo, setSentTo] = React.useState<string | null>(null);
   const [failure, setFailure] = React.useState<ApiError | null>(null);
@@ -165,6 +179,13 @@ function ReportEmailBody({
         <CheckCircle2 aria-hidden className="size-10 text-success" />
         <p className="text-lg leading-snug font-medium">{text("Your report is on its way to {value0}.", { value0: sentTo })}</p>
         <p className="text-sm font-light">{text("It usually arrives within a minute. If you don't see it, check your spam folder.")}</p>
+        {/* A next step: someone to ask about the result (the analytics placement measures it), and a free account for visitors. */}
+        <AdvisorStrip heading="Ask an advisor about your results" placement="report_success" headingLevel={3} className="mt-2 text-left" />
+        {status === "anonymous" ? (
+          <Link className="text-sm underline underline-offset-2" href={signupUrl(locale, calculatorPath)} data-testid="report-email-signup">
+            {text("Create a free account")}
+          </Link>
+        ) : null}
         <Button type="button" className="gold-button mt-2 h-12 w-full max-w-sm" onClick={onClose} data-testid="report-email-close">
           {text("Close")}
         </Button>
@@ -273,7 +294,9 @@ function ReportEmailBody({
           {text("No thanks")}
         </Button>
         <p className="text-center text-xs font-light text-[var(--muted-ink)]">
-          {text("We use your e-mail only to send this report. We keep your birth details only until it is sent.")}{" "}
+          {text(
+            "We use your e-mail address to send this report and, only if the box above is ticked, to send you news and offers. We keep your birth details only until the report is sent.",
+          )}{" "}
           <Link className="underline underline-offset-2" href={`/${locale}/privacy`}>
             {text("Privacy Policy")}
           </Link>

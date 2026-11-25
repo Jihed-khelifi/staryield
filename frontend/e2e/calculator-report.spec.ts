@@ -91,6 +91,58 @@ test.describe("report e-mail dialog", { tag: "@responsive" }, () => {
     await expect(dialog(page)).toHaveCount(0);
   });
 
+  test("the success screen offers advisors and a free account, with the calculator to come back to", async ({ page }) => {
+    // A fixed selection, so the strip does not depend on who is online on the shared stack.
+    const advisorOf = (slug: string, name: string) => ({
+      slug,
+      name,
+      headline: "Intuitive insights",
+      image_url: "",
+      zodiac: "Leo",
+      skills: ["Tarot"],
+      rating: 4.9,
+      reviews_count: 40,
+      readings_count: 900,
+      years_experience: 7,
+      rate_per_minute: 30,
+      status: "online",
+      featured: false,
+      cta: "chat",
+    });
+    await page.route("**/api/v1/psychics/featured*", (route) =>
+      route.fulfill({
+        json: { items: [advisorOf("ramone", "Ramone"), advisorOf("theo", "Theo")], generated_at: new Date().toISOString() },
+      }),
+    );
+    await shownDaysAgo(page, "path-of-life", null);
+    await page.goto(PATH_OF_LIFE);
+    await expect(page.getByTestId("calculator-result")).toBeVisible();
+    await page.getByTestId("email-report-button").click();
+    await page.getByTestId("report-email-input").fill(address());
+    await page.getByTestId("report-email-submit").click();
+
+    const success = page.getByTestId("report-email-success");
+    await expect(success).toBeVisible();
+    const strip = success.getByTestId("advisor-strip");
+    await expect(strip.getByRole("heading", { name: "Ask an advisor about your results" })).toBeVisible();
+    await expect(strip.getByTestId("advisor-strip-item")).toHaveCount(2);
+    const account = success.getByRole("link", { name: "Create a free account" });
+    await expect(account).toBeVisible();
+    // Back to the calculator afterwards, without the birth details of the #v= fragment.
+    await expect(account).toHaveAttribute("href", "/en/signup?next=%2Fen%2Fcalculators%2Fpath-of-life");
+    await expectNoA11yViolations(page, ['[data-testid="report-email-dialog"]']);
+    await expectNoHorizontalScroll(page);
+  });
+
+  test("the footnote promises news and offers only when the box is ticked", async ({ page }) => {
+    await shownDaysAgo(page, "path-of-life", null);
+    await page.goto(PATH_OF_LIFE);
+    await page.getByTestId("email-report-button").click();
+    await expect(dialog(page)).toContainText(
+      "We use your e-mail address to send this report and, only if the box above is ticked, to send you news and offers. We keep your birth details only until the report is sent.",
+    );
+  });
+
   test("opens at once when 60 % of the page was scrolled, once per calculator per browser", async ({ page }) => {
     await shownDaysAgo(page, "astrology", null);
     await page.goto("/en/calculators/astrology#v=1&d=1990-05-02");
