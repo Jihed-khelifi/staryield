@@ -635,6 +635,16 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	// --- end growth: lifecycle and onboarding ---
 
 	// --- growth: cross-stream hooks ---
+	// A verified address is one of the two conditions of a referral reward
+	// (the other is a completed reading, observed through OnSessionSettled).
+	verifySvc.OnVerified(referralSvc.OnEmailVerified)
+	// Lifecycle: the verification reminder sends a fresh link; the invite
+	// journey runs only while the referral program is on; the onboarding
+	// checklist and the admin funnel read the invite counts.
+	lifecycleSvc.SetVerificationReminder(verifySvc.SendReminder)
+	lifecycleSvc.SetReferralsEnabled(referralSvc.Enabled)
+	lifecycleSvc.SetInvitedFriends(referralSvc.InvitedFriends)
+	lifecycleSvc.SetInvitedCohort(referralSvc.InvitersAmong)
 	// --- end growth: cross-stream hooks ---
 
 	cookieNames := api.CookieNamesFor(cfg.Security)

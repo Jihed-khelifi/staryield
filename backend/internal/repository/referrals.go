@@ -96,6 +96,12 @@ type ReferralRepository interface {
 
 	// Stats returns one inviter's counters in one aggregate query.
 	Stats(ctx context.Context, referrerID uuid.UUID) (ReferralStats, error)
+	// HasInvited reports whether at least one friend joined with the user's
+	// code, whatever became of the invite (the onboarding checklist).
+	HasInvited(ctx context.Context, referrerID uuid.UUID) (bool, error)
+	// InvitersAmong counts the clients who signed up in [from, to) and invited
+	// at least one friend (the lifecycle funnel's invite step).
+	InvitersAmong(ctx context.Context, from, to time.Time) (int64, error)
 
 	// ClaimGrantable locks up to limit qualified, unflagged referrals of active
 	// inviters, oldest first, skipping rows other workers hold.
@@ -309,6 +315,26 @@ func (r *GormReferralRepository) Stats(ctx context.Context, referrerID uuid.UUID
 			COALESCE(sum(reward_minutes) FILTER (WHERE status = 'granted'), 0) AS granted_minutes`).
 		Where("referrer_id = ?", referrerID).Scan(&row).Error
 	return ReferralStats(row), err
+}
+
+// HasInvited implements ReferralRepository: one probe of
+// referrals_referrer_status_idx.
+func (r *GormReferralRepository) HasInvited(ctx context.Context, referrerID uuid.UUID) (bool, error) {
+	var found bool
+	err := r.conn(ctx).Raw(`SELECT EXISTS (SELECT 1 FROM referrals WHERE referrer_id = ?)`, referrerID).Scan(&found).Error
+	return found, err
+}
+
+// InvitersAmong implements ReferralRepository: an index range of
+// users_role_created_idx (the cohort), then one probe of
+// referrals_referrer_status_idx per account, so the cost follows the cohort.
+func (r *GormReferralRepository) InvitersAmong(ctx context.Context, from, to time.Time) (int64, error) {
+	var n int64
+	err := r.conn(ctx).Model(&domain.User{}).
+		Where("role = ? AND created_at >= ? AND created_at < ?", domain.RoleClient, from, to).
+		Where("EXISTS (SELECT 1 FROM referrals r WHERE r.referrer_id = users.id)").
+		Count(&n).Error
+	return n, err
 }
 
 // ClaimGrantable implements ReferralRepository (referrals_grant_idx).

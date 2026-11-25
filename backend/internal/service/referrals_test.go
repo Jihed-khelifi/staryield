@@ -366,6 +366,23 @@ func (r *memReferralRepo) Names(_ context.Context, ids []uuid.UUID) (map[uuid.UU
 	return out, nil
 }
 
+func (r *memReferralRepo) HasInvited(_ context.Context, id uuid.UUID) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, x := range r.refs {
+		if x.ReferrerID == id {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// InvitersAmong is not modelled here (it reads the users table); the e2e
+// suite covers the real query.
+func (r *memReferralRepo) InvitersAmong(context.Context, time.Time, time.Time) (int64, error) {
+	return 0, nil
+}
+
 func (r *memReferralRepo) PurgeForUser(_ context.Context, id uuid.UUID) (int64, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

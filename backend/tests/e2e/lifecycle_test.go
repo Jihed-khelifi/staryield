@@ -43,6 +43,15 @@ func (e *env) lcStart() {
 	}
 	reset()
 	e.t.Cleanup(reset)
+	e.lcIsolate()
+}
+
+// lcIsolate turns off the e-mail verification and referral seams the app
+// wires, so each test drives only the journeys it is about (a test installs
+// the seams it needs; growth_wiring_test.go covers the app's real wiring).
+func (e *env) lcIsolate() {
+	e.app.Services.Lifecycle.SetVerificationReminder(nil)
+	e.app.Services.Lifecycle.SetReferralsEnabled(nil)
 }
 
 // lcRun runs the job once and waits until the notifications it sent are persisted.
@@ -63,6 +72,19 @@ func (e *env) lcRun() {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
+}
+
+// lcOutbox lists a user's e-mail rows except the verification link every
+// password sign-up queues (the welcome e-mail).
+func (e *env) lcOutbox(id uuid.UUID) []domain.EmailOutbox {
+	e.t.Helper()
+	var out []domain.EmailOutbox
+	for _, row := range e.outbox(id) {
+		if row.Template != "email_verify" {
+			out = append(out, row)
+		}
+	}
+	return out
 }
 
 // lcAge makes an account older (sign-up time moves into the past).
@@ -154,6 +176,7 @@ func TestLifecycleFirstReadingNudge(t *testing.T) {
 	e.lcFreeMinutes(due.user.ID, 0)
 	e.lcOptIn(optedIn.user.ID)
 
+	e.skipWelcomeMail() // the sign-ups' verification links
 	e.lcRun()
 	for _, c := range []*client{due, optedIn} {
 		rows := e.lcMessages(c.user.ID, domain.JourneyFirstReading)
@@ -178,10 +201,10 @@ func TestLifecycleFirstReadingNudge(t *testing.T) {
 	// Consent: promotional e-mail only for the opted-in client (and the outbox
 	// cancels it while the provider is transactional-only); nothing is queued
 	// for the client who never opted in.
-	if rows := e.outbox(optedIn.user.ID); len(rows) != 1 || rows[0].Category != domain.EmailMarketing || rows[0].Status != domain.EmailCancelled {
+	if rows := e.lcOutbox(optedIn.user.ID); len(rows) != 1 || rows[0].Category != domain.EmailMarketing || rows[0].Status != domain.EmailCancelled {
 		t.Fatalf("opted-in e-mail: %+v", rows)
 	}
-	if rows := e.outbox(due.user.ID); len(rows) != 0 {
+	if rows := e.lcOutbox(due.user.ID); len(rows) != 0 {
 		t.Fatalf("e-mail queued without the marketing opt-in: %+v", rows)
 	}
 	if got := e.lcMessages(optedIn.user.ID, "")[0].Channels; got["email"] != true || got["push"] != true {
@@ -214,6 +237,7 @@ func TestLifecycleMarketingEmailIsSentWhenAProviderExists(t *testing.T) {
 	}
 	e.lcOptIn(optedIn.user.ID)
 	e.lcFreeMinutes(optedIn.user.ID, 1)
+	e.skipWelcomeMail() // the sign-ups' verification links
 	e.lcRun()
 	msgs := e.flushMail()
 	if got := sentTo(msgs, silent.user.Email); len(got) != 0 {
@@ -237,7 +261,7 @@ func TestLifecycleVerifyReminder(t *testing.T) {
 	e.app.DB.Exec(`UPDATE users SET email_verified_at = now() WHERE id = ?`, verified.user.ID)
 	e.app.DB.Exec(`UPDATE users SET email_verified_at = NULL WHERE id IN (?, ?)`, unverified.user.ID, young.user.ID)
 
-	// Without the e-mail verification feature the journey does not run.
+	// Without the e-mail verification seam the journey does not run.
 	e.lcRun()
 	if rows := e.lcMessages(unverified.user.ID, domain.JourneyVerifyReminder); len(rows) != 0 {
 		t.Fatalf("ran without the verification seam: %+v", rows)
@@ -267,7 +291,7 @@ func TestLifecycleVerifyReminder(t *testing.T) {
 		t.Fatalf("a new client was reminded: %+v", rows)
 	}
 	// The reminder is transactional: no promotional e-mail row is queued for it.
-	if rows := e.outbox(unverified.user.ID); len(rows) != 0 {
+	if rows := e.lcOutbox(unverified.user.ID); len(rows) != 0 {
 		t.Fatalf("outbox: %+v", rows)
 	}
 }
@@ -548,6 +572,7 @@ func TestLifecycleConversionOnSettledReading(t *testing.T) {
 func TestLifecycleExactlyOnceAcrossInstances(t *testing.T) {
 	e1, e2 := newEnv(t), newEnv(t)
 	e1.lcStart()
+	e2.lcIsolate()
 	const n = 60
 	ids := make([]uuid.UUID, 0, n)
 	for i := 0; i < n; i++ {
@@ -614,6 +639,7 @@ func TestLifecycleExactlyOnceAcrossInstances(t *testing.T) {
 func TestLifecycleAtSizeKeysetBatchesAcrossInstances(t *testing.T) {
 	e1, e2 := newEnv(t), newEnv(t)
 	e1.lcStart()
+	e2.lcIsolate()
 	const n = 1500
 	tag := strings.ReplaceAll(uuid.NewString()[:8], "-", "")
 	at := e1.clock.Now().Add(-30 * time.Hour)
@@ -839,14 +865,23 @@ func TestLifecycleStatsAndFunnel(t *testing.T) {
 	if first < 2 || second < 1 || birth < 2 || verified < 3 || signed < 5 {
 		t.Fatalf("funnel does not include the cohort: %+v", f.Steps)
 	}
-	if f.Steps[4].Key != "invited_friend" || f.Steps[4].Count != nil {
-		t.Fatalf("the invite step without the referral program: %+v", f.Steps[4])
-	}
-	// The referral program's count fills the invite step.
-	e.app.Services.Lifecycle.SetInvitedCohort(func(_ context.Context, from, to time.Time) (int64, error) { return 3, nil })
+	// The invite step is the referral program's count (wired by the app):
+	// clients of the cohort with at least one friend who joined with their link.
+	e.resetReferrals(true, 5, 20)
+	e.elsewhere(cohort[0].user.ID)
+	e.registerReferred(cohort[0].referrals().Code, "")
 	admin.must(http.StatusOK, http.MethodGet, funnelPath+"?days=7", nil, &f)
-	if f.Days != 7 || f.Steps[4].Count == nil || *f.Steps[4].Count != 3 {
-		t.Fatalf("invite step: %+v", f.Steps[4])
+	var inviters int64
+	e.app.DB.Raw(`SELECT count(*) FROM users u WHERE u.role = 'client' AND u.created_at >= ? AND u.created_at < ?
+		AND EXISTS (SELECT 1 FROM referrals r WHERE r.referrer_id = u.id)`, f.From, f.To).Scan(&inviters)
+	if f.Days != 7 || f.Steps[4].Key != "invited_friend" || f.Steps[4].Count == nil || *f.Steps[4].Count != inviters || inviters < 1 {
+		t.Fatalf("invite step: %+v (definition: %d)", f.Steps[4], inviters)
+	}
+	// Without the seam the step is reported as unavailable, not as zero.
+	e.app.Services.Lifecycle.SetInvitedCohort(nil)
+	admin.must(http.StatusOK, http.MethodGet, funnelPath+"?days=8", nil, &f) // another window: each one is cached
+	if f.Steps[4].Count != nil {
+		t.Fatalf("the invite step without the referral program: %+v", f.Steps[4])
 	}
 	// The 7-day window excludes the 40 day old client; the 90-day window includes it.
 	var wide service.LifecycleFunnelView
@@ -899,17 +934,21 @@ func TestLifecycleStatsAndFunnel(t *testing.T) {
 
 func TestOnboardingChecklist(t *testing.T) {
 	e := newEnv(t)
+	e.resetReferrals(true, 5, 20) // before the first read of the site configuration
 	c := e.registerClient()
 	e.app.DB.Exec(`UPDATE users SET email_verified_at = NULL WHERE id = ?`, c.user.ID)
 	var got service.OnboardingView
-	// Without e-mail verification and the referral program, only the steps
-	// that can be completed are listed.
+	// Only the steps that can be completed are listed: without the e-mail
+	// verification and referral seams, two steps.
+	e.app.Services.Lifecycle.SetVerificationReminder(nil)
+	e.app.Services.Lifecycle.SetReferralsEnabled(nil)
 	c.must(http.StatusOK, http.MethodGet, "/api/v1/me/onboarding", nil, &got)
 	if got.Total != 2 || got.Steps[0].Key != "birth_details" || got.Steps[1].Key != "first_reading" {
 		t.Fatalf("without the seams: %+v", got)
 	}
-	e.app.Services.Lifecycle.SetVerificationReminder(func(context.Context, uuid.UUID) error { return nil })
-	e.app.Services.Lifecycle.SetReferralsEnabled(func(context.Context) bool { return true })
+	// With the app's wiring: the real verification sender and the program on.
+	e.app.Services.Lifecycle.SetVerificationReminder(e.app.Services.EmailVerification.SendReminder)
+	e.app.Services.Lifecycle.SetReferralsEnabled(e.app.Services.Referrals.Enabled)
 	c.must(http.StatusOK, http.MethodGet, "/api/v1/me/onboarding", nil, &got)
 	keys := []string{"verify_email", "birth_details", "first_reading", "invite_friend"}
 	if got.Total != 4 || got.Completed != 0 || got.Dismissed || len(got.Steps) != 4 {
@@ -927,18 +966,20 @@ func TestOnboardingChecklist(t *testing.T) {
 	if got.Completed != 2 || !got.Steps[0].Done || !got.Steps[1].Done || got.Steps[2].Done {
 		t.Fatalf("after verifying and adding birth details: %+v", got)
 	}
-	// The referral program's count is the last step; without it the step stays open.
-	e.app.Services.Lifecycle.SetInvitedFriends(func(_ context.Context, id uuid.UUID) (int, error) {
-		if id == c.user.ID {
-			return 1, nil
-		}
-		return 0, nil
-	})
+	// The last step completes when a friend joins with the client's link (the
+	// referral program's count, wired by the app).
+	e.elsewhere(c.user.ID)
+	e.registerReferred(c.referrals().Code, "")
 	c.must(http.StatusOK, http.MethodGet, "/api/v1/me/onboarding", nil, &got)
 	if got.Completed != 3 || !got.Steps[3].Done {
 		t.Fatalf("with an invited friend: %+v", got)
 	}
+	// Without the seam the step stays open.
 	e.app.Services.Lifecycle.SetInvitedFriends(nil)
+	c.must(http.StatusOK, http.MethodGet, "/api/v1/me/onboarding", nil, &got)
+	if got.Completed != 2 || got.Steps[3].Done {
+		t.Fatalf("without the invite count: %+v", got)
+	}
 	// Dismiss and undo; another tab of the client follows over the WebSocket.
 	tab := c.connect("")
 	c.must(http.StatusOK, http.MethodPost, "/api/v1/me/onboarding/dismiss", nil, &got)

@@ -449,6 +449,27 @@ func (s *ReferralService) Mine(ctx context.Context, userID uuid.UUID) (*MyReferr
 	return out, nil
 }
 
+// Enabled reports whether the program is on (the lifecycle invite journey
+// only runs while it is).
+func (s *ReferralService) Enabled(ctx context.Context) bool { return s.d.Program(ctx).Enabled }
+
+// InvitedFriends returns 1 when at least one friend joined with the user's
+// code, else 0 (the onboarding checklist only asks whether the client
+// invited someone, so the count stops at the first row).
+func (s *ReferralService) InvitedFriends(ctx context.Context, userID uuid.UUID) (int, error) {
+	found, err := s.d.Repo.HasInvited(ctx, userID)
+	if err != nil || !found {
+		return 0, err
+	}
+	return 1, nil
+}
+
+// InvitersAmong counts the clients who signed up in [from, to) and invited
+// at least one friend (the lifecycle funnel's invite step).
+func (s *ReferralService) InvitersAmong(ctx context.Context, from, to time.Time) (int64, error) {
+	return s.d.Repo.InvitersAmong(ctx, from, to)
+}
+
 // PurgeForUser implements UserDataPurger (account erasure).
 func (s *ReferralService) PurgeForUser(ctx context.Context, userID uuid.UUID) (int64, error) {
 	return s.d.Repo.PurgeForUser(ctx, userID)

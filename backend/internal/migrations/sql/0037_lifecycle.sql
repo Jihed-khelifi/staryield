@@ -74,11 +74,11 @@ ON CONFLICT (user_id) DO NOTHING;
 ALTER TABLE user_profiles ADD COLUMN onboarding_dismissed_at timestamptz;
 
 -- site_settings: the key list is rewritten once more (it already holds the keys
--- of 0031 and earlier).
+-- of 0036 and earlier, the referral program included).
 ALTER TABLE site_settings DROP CONSTRAINT site_settings_key_check;
 ALTER TABLE site_settings ADD CONSTRAINT site_settings_key_check
     CHECK (key IN ('banners', 'signup_offer', 'free_mode', 'off_session_messages', 'pricing',
-                   'trial_hold', 'payment_policies', 'calculator_report', 'lifecycle'));
+                   'trial_hold', 'payment_policies', 'calculator_report', 'referral_program', 'lifecycle'));
 
 ALTER TABLE site_settings ADD CONSTRAINT site_settings_lifecycle_valid
     CHECK (CASE WHEN key = 'lifecycle'
