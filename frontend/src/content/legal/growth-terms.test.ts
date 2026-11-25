@@ -1,15 +1,28 @@
 import { describe, expect, it } from "vitest";
 
 import { legalDocuments } from "@/content/legal";
+import { LEGAL_VERSIONS } from "@/lib/legal/versions";
 import type { LegalBlock, LegalDocumentContent } from "@/content/legal/types";
 
 /**
  * Growth release, Terms of Use: e-mail confirmation (3.8), free calculators and guides (2.5), the booking button
  * (4.17, 4.15, 6.1.4), reminders and the "Get started" checklist (4.18, 4.13), shareable result images (4.19) and
  * the referral program (4.20 and 4.20.1–4.20.9). Every addition has its own anchor; no existing clause was renumbered
- * or removed. The version and dates are bumped by the lead with LEGAL_VERSIONS, so they are not asserted here.
+ * or removed. The three documents are re-dated 2026-11-25 together with LEGAL_VERSIONS (the purchase consent).
  */
 const locales = ["en", "fr", "es"] as const;
+
+describe("growth legal versions", () => {
+  it("LEGAL_VERSIONS is 2026-11-25 for the three documents", () => {
+    expect(LEGAL_VERSIONS).toEqual({ terms: "2026-11-25", privacy: "2026-11-25", refund: "2026-11-25" });
+  });
+
+  it.each(locales)("%s: Terms, Privacy Policy and Refund Policy are dated 2026-11-25 and match LEGAL_VERSIONS", (l) => {
+    for (const doc of ["terms", "privacy", "refund"] as const) {
+      expect(legalDocuments[doc][l].meta).toMatchObject({ version: "2026-11-25", effective: "2026-11-25", lastUpdated: "2026-11-25" });
+    }
+  });
+});
 type Locale = (typeof locales)[number];
 
 const textOf = (block: LegalBlock): string =>

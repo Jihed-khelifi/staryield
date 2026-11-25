@@ -4,9 +4,9 @@ import type { LegalDocumentContent } from "@/content/legal/types";
 
 const content: LegalDocumentContent = {
   "meta": {
-    "version": "2026-11-19",
-    "effective": "2026-11-19",
-    "lastUpdated": "2026-11-19",
+    "version": "2026-11-25",
+    "effective": "2026-11-25",
+    "lastUpdated": "2026-11-25",
     "badge": "STARYIELD PRIVACY AGREEMENT",
     "title": "Privacy Policy"
   },
