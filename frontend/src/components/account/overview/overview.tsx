@@ -15,6 +15,7 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { ClientOrders } from "@/components/account/orders";
+import { OnboardingChecklist } from "@/components/account/overview/onboarding-checklist";
 
 /**
  * The client's daily reading for their own sun sign (`GET /me/horoscope`,
@@ -198,6 +199,7 @@ export function Overview({ name, user, horoscope }: { name: string; user: User; 
       {/* --- end growth: e-mail verification --- */}
 
       {/* --- growth: lifecycle and onboarding --- */}
+      <OnboardingChecklist />
       {/* --- end growth: lifecycle and onboarding --- */}
 
       {/* --- growth: referrals --- */}

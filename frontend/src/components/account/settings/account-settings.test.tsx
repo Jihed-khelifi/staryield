@@ -107,6 +107,16 @@ describe("AccountSettings", () => {
     expect(m.settingsApi.update).not.toHaveBeenCalled();
   });
 
+  // growth: lifecycle messages are promotional and ride on this opt-in.
+  it("says what the marketing switch covers: tips, offers and reminders", async () => {
+    view();
+    const marketing = await screen.findByTestId("notify-marketing");
+    const hint = screen.getByTestId("notify-marketing-hint");
+    expect(hint.textContent).toBe("Tips, offers and reminders from Staryield by email and push. You can turn this off at any time.");
+    expect(marketing.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(screen.getByTestId("notify-email").getAttribute("aria-describedby")).toBeNull();
+  });
+
   it("has no membership UI with memberships switched off (the default) and shows it when the API turns them on", async () => {
     m.billingApi.plans.mockResolvedValue([
       { id: "p1", code: "premium", name: "Premium Membership", description: "", version_id: "v1", version: 1, price_cents: 999, currency: "USD", interval: "month", interval_count: 1, monthly_credit_grant: 0, chat_discount_bps: 0, chat_discount_pct: 0, monthly_free_minutes: 0, waitlist_priority: false, benefits: [] },

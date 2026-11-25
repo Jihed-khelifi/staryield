@@ -6,6 +6,7 @@
  */
 import type { AppNotification, NotificationKind } from "@/lib/api/types";
 import type { TranslationValues } from "@/i18n/types";
+import { lifecycleText, type LifecycleKind } from "@/lib/notifications/lifecycle-copy";
 
 type Translate = <T>(value: T, values?: TranslationValues) => T;
 
@@ -53,6 +54,10 @@ export const NOTIFICATION_KINDS = [
   // --- end growth: referrals ---
 
   // --- growth: lifecycle and onboarding ---
+  "lifecycle.verify_reminder",
+  "lifecycle.first_reading",
+  "lifecycle.invite_friends",
+  "lifecycle.win_back",
   // --- end growth: lifecycle and onboarding ---
 ] as const satisfies readonly NotificationKind[];
 
@@ -333,6 +338,11 @@ export function notificationText(
     // --- end growth: referrals ---
 
     // --- growth: lifecycle and onboarding ---
+    case "lifecycle.verify_reminder":
+    case "lifecycle.first_reading":
+    case "lifecycle.invite_friends":
+    case "lifecycle.win_back":
+      return lifecycleText(n.kind as LifecycleKind, d, text, fmt);
     // --- end growth: lifecycle and onboarding ---
     default:
       return { title: text(T.fallbackTitle), body: "" };
@@ -372,6 +382,13 @@ export function notificationFallbackLink(n: AppNotification): string | null {
     // --- end growth: referrals ---
 
     // --- growth: lifecycle and onboarding ---
+    case "lifecycle.verify_reminder":
+      return "/profile/settings#account";
+    case "lifecycle.first_reading":
+    case "lifecycle.win_back":
+      return "/psychics";
+    case "lifecycle.invite_friends":
+      return "/profile/invite";
     // --- end growth: lifecycle and onboarding ---
     default:
       return null;
