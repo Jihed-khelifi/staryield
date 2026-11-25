@@ -141,7 +141,7 @@ Admin dashboard endpoints (served to the admin console, see below):
 | Advisor tools | `GET psychic/analytics` · `GET/POST psychic/withdrawals` · `POST psychic/withdrawals/:id/cancel` |
 | Short links | `GET /l/:code` (API root) |
 | Admin auth | `admin/auth/{login,enroll,enroll/confirm,verify,session,step-up,logout,sessions,recovery-codes}` |
-| Admin | `users[/:id[/credits,/logout-all]]`, `psychics[/:id[/image,/earnings,/analytics,/services]]`, `services/:id`, `credit-packs[/:id]`, `custom-requests[/:id/resolve]`, `chat/sessions[/:id[/transcript,/terminate]]`, `reviews[/:id]`, `withdrawals[/:id/{destination,approve,pay,reject}]`, `broadcasts[/:id]`, `presence`, `campaigns[/:id[/report]]`, `links[/:id[/report]]`, `site/{banners,signup-offer,free-mode,off-session-messages}`, `acquisition/overview`, `insights/{audience,engagement,retention,top-users,users/:id}`, `reports/*`, `analytics/*`, `audit-logs` |
+| Admin | `users[/:id[/credits,/logout-all]]`, `psychics[/:id[/image,/earnings,/analytics,/services]]`, `services/:id`, `credit-packs[/:id]`, `custom-requests[/:id/resolve]`, `chat/sessions[/:id[/transcript,/terminate]]`, `reviews[/:id]`, `withdrawals[/:id/{destination,approve,pay,reject}]`, `broadcasts[/:id]`, `presence`, `campaigns[/:id[/report]]`, `links[/:id[/report]]`, `site/{banners,signup-offer,free-mode,off-session-messages}`, `mail/{health,test}` (e-mail delivery view and test send), `acquisition/overview`, `insights/{audience,engagement,retention,top-users,users/:id}`, `reports/*`, `analytics/*`, `audit-logs` |
 
 Health: `GET /healthz` (liveness), `GET /readyz` (PostgreSQL + Redis).
 
@@ -192,7 +192,8 @@ Production requires `STARYIELD_APP_ENV=production` and the following:
 * `STARYIELD_SECURITY_ALLOWED_ORIGINS` (https only) and `STARYIELD_SECURITY_COOKIE_SECURE=true`
 * R2 credentials (`STARYIELD_STORAGE_DRIVER=r2`, `STARYIELD_STORAGE_R2_*`), or `STARYIELD_STORAGE_DRIVER=disabled` to refuse uploads; the bucket names `R2_ADVISOR_IMAGE` (public advisor portraits, with `R2_ADVISOR_IMAGE_PUBLIC_URL`) and `R2_CHAT_IMAGES_PRIVATE` (private chat images)
 * `STARYIELD_SECURITY_DATA_ENCRYPTION_KEY` (32 random bytes, `openssl rand -hex 32`) and `STARYIELD_SECURITY_ADMIN_ORIGINS=https://admin.staryield.net`
-* a real payment provider (or `STARYIELD_PAYMENTS_PROVIDER=disabled`), and `STARYIELD_MAIL_DRIVER=noop` until a mailer adapter exists
+* a real payment provider (or `STARYIELD_PAYMENTS_PROVIDER=disabled`)
+* e-mail through Cloudflare Email Service: `STARYIELD_MAIL_DRIVER=cloudflare`, `STARYIELD_MAIL_CLOUDFLARE_ACCOUNT_ID`, `STARYIELD_MAIL_CLOUDFLARE_API_TOKEN` (an API token with **Email Sending: Send**) and `STARYIELD_MAIL_FROM` on a domain onboarded to Email Sending. On the Workers **Free** plan Cloudflare only delivers to verified destination addresses, so sign-up links, password resets and calculator reports to visitors fail with code 10208 until the account is on **Workers Paid**. `noop` discards every e-mail (each one is recorded as cancelled with reason `no_provider` and the API logs an error at start-up); the admin console's **Marketing → E-mail delivery** page shows the driver, what happened to each e-mail type, provider errors with what to fix, and sends a test e-mail.
 
 ### Deploying on Railway
 
