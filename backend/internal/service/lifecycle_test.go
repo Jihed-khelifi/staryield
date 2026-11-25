@@ -468,11 +468,19 @@ func TestOnboardingChecklist(t *testing.T) {
 	f := newLifecycleFixture(t)
 	ctx := context.Background()
 	user := uuid.New()
+	// Without e-mail verification and the referral program, their steps are
+	// left out: every step shown can be completed.
 	got, err := f.svc.Onboarding(ctx, user)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Total != 4 || got.Completed != 0 || got.Dismissed || got.Steps[0].Key != OnboardingVerifyEmail || got.Steps[3].Key != OnboardingInviteFriend {
+	if got.Total != 2 || got.Completed != 0 || got.Dismissed || got.Steps[0].Key != OnboardingBirthDetails || got.Steps[1].Key != OnboardingFirstReading {
+		t.Fatalf("without the seams: %+v", got)
+	}
+	f.svc.SetVerificationReminder(func(context.Context, uuid.UUID) error { return nil })
+	f.svc.SetReferralsEnabled(func(context.Context) bool { return true })
+	got, _ = f.svc.Onboarding(ctx, user)
+	if got.Total != 4 || got.Completed != 0 || got.Steps[0].Key != OnboardingVerifyEmail || got.Steps[3].Key != OnboardingInviteFriend {
 		t.Fatalf("fresh client: %+v", got)
 	}
 	f.repo.facts = repository.OnboardingFacts{Verified: true, BirthDetails: true}
@@ -486,6 +494,11 @@ func TestOnboardingChecklist(t *testing.T) {
 	got, err = f.svc.Onboarding(ctx, user)
 	if err != nil || got.Steps[3].Done {
 		t.Fatalf("seam failure: %+v %v", got, err)
+	}
+	// The program switched off: the step goes away.
+	f.svc.SetReferralsEnabled(func(context.Context) bool { return false })
+	if got, _ = f.svc.Onboarding(ctx, user); got.Total != 3 || got.Steps[2].Key != OnboardingFirstReading {
+		t.Fatalf("referrals off: %+v", got)
 	}
 	got, _ = f.svc.DismissOnboarding(ctx, user, true)
 	if !got.Dismissed {

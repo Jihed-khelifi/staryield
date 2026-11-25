@@ -886,6 +886,14 @@ func TestOnboardingChecklist(t *testing.T) {
 	c := e.registerClient()
 	e.app.DB.Exec(`UPDATE users SET email_verified_at = NULL WHERE id = ?`, c.user.ID)
 	var got service.OnboardingView
+	// Without e-mail verification and the referral program, only the steps
+	// that can be completed are listed.
+	c.must(http.StatusOK, http.MethodGet, "/api/v1/me/onboarding", nil, &got)
+	if got.Total != 2 || got.Steps[0].Key != "birth_details" || got.Steps[1].Key != "first_reading" {
+		t.Fatalf("without the seams: %+v", got)
+	}
+	e.app.Services.Lifecycle.SetVerificationReminder(func(context.Context, uuid.UUID) error { return nil })
+	e.app.Services.Lifecycle.SetReferralsEnabled(func(context.Context) bool { return true })
 	c.must(http.StatusOK, http.MethodGet, "/api/v1/me/onboarding", nil, &got)
 	keys := []string{"verify_email", "birth_details", "first_reading", "invite_friend"}
 	if got.Total != 4 || got.Completed != 0 || got.Dismissed || len(got.Steps) != 4 {

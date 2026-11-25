@@ -33,27 +33,24 @@ type OnboardingView struct {
 }
 
 // Onboarding returns a client's checklist: the account facts in one query and
-// the number of invited friends from the referral program (0 without it).
+// the number of invited friends from the referral program. A step whose
+// feature is not available in this deployment is left out, so every step
+// shown can be completed: the e-mail step needs e-mail verification (the
+// SetVerificationReminder seam), the invitation step a referral program that
+// is on (SetReferralsEnabled).
 func (s *LifecycleService) Onboarding(ctx context.Context, userID uuid.UUID) (*OnboardingView, error) {
 	facts, err := s.d.Repo.Onboarding(ctx, userID)
 	if err != nil {
 		return nil, apperror.Internal(err)
 	}
-	invited := 0
-	s.mu.RLock()
-	count := s.invitedFriends
-	s.mu.RUnlock()
-	if count != nil {
-		n, err := count(ctx, userID)
-		if err != nil {
-			// The step stays open rather than failing the whole checklist.
-			warnErr(ctx, "onboarding: count invited friends", err)
-		} else {
-			invited = n
-		}
+	steps := make([]OnboardingStep, 0, 4)
+	if s.verificationSender() != nil {
+		steps = append(steps, OnboardingStep{OnboardingVerifyEmail, facts.Verified})
 	}
-	steps := []OnboardingStep{{OnboardingVerifyEmail, facts.Verified}, {OnboardingBirthDetails, facts.BirthDetails},
-		{OnboardingFirstReading, facts.FirstReading}, {OnboardingInviteFriend, invited > 0}}
+	steps = append(steps, OnboardingStep{OnboardingBirthDetails, facts.BirthDetails}, OnboardingStep{OnboardingFirstReading, facts.FirstReading})
+	if s.referralsOn(ctx) {
+		steps = append(steps, OnboardingStep{OnboardingInviteFriend, s.invitedAny(ctx, userID)})
+	}
 	out := &OnboardingView{Steps: steps, Total: len(steps), Dismissed: facts.Dismissed}
 	for _, st := range steps {
 		if st.Done {
@@ -61,6 +58,24 @@ func (s *LifecycleService) Onboarding(ctx context.Context, userID uuid.UUID) (*O
 		}
 	}
 	return out, nil
+}
+
+// invitedAny says whether the client invited at least one friend (false
+// without the referral program's count, or when it fails: the step stays open
+// rather than failing the whole checklist).
+func (s *LifecycleService) invitedAny(ctx context.Context, userID uuid.UUID) bool {
+	s.mu.RLock()
+	count := s.invitedFriends
+	s.mu.RUnlock()
+	if count == nil {
+		return false
+	}
+	n, err := count(ctx, userID)
+	if err != nil {
+		warnErr(ctx, "onboarding: count invited friends", err)
+		return false
+	}
+	return n > 0
 }
 
 // DismissOnboarding hides the checklist (dismiss false: shows it again, the
