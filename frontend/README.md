@@ -26,12 +26,14 @@ Open http://localhost:3000/en. The existing `/en`, `/fr`, and `/es` locale routi
 | -------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Public         | `/`, `/about`, `/reviews`, `/standards`, `/faq`, `/contact`, `/disclaimer`, `/terms`, `/privacy`                        |
 | Authentication | `/signup`, `/signup/password`, `/signup/birth`, `/signup/offer`, `/login`, `/forgot-password`                           |
-| Calculators    | `/calculators/natal-chart`, `/calculators/path-of-life`, `/calculators/astrology`; each has a `/results` reference view |
+| Calculators    | `/calculators/natal-chart`, `/calculators/path-of-life`, `/calculators/astrology`, `/calculators/tarot-birth-card`; each has a `/results` reference view |
 | Psychics       | `/psychics`, `/psychics/ramone`, `/psychics/theo`, `/psychics/solomon`                                                  |
 | Account        | `/profile`, `/profile/chart`, `/profile/settings`, `/profile/analytics` (advisors only)                                 |
 | Credits        | `/credits` opens the credit checkout dialog                                                                             |
 | Chat           | `/chatroom?reader=ramone`, `?reader=theo`, `?reader=solomon`; `&review=<session_id>` opens the rating dialog            |
 | Short links    | `/go/<code>` (outside the locale tree) → `${NEXT_PUBLIC_API_URL}/l/<code>`                                              |
+
+Calculators (growth): every visitor of the natal chart calculator gets the full chart explorer of `/profile/chart` (wheel and planet rows with interpretations, element and modality balance, house system switch that recalculates in place and updates `h=` in the fragment, the chart as tables) from `src/components/astrology/chart-explorer/`, shared with the signed-in chart tab. The tarot birth card calculator (`#v=1&d=YYYY-MM-DD`) runs in the browser. Every result can be exported as a 9:16 PNG (1080 × 1920) with "staryield.net" on it (`src/lib/share/`: card specs per calculator without any birth data, a canvas renderer with the site's fonts and R2 artwork, the share URL builder) and shared through the Web Share API, downloaded or linked; the sample `/results` views offer no share because their date is not the visitor's.
 
 Desktop and mobile references share reusable headers, navigation, footer, portraits, form controls, checkout, chart components, and advisor data. Public desktop layouts reflow on tablets and phones. Planet cards use keyboard-accessible dialogs; mobile conversation details and inbox use sheets. FAQ items expand and legal contents navigate to semantic section headings.
 

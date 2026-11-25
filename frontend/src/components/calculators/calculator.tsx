@@ -4,11 +4,11 @@ import * as React from "react";
 
 import { useI18n } from "@/i18n/i18n-provider";
 import { placeLabel } from "@/lib/api/astrology";
-import { decodeFragment, encodeFragment } from "@/lib/astro/fragment";
+import { decodeFragment, encodeFragment, natalFragmentFromSunSign } from "@/lib/astro/fragment";
 import { useLocationHash, writeLocationHash } from "@/lib/astro/hash-store";
-import { logger } from "@/lib/logger";
-import { useAsync } from "@/lib/use-async";
+import type { HouseSystem } from "@/lib/api/astrology";
 import {
+  birthDateOf,
   emptyCalculatorValues,
   type CalculatorFormValues,
   type CalculatorKind,
@@ -19,8 +19,12 @@ import { PublicFrame } from "@/components/layout/public-frame";
 import { ErrorState } from "@/components/feedback/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CalculatorForm } from "@/components/calculators/calculator-form";
-import { cachedResult, calculate, rememberResult, type CalculatorResult } from "@/components/calculators/calculate";
+import { rememberResult, type CalculatorResult } from "@/components/calculators/calculate";
+import { useCalculatorResult } from "@/components/calculators/use-calculator-result";
 import { LifePathResultView, NatalResultView, ResultDate, SunSignResultView } from "@/components/calculators/results";
+import { TarotBirthResultView } from "@/components/calculators/tarot-result";
+import { ShareResultDialog } from "@/components/calculators/share-result";
+import { isReportable } from "@/components/calculators/report-email";
 // revisions 6.0 (§26.4): the e-mailed report.
 import { ReportEmailDialog } from "@/components/calculators/report-email-dialog";
 import { useReportEmailPrompt } from "@/components/calculators/use-report-email-prompt";
@@ -31,10 +35,11 @@ export type { CalculatorKind };
 const SAMPLE_FRAGMENT = "#v=1&d=1945-04-30";
 
 /**
- * A public calculator (natal chart, astrology, path of life). The input and
- * the result live in the URL fragment, so a refresh or a shared link shows
- * the same result while birth data never reaches the server's logs. The
- * long-form article (a server-rendered slot) follows the calculator.
+ * A public calculator (natal chart, astrology, path of life, tarot birth
+ * card). The input and the result live in the URL fragment, so a refresh or a
+ * shared link shows the same result while birth data never reaches the
+ * server's logs. The long-form article (a server-rendered slot) follows the
+ * calculator.
  */
 export function Calculator({
   kind,
@@ -82,18 +87,31 @@ export function Calculator({
     [kind],
   );
 
+  // Changing the house system recalculates the natal chart in place (same
+  // request, new `h=`): the view is keyed without it, so the previous chart
+  // stays on screen while the new one loads.
+  const resultKey =
+    decoded.status === "ok" && kind === "natal-chart" ? encodeFragment(kind, { ...(decoded.values as NatalFormValues), houseSystem: "placidus" }) : fragment;
+  const onHouseSystem = React.useCallback(
+    (houseSystem: HouseSystem) => {
+      if (decoded.status !== "ok" || kind !== "natal-chart") return;
+      writeLocationHash(encodeFragment(kind, { ...(decoded.values as NatalFormValues), houseSystem }), true);
+    },
+    [decoded, kind],
+  );
+
   return (
     <PublicFrame>
       {decoded.status === "ok" ? (
         <ResultView
-          key={fragment}
+          key={resultKey}
           kind={kind}
           values={decoded.values}
-          fragment={fragment}
           sample={sample}
           focusOnMountRef={focusResult}
           onEdit={(expandCusp) => showForm(decoded.values, expandCusp)}
           onCalculated={onCalculated}
+          onHouseSystem={onHouseSystem}
         />
       ) : (
         <CalculatorForm
@@ -113,42 +131,28 @@ export function Calculator({
 function ResultView({
   kind,
   values,
-  fragment,
   sample,
   focusOnMountRef,
   onEdit,
   onCalculated,
+  onHouseSystem,
 }: {
   kind: CalculatorKind;
   values: CalculatorFormValues;
-  fragment: string;
   sample: boolean;
   focusOnMountRef: React.RefObject<boolean>;
   onEdit: (expandCusp?: boolean) => void;
   onCalculated: (values: CalculatorFormValues, result: CalculatorResult) => void;
+  onHouseSystem: (system: HouseSystem) => void;
 }) {
-  const { text } = useI18n();
-  const key = `${kind}${fragment}`;
-  const cached = cachedResult(key);
-  const state = useAsync(
-    async (signal) => {
-      const result = await calculate(kind, values, signal);
-      try {
-        rememberResult(key, result);
-      } catch (error) {
-        // The in-memory cache is an optimisation: never turn a good API
-        // answer into an error screen.
-        logger.warn("calculator result cache failed", error);
-      }
-      return result;
-    },
-    [key],
-    !cached,
-  );
-  const result = cached ?? state.data;
-  const error = cached ? null : state.error;
-  // revisions 6.0 (§26.4): "Save your reading" opens once a computed result has been on screen (never on the sample).
-  const report = useReportEmailPrompt(kind, Boolean(result) && !error && !sample);
+  const { text, locale } = useI18n();
+  const key = `${kind}${encodeFragment(kind, values)}`;
+  const { result, error, pending, reload } = useCalculatorResult(kind, values, key);
+  const [shareOpen, setShareOpen] = React.useState(false);
+  // revisions 6.0 (§26.4): "Save your reading" opens once a computed result has been on screen (never on the sample,
+  // and never for the tarot birth card, which has no e-mail report).
+  const emailable = isReportable(kind);
+  const report = useReportEmailPrompt(kind, emailable && Boolean(result) && !error && !sample);
 
   React.useEffect(() => {
     if (!focusOnMountRef.current) return;
@@ -159,23 +163,29 @@ function ResultView({
 
   // The API rejected the link's data (e.g. a time without a place, an unknown
   // place): back to the form with the server's messages on the fields.
-  if (error && error.code === "validation_failed") {
+  if (error && !result && error.code === "validation_failed") {
     return <CalculatorForm kind={kind} initialValues={values} serverError={error} onCalculated={onCalculated} />;
   }
 
   const details = result ? resultDetails(result, values, text) : null;
+  // The sample date is the design's, not the visitor's: an image saying "My
+  // tarot birth card is…" would not be theirs, so the sample offers no share.
+  const onShare = result && !sample ? () => setShareOpen(true) : undefined;
+  const fatal = error && !result ? error : null;
   return (
-    <div data-testid="calculator-result" data-kind={kind} aria-busy={!result && !error}>
+    <div data-testid="calculator-result" data-kind={kind} aria-busy={(!result && !error) || pending}>
       <ResultDate
         values={values}
+        title={kind === "tarot-birth-card" ? text("Tarot birth card calculated for:") : undefined}
         details={details}
         onChange={() => onEdit(false)}
         sample={sample}
-        onEmail={result && !sample && report.available ? report.openManually : undefined}
+        onEmail={result && !sample && emailable && report.available ? report.openManually : undefined}
+        onShare={onShare}
       />
-      {error ? (
+      {fatal ? (
         <section className="bg-cream px-5 py-16">
-          <ErrorState error={error} onRetry={state.reload} className="mx-auto max-w-xl" title={text("We could not calculate this result")} />
+          <ErrorState error={fatal} onRetry={reload} className="mx-auto max-w-xl" title={text("We could not calculate this result")} />
         </section>
       ) : !result ? (
         <section className="flex flex-col items-center gap-6 bg-cream px-5 py-16" data-testid="calculator-loading">
@@ -186,13 +196,26 @@ function ResultView({
           <Skeleton className="aspect-square w-full max-w-[560px] rounded-full" />
         </section>
       ) : result.kind === "natal-chart" ? (
-        <NatalResultView result={result.natal} />
+        <NatalResultView
+          result={result.natal}
+          houses={{ houseSystem: (values as NatalFormValues).houseSystem, onChange: onHouseSystem, updating: pending, error, onRetry: reload }}
+          onEditBirth={() => onEdit(false)}
+          onShare={onShare}
+        />
       ) : result.kind === "astrology" ? (
-        <SunSignResultView result={result.sun} onAddTime={() => onEdit(true)} />
+        <SunSignResultView
+          result={result.sun}
+          onAddTime={() => onEdit(true)}
+          chartHref={`/${locale}/calculators/natal-chart${natalFragmentFromSunSign(values as SunSignFormValues)}`}
+          onShare={onShare}
+        />
+      ) : result.kind === "tarot-birth-card" ? (
+        <TarotBirthResultView result={result.tarot} date={birthDateOf(values.birth)} onShare={onShare} />
       ) : (
-        <LifePathResultView result={result.numbers} />
+        <LifePathResultView result={result.numbers} onShare={onShare} />
       )}
-      {result && !sample ? (
+      {result && !sample ? <ShareResultDialog result={result} open={shareOpen} onOpenChange={setShareOpen} /> : null}
+      {result && !sample && emailable ? (
         <ReportEmailDialog
           kind={kind}
           values={values}
