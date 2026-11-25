@@ -71,6 +71,11 @@ function stepHref(key: OnboardingStepKey, psychicsHref: string, locale: string):
   }
 }
 
+/** The card shows nothing: the client hid it, or there is nothing left to do. */
+function isHidden(data: Onboarding): boolean {
+  return data.dismissed || data.total === 0 || data.completed >= data.total;
+}
+
 function isOnboarding(value: unknown): value is Onboarding {
   const v = value as Onboarding | null;
   return Boolean(v && Array.isArray(v.steps) && typeof v.completed === "number" && typeof v.total === "number" && typeof v.dismissed === "boolean");
@@ -106,6 +111,9 @@ export function OnboardingChecklist() {
       setData(payload);
       return;
     }
+    // A hidden or finished checklist stays hidden whatever else happens (only
+    // `onboarding.updated` brings it back, with its own data): no request.
+    if (data && isHidden(data)) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(reload, 400);
   });
@@ -159,7 +167,7 @@ export function OnboardingChecklist() {
       </div>
     ) : null;
   }
-  if (data.dismissed || data.total === 0 || data.completed >= data.total) return null;
+  if (isHidden(data)) return null;
 
   const progress = text("{completed} of {total} done", { completed: data.completed, total: data.total });
   // The next open step stands out, so what to do now is obvious.

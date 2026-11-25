@@ -185,4 +185,31 @@ describe("OnboardingChecklist", () => {
     await waitFor(() => expect(screen.getByTestId("onboarding-progress-text").textContent).toBe("2 of 3 done"));
     expect(api.get).toHaveBeenCalledTimes(2);
   });
+
+  it.each([
+    ["hidden", checklist({ dismissed: true })],
+    ["finished", checklist({ steps: [{ key: "birth_details", done: true }, { key: "first_reading", done: true }] })],
+  ])("makes no request on account events once %s, and comes back with onboarding.updated", async (_, state) => {
+    api.get.mockResolvedValue(state);
+    const { container } = render();
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    await act(async () => undefined);
+    expect(container.querySelector("[data-testid=onboarding-checklist]")).toBeNull();
+    vi.useFakeTimers();
+    act(() => {
+      realtime.handler?.("session.ended", {});
+      realtime.handler?.("wallet.updated", {});
+      realtime.handler?.("notification.created", {});
+      realtime.handler?.("account.email_verified", {});
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    vi.useRealTimers();
+    expect(api.get).toHaveBeenCalledTimes(1);
+    // Shown again from another tab: the event carries the checklist.
+    act(() => realtime.handler?.("onboarding.updated", checklist()));
+    expect(screen.getByTestId("onboarding-checklist").getAttribute("data-state")).toBe("ready");
+    expect(api.get).toHaveBeenCalledTimes(1);
+  });
 });
