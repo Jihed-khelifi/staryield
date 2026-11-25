@@ -20,6 +20,15 @@ type verifyMe struct {
 	EmailVerified bool `json:"email_verified"`
 }
 
+// skipWelcomeMail delivers the welcome e-mail every password sign-up queues
+// (its verification link) and clears the fake provider, for tests that count
+// the e-mails of a scenario that starts after the sign-up.
+func (e *env) skipWelcomeMail() {
+	e.t.Helper()
+	e.flushMail()
+	e.mail.Reset()
+}
+
 func verificationLink(t *testing.T, e *env, to string) (link, token string) {
 	t.Helper()
 	m := mailTo(t, e.flushMail(), to, "/verify-email#token=")

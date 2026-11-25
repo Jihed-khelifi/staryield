@@ -178,9 +178,7 @@ func TestEndingEverySessionRemovesEveryPushSubscription(t *testing.T) {
 		subscribeTwo(c)
 		anon := e.client()
 		anon.must(http.StatusAccepted, http.MethodPost, "/api/v1/auth/password/forgot", map[string]any{"email": c.user.Email}, nil)
-		sent := e.mailsTo(c.user.Email)
-		text := sent[len(sent)-1].Text
-		token := strings.Fields(text[strings.Index(text, "token=")+6:])[0]
+		token := tokenIn(t, mailTo(t, e.mailsTo(c.user.Email), c.user.Email, "/reset-password?token="))
 		anon.must(http.StatusNoContent, http.MethodPost, "/api/v1/auth/password/reset", map[string]any{"token": token, "password": "N3w!Passw0rd#2026"}, nil)
 		if n := e.pushCount(c.user.ID); n != 0 {
 			t.Fatalf("%d subscriptions left", n)
