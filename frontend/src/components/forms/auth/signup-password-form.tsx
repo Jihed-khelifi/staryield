@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/i18n-provider";
 import { track } from "@/lib/analytics";
 import { attributionForSignup } from "@/lib/attribution";
+import { forgetReferral } from "@/lib/referral"; // growth: referrals
 import { authApi } from "@/lib/api/endpoints";
 import { toApiError } from "@/lib/api/errors";
 import { useSession } from "@/lib/auth/session-provider";
@@ -15,6 +16,7 @@ import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { newPasswordSchema, type NewPasswordValues } from "@/lib/schemas/auth";
 import { useToast } from "@/components/feedback/toast-provider";
 import { Form, FormRootError } from "@/components/ui/form";
+import { ReferralWelcome } from "@/components/referrals/referral-welcome"; // growth: referrals
 
 import { AuthCard, AuthShell, clearSignupEmail, readSignupEmail } from "./auth-card";
 import { NewPasswordFields } from "./new-password-fields";
@@ -58,6 +60,7 @@ export function SignupPasswordForm() {
       // Growth: the welcome e-mail carries the confirmation link (non-blocking: the next step continues).
       // Only when the account says a link is waiting (none goes to an address that refuses e-mail).
       if (res.user.email_verified === false && res.user.email_verification) toast.show({ tone: "info", message: text("We sent a confirmation link to {value0}. Open it to confirm your email.", { value0: input.email }), durationMs: 9000 });
+      forgetReferral(); // the invite was used by this account
       track("signup_step_completed", { step: "password" });
       router.push(`/${locale}/signup/birth`);
     } catch (err) {
@@ -75,6 +78,7 @@ export function SignupPasswordForm() {
 
   return (
     <AuthShell>
+      <ReferralWelcome placement="signup" />
       <Form {...form}>
         <AuthCard
           title="Create password"

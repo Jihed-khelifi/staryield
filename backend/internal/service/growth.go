@@ -811,6 +811,9 @@ type AttributionInput struct {
 	// id (^[A-Za-z0-9_-]{8,64}$), sent only when analytics is allowed. It
 	// links the visitor to the new account; Attribute ignores it.
 	AnonymousID string `json:"anonymous_id"`
+	// growth: referrals — the invite code the browser kept (?ref=CODE). Only
+	// ReferralService.Attribute reads it; GrowthService ignores it.
+	ReferralCode string `json:"referral_code"`
 }
 
 // AttributionView is a user's acquisition source.

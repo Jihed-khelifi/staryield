@@ -245,6 +245,8 @@ func TestExplainHotQueries(t *testing.T) {
 	checks = append(checks, lifecycleChecks(live)...)
 	// growth: e-mail verification (token lookups, admin filter)
 	checks = append(checks, emailVerificationChecks(live)...)
+	// growth: the referral loop
+	checks = append(checks, referralChecks(live)...)
 
 	var lines []string
 	for _, qc := range checks {

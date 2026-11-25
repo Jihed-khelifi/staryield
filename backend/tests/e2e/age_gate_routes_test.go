@@ -74,6 +74,7 @@ var ageExempt = []ageExemption{
 	{"DELETE /api/v1/me/onboarding/dismiss", "showing the onboarding checklist again (no client action)"},
 
 	// The signed-in person's own data and rights.
+	{"GET /api/v1/me/referrals", "growth: the client's own invite code and counters; no money moves and no advisor is contacted (the rewards need a settled reading, which is gated)"},
 	{"* /api/v1/me", "profile, birth data, settings, notifications, support, devices, exports, deactivation, closure (never gated: privacy rights)"},
 	{"GET /api/v1/custom-requests", "reading requests (the profile overview lists them), already placed"},
 	{"GET /api/v1/custom-requests/:id", "reading a request already placed"},

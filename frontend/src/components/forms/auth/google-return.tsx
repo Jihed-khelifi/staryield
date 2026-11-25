@@ -20,6 +20,7 @@ import {
 import { ageLanding } from "@/lib/auth/age-status"; // revisions 5.0: 18+ age gate (§24.6)
 import { useSession } from "@/lib/auth/session-provider";
 import { applyApiError } from "@/lib/forms/server-errors";
+import { forgetReferral } from "@/lib/referral"; // growth: referrals
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { googleConsentSchema } from "@/lib/schemas/auth";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -88,7 +89,10 @@ export function GoogleReturn() {
         setUser(me);
         forgetGoogleIntent();
         const next = landing.current?.next ?? null;
-        if (result === "signed_up") return goTo(`/${locale}/signup/birth`);
+        if (result === "signed_up") {
+          forgetReferral(); // growth: referrals — the invite was used by this account
+          return goTo(`/${locale}/signup/birth`);
+        }
         if (result === "linked") {
           toast.show({ tone: "success", message: text("Google is now connected.") });
           return goTo(next ?? `/${locale}/profile/settings#security`);
@@ -295,6 +299,7 @@ function ConsentCard({ email, onExpired }: { email: string; onExpired: () => voi
       const res = await withAttributionFallback((attribution) => authApi.googleComplete({ accept_terms: true, locale, attribution }));
       setUser(res.user);
       forgetGoogleIntent();
+      forgetReferral(); // growth: referrals — the invite was used by this account
       track("signup_step_completed", { step: "google_consent" });
       router.replace(`/${locale}/signup/birth`);
     } catch (err) {

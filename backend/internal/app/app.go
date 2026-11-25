@@ -613,6 +613,16 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	mailSvc.WithAudit(audit, cfg.Analytics.IPHashSecret)
 
 	// --- growth: referrals ---
+	// A friend's reading or verified address qualifies the invite (post-commit
+	// hooks); the minutes are granted by the referral-grants job after launch.
+	// Account erasure also deletes the user's code and invites (AddPurger).
+	referralSvc := service.NewReferralService(service.ReferralDeps{Tx: txm, Repo: repository.NewReferralRepository(db), Audit: audit,
+		Wallet: walletSvc, Program: siteSvc.ReferralProgram, Launch: siteSvc.LaunchReferralRewards, Notifier: dispatcher,
+		Events: publisher, Tracker: track, Clock: clk,
+		Cfg: service.ReferralSettings{FrontendURL: cfg.App.FrontendURL, IPHashSecret: cfg.Analytics.IPHashSecret}})
+	chatSvc.OnSessionSettled(referralSvc.OnSessionSettled)
+	eraser.AddPurger(referralSvc)
+	services.Referrals = referralSvc
 	// --- end growth: referrals ---
 
 	// --- growth: lifecycle and onboarding ---
@@ -712,6 +722,9 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	// end revisions 3.0: support desk
 
 	// --- growth jobs: referrals ---
+	scheduler.WithJobs(
+		worker.Job{Name: service.ReferralGrantJob, Every: time.Minute, Wake: referralSvc.Wake(), Run: referralSvc.RunGrants},
+		worker.Job{Name: service.ReferralSweepJob, Every: 5 * time.Minute, Run: referralSvc.RunSweep})
 	// --- end growth jobs: referrals ---
 
 	// --- growth jobs: lifecycle and onboarding ---

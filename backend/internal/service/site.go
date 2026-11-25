@@ -152,6 +152,9 @@ type siteSnapshot struct {
 	TrialHold        TrialHoldSettings        `json:"trial_hold"`
 	PaymentPolicies  PaymentPolicies          `json:"payment_policies"`
 	CalculatorReport CalculatorReportSettings `json:"calculator_report"`
+	// growth: referrals (site_referrals.go). A pointer so a copy cached by an
+	// instance that predates the setting reads as "not in the snapshot".
+	Referral *ReferralProgram `json:"referral,omitempty"`
 }
 
 // SiteService serves and administers the site configuration.
@@ -325,6 +328,9 @@ func (s *SiteService) fromDB(ctx context.Context) (*siteSnapshot, error) {
 			snap.PaymentPolicies = paymentPoliciesFrom(st)
 		case domain.SiteSettingCalculatorReport:
 			snap.CalculatorReport = calculatorReportFrom(st)
+		case domain.SiteSettingReferralProgram: // growth: referrals
+			p := referralProgramFrom(st)
+			snap.Referral = &p
 		}
 	}
 	return snap, nil
@@ -409,6 +415,13 @@ type SiteConfigView struct {
 	Features struct {
 		Memberships bool `json:"memberships"`
 	} `json:"features"`
+	// Referrals tells the web app whether to show the invite surfaces and what
+	// they promise (growth: referrals); it needs no extra request.
+	Referrals struct {
+		Enabled       bool `json:"enabled"`
+		RewardMinutes int  `json:"reward_minutes"`
+		Launched      bool `json:"launched"`
+	} `json:"referrals"`
 	GeneratedAt time.Time `json:"generated_at"`
 }
 
@@ -463,6 +476,9 @@ func renderSiteConfig(snap *siteSnapshot, locale string, now time.Time, googleEn
 		minutes = snap.Signup.FreeMinutes
 	}
 	v.SignupOffer.Enabled, v.SignupOffer.FreeMinutes = snap.Signup.Enabled, minutes
+	if r := snap.Referral; r != nil && !snap.Defaults {
+		v.Referrals.Enabled, v.Referrals.RewardMinutes, v.Referrals.Launched = r.Enabled, r.RewardMinutes, r.Launched()
+	}
 	v.Banners.RotationSeconds = snap.Banners.RotationSeconds
 	v.Banners.Items = []PublicBanner{}
 	if snap.Banners.Enabled {

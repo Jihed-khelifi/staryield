@@ -134,6 +134,10 @@ const samples: Record<NotificationKind, Record<string, unknown>> = {
   "lifecycle.win_back": { online_advisors: 4 },
   // growth: e-mail verification
   "account.email_verified": {},
+  // growth: referrals
+  "referral.joined": {},
+  "referral.qualified": { minutes: 5, launched: false },
+  "referral.reward_granted": { minutes: 10, friends: 2 },
 };
 
 describe("copy for every kind (§23.6)", () => {
