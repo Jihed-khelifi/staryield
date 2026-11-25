@@ -240,6 +240,8 @@ func TestExplainHotQueries(t *testing.T) {
 	checks = append(checks, paymentOpsChecks(live, ids)...)
 	// revisions 6.0 (§26.4): e-mail leads of the calculators' report
 	checks = append(checks, reportLeadChecks(live)...)
+	// growth: the referral loop
+	checks = append(checks, referralChecks(live)...)
 
 	var lines []string
 	for _, qc := range checks {
