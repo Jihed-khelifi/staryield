@@ -26,7 +26,6 @@ type fakeLifecycleRepo struct {
 	claimed   []domain.LifecycleMessage
 	conflicts map[uuid.UUID]bool // users whose claim another instance won
 	released  []uuid.UUID
-	online    int
 	facts     repository.OnboardingFacts
 	dismissed *time.Time
 	converts  []convertCall
@@ -99,7 +98,6 @@ func (f *fakeLifecycleRepo) Release(_ context.Context, ids []uuid.UUID) error {
 func (f *fakeLifecycleRepo) Stats(context.Context, time.Time, int) ([]repository.LifecycleStatRow, error) {
 	return nil, nil
 }
-func (f *fakeLifecycleRepo) OnlineAdvisors(context.Context) (int, error) { return f.online, nil }
 func (f *fakeLifecycleRepo) RecordReaders(_ context.Context, ids []uuid.UUID) error {
 	f.readers = append(f.readers, ids...)
 	return nil
@@ -181,6 +179,7 @@ func (lcTx) WithinTx(ctx context.Context, fn func(context.Context) error) error 
 type lifecycleFixture struct {
 	svc    *LifecycleService
 	repo   *fakeLifecycleRepo
+	online int // the directory's online advisors
 	site   *fakeLifecycleSite
 	notes  *recordingNotifier
 	events *lcEvents
@@ -194,7 +193,7 @@ func newLifecycleFixture(t *testing.T) *lifecycleFixture {
 		notes: &recordingNotifier{}, events: &lcEvents{}, clk: clock.NewFake(time.Date(2026, 11, 5, 9, 0, 0, 0, time.UTC)),
 		users: map[uuid.UUID]repository.Contact{}}
 	f.svc = NewLifecycleService(LifecycleDeps{Tx: lcTx{}, Repo: f.repo, Site: f.site, Contacts: fakeContacts(f.users), Notifier: f.notes,
-		Events: f.events, Clock: f.clk})
+		Events: f.events, Clock: f.clk, OnlineAdvisors: func(context.Context) (int, error) { return f.online, nil }})
 	return f
 }
 
@@ -355,7 +354,7 @@ func TestLifecycleWinBackStatesOnlyWhatIsTrue(t *testing.T) {
 	f := newLifecycleFixture(t)
 	f.site.st = &domain.SiteSetting{Key: domain.SiteSettingLifecycle, Version: 1, Value: defaultLifecycle().withEnabled(domain.JourneyWinBack, true).toMap()}
 	u := f.user(true, false)
-	f.repo.online = 0
+	f.online = 0
 	f.repo.due[domain.JourneyWinBack] = []repository.LifecycleDue{{UserID: u, Cycle: 2}}
 	if err := f.svc.RunDue(context.Background()); err != nil {
 		t.Fatal(err)
@@ -369,7 +368,7 @@ func TestLifecycleWinBackStatesOnlyWhatIsTrue(t *testing.T) {
 	f = newLifecycleFixture(t)
 	f.site.st = &domain.SiteSetting{Key: domain.SiteSettingLifecycle, Version: 1, Value: defaultLifecycle().withEnabled(domain.JourneyWinBack, true).toMap()}
 	u = f.user(true, false)
-	f.repo.online = 3
+	f.online = 3
 	f.repo.due[domain.JourneyWinBack] = []repository.LifecycleDue{{UserID: u, Cycle: 1}}
 	_ = f.svc.RunDue(context.Background())
 	if f.notes.spec[0].Data["online_advisors"] != 3 || f.notes.spec[0].Link != "/psychics" {
@@ -629,8 +628,11 @@ func TestLifecycleFunnelWithoutTheReferralSeam(t *testing.T) {
 	if len(out.Steps) != 6 || out.Steps[4].Key != "invited_friend" || out.Steps[4].Count != nil || *out.Steps[0].Count != 10 || out.Steps[3].Rate != 0.2 {
 		t.Fatalf("funnel: %+v", out)
 	}
-	if _, err := f.svc.Funnel(context.Background(), 400); err == nil {
-		t.Fatal("window too long")
+	for _, days := range []int{0, -1, 400} {
+		_, err := f.svc.Funnel(context.Background(), days)
+		if ae, ok := apperror.As(err); !ok || ae.Code != apperror.CodeValidation {
+			t.Fatalf("days=%d: %v", days, err)
+		}
 	}
 }
 
@@ -638,4 +640,99 @@ type funnelRepo struct{ repository.LifecycleRepository }
 
 func (funnelRepo) Funnel(context.Context, time.Time, time.Time) (repository.LifecycleFunnel, error) {
 	return repository.LifecycleFunnel{SignedUp: 10, Verified: 6, BirthDetails: 4, FirstReading: 2, SecondReading: 1}, nil
+}
+
+// Without the directory's count, or when it fails, no message says that an
+// advisor is online (and win-back links to the horoscope).
+func TestLifecycleOnlineAdvisorsUnknownMeansNone(t *testing.T) {
+	for name, count := range map[string]func(context.Context) (int, error){
+		"unset":  nil,
+		"failed": func(context.Context) (int, error) { return 7, errors.New("catalog down") },
+	} {
+		f := newLifecycleFixture(t)
+		f.svc.d.OnlineAdvisors = count
+		f.site.st = &domain.SiteSetting{Key: domain.SiteSettingLifecycle, Version: 1, Value: defaultLifecycle().withEnabled(domain.JourneyWinBack, true).toMap()}
+		f.repo.due[domain.JourneyWinBack] = []repository.LifecycleDue{{UserID: f.user(true, false), Cycle: 1}}
+		if err := f.svc.RunDue(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if len(f.notes.spec) != 1 || f.notes.spec[0].Data["online_advisors"] != 0 || f.notes.spec[0].Link != "/profile" {
+			t.Fatalf("%s: %+v", name, f.notes.spec)
+		}
+	}
+}
+
+type fakePushPacer struct {
+	room  bool
+	calls []int
+}
+
+func (p *fakePushPacer) WaitBulkRoom(_ context.Context, n int) bool {
+	p.calls = append(p.calls, n)
+	return p.room
+}
+
+// The job claims a batch only once the push bulk lane has room for it (and
+// the batch before it); while the lane stays full nothing is claimed and the
+// next run continues.
+func TestLifecyclePacesItselfOnThePushQueue(t *testing.T) {
+	f := newLifecycleFixture(t)
+	pacer := &fakePushPacer{room: false}
+	f.svc.d.Push = pacer
+	f.repo.due[domain.JourneyFirstReading] = []repository.LifecycleDue{{UserID: f.user(true, true), Cycle: 1}}
+	if err := f.svc.RunDue(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.repo.queries) != 0 || len(f.repo.claimed) != 0 || len(f.notes.spec) != 0 {
+		t.Fatalf("a full push queue: %d queries, %d claims", len(f.repo.queries), len(f.repo.claimed))
+	}
+	if len(pacer.calls) == 0 || pacer.calls[0] != 2*lifecycleBatch {
+		t.Fatalf("room asked: %v", pacer.calls)
+	}
+	pacer.room = true
+	if err := f.svc.RunDue(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.repo.claimed) != 1 || len(f.notes.spec) != 1 {
+		t.Fatalf("with room: %d claims, %d notifications", len(f.repo.claimed), len(f.notes.spec))
+	}
+}
+
+// Promotional pushes wait behind every other push, and a full bulk lane
+// drops them instead of anyone else's: the job waits for room.
+func TestLifecyclePushesUseTheBulkLane(t *testing.T) {
+	for _, kind := range []string{NotifyLifecycleFirstReading, NotifyLifecycleInviteFriends, NotifyLifecycleWinBack} {
+		if laneFor(kind) != laneBulk {
+			t.Errorf("%s: lane %v, want bulk", kind, laneFor(kind))
+		}
+	}
+	r := newPushRig(t, PushSettings{QueueSize: 3}, 1)
+	if !r.svc.WaitBulkRoom(context.Background(), 3) {
+		t.Fatal("an empty lane has room")
+	}
+	for i := 0; i < 2; i++ {
+		r.svc.enqueue(nil, r.job(laneBulk, "bulk"))
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	if r.svc.WaitBulkRoom(ctx, 2) {
+		t.Fatal("room for 2 in a lane with 1 free slot")
+	}
+	if !r.svc.WaitBulkRoom(context.Background(), 1) {
+		t.Fatal("room for 1")
+	}
+	// The lane drains: the wait ends.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		r.svc.take(true, false)
+	}()
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel2()
+	if !r.svc.WaitBulkRoom(ctx2, 2) {
+		t.Fatal("the wait did not end when the lane drained")
+	}
+	var off *PushService
+	if !off.WaitBulkRoom(context.Background(), 10) {
+		t.Fatal("push off: no wait")
+	}
 }

@@ -414,3 +414,21 @@ func (c *AdvisorCatalog) Featured(ctx context.Context, limit int) (*FeaturedList
 	}
 	return out, nil
 }
+
+// OnlineCount is how many listed advisors a client can start a reading with
+// now: "online" in the directory (available, connected, not in a session, an
+// active account), read from the same snapshot, so a message that says "N
+// advisors are online" agrees with the directory it links to.
+func (c *AdvisorCatalog) OnlineCount(ctx context.Context) (int, error) {
+	snap, err := c.current(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for i := range snap.cards {
+		if snap.cards[i].Status == string(domain.PresenceOnline) {
+			n++
+		}
+	}
+	return n, nil
+}

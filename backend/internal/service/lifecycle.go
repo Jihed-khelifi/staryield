@@ -32,11 +32,16 @@ const (
 // sends transactional mail). The verification reminder is transactional: its
 // e-mail is the fresh verification link, sent by the e-mail verification
 // feature through SetVerificationReminder, so the kind itself is in-app only.
+//
+// Their pushes go to the bulk lane, behind every other push (like
+// broadcasts): a large run never crowds out anyone's chat, request or receipt
+// pushes. The job paces itself on that lane (see LifecycleDeps.Push).
 func init() {
 	marketing := ChannelPolicy{Email: true, Category: domain.EmailMarketing, Push: true}
-	channelPolicies[NotifyLifecycleFirstReading] = marketing
-	channelPolicies[NotifyLifecycleInviteFriends] = marketing
-	channelPolicies[NotifyLifecycleWinBack] = marketing
+	for _, kind := range []string{NotifyLifecycleFirstReading, NotifyLifecycleInviteFriends, NotifyLifecycleWinBack} {
+		channelPolicies[kind] = marketing
+		bulkPushKinds[kind] = true
+	}
 }
 
 // Lifecycle tuning. Delays and the attribution window are admin settings; the
@@ -63,7 +68,18 @@ const (
 	lifecycleMaxBatches = 40
 	lifecycleBudget     = 3 * time.Minute
 	lifecycleHookTime   = 10 * time.Second
+	// lifecyclePushRoom is the room a batch waits for on the push bulk lane:
+	// its own pushes plus the previous batch's, which may still be on their
+	// way through the notification dispatcher.
+	lifecyclePushRoom = 2 * lifecycleBatch
 )
+
+// LifecyclePushPacer is the push service's bulk lane, seen by the job.
+type LifecyclePushPacer interface {
+	// WaitBulkRoom waits, bounded by ctx, until the lane can take n more
+	// pushes; false when ctx ended first.
+	WaitBulkRoom(ctx context.Context, n int) bool
+}
 
 // LifecycleDeps wire the lifecycle service.
 type LifecycleDeps struct {
@@ -75,6 +91,14 @@ type LifecycleDeps struct {
 	Notifier Notifier
 	// Events publishes onboarding.updated to the client's tabs and devices.
 	Events EventPublisher
+	// OnlineAdvisors counts the advisors a client can start a reading with
+	// now, by the directory's rule (AdvisorCatalog.OnlineCount). Without it
+	// (or when it fails) the messages never say that anyone is online.
+	OnlineAdvisors func(ctx context.Context) (int, error)
+	// Push (optional) paces the job on the push bulk lane: the dispatcher's
+	// push fan-out never waits (a full lane drops), so each batch is only
+	// claimed once the lane has room for it.
+	Push LifecyclePushPacer
 	// Cache (optional) keeps the activation funnel for a minute.
 	Cache cache.Store
 	Clock clock.Clock
@@ -220,7 +244,6 @@ func (s *LifecycleService) run(ctx context.Context) error {
 		log.Debug("lifecycle: readers reconciled", zap.Int("clients", n))
 	}
 	set := s.settings(ctx)
-	var online *int // counted once per run, when a journey needs it
 	var firstErr error
 	for _, key := range domain.LifecycleJourneys {
 		cfg := set.Journeys[key]
@@ -231,7 +254,7 @@ func (s *LifecycleService) run(ctx context.Context) error {
 			log.Info("lifecycle: time budget used, continuing next run")
 			break
 		}
-		counts, err := s.runJourney(ctx, key, cfg, started, &online)
+		counts, err := s.runJourney(ctx, key, cfg, started)
 		if counts != (lifecycleCounts{}) {
 			log.Info("lifecycle: journey run", zap.String("journey", key), zap.Int("sent", counts.Sent), zap.Int("skipped", counts.Skipped),
 				zap.Int("failed", counts.Failed), zap.Int("conflicts", counts.Conflicts))
@@ -269,7 +292,7 @@ func dueWindows(key string, cfg LifecycleJourney, now time.Time) []repository.Li
 	return out
 }
 
-func (s *LifecycleService) runJourney(ctx context.Context, key string, cfg LifecycleJourney, started time.Time, online **int) (lifecycleCounts, error) {
+func (s *LifecycleService) runJourney(ctx context.Context, key string, cfg LifecycleJourney, started time.Time) (lifecycleCounts, error) {
 	var total lifecycleCounts
 	// Each band is fixed for the whole run and walked in keyset order, so every
 	// due user is read once per run whatever happens to its claim.
@@ -279,6 +302,13 @@ func (s *LifecycleService) runJourney(ctx context.Context, key string, cfg Lifec
 			if ctx.Err() != nil {
 				return total, ctx.Err()
 			}
+			if !s.waitPushRoom(ctx, started) {
+				if ctx.Err() != nil {
+					return total, ctx.Err()
+				}
+				s.d.Log.Info("lifecycle: push queue busy, continuing next run", zap.String("journey", key))
+				return total, nil
+			}
 			due, err := s.d.Repo.Due(ctx, q)
 			if err != nil {
 				return total, err
@@ -286,7 +316,7 @@ func (s *LifecycleService) runJourney(ctx context.Context, key string, cfg Lifec
 			if len(due) == 0 {
 				break
 			}
-			counts, err := s.process(ctx, key, due, s.d.Clock.Now(), online)
+			counts, err := s.process(ctx, key, due, s.d.Clock.Now())
 			total.Sent += counts.Sent
 			total.Skipped += counts.Skipped
 			total.Failed += counts.Failed
@@ -304,9 +334,21 @@ func (s *LifecycleService) runJourney(ctx context.Context, key string, cfg Lifec
 	return total, nil
 }
 
+// waitPushRoom waits, within the run's budget, until the push bulk lane can
+// take a batch; false when the budget or ctx ended first.
+func (s *LifecycleService) waitPushRoom(ctx context.Context, started time.Time) bool {
+	if s.d.Push == nil {
+		return true
+	}
+	wctx, cancel := context.WithDeadline(ctx, started.Add(lifecycleBudget))
+	defer cancel()
+	return s.d.Push.WaitBulkRoom(wctx, lifecyclePushRoom)
+}
+
 // process claims one batch and delivers the claims this instance won.
-func (s *LifecycleService) process(ctx context.Context, key string, due []repository.LifecycleDue, now time.Time, online **int) (lifecycleCounts, error) {
+func (s *LifecycleService) process(ctx context.Context, key string, due []repository.LifecycleDue, now time.Time) (lifecycleCounts, error) {
 	var counts lifecycleCounts
+	var online *int // counted once per batch, when the journey's copy needs it
 	ids := make([]uuid.UUID, len(due))
 	for i := range due {
 		ids[i] = due[i].UserID
@@ -359,7 +401,7 @@ func (s *LifecycleService) process(ctx context.Context, key string, due []reposi
 			counts.Skipped++
 			continue
 		}
-		spec, ok := s.spec(ctx, key, dueOf[row.UserID], online)
+		spec, ok := s.spec(ctx, key, dueOf[row.UserID], &online)
 		if key == domain.JourneyVerifyReminder {
 			send := s.verificationSender()
 			if send == nil {
@@ -424,15 +466,19 @@ func (s *LifecycleService) spec(ctx context.Context, key string, d repository.Li
 	return NotificationSpec{}, false
 }
 
-// onlineAdvisors counts the advisors online, once per run.
+// onlineAdvisors counts the advisors online, once per batch, by the directory's
+// rule: the message links to the directory, which must show as many.
 func (s *LifecycleService) onlineAdvisors(ctx context.Context, cache **int) int {
 	if *cache != nil {
 		return **cache
 	}
-	n, err := s.d.Repo.OnlineAdvisors(ctx)
-	if err != nil {
-		warnErr(ctx, "lifecycle: count online advisors", err)
-		n = 0 // claim nothing we cannot show
+	n := 0 // claim nothing we cannot show
+	if s.d.OnlineAdvisors != nil {
+		var err error
+		if n, err = s.d.OnlineAdvisors(ctx); err != nil {
+			warnErr(ctx, "lifecycle: count online advisors", err)
+			n = 0
+		}
 	}
 	*cache = &n
 	return n

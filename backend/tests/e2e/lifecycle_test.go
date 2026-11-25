@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/Jihed-khelifi/staryield/backend/internal/app"
 	"github.com/Jihed-khelifi/staryield/backend/internal/domain"
 	"github.com/Jihed-khelifi/staryield/backend/internal/repository"
 	"github.com/Jihed-khelifi/staryield/backend/internal/service"
@@ -378,7 +379,6 @@ func TestLifecycleWinBackCycles(t *testing.T) {
 	e.app.DB.Exec(`DELETE FROM lifecycle_readers WHERE user_id = ?`, neverRead.user.ID)
 	e.app.DB.Exec(`UPDATE users SET last_login_at = ? WHERE id = ?`, e.clock.Now().Add(-2*24*time.Hour), active.user.ID)
 	e.app.DB.Exec(`UPDATE refresh_tokens SET last_used_at = ? WHERE user_id = ?`, e.clock.Now().Add(-time.Hour), tokenActive.user.ID)
-	e.app.DB.Exec(`UPDATE psychics SET availability = 'offline'`)
 
 	e.lcRun()
 	rows := e.lcMessages(lapsed.user.ID, domain.JourneyWinBack)
@@ -442,18 +442,34 @@ func TestLifecycleWinBackCycles(t *testing.T) {
 	}
 }
 
+// "N advisors are online now" counts what the directory shows: an advisor
+// whose chosen availability is "online" but who is not connected is not
+// online, one who is connected and available is.
 func TestLifecycleWinBackNamesTheAdvisorsOnline(t *testing.T) {
 	e := newEnv(t)
 	e.lcStart()
 	e.app.DB.Exec(`UPDATE site_settings SET version = version + 1, value = jsonb_set(value, '{journeys,win_back,enabled}', 'true') WHERE key = 'lifecycle'`)
-	e.createPsychic(40)
-	e.app.DB.Exec(`UPDATE psychics SET availability = 'online' WHERE listed`)
-	c := e.registerClient()
-	e.lcLapse(c.user.ID, 15*24*time.Hour)
+	advisor := e.createPsychic(40)
+	// The advisor left "online" chosen but is not connected.
+	e.app.DB.Exec(`UPDATE psychics SET availability = 'online' WHERE user_id = ?`, advisor.user.ID)
+	before := e.registerClient()
+	e.lcLapse(before.user.ID, 15*24*time.Hour)
 	e.lcRun()
-	n := e.lcNotifications(c.user.ID, service.NotifyLifecycleWinBack)
-	if len(n) != 1 || n[0].Data["online_advisors"].(float64) < 1 || n[0].Link != "/psychics" {
-		t.Fatalf("win-back notification: %+v", n)
+	n := e.lcNotifications(before.user.ID, service.NotifyLifecycleWinBack)
+	if len(n) != 1 || n[0].Data["online_advisors"] != float64(0) || n[0].Link != "/profile" {
+		t.Fatalf("nobody connected: %+v", n)
+	}
+
+	ws := advisor.goOnline()
+	defer func() { _ = ws.conn.Close() }()
+	var listed directoryPage
+	e.client().must(http.StatusOK, http.MethodGet, "/api/v1/psychics?page_size=48&status=online", nil, &listed)
+	after := e.registerClient()
+	e.lcLapse(after.user.ID, 15*24*time.Hour)
+	e.lcRun()
+	n = e.lcNotifications(after.user.ID, service.NotifyLifecycleWinBack)
+	if len(n) != 1 || n[0].Data["online_advisors"] != float64(listed.Total) || listed.Total < 1 || n[0].Link != "/psychics" {
+		t.Fatalf("an advisor connected (directory: %d online): %+v", listed.Total, n)
 	}
 }
 
@@ -838,7 +854,7 @@ func TestLifecycleStatsAndFunnel(t *testing.T) {
 	if *wide.Steps[0].Count < *f.Steps[0].Count+1 {
 		t.Fatalf("90 days: %d, 7 days: %d", *wide.Steps[0].Count, *f.Steps[0].Count)
 	}
-	for _, q := range []string{"?days=0x", "?days=91", "?days=-1"} {
+	for _, q := range []string{"?days=0x", "?days=0", "?days=91", "?days=-1"} {
 		if r := admin.call(http.MethodGet, funnelPath+q, nil); r.status != http.StatusUnprocessableEntity {
 			t.Errorf("%s: %d %s", q, r.status, r.body)
 		}
@@ -980,4 +996,46 @@ func TestOnboardingIsAvailableBeforeTheAgeCheck(t *testing.T) {
 	var got service.OnboardingView
 	c.must(http.StatusOK, http.MethodGet, "/api/v1/me/onboarding", nil, &got)
 	c.must(http.StatusOK, http.MethodPost, "/api/v1/me/onboarding/dismiss", nil, &got)
+}
+
+// The personal-data export includes the account's lifecycle messages (journey,
+// sent or skipped, channels attempted, conversion) and when the checklist was
+// hidden.
+func TestLifecycleRecordsAreInThePersonalDataExport(t *testing.T) {
+	e := newEnv(t)
+	e.lcStart()
+	c := e.registerClient()
+	e.lcAge(c.user.ID, 30*time.Hour)
+	e.lcRun()
+	if rows := e.lcMessages(c.user.ID, domain.JourneyFirstReading); len(rows) != 1 {
+		t.Fatalf("first reading nudge: %+v", rows)
+	}
+	c.must(http.StatusOK, http.MethodPost, "/api/v1/me/onboarding/dismiss", nil, nil)
+
+	var job service.ExportView
+	c.must(http.StatusAccepted, http.MethodPost, "/api/v1/me/exports", map[string]any{"password": strongPassword}, &job)
+	if err := e.app.Scheduler.RunJob(context.Background(), app.ExportJob); err != nil {
+		t.Fatal(err)
+	}
+	var link service.DownloadLink
+	c.must(http.StatusOK, http.MethodPost, "/api/v1/me/exports/"+job.ID.String()+"/download-token", map[string]any{"password": strongPassword}, &link)
+	files := readZip(t, c.raw(http.MethodGet, link.URL, nil, nil).body)
+	doc, ok := files["lifecycle-messages.json"]
+	if !ok {
+		t.Fatalf("lifecycle-messages.json missing from %v", keysOf(files))
+	}
+	var msgs []map[string]any
+	if err := json.Unmarshal(doc, &msgs); err != nil || len(msgs) != 1 {
+		t.Fatalf("lifecycle-messages.json: %s %v", doc, err)
+	}
+	if m := msgs[0]; m["journey"] != domain.JourneyFirstReading || m["status"] != domain.LifecycleSent || m["cycle"] != float64(1) ||
+		m["channels_attempted"].(map[string]any)["in_app"] != true || m["converted_at"] != nil || m["at"] == nil {
+		t.Fatalf("message: %v", m)
+	}
+	var account struct {
+		Profile map[string]any `json:"profile"`
+	}
+	if err := json.Unmarshal(files["account.json"], &account); err != nil || account.Profile["onboarding_checklist_hidden_at"] == nil {
+		t.Fatalf("account.json profile: %v %v", account.Profile, err)
+	}
 }

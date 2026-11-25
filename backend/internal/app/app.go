@@ -608,7 +608,8 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger, ov Overrides)
 	// --- growth: lifecycle and onboarding ---
 	lifecycleSvc := service.NewLifecycleService(service.LifecycleDeps{Tx: txm, Repo: repository.NewLifecycleRepository(db),
 		Site: repository.NewSiteRepository(db), Contacts: repository.NewContactRepository(db), Audit: audit, Notifier: dispatcher,
-		Events: publisher, Cache: kv, Clock: clk, Log: log.With(zap.String("component", "lifecycle")), IPHashSecret: cfg.Analytics.IPHashSecret})
+		Events: publisher, OnlineAdvisors: catalogSvc.OnlineCount, Push: pushSvc, Cache: kv, Clock: clk, Log: log.With(zap.String("component", "lifecycle")),
+		IPHashSecret: cfg.Analytics.IPHashSecret})
 	lifecycleSvc.Attach(chatSvc)
 	services.Lifecycle = lifecycleSvc
 	// --- end growth: lifecycle and onboarding ---

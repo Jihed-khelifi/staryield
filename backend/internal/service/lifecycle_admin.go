@@ -31,6 +31,8 @@ const (
 	lifecycleDelayMax = 90 * 24
 	// lifecycleFunnelMaxDays is the longest sign-up window of the funnel.
 	lifecycleFunnelMaxDays = 90
+	// LifecycleFunnelDefaultDays is the funnel's window when none is asked for.
+	LifecycleFunnelDefaultDays = 30
 	// lifecycleFunnelTTL: the funnel is one probe per account of the cohort,
 	// so the console reads it from the cache for this long.
 	lifecycleFunnelTTL = time.Minute
@@ -358,11 +360,9 @@ type LifecycleFunnelView struct {
 // reading, invited a friend and completed a second reading. A step counts
 // clients who ever reached it (not in order): they are the same accounts at
 // every step. One aggregated query, plus the referral program's own count;
-// the result is cached for a minute per window.
+// the result is cached for a minute per window. days must be 1..90 (the
+// handler applies LifecycleFunnelDefaultDays when the parameter is absent).
 func (s *LifecycleService) Funnel(ctx context.Context, days int) (*LifecycleFunnelView, error) {
-	if days == 0 {
-		days = 30
-	}
 	if days < 1 || days > lifecycleFunnelMaxDays {
 		return nil, apperror.Validation(map[string]string{"days": msgLifecycleWindow})
 	}

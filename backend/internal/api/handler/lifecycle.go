@@ -60,7 +60,7 @@ func (h *Handler) AdminUpdateLifecycle(c echo.Context) error {
 
 // AdminLifecycleFunnel returns the activation funnel of the recent sign-ups.
 func (h *Handler) AdminLifecycleFunnel(c echo.Context) error {
-	days := 30
+	days := service.LifecycleFunnelDefaultDays
 	if raw := c.QueryParam("days"); raw != "" {
 		n, err := strconv.Atoi(raw)
 		if err != nil {

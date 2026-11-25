@@ -109,8 +109,6 @@ type LifecycleRepository interface {
 	// Convert marks the user's open reading-driven messages created in
 	// [from, to] as converted (one UPDATE) and returns how many.
 	Convert(ctx context.Context, userID uuid.UUID, from, to time.Time) (int64, error)
-	// OnlineAdvisors counts the listed advisors that are online.
-	OnlineAdvisors(ctx context.Context) (int, error)
 	// Stats groups the messages of the last 30 days.
 	Stats(ctx context.Context, now time.Time, attributionDays int) ([]LifecycleStatRow, error)
 	// Funnel counts the clients who signed up in [from, to).
@@ -342,13 +340,6 @@ func (r *GormLifecycleRepository) Convert(ctx context.Context, userID uuid.UUID,
 			userID, domain.LifecycleSent, domain.JourneyVerifyReminder, from, to).
 		Updates(map[string]any{"converted_at": to, "updated_at": to})
 	return res.RowsAffected, res.Error
-}
-
-// OnlineAdvisors implements LifecycleRepository.
-func (r *GormLifecycleRepository) OnlineAdvisors(ctx context.Context) (int, error) {
-	var n int64
-	err := database.Conn(ctx, r.db).Model(&domain.Psychic{}).Where("listed AND availability = ?", domain.PresenceOnline).Count(&n).Error
-	return int(n), err
 }
 
 // Stats implements LifecycleRepository (lifecycle_messages_stats_idx: one
