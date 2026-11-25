@@ -11,13 +11,19 @@ const textEn = createTranslateCopy(en);
 
 describe("invite copy", () => {
   it("promises the minutes at launch before the launch, and plainly after", () => {
-    expect(rewardSentence({ reward_minutes: 5, launched: false }, "en", textEn)).toBe(
+    expect(rewardSentence({ enabled: true, reward_minutes: 5, launched: false }, "en", textEn)).toBe(
       "For every friend who joins with your link and completes a reading, you get 5 free minutes, added when Staryield launches.",
     );
-    expect(rewardSentence({ reward_minutes: 5, launched: true }, "en", textEn)).toBe(
+    expect(rewardSentence({ enabled: true, reward_minutes: 5, launched: true }, "en", textEn)).toBe(
       "For every friend who joins with your link and completes a reading, you get 5 free minutes.",
     );
-    expect(rewardSentence({ reward_minutes: 1, launched: true }, "en", textEn)).toContain("you get 1 free minute.");
+    expect(rewardSentence({ enabled: true, reward_minutes: 1, launched: true }, "en", textEn)).toContain("you get 1 free minute.");
+  });
+
+  it("promises nothing while the program is paused", () => {
+    for (const launched of [false, true]) {
+      expect(rewardSentence({ enabled: false, reward_minutes: 5, launched }, "en", textEn)).toBe("Rewards for new invitations are paused for now.");
+    }
   });
 
   it("summarises the progress with singular and plural forms", () => {
@@ -44,7 +50,8 @@ describe("invite copy", () => {
       const line = progressLine(stats, { launched: false }, locale, t);
       expect(line).not.toContain("friends joined");
       expect(line).not.toMatch(/\{\w+\}/);
-      expect(rewardSentence({ reward_minutes: 5, launched: false }, locale, t)).not.toContain("For every friend");
+      expect(rewardSentence({ enabled: true, reward_minutes: 5, launched: false }, locale, t)).not.toContain("For every friend");
+      expect(rewardSentence({ enabled: false, reward_minutes: 5, launched: false }, locale, t)).not.toContain("Rewards for new invitations");
     }
     expect(rewardsLeft(stats, { max_rewards: 20 }, "en", textEn)).toBe("18 of 20");
   });

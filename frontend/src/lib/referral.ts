@@ -170,3 +170,13 @@ export function referralProgramOf(config: SiteConfig | null | undefined): Public
   const minutes = typeof r?.reward_minutes === "number" && Number.isFinite(r.reward_minutes) ? Math.max(0, Math.round(r.reward_minutes)) : 0;
   return { enabled: r?.enabled === true && minutes > 0, reward_minutes: minutes, launched: r?.launched === true };
 }
+
+/**
+ * Whether an account view needs the invite data (`GET /me/referrals`): the invite page always (it also explains a
+ * paused program), the overview only while the program is announced (its card is hidden otherwise), and never the
+ * chart or settings views, nor advisors.
+ */
+export function accountViewNeedsReferrals(view: string, role: string | undefined, program: PublicReferralProgram): boolean {
+  if (role !== "client") return false;
+  return view === "invite" || (view === "overview" && program.enabled);
+}

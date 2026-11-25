@@ -8,6 +8,7 @@ import {
   REFERRAL_KEY,
   REFERRAL_STORED_EVENT,
   REFERRAL_TTL_MS,
+  accountViewNeedsReferrals,
   captureReferral,
   forgetReferral,
   hasStoredReferral,
@@ -154,5 +155,26 @@ describe("referralProgramOf", () => {
       reward_minutes: 5,
       launched: true,
     });
+  });
+});
+
+describe("accountViewNeedsReferrals", () => {
+  const on = { enabled: true, reward_minutes: 5, launched: false };
+  const off = { enabled: false, reward_minutes: 0, launched: false };
+  it("asks for the invite data only on the views that show it", () => {
+    expect(accountViewNeedsReferrals("overview", "client", on)).toBe(true);
+    expect(accountViewNeedsReferrals("invite", "client", on)).toBe(true);
+    expect(accountViewNeedsReferrals("chart", "client", on)).toBe(false);
+    expect(accountViewNeedsReferrals("settings", "client", on)).toBe(false);
+  });
+  it("skips the overview while the program is off, but the invite page still explains the pause", () => {
+    expect(accountViewNeedsReferrals("overview", "client", off)).toBe(false);
+    expect(accountViewNeedsReferrals("invite", "client", off)).toBe(true);
+  });
+  it("never asks for advisors or before the session is known", () => {
+    for (const view of ["overview", "invite", "analytics", "settings"]) {
+      expect(accountViewNeedsReferrals(view, "psychic", on)).toBe(false);
+      expect(accountViewNeedsReferrals(view, undefined, on)).toBe(false);
+    }
   });
 });

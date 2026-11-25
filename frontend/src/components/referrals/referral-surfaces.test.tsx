@@ -124,6 +124,9 @@ describe("InvitePage", () => {
     await screen.findByTestId("referral-stats");
     expect(screen.getByTestId("referral-program-notice").getAttribute("data-state")).toBe("paused");
     expect(screen.queryByTestId("referral-link")).toBeNull();
+    // The hero promises nothing while paused (new sign-ups and readings earn nothing).
+    expect(screen.getByText("Rewards for new invitations are paused for now.")).toBeTruthy();
+    expect(screen.queryByText(/For every friend who joins/)).toBeNull();
   });
 
   it("offers a retry when the invite cannot be loaded", async () => {

@@ -4,17 +4,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mine = vi.hoisted(() => vi.fn());
 const track = vi.hoisted(() => vi.fn());
-const realtime = vi.hoisted(() => ({ handler: null as null | ((type: string, data: unknown) => void) }));
+const realtime = vi.hoisted(() => ({ handler: null as null | ((type: string, data: unknown) => void), types: [] as readonly string[] }));
 vi.mock("@/lib/api/referrals", () => ({ referralsApi: { mine } }));
 vi.mock("@/lib/analytics", () => ({ track }));
 vi.mock("@/lib/auth/session-provider", () => ({
-  useRealtimeEvents: (_types: readonly string[], handler: (type: string, data: unknown) => void) => {
+  useRealtimeEvents: (types: readonly string[], handler: (type: string, data: unknown) => void) => {
+    realtime.types = types;
     realtime.handler = handler;
   },
 }));
 
 import { ApiError } from "@/lib/api/errors";
-import { REFRESH_COALESCE_MS, ReferralProvider, useReferrals } from "@/lib/referrals/referral-provider";
+import { REFRESH_COALESCE_MS, REFRESH_DEBOUNCE_MS, ReferralProvider, useReferrals } from "@/lib/referrals/referral-provider";
 import { ToastProvider } from "@/components/feedback/toast-provider";
 import { myReferralsFixture } from "@/test/referral-fixtures";
 import { renderWithI18n } from "@/test/render";
@@ -134,10 +135,11 @@ describe("ReferralProvider", () => {
     expect(track).toHaveBeenCalledWith("referral_link_shared", { method: "copy" });
   });
 
-  it("refreshes on referral notifications and on wallet updates while minutes are pending, coalesced", async () => {
+  it("refreshes on referral notifications, once per burst", async () => {
     mine.mockResolvedValue(myReferralsFixture({ stats: { joined: 1, qualified: 1, pending_minutes: 5 } }));
     renderProvider();
     await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("ready:1"));
+    expect(realtime.types).toEqual(["notification.created"]);
     vi.useFakeTimers();
     mine.mockResolvedValue(myReferralsFixture({ stats: { joined: 2, qualified: 1, pending_minutes: 5 } }));
     await act(async () => {
@@ -147,23 +149,44 @@ describe("ReferralProvider", () => {
     expect(mine).toHaveBeenCalledTimes(1); // not a referral kind
     await act(async () => {
       realtime.handler!("notification.created", { notification: { kind: "referral.joined" } });
-      realtime.handler!("wallet.updated", { balance: 10 });
+      vi.advanceTimersByTime(REFRESH_DEBOUNCE_MS / 2);
+      realtime.handler!("notification.created", { notification: { kind: "referral.qualified" } });
+      vi.advanceTimersByTime(REFRESH_DEBOUNCE_MS);
+    });
+    expect(mine).toHaveBeenCalledTimes(2); // two notifications of one burst, one request
+    await act(async () => {
+      realtime.handler!("notification.created", { notification: { kind: "referral.reward_granted" } });
+      vi.advanceTimersByTime(REFRESH_DEBOUNCE_MS);
+    });
+    expect(mine).toHaveBeenCalledTimes(2); // within the coalescing window
+    await act(async () => {
       vi.advanceTimersByTime(REFRESH_COALESCE_MS);
     });
-    expect(mine).toHaveBeenCalledTimes(2); // two events, one request
+    expect(mine).toHaveBeenCalledTimes(3);
     vi.useRealTimers();
     await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("ready:2"));
   });
 
-  it("ignores wallet updates when nothing is pending", async () => {
-    mine.mockResolvedValue(myReferralsFixture());
+  it("leaves wallet updates to the grant's notification", async () => {
+    mine.mockResolvedValue(myReferralsFixture({ stats: { joined: 1, qualified: 1, pending_minutes: 5 } }));
     renderProvider();
-    await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("ready:0"));
+    await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("ready:1"));
     vi.useFakeTimers();
     await act(async () => {
       realtime.handler!("wallet.updated", { balance: 10 });
       vi.advanceTimersByTime(REFRESH_COALESCE_MS * 2);
     });
     expect(mine).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores referral events while disabled", async () => {
+    renderProvider(false);
+    vi.useFakeTimers();
+    await act(async () => {
+      realtime.handler!("notification.created", { notification: { kind: "referral.joined" } });
+      vi.advanceTimersByTime(REFRESH_COALESCE_MS * 2);
+    });
+    expect(mine).not.toHaveBeenCalled();
+    expect(screen.getByTestId("state").textContent).toBe("idle");
   });
 });

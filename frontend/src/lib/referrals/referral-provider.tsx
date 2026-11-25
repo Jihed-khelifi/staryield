@@ -7,11 +7,12 @@
  * "Copied" state.
  *
  * Server state: `GET /me/referrals` (loading, error and retry through
- * `useAsync`). It is refreshed when a referral notification arrives
+ * `useAsync`), only while `enabled` (the account shell enables it on the views
+ * that show it). It is refreshed when a referral notification arrives
  * (`notification.created` of a `referral.*` kind: a friend joined, completed a
- * reading or minutes were added) and on `wallet.updated` while minutes are
- * pending (the grant job publishes it), at most once per few seconds. A
- * refresh keeps the last good copy on screen.
+ * reading or minutes were added; the grant job always sends one, so
+ * `wallet.updated` adds nothing), once per burst of events and at most once
+ * per few seconds. A refresh keeps the last good copy on screen.
  */
 import * as React from "react";
 
@@ -30,6 +31,8 @@ import { useToast } from "@/components/feedback/toast-provider";
 export const COPIED_MS = 2500;
 /** Realtime refreshes are coalesced to one per this window. */
 export const REFRESH_COALESCE_MS = 3000;
+/** A refresh waits this long for the rest of a burst of events (it then reads them all at once). */
+export const REFRESH_DEBOUNCE_MS = 400;
 
 export type ReferralContextValue = {
   data: MyReferrals | null;
@@ -48,7 +51,7 @@ export type ReferralContextValue = {
 
 const ReferralContext = React.createContext<ReferralContextValue | null>(null);
 
-const REFERRAL_EVENTS = ["notification.created", "wallet.updated"] as const;
+const REFERRAL_EVENTS = ["notification.created"] as const;
 const noopSubscribe = () => () => {};
 
 export function ReferralProvider({ children, enabled = true }: { children: React.ReactNode; enabled?: boolean }) {
@@ -73,7 +76,7 @@ export function ReferralProvider({ children, enabled = true }: { children: React
 
   const refresh = React.useCallback(() => {
     if (pendingRefresh.current !== undefined) return;
-    const wait = Math.max(0, lastRefresh.current + REFRESH_COALESCE_MS - Date.now());
+    const wait = Math.max(REFRESH_DEBOUNCE_MS, lastRefresh.current + REFRESH_COALESCE_MS - Date.now());
     pendingRefresh.current = window.setTimeout(() => {
       pendingRefresh.current = undefined;
       lastRefresh.current = Date.now();
@@ -82,13 +85,8 @@ export function ReferralProvider({ children, enabled = true }: { children: React
   }, [reload]);
 
   useRealtimeEvents<{ notification?: AppNotification }>(REFERRAL_EVENTS, (type, event) => {
-    if (!enabled) return;
-    if (type === "notification.created") {
-      if (event?.notification?.kind?.startsWith("referral.")) refresh();
-      return;
-    }
-    // wallet.updated: only the grant of pending minutes changes the counters.
-    if (data && data.stats.pending_minutes > 0) refresh();
+    if (!enabled || type !== "notification.created") return;
+    if (event?.notification?.kind?.startsWith("referral.")) refresh();
   });
 
   const markCopied = React.useCallback(() => {

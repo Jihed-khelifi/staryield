@@ -299,6 +299,7 @@ function ConsentCard({ email, onExpired }: { email: string; onExpired: () => voi
       const res = await withAttributionFallback((attribution) => authApi.googleComplete({ accept_terms: true, locale, attribution }));
       setUser(res.user);
       forgetGoogleIntent();
+      forgetReferral(); // growth: referrals — the invite was used by this account
       track("signup_step_completed", { step: "google_consent" });
       router.replace(`/${locale}/signup/birth`);
     } catch (err) {

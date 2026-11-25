@@ -10,8 +10,12 @@ type Translate = <T>(value: T, values?: TranslationValues) => T;
 
 const fmt = (locale: string, n: number) => new Intl.NumberFormat(locale).format(n);
 
-/** "For every friend who joins … you get 5 free minutes[, added when Staryield launches]." */
-export function rewardSentence(program: Pick<ReferralProgramView, "reward_minutes" | "launched">, locale: string, text: Translate): string {
+/**
+ * "For every friend who joins … you get 5 free minutes[, added when Staryield launches]." While the program is paused
+ * nothing is promised: new sign-ups and readings earn nothing then.
+ */
+export function rewardSentence(program: Pick<ReferralProgramView, "enabled" | "reward_minutes" | "launched">, locale: string, text: Translate): string {
+  if (!program.enabled) return text("Rewards for new invitations are paused for now.");
   const minutes = fmt(locale, program.reward_minutes);
   if (program.launched) {
     return program.reward_minutes === 1

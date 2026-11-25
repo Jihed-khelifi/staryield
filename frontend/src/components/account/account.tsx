@@ -18,6 +18,8 @@ import { AccountSettings, SharedAccountSettings } from "@/components/account/set
 import { PsychicSettings } from "@/components/psychic/settings/psychic-settings"; // advisor settings
 // growth: referrals — the invite link and counters, shared by the overview card and the invite page.
 import { ReferralProvider } from "@/lib/referrals/referral-provider";
+import { accountViewNeedsReferrals, referralProgramOf } from "@/lib/referral";
+import { useSiteConfig } from "@/lib/site-config/site-config-provider";
 import { InvitePage } from "@/components/referrals/invite-page";
 
 export type AccountView = "overview" | "chart" | "settings" | "analytics" | "invite";
@@ -41,6 +43,7 @@ export function Account({ view }: { view: AccountView }) {
   const { text, locale } = useI18n();
   const router = useRouter();
   const { status, user, wallet, signOut } = useSession();
+  const { config } = useSiteConfig();
 
   useEffect(() => {
     if (status === "anonymous") router.replace(loginUrl(locale));
@@ -128,7 +131,7 @@ export function Account({ view }: { view: AccountView }) {
             </button>
           </aside>
           <main className={`account-main account-${view}`}>
-            <ReferralProvider enabled={user.role === "client"}>
+            <ReferralProvider enabled={accountViewNeedsReferrals(view, user.role, referralProgramOf(config))}>
               {view === "overview" ? (
                 user.role === "psychic" ? (
                   <PsychicOverview />
