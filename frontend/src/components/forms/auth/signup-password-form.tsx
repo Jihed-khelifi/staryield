@@ -56,7 +56,8 @@ export function SignupPasswordForm() {
       setUser(res.user);
       clearSignupEmail();
       // Growth: the welcome e-mail carries the confirmation link (non-blocking: the next step continues).
-      if (res.user.email_verified === false) toast.show({ tone: "info", message: text("We sent a confirmation link to {value0}. Open it to confirm your email.", { value0: input.email }), durationMs: 9000 });
+      // Only when the account says a link is waiting (none goes to an address that refuses e-mail).
+      if (res.user.email_verified === false && res.user.email_verification) toast.show({ tone: "info", message: text("We sent a confirmation link to {value0}. Open it to confirm your email.", { value0: input.email }), durationMs: 9000 });
       track("signup_step_completed", { step: "password" });
       router.push(`/${locale}/signup/birth`);
     } catch (err) {

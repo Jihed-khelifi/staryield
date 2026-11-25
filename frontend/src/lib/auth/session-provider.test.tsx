@@ -304,6 +304,36 @@ describe("growth: e-mail verification event", () => {
     expect(mocks.toast).not.toHaveBeenCalled();
   });
 
+  it("updates the signed-in user in place and leaves the live wallet alone (updateUser)", async () => {
+    mocks.me.mockResolvedValue({ ...USER, email_verified: false });
+    function UpdateProbe() {
+      const { user, setWallet, updateUser } = useSession();
+      return (
+        <>
+          <VerifiedProbe />
+          <p data-testid="pending">{JSON.stringify(user?.email_verification ?? null)}</p>
+          <button type="button" onClick={() => setWallet({ ...USER.wallet, balance: 7 } as never)}>
+            wallet
+          </button>
+          <button type="button" onClick={() => updateUser((u) => ({ ...u, email_verification: { sent_at: "a", resend_available_at: "b" } }))}>
+            sent
+          </button>
+        </>
+      );
+    }
+    render(
+      <SessionProvider>
+        <UpdateProbe />
+      </SessionProvider>,
+    );
+    await flush();
+    act(() => screen.getByRole("button", { name: "wallet" }).click());
+    act(() => screen.getByRole("button", { name: "sent" }).click());
+    expect(JSON.parse(screen.getByTestId("pending").textContent ?? "null")).toEqual({ sent_at: "a", resend_available_at: "b" });
+    expect(screen.getByTestId("verified").textContent).toBe("false:7");
+    expect(mocks.me).toHaveBeenCalledTimes(1);
+  });
+
   it("learns a missed verification when the stream has to resync", async () => {
     mocks.me.mockResolvedValue({ ...USER, email_verified: false });
     mountVerified();

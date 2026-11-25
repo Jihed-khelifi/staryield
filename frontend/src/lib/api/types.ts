@@ -56,6 +56,12 @@ export type User = {
   age_status: AgeStatus;
   /** Growth: the address was confirmed through the e-mailed link (or by Google). */
   email_verified?: boolean;
+  /**
+   * Growth: the open verification link of an unverified address: when it was
+   * sent and when another can be requested. Null when verified, or when no
+   * link is waiting (never sent, expired, or the address refuses e-mail).
+   */
+  email_verification?: { sent_at: string; resend_available_at: string } | null;
 };
 
 export type SessionResponse = {

@@ -9,9 +9,10 @@ import { ResendVerification } from "@/components/account/resend-verification";
 
 /**
  * The e-mail row of the account settings: a "Verified" badge, or "Not
- * verified" with the resend control. The session is the source of truth (the
- * realtime event updates it in every tab); the settings document only
- * decides until the session user is known.
+ * verified" with the send / resend control. The session is the source of
+ * truth (the realtime event updates it in every tab); the settings document
+ * only decides until the session user is known, and the control waits for it
+ * (it starts from the link the account already has).
  */
 export function EmailVerificationStatus({ verified }: { verified: boolean }) {
   const { text } = useI18n();
@@ -32,7 +33,7 @@ export function EmailVerificationStatus({ verified }: { verified: boolean }) {
         <MailWarning aria-hidden className="size-4 shrink-0 text-[var(--settings-gold-text)]" />
         <span>{text("Not verified")}</span>
       </p>
-      <ResendVerification />
+      {user ? <ResendVerification /> : null}
     </div>
   );
 }

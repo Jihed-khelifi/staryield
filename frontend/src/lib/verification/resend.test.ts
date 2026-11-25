@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/lib/api/errors";
-import { availableAtFrom, COOLDOWN_CAP_SECONDS, secondsUntil, stateFromError, stateFromSent, waitingUntil } from "@/lib/verification/resend";
+import { availableAtFrom, COOLDOWN_CAP_SECONDS, longWait, secondsUntil, stateFromError, stateFromSent, waitingUntil } from "@/lib/verification/resend";
 
 const NOW = Date.parse("2026-11-05T10:00:00Z");
 const err = (code: string, status: number, retryAfter?: number) => new ApiError({ code, message: code, status, retryAfter });
@@ -40,8 +40,21 @@ describe("error mapping", () => {
     expect(stateFromError(err("rate_limited", 429), NOW)).toEqual({ phase: "cooldown", availableAt: NOW + 60_000 });
   });
 
-  it("maps an exhausted hourly budget to the limited state", () => {
+  it("maps an exhausted hourly budget or daily limit to the limited state", () => {
     expect(stateFromError(err("rate_limited", 429, 3000), NOW)).toEqual({ phase: "limited", availableAt: NOW + 3_000_000 });
+    expect(stateFromError(err("rate_limited", 429, 86_000), NOW)).toEqual({ phase: "limited", availableAt: NOW + 86_000_000 });
+  });
+
+  it("maps an address that refuses e-mail to its own state (retrying cannot help)", () => {
+    expect(stateFromError(err("email_undeliverable", 409), NOW)).toEqual({ phase: "undeliverable" });
+  });
+
+  it("words a long wait in minutes, then in hours past an hour and a half", () => {
+    expect(longWait(10)).toEqual({ unit: "minutes", value: 1 });
+    expect(longWait(1800)).toEqual({ unit: "minutes", value: 30 });
+    expect(longWait(90 * 60)).toEqual({ unit: "minutes", value: 90 });
+    expect(longWait(90 * 60 + 1)).toEqual({ unit: "hours", value: 2 });
+    expect(longWait(86_000)).toEqual({ unit: "hours", value: 24 });
   });
 
   it("keeps any other failure retryable with its error", () => {
@@ -55,5 +68,6 @@ describe("error mapping", () => {
     expect(waitingUntil({ phase: "cooldown", availableAt: 5 })).toBe(5);
     expect(waitingUntil({ phase: "idle" })).toBeNull();
     expect(waitingUntil({ phase: "verified" })).toBeNull();
+    expect(waitingUntil({ phase: "undeliverable" })).toBeNull();
   });
 });

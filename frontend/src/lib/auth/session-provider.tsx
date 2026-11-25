@@ -33,6 +33,8 @@ type SessionContextValue = {
   realtime: RealtimeClient | null;
   connection: { state: ConnectionState; transport: TransportKind };
   setUser: (user: User) => void;
+  /** Functional update of the signed-in user (nothing while signed out); unlike setUser it leaves the live wallet alone. */
+  updateUser: (update: (user: User) => User) => void;
   setWallet: (wallet: Wallet) => void;
   reload: () => Promise<User | null>;
   /**
@@ -86,6 +88,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     setAuthHint(true);
   }, []);
+
+  const updateUser = React.useCallback((update: (u: User) => User) => setUserState((u) => (u ? update(u) : u)), []);
 
   const clear = React.useCallback(() => {
     setUserState(null);
@@ -307,8 +311,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [realtime, userId, locale]);
 
   const value = React.useMemo<SessionContextValue>(
-    () => ({ status, user, wallet, error, realtime, connection: realtime ? connection : IDLE, setUser, setWallet, reload, signOut }),
-    [status, user, wallet, error, realtime, connection, setUser, reload, signOut],
+    () => ({ status, user, wallet, error, realtime, connection: realtime ? connection : IDLE, setUser, updateUser, setWallet, reload, signOut }),
+    [status, user, wallet, error, realtime, connection, setUser, updateUser, reload, signOut],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

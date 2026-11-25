@@ -2619,5 +2619,9 @@
   "Your email is verified. Thank you for securing your account.": "Votre e-mail est confirmé. Merci d'avoir sécurisé votre compte.",
   "We sent a confirmation link to {value0}. Open it to confirm your email.": "Nous avons envoyé un lien de confirmation à {value0}. Ouvrez-le pour confirmer votre e-mail.",
   "Email verified": "E-mail confirmé",
-  "Your email address is confirmed. Thank you for securing your account.": "Votre adresse e-mail est confirmée. Merci d'avoir sécurisé votre compte."
+  "Your email address is confirmed. Thank you for securing your account.": "Votre adresse e-mail est confirmée. Merci d'avoir sécurisé votre compte.",
+  "Send me a link": "Envoyez-moi un lien",
+  "Confirming {value0} secures your account and lets us send you reading receipts and account notices. We'll email you a link.": "Confirmer {value0} sécurise votre compte et nous permet de vous envoyer vos reçus de consultation et les avis concernant votre compte. Nous vous enverrons un lien par e-mail.",
+  "You asked for several links today. Please try again in {value0} hours.": "Vous avez demandé plusieurs liens aujourd'hui. Veuillez réessayer dans {value0} heures.",
+  "We can't deliver email to this address: earlier messages bounced or were refused. Check it, or change it in your account settings.": "Nous ne pouvons pas envoyer d'e-mail à cette adresse : nos précédents messages ont été rejetés ou refusés. Vérifiez-la, ou modifiez-la dans les paramètres de votre compte."
 }

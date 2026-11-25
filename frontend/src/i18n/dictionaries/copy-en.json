@@ -2619,5 +2619,9 @@
   "Your email is verified. Thank you for securing your account.": "Your email is verified. Thank you for securing your account.",
   "We sent a confirmation link to {value0}. Open it to confirm your email.": "We sent a confirmation link to {value0}. Open it to confirm your email.",
   "Email verified": "Email verified",
-  "Your email address is confirmed. Thank you for securing your account.": "Your email address is confirmed. Thank you for securing your account."
+  "Your email address is confirmed. Thank you for securing your account.": "Your email address is confirmed. Thank you for securing your account.",
+  "Send me a link": "Send me a link",
+  "Confirming {value0} secures your account and lets us send you reading receipts and account notices. We'll email you a link.": "Confirming {value0} secures your account and lets us send you reading receipts and account notices. We'll email you a link.",
+  "You asked for several links today. Please try again in {value0} hours.": "You asked for several links today. Please try again in {value0} hours.",
+  "We can't deliver email to this address: earlier messages bounced or were refused. Check it, or change it in your account settings.": "We can't deliver email to this address: earlier messages bounced or were refused. Check it, or change it in your account settings."
 }

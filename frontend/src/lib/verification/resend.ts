@@ -16,10 +16,12 @@ export type ResendState =
   | { phase: "sent"; email: string; availableAt: number }
   /** Asked again inside the cooldown (another tab, double click). */
   | { phase: "cooldown"; availableAt: number }
-  /** The hourly budget is spent. */
+  /** The hourly budget or the daily limit (5 links in 24 hours) is spent. */
   | { phase: "limited"; availableAt: number }
   /** The address turned out to be verified already. */
   | { phase: "verified" }
+  /** The address refuses e-mail (a bounce or a complaint): no link can reach it, so the next step is to check or change it. */
+  | { phase: "undeliverable" }
   | { phase: "error"; error: ApiError };
 
 /** Whole seconds left until `availableAt` (never negative). */
@@ -47,12 +49,19 @@ export function stateFromSent(sent: VerificationSent, now: number): ResendState 
 export function stateFromError(raw: unknown, now: number): ResendState {
   const error = toApiError(raw);
   if (error.code === "already_verified") return { phase: "verified" };
+  if (error.code === "email_undeliverable") return { phase: "undeliverable" };
   if (error.code === "rate_limited" || error.status === 429) {
     const seconds = error.retryAfter && error.retryAfter > 0 ? error.retryAfter : COOLDOWN_CAP_SECONDS / 2;
     const availableAt = now + seconds * 1000;
     return seconds > COOLDOWN_CAP_SECONDS ? { phase: "limited", availableAt } : { phase: "cooldown", availableAt };
   }
   return { phase: "error", error };
+}
+
+/** A long wait in whole minutes, or in hours past 90 minutes (the daily limit). */
+export function longWait(seconds: number): { unit: "minutes" | "hours"; value: number } {
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  return minutes > 90 ? { unit: "hours", value: Math.ceil(minutes / 60) } : { unit: "minutes", value: minutes };
 }
 
 /** The time a state is waiting for, when it is. */

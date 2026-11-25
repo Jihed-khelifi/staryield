@@ -9,8 +9,11 @@ import { ResendVerification } from "@/components/account/resend-verification";
 
 /**
  * Account overview card for an address that is not verified yet: why it
- * matters and the resend control. It disappears as soon as the address is
- * verified, in this tab or any other (the realtime event updates the session).
+ * matters and the send / resend control. It says a link was sent only when
+ * one is waiting (`email_verification` on the account): accounts created
+ * before verification existed, or by the team, never received one. It
+ * disappears as soon as the address is verified, in this tab or any other
+ * (the realtime event updates the session).
  */
 export function EmailVerificationNotice() {
   const { text } = useI18n();
@@ -28,8 +31,10 @@ export function EmailVerificationNotice() {
           <h2 id="verify-email-title" className="text-lg font-semibold text-[#17150f]">
             {text("Confirm your email address")}
           </h2>
-          <p className="text-[13px] leading-[1.55] font-light text-[var(--muted-ink)] md:text-sm">
-            {text("We sent a link to {value0}. Confirming it secures your account and lets us send you reading receipts and account notices.", { value0: user.email })}
+          <p className="text-[13px] leading-[1.55] font-light text-[var(--muted-ink)] md:text-sm" data-testid="email-verification-notice-body">
+            {user.email_verification
+              ? text("We sent a link to {value0}. Confirming it secures your account and lets us send you reading receipts and account notices.", { value0: user.email })
+              : text("Confirming {value0} secures your account and lets us send you reading receipts and account notices. We'll email you a link.", { value0: user.email })}
           </p>
         </div>
       </div>

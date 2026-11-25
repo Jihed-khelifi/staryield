@@ -67,6 +67,8 @@ test.describe("e-mail verification", { tag: "@responsive" }, () => {
     const notice = profile.getByTestId("email-verification-notice");
     await expect(notice).toBeVisible();
     await expect(notice.getByText("Confirm your email address")).toBeVisible();
+    // The welcome link is waiting (GET /me says so): the notice says it was sent.
+    await expect(notice.getByTestId("email-verification-notice-body")).toContainText(/^We sent a link to e2e\+verify-/);
     await expect(settings.getByTestId("email-unverified")).toBeVisible();
     await expectNoA11yViolations(profile, ['[data-testid="email-verification-notice"]']);
     const unreadBefore = await unread(profile);
@@ -130,11 +132,10 @@ test.describe("e-mail verification", { tag: "@responsive" }, () => {
     const control = settings.getByTestId("email-unverified");
     const button = control.getByTestId("resend-verification-button");
 
-    // Too soon after the welcome e-mail: the server says so and the button counts down.
-    await button.click();
-    await expect(control.getByText("A link was just sent. Check your inbox, or ask for another in a moment.")).toBeVisible();
+    // Right after the welcome e-mail the button already counts down (from the account's waiting link): no click into the cooldown.
     await expect(button).toBeDisabled();
     await expect(button).toHaveText(/Resend in \d+s/);
+    await expect(profile.getByTestId("email-verification-notice").getByTestId("resend-verification-button")).toHaveText(/Resend in \d+s/);
     await expectNoA11yViolations(settings, ['[data-testid="email-unverified"]']);
 
     // Once the countdown ends, a new link goes out to the masked address.

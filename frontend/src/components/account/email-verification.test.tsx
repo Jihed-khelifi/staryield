@@ -9,7 +9,12 @@ import { axeViolations, renderWithI18n, stubResizeObserver } from "@/test/render
 
 const m = vi.hoisted(() => ({
   api: { verify: vi.fn(), resend: vi.fn() },
-  session: { status: "authenticated", user: { id: "u1", email: "moon@example.com", email_verified: false } as Record<string, unknown> | null, reload: vi.fn() },
+  session: {
+    status: "authenticated",
+    user: { id: "u1", email: "moon@example.com", email_verified: false } as Record<string, unknown> | null,
+    reload: vi.fn(),
+    updateUser: vi.fn(),
+  },
   hint: { value: false },
 }));
 vi.mock("@/lib/api/email-verification", () => ({ emailVerificationApi: m.api }));
@@ -35,6 +40,11 @@ import { VerifyEmailPage } from "@/components/account/verify-email-page";
 
 const err = (code: string, status: number, retryAfter?: number) => new ApiError({ code, message: code, status, retryAfter });
 const sent = (seconds = 60) => ({ status: "sent", email: "m***@example.com", resend_available_at: new Date(Date.now() + seconds * 1000).toISOString() });
+/** The account's waiting link (GET /me `email_verification`), sent `ago` seconds ago with a 60 s cooldown. */
+const pendingLink = (ago = 15) => ({
+  sent_at: new Date(Date.now() - ago * 1000).toISOString(),
+  resend_available_at: new Date(Date.now() + (60 - ago) * 1000).toISOString(),
+});
 
 beforeAll(stubResizeObserver);
 beforeEach(() => {
@@ -54,7 +64,8 @@ describe("ResendVerification", () => {
     const u = userEvent.setup();
     m.api.resend.mockResolvedValue(sent(60));
     renderWithI18n(<ResendVerification />);
-    await u.click(screen.getByRole("button", { name: "Resend link" }));
+    // No link is waiting (an account from before verification existed): the action is a first send.
+    await u.click(screen.getByRole("button", { name: "Send me a link" }));
     expect(await screen.findByText(/We sent a new link to m\*\*\*@example.com/)).toBeTruthy();
     const button = screen.getByTestId("resend-verification-button") as HTMLButtonElement;
     expect(button.disabled).toBe(true);
@@ -116,6 +127,65 @@ describe("ResendVerification", () => {
     expect(m.session.reload).toHaveBeenCalledTimes(1);
   });
 
+  it("starts counting down from the link the account already has, without a click into the cooldown", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    m.session.user = { id: "u1", email: "moon@example.com", email_verified: false, email_verification: pendingLink(15) };
+    renderWithI18n(<ResendVerification />);
+    const button = screen.getByTestId("resend-verification-button") as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.textContent).toMatch(/^Resend in (44|45)s$/);
+    // The notice already says a link was sent: the live region stays quiet.
+    expect(screen.getByTestId("resend-verification-status").textContent).toBe("");
+    await act(async () => void vi.advanceTimersByTime(46_000));
+    await waitFor(() => expect(button.disabled).toBe(false));
+    expect(button.textContent).toBe("Resend link");
+    expect(m.api.resend).not.toHaveBeenCalled();
+  });
+
+  it("ignores a waiting link whose cooldown is over", () => {
+    m.session.user = { id: "u1", email: "moon@example.com", email_verified: false, email_verification: pendingLink(600) };
+    renderWithI18n(<ResendVerification />);
+    const button = screen.getByTestId("resend-verification-button") as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    expect(button.textContent).toBe("Resend link");
+  });
+
+  it("writes the sent link into the session, so every surface of the tab says a link is waiting", async () => {
+    const u = userEvent.setup();
+    const answer = sent(60);
+    m.api.resend.mockResolvedValue(answer);
+    renderWithI18n(<ResendVerification />);
+    await u.click(screen.getByTestId("resend-verification-button"));
+    await screen.findByText(/We sent a new link/);
+    expect(m.session.updateUser).toHaveBeenCalledTimes(1);
+    const update = m.session.updateUser.mock.calls[0][0] as (u: Record<string, unknown>) => Record<string, unknown>;
+    const next = update({ id: "u1", email: "moon@example.com", email_verified: false, email_verification: null });
+    expect(next.email_verification).toEqual({ sent_at: expect.any(String), resend_available_at: answer.resend_available_at });
+  });
+
+  it("explains the daily limit in hours", async () => {
+    const u = userEvent.setup();
+    m.api.resend.mockRejectedValue(err("rate_limited", 429, 20 * 3600 + 30));
+    renderWithI18n(<ResendVerification />);
+    await u.click(screen.getByTestId("resend-verification-button"));
+    expect(await screen.findByText("You asked for several links today. Please try again in 21 hours.")).toBeTruthy();
+    expect((screen.getByTestId("resend-verification-button") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("tells an address that refuses e-mail to check or change it, without a pointless retry", async () => {
+    const u = userEvent.setup();
+    m.api.resend.mockRejectedValue(err("email_undeliverable", 409));
+    renderWithI18n(<ResendVerification />);
+    await u.click(screen.getByTestId("resend-verification-button"));
+    expect(await screen.findByText(/We can't deliver email to this address/)).toBeTruthy();
+    expect(screen.queryByTestId("resend-verification-button")).toBeNull();
+    const change = screen.getByTestId("resend-verification-change-email");
+    expect(change.textContent).toBe("Change your email address");
+    expect(change.getAttribute("href")).toBe("/en/profile/settings#account");
+    expect(screen.getByTestId("resend-verification").getAttribute("data-phase")).toBe("undeliverable");
+    expect(await axeViolations()).toEqual([]);
+  });
+
   it("shows a retryable error", async () => {
     const u = userEvent.setup();
     m.api.resend.mockRejectedValueOnce(err("internal_error", 500)).mockResolvedValueOnce(sent());
@@ -130,11 +200,24 @@ describe("ResendVerification", () => {
 });
 
 describe("EmailVerificationNotice", () => {
-  it("explains why it matters for an unverified user", async () => {
+  it("says a link was sent when one is waiting, and offers another after the cooldown", async () => {
+    m.session.user = { id: "u1", email: "moon@example.com", email_verified: false, email_verification: pendingLink(600) };
     renderWithI18n(<EmailVerificationNotice />);
     expect(screen.getByRole("heading", { name: "Confirm your email address" })).toBeTruthy();
-    expect(screen.getByText(/secures your account and lets us send you reading receipts and account notices/)).toBeTruthy();
+    expect(screen.getByTestId("email-verification-notice-body").textContent).toBe(
+      "We sent a link to moon@example.com. Confirming it secures your account and lets us send you reading receipts and account notices.",
+    );
     expect(screen.getByRole("button", { name: "Resend link" })).toBeTruthy();
+    expect(await axeViolations()).toEqual([]);
+  });
+
+  it("claims no link for an account that never received one (created before verification existed, or by the team)", async () => {
+    m.session.user = { id: "u1", email: "moon@example.com", email_verified: false, email_verification: null };
+    renderWithI18n(<EmailVerificationNotice />);
+    const body = screen.getByTestId("email-verification-notice-body").textContent ?? "";
+    expect(body).toBe("Confirming moon@example.com secures your account and lets us send you reading receipts and account notices. We'll email you a link.");
+    expect(body).not.toMatch(/We sent/);
+    expect(screen.getByRole("button", { name: "Send me a link" })).toBeTruthy();
     expect(await axeViolations()).toEqual([]);
   });
 
@@ -169,10 +252,17 @@ describe("EmailVerificationStatus (settings row)", () => {
     expect(screen.getByTestId("email-verified-badge").textContent).toBe("Verified");
   });
 
-  it("shows Not verified with the resend control", () => {
+  it("shows Not verified with the send control", () => {
     renderWithI18n(<EmailVerificationStatus verified={false} />);
     expect(screen.getByText("Not verified")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Resend link" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Send me a link" })).toBeTruthy();
+  });
+
+  it("waits for the session user before offering a link (the countdown starts from the account's link)", () => {
+    m.session.user = null;
+    renderWithI18n(<EmailVerificationStatus verified={false} />);
+    expect(screen.getByText("Not verified")).toBeTruthy();
+    expect(screen.queryByTestId("resend-verification")).toBeNull();
   });
 
   it("falls back to the settings document until the session user is known", () => {

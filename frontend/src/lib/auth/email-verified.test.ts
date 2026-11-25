@@ -1,20 +1,35 @@
 import { describe, expect, it } from "vitest";
 
 import type { User } from "@/lib/api/types";
-import { shouldAnnounceVerified, withEmailVerified } from "@/lib/auth/email-verified";
+import { shouldAnnounceVerified, withEmailVerified, withVerificationSent } from "@/lib/auth/email-verified";
 
 const user = (over: Partial<User> = {}) => ({ id: "u1", email: "a@b.c", ...over }) as User;
 
 describe("withEmailVerified", () => {
-  it("marks the user verified and keeps every other field", () => {
-    const u = user({ email_verified: false, display_name: "A" });
-    expect(withEmailVerified(u)).toEqual({ ...u, email_verified: true });
+  it("marks the user verified, drops the pending link and keeps every other field", () => {
+    const u = user({ email_verified: false, display_name: "A", email_verification: { sent_at: "x", resend_available_at: "y" } });
+    expect(withEmailVerified(u)).toEqual({ ...u, email_verified: true, email_verification: null });
   });
 
   it("returns the same object when nothing changes (no re-render) and tolerates no user", () => {
     const u = user({ email_verified: true });
     expect(withEmailVerified(u)).toBe(u);
     expect(withEmailVerified(null)).toBeNull();
+  });
+});
+
+describe("withVerificationSent", () => {
+  it("records the link that was just sent", () => {
+    const u = user({ email_verified: false, email_verification: null });
+    expect(withVerificationSent(u, "2026-11-05T10:00:00.000Z", "2026-11-05T10:01:00Z")).toEqual({
+      ...u,
+      email_verification: { sent_at: "2026-11-05T10:00:00.000Z", resend_available_at: "2026-11-05T10:01:00Z" },
+    });
+  });
+
+  it("leaves a verified user alone (the event won the race)", () => {
+    const u = user({ email_verified: true, email_verification: null });
+    expect(withVerificationSent(u, "a", "b")).toBe(u);
   });
 });
 
