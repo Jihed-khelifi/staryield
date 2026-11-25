@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/i18n-provider";
 import { track } from "@/lib/analytics";
 import { attributionForSignup } from "@/lib/attribution";
+import { forgetReferral } from "@/lib/referral"; // growth: referrals
 import { authApi } from "@/lib/api/endpoints";
 import { toApiError } from "@/lib/api/errors";
 import { useSession } from "@/lib/auth/session-provider";
@@ -14,6 +15,7 @@ import { applyApiError } from "@/lib/forms/server-errors";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { newPasswordSchema, type NewPasswordValues } from "@/lib/schemas/auth";
 import { Form, FormRootError } from "@/components/ui/form";
+import { ReferralWelcome } from "@/components/referrals/referral-welcome"; // growth: referrals
 
 import { AuthCard, AuthShell, clearSignupEmail, readSignupEmail } from "./auth-card";
 import { NewPasswordFields } from "./new-password-fields";
@@ -53,6 +55,7 @@ export function SignupPasswordForm() {
       }
       setUser(res.user);
       clearSignupEmail();
+      forgetReferral(); // the invite was used by this account
       track("signup_step_completed", { step: "password" });
       router.push(`/${locale}/signup/birth`);
     } catch (err) {
@@ -70,6 +73,7 @@ export function SignupPasswordForm() {
 
   return (
     <AuthShell>
+      <ReferralWelcome placement="signup" />
       <Form {...form}>
         <AuthCard
           title="Create password"

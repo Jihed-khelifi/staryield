@@ -10,6 +10,7 @@ import { applyApiError } from "@/lib/forms/server-errors";
 import { useSchemaForm } from "@/lib/forms/use-schema-form";
 import { signupEmailSchema, type SignupEmailValues } from "@/lib/schemas/auth";
 import { FieldRow } from "@/components/ui/field";
+import { ReferralWelcome } from "@/components/referrals/referral-welcome"; // growth: referrals
 import { Form, FormRootError } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
@@ -39,6 +40,7 @@ export function SignupEmailForm() {
 
   return (
     <AuthShell>
+      <ReferralWelcome placement="signup" />
       <Form {...form}>
         <AuthCard title="Enter your email:" onSubmit={form.handleSubmit(submit)} testId="signup-email-form">
           <FormRootError className="mt-4" />
