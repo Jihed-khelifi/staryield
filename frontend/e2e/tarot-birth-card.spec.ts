@@ -53,7 +53,7 @@ test.describe("tarot birth card calculator", { tag: "@responsive" }, () => {
     await expect.poll(() => art.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(210);
     await expect(result.getByTestId("birth-card-meaning")).toContainText("Tradition, teaching, belonging");
     await expect(result.getByTestId("tarot-constellation").locator("[data-chain]")).toHaveText([/^14\/5/]);
-    await expect(result.getByTestId("advisor-cta").getByRole("link", { name: "Talk to an advisor" })).toBeVisible();
+    await expect(result.getByTestId("advisor-cta").getByRole("link", { name: "Browse all advisors" })).toBeVisible();
     // No e-mail report for this calculator.
     await expect(page.getByTestId("email-report-button")).toHaveCount(0);
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -71,9 +71,9 @@ test.describe("tarot birth card calculator", { tag: "@responsive" }, () => {
     await page.goto("/en/calculators/tarot-birth-card#v=1&d=1987-06-15");
     await expect(page.getByTestId("birth-card")).toHaveCount(2);
     await expect(page.getByTestId("birth-card-numeral")).toHaveText(["X", "I"]);
-    await expect(page.getByTestId("tarot-chain")).toHaveText("10 Wheel Of Fortune → 1 The Magician");
+    await expect(page.getByTestId("tarot-chain")).toHaveText("10 Wheel of Fortune → 1 The Magician");
     await page.reload();
-    await expect(page.getByTestId("tarot-headline")).toHaveText("Your tarot birth card is Wheel Of Fortune");
+    await expect(page.getByTestId("tarot-headline")).toHaveText("Your tarot birth card is Wheel of Fortune");
     expect(calls).toEqual([]);
   });
 

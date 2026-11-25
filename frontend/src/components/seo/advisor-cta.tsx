@@ -7,9 +7,11 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { track } from "@/lib/analytics";
 import { usePsychicsHref } from "@/lib/psychics-link";
 import { FAMILY_COPY, type SeoFamily } from "@/components/seo/copy";
+import { AdvisorStrip } from "@/components/booking/advisor-strip";
 
 /**
- * "Talk it through with an advisor" band on the search pages. The link
+ * "Talk it through with an advisor" band on the search pages: up to three
+ * advisors with the standard book button (growth: booking), then a link that
  * follows the site rule: the directory when signed in, the home page's
  * advisor section otherwise (`usePsychicsHref`).
  */
@@ -29,6 +31,7 @@ export function AdvisorCta({ family }: { family: SeoFamily }) {
         {text(heading)}
       </h2>
       <p className="max-w-[760px] text-base leading-normal text-black">{text(body)}</p>
+      <AdvisorStrip heading="Choose an advisor" headingLevel={3} placement={placement} className="max-w-[640px] text-left" />
       <Link href={psychicsHref} className="calc-cta-link" onClick={() => track("chat_cta_clicked", { placement })}>
         {text("Meet our advisors")}
       </Link>

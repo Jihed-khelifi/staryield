@@ -30,13 +30,13 @@ describe("shareCardSpec", () => {
   it("tarot: the personality card in the headline, the soul card below, both artworks with numerals", () => {
     const spec = shareCardSpec(results["tarot-birth-card"], text);
     expect(spec.eyebrow).toBe("Tarot birth card");
-    expect(spec.headline).toBe("My tarot birth card is Wheel Of Fortune");
+    expect(spec.headline).toBe("My tarot birth card is Wheel of Fortune");
     expect(spec.lines).toEqual(["Soul card: The Magician"]);
     expect(spec.artwork.map((a) => [a.url, a.caption])).toEqual([
       ["https://assets.staryield.net/assets/tarot/wheel-of-fortune.png", "X"],
       ["https://assets.staryield.net/assets/tarot/the-magician.png", "I"],
     ]);
-    expect(spec.shareText).toBe(`My tarot birth card is Wheel Of Fortune — find yours at ${SHARE_DOMAIN}`);
+    expect(spec.shareText).toBe(`My tarot birth card is Wheel of Fortune — find yours at ${SHARE_DOMAIN}`);
     expect(spec.artwork.every((a) => a.style === "card")).toBe(true);
   });
 
@@ -126,14 +126,24 @@ describe("shareCardSpec", () => {
     expect(french.headline).toBe("Ma carte de naissance du tarot est La Roue de Fortune");
     expect(french.lines).toEqual(["Carte d’âme : Le Bateleur"]);
     const spanish = shareCardSpec(results.astrology, createTranslateCopy(es));
-    expect(spanish.headline).toBe("Soy León");
+    expect(spanish.headline).toBe("Soy Leo");
     expect(shareCardSpec(results["natal-chart"], createTranslateCopy(es)).headline).toBe("Sol en Piscis · Luna en Libra · Ascendente Tauro");
   });
 });
 
 describe("calculatorShareUrl", () => {
   it("links to the calculator in the viewer's language, never with the fragment", () => {
-    expect(calculatorShareUrl("tarot-birth-card", "fr", "https://staryield.net/")).toBe("https://staryield.net/fr/calculators/tarot-birth-card");
-    expect(calculatorShareUrl("natal-chart", "en", "http://localhost:3001")).not.toContain("#");
+    expect(calculatorShareUrl("tarot-birth-card", "fr", { origin: "https://staryield.net/" })).toBe("https://staryield.net/fr/calculators/tarot-birth-card");
+    expect(calculatorShareUrl("natal-chart", "en", { origin: "http://localhost:3001" })).not.toContain("#");
+  });
+
+  it("carries the sharer's invite code, and only a well-formed one", () => {
+    expect(calculatorShareUrl("path-of-life", "es", { origin: "https://staryield.net", referralCode: "abcd2345" })).toBe(
+      "https://staryield.net/es/calculators/path-of-life?ref=ABCD2345",
+    );
+    for (const bad of [null, undefined, "", "abc", "ABCD234O", "ABCD2345&x=1"])
+      expect(calculatorShareUrl("path-of-life", "es", { origin: "https://staryield.net", referralCode: bad })).toBe(
+        "https://staryield.net/es/calculators/path-of-life",
+      );
   });
 });

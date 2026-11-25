@@ -2936,5 +2936,6 @@
   "Use your {value0} free minutes": "Utilisez vos {value0} minutes gratuites",
   "1 free minute for new members": "1 minute gratuite pour les nouveaux membres",
   "{value0} free minutes for new members": "{value0} minutes gratuites pour les nouveaux membres",
-  "Book a reading": "Réserver une consultation"
+  "Book a reading": "Réserver une consultation",
+  "This link includes your invite code.": "Ce lien contient votre code d'invitation."
 }

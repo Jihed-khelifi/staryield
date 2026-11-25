@@ -22,6 +22,7 @@ import { ZodiacWheel } from "@/components/astrology/ZodiacWheel";
 import { ChartExplorer } from "@/components/astrology/chart-explorer/chart-explorer";
 import { NumbersSummary } from "@/components/astrology/chart-explorer/numbers-summary";
 import { ShareResultButton, useShareResult } from "@/components/calculators/share-result";
+import { AdvisorStrip } from "@/components/booking/advisor-strip";
 import { cn } from "@/lib/utils";
 
 const WALL_TIME_NOTES: Record<string, string> = {
@@ -233,18 +234,35 @@ export function NatalResultView({
         title={text("Talk to an advisor about your chart")}
         body={text("A psychic advisor can walk you through your planets, your houses and this spread, for entertainment purposes only.")}
         href={psychicsHref}
+        placement="calculator_natal_chart"
       />
     </>
   );
 }
 
 /**
- * The closing call to action of every result: talk to an advisor, and share
- * the result when the result view offers it. `tone` follows the page's
- * design: olive after light sections, paper after an olive one (Path of Life,
- * Figma 482:2164); `footer` goes under the buttons.
+ * The closing call to action of every result: up to three advisors with the
+ * standard book button (online first, growth: booking), a link to all of them,
+ * and share the result when the result view offers it. `tone` follows the
+ * page's design: olive after light sections, paper after an olive one (Path
+ * of Life, Figma 482:2164); `footer` goes under the buttons; `placement` is the
+ * book buttons' analytics placement.
  */
-export function AdvisorCta({ title, body, href, tone = "olive", footer }: { title: string; body: string; href: string; tone?: "olive" | "paper"; footer?: React.ReactNode }) {
+export function AdvisorCta({
+  title,
+  body,
+  href,
+  placement,
+  tone = "olive",
+  footer,
+}: {
+  title: string;
+  body: string;
+  href: string;
+  placement: string;
+  tone?: "olive" | "paper";
+  footer?: React.ReactNode;
+}) {
   const { text } = useI18n();
   const paper = tone === "paper";
   return (
@@ -255,9 +273,10 @@ export function AdvisorCta({ title, body, href, tone = "olive", footer }: { titl
     >
       <h2 className={cn("max-w-[1000px] font-display text-[19px] leading-[1.5] tracking-[0.48px] uppercase md:text-[24px]", !paper && "text-black")}>{title}</h2>
       <p className={cn("max-w-[800px] text-base leading-normal", paper ? "font-light" : "text-black")}>{body}</p>
+      <AdvisorStrip heading="Choose an advisor" headingLevel={3} placement={placement} className="max-w-[640px] text-left" />
       <div className={cn("flex flex-wrap items-center justify-center gap-4", paper ? "pt-3" : "pt-2")}>
         <Link href={href} className="calc-cta-link" data-testid="advisor-cta-link">
-          {text("Talk to an advisor")}
+          {text("Browse all advisors")}
         </Link>
         <ShareResultButton />
       </div>
@@ -403,6 +422,7 @@ export function LifePathResultView({ result }: { result: LifePathResult }) {
         title={text("Get a deeper understanding of what a life path really means and the alignment that comes with it")}
         body={text("Chat with one of our psychic advisors to explore your chart and upcoming planetary transitions, for entertainment purposes only. ")}
         href={psychicsHref}
+        placement="calculator_path_of_life"
         footer={<Lock>{text(BIRTH_DATA_NOTICE)}</Lock>}
       />
     </>

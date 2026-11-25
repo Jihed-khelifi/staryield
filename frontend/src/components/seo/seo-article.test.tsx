@@ -7,6 +7,10 @@ import { axeViolations, dictionary, renderWithI18n, stubResizeObserver } from "@
 vi.mock("@/i18n/dictionaries", () => ({ getDictionary: async () => dictionary }));
 vi.mock("@/components/layout/public-frame", () => ({ PublicFrame: ({ children }: { children: React.ReactNode }) => <main>{children}</main> }));
 vi.mock("@/lib/psychics-link", () => ({ usePsychicsHref: () => "/en#psychics" }));
+// The advisor strip (growth: booking) reads the live advisors; it has its own tests.
+vi.mock("@/components/booking/advisor-strip", () => ({
+  AdvisorStrip: ({ placement }: { placement: string }) => <div data-testid="advisor-strip" data-placement={placement} />,
+}));
 vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
 
 import { SeoArticle } from "@/components/seo/seo-article";
@@ -44,6 +48,7 @@ describe("SeoArticle", () => {
     expect(within(screen.getByTestId("seo-related")).getByRole("link", { name: /Life Path 6/ }).getAttribute("href")).toBe("/en/life-path-number/6");
     expect(screen.getByTestId("seo-entertainment-note").textContent).toContain("for entertainment purposes only");
     expect(within(screen.getByTestId("seo-advisor-cta")).getByRole("link", { name: "Meet our advisors" }).getAttribute("href")).toBe("/en#psychics");
+    expect(within(screen.getByTestId("seo-advisor-cta")).getByTestId("advisor-strip").dataset.placement).toMatch(/^seo_/);
     // The page ends with the calculator.
     const article = screen.getByTestId("seo-page");
     expect(article.lastElementChild?.getAttribute("data-testid")).toBe("seo-calculator");

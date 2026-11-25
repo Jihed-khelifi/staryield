@@ -145,6 +145,7 @@ export function TarotBirthResultView({ result, date }: { result: TarotBirthResul
         title={text("Talk to an advisor about your card")}
         body={text("Chat with one of our psychic advisors about what your birth card means for you, for entertainment purposes only.")}
         href={psychicsHref}
+        placement="calculator_tarot_birth_card"
       />
     </>
   );

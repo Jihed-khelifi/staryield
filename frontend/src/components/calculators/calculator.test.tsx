@@ -24,6 +24,12 @@ vi.mock("@/lib/api/astrology", async (importOriginal) => ({
 vi.mock("@/lib/analytics", () => ({ track: m.track }));
 vi.mock("@/lib/share/render-card", () => ({ renderShareCard: m.render }));
 vi.mock("@/lib/psychics-link", () => ({ usePsychicsHref: () => "/en#psychics" }));
+// The sharer's invite (growth: referrals) needs a session; share-result.test.tsx covers it.
+vi.mock("@/lib/referrals/use-share-invite", () => ({ useShareInvite: () => null }));
+// The advisor strip (growth: booking) reads the live advisors; it has its own tests.
+vi.mock("@/components/booking/advisor-strip", () => ({
+  AdvisorStrip: ({ placement }: { placement: string }) => <div data-testid="advisor-strip" data-placement={placement} />,
+}));
 vi.mock("@/components/layout/public-frame", () => ({ PublicFrame: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("@/components/astrology/place-combobox", () => ({ PlaceCombobox: () => null }));
 vi.mock("@/components/calculators/report-email-dialog", () => ({ ReportEmailDialog: () => null }));
@@ -101,7 +107,7 @@ describe("natal chart calculator", () => {
     expect(screen.getByTestId("tarot-spread")).toBeTruthy();
     const cta = screen.getByTestId("advisor-cta");
     expect(within(cta).getByRole("heading", { name: "Talk to an advisor about your chart" })).toBeTruthy();
-    expect(within(cta).getByRole("link", { name: "Talk to an advisor" }).getAttribute("href")).toBe("/en#psychics");
+    expect(within(cta).getByRole("link", { name: "Browse all advisors" }).getAttribute("href")).toBe("/en#psychics");
     // Share next to the date and near the CTA; the e-mailed report stays.
     expect(screen.getAllByTestId("share-result-button")).toHaveLength(2);
     expect(screen.getByTestId("email-report-button")).toBeTruthy();
@@ -241,8 +247,9 @@ describe("path of life calculator", () => {
     renderWithI18n(<Calculator kind="path-of-life" />);
     const cta = await screen.findByTestId("advisor-cta");
     expect(within(cta).getByRole("heading", { level: 2 }).textContent).toBe("Get a deeper understanding of what a life path really means and the alignment that comes with it");
-    expect(within(cta).getByRole("link", { name: "Talk to an advisor" }).getAttribute("href")).toBe("/en#psychics");
+    expect(within(cta).getByRole("link", { name: "Browse all advisors" }).getAttribute("href")).toBe("/en#psychics");
     expect(within(cta).getByTestId("share-result-button")).toBeTruthy();
+    expect(within(cta).getByTestId("advisor-strip").dataset.placement).toBe("calculator_path_of_life");
     expect(cta.className).toContain("calc-paper");
     expect(within(cta).queryByText("Click here!")).toBeNull();
   });
@@ -318,12 +325,12 @@ describe("tarot birth card calculator", () => {
       ["the-magician", "Soul card"],
     ]);
     expect(cards.map((c) => within(c).getByTestId("birth-card-numeral").textContent)).toEqual(["X", "I"]);
-    expect(screen.getByTestId("tarot-headline").textContent).toBe("Your tarot birth card is Wheel Of Fortune");
-    expect(screen.getByTestId("tarot-chain").textContent).toBe("10 Wheel Of Fortune → 1 The Magician");
+    expect(screen.getByTestId("tarot-headline").textContent).toBe("Your tarot birth card is Wheel of Fortune");
+    expect(screen.getByTestId("tarot-chain").textContent).toBe("10 Wheel of Fortune → 1 The Magician");
     expect(screen.getByText("Others with The Magician as soul card:")).toBeTruthy();
     const chains = [...screen.getByTestId("tarot-constellation").querySelectorAll("[data-chain]")];
     expect(chains.map((li) => li.getAttribute("data-chain"))).toEqual(["19/10/1"]);
-    expect(chains[0].textContent).toContain("The Sun → Wheel Of Fortune → The Magician");
+    expect(chains[0].textContent).toContain("The Sun → Wheel of Fortune → The Magician");
   });
 
   it("numbers The Fool 0 and pairs it with The Emperor", async () => {

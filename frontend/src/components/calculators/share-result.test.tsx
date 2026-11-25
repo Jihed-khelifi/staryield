@@ -6,9 +6,18 @@ import userEvent from "@testing-library/user-event";
 import { tarotBirthResult } from "@/lib/astro/tarot-birth-card";
 import { axeViolations, renderWithI18n, stubResizeObserver } from "@/test/render";
 
-const m = vi.hoisted(() => ({ render: vi.fn(), track: vi.fn() }));
+const m = vi.hoisted(() => ({
+  render: vi.fn(),
+  track: vi.fn(),
+  mine: vi.fn(),
+  session: { current: { user: null as { id: string; role: string } | null } },
+  config: { current: { config: null as unknown } },
+}));
 vi.mock("@/lib/share/render-card", () => ({ renderShareCard: m.render }));
 vi.mock("@/lib/analytics", () => ({ track: m.track }));
+vi.mock("@/lib/auth/session-provider", () => ({ useSession: () => m.session.current }));
+vi.mock("@/lib/site-config/site-config-provider", () => ({ useSiteConfig: () => m.config.current }));
+vi.mock("@/lib/api/referrals", () => ({ referralsApi: { mine: m.mine } }));
 
 import type { CalculatorResult } from "@/components/calculators/calculate";
 import { ShareResultButton, ShareResultDialog, ShareResultProvider } from "@/components/calculators/share-result";
@@ -22,6 +31,9 @@ beforeAll(stubResizeObserver);
 beforeEach(() => {
   m.render.mockReset().mockResolvedValue(PNG);
   m.track.mockReset();
+  m.mine.mockReset();
+  m.session.current = { user: null };
+  m.config.current = { config: null };
   objectUrls.created = [];
   objectUrls.revoked = [];
   let n = 0;
@@ -87,11 +99,11 @@ describe("ShareResultDialog", () => {
     expect(screen.getByTestId("share-loading")).toBeTruthy();
     expect(within(screen.getByTestId("share-loading")).getByRole("status").textContent).toBe("Preparing your image…");
     expect(m.track).toHaveBeenCalledWith("share_opened", { kind: "tarot-birth-card" });
-    expect(m.render.mock.calls[0][0]).toMatchObject({ headline: "My tarot birth card is Wheel Of Fortune" });
+    expect(m.render.mock.calls[0][0]).toMatchObject({ headline: "My tarot birth card is Wheel of Fortune" });
     finish(PNG);
     const preview = await screen.findByTestId("share-preview");
     expect(preview.getAttribute("src")).toBe("blob:share-1");
-    expect(preview.getAttribute("alt")).toContain("My tarot birth card is Wheel Of Fortune");
+    expect(preview.getAttribute("alt")).toContain("My tarot birth card is Wheel of Fortune");
     expect(await axeViolations()).toEqual([]);
   });
 
@@ -104,7 +116,7 @@ describe("ShareResultDialog", () => {
     const data = share.mock.calls[0][0] as ShareData;
     expect(data.files?.[0].name).toBe("staryield-tarot-birth-card.png");
     expect(data.files?.[0].type).toBe("image/png");
-    expect(data.text).toBe("My tarot birth card is Wheel Of Fortune — find yours at staryield.net");
+    expect(data.text).toBe("My tarot birth card is Wheel of Fortune — find yours at staryield.net");
     expect(data.url).toBe("http://localhost:3000/en/calculators/tarot-birth-card");
     expect(m.track).toHaveBeenCalledWith("share_completed", { kind: "tarot-birth-card", method: "native" });
   });
@@ -209,5 +221,65 @@ describe("ShareResultDialog", () => {
     expect(await screen.findByTestId("share-preview")).toBeTruthy();
     expect(screen.queryByText(/Sharing did not work/)).toBeNull();
     expect(m.track.mock.calls.filter(([name]) => name === "share_opened")).toHaveLength(2);
+  });
+});
+
+describe("ShareResultDialog: the sharer's invite (growth: referrals)", () => {
+  const program = { enabled: true, reward_minutes: 5, max_rewards: 20, launched: false };
+  const mine = (over: Partial<typeof program> = {}) => ({
+    code: "ABCD2345",
+    link: "http://localhost:3000/en?ref=ABCD2345",
+    program: { ...program, ...over },
+    stats: { joined: 0, qualified: 0, pending_minutes: 0, granted_minutes: 0, remaining_rewards: 20 },
+  });
+  const programOn = { config: { referrals: { enabled: true, reward_minutes: 5, launched: false } } };
+
+  it("a client's link carries their invite code, and the dialog says so", async () => {
+    m.session.current = { user: { id: "u1", role: "client" } };
+    m.config.current = programOn;
+    m.mine.mockResolvedValue(mine());
+    const share = setShare(async () => undefined);
+    const u = userEvent.setup();
+    openDialog();
+    const note = await screen.findByTestId("share-invite-note");
+    expect(note.textContent).toContain("This link includes your invite code.");
+    expect(note.textContent).toContain("you get 5 free minutes, added when Staryield launches");
+    await u.click(await screen.findByTestId("share-native"));
+    await screen.findByText("Shared. Thank you!");
+    expect((share.mock.calls[0][0] as ShareData).url).toBe("http://localhost:3000/en/calculators/tarot-birth-card?ref=ABCD2345");
+    expect(m.mine).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks nothing for visitors, advisors, or while the program is off", async () => {
+    for (const [user, config] of [
+      [null, programOn],
+      [{ id: "a1", role: "psychic" }, programOn],
+      [{ id: "u1", role: "client" }, { config: { referrals: { enabled: false, reward_minutes: 5, launched: false } } }],
+    ] as const) {
+      m.session.current = { user };
+      m.config.current = config;
+      const view = openDialog();
+      await screen.findByTestId("share-preview");
+      expect(screen.queryByTestId("share-invite-note")).toBeNull();
+      view.unmount();
+    }
+    expect(m.mine).not.toHaveBeenCalled();
+  });
+
+  it("shares the plain link when the invite cannot be read, without an error", async () => {
+    m.session.current = { user: { id: "u1", role: "client" } };
+    m.config.current = programOn;
+    m.mine.mockRejectedValue(new Error("offline"));
+    setShare(async () => undefined, false);
+    const u = userEvent.setup(); // installs its own clipboard: replace it after
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    openDialog();
+    await waitFor(() => expect(m.mine).toHaveBeenCalled());
+    await u.click(await screen.findByTestId("share-copy"));
+    await screen.findByText("Link copied.");
+    expect(writeText).toHaveBeenCalledWith("http://localhost:3000/en/calculators/tarot-birth-card");
+    expect(screen.queryByTestId("share-invite-note")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

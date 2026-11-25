@@ -10,6 +10,8 @@ import { useShareImage } from "@/components/calculators/use-share-image";
 import { shareCardSpec } from "@/lib/share/card-spec";
 import { canShareFile, copyText, downloadBlob, shareFile, shareFileName, shareNative, type ShareMethod } from "@/lib/share/share-actions";
 import { calculatorShareUrl } from "@/lib/share/share-url";
+import { useShareInvite } from "@/lib/referrals/use-share-invite";
+import { rewardSentence } from "@/components/referrals/referral-copy";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -65,7 +67,10 @@ export function ShareResultDialog({ result, open, onOpenChange }: { result: Calc
   );
   const [manualLink, setManualLink] = React.useState(false);
   const [sharing, setSharing] = React.useState(false);
-  const url = React.useMemo(() => (open ? calculatorShareUrl(kind, locale) : ""), [open, kind, locale]);
+  // A signed-in client's link carries their invite code (growth: referrals).
+  const invite = useShareInvite(open);
+  const referralCode = invite?.code ?? null;
+  const url = React.useMemo(() => (open ? calculatorShareUrl(kind, locale, { referralCode }) : ""), [open, kind, locale, referralCode]);
   const blob = state.status === "ready" ? state.blob : null;
   const file = React.useMemo(() => (blob ? shareFile(blob, kind) : null), [blob, kind]);
   const nativeShare = React.useMemo(() => (file ? canShareFile(file) : false), [file]);
@@ -185,6 +190,11 @@ export function ShareResultDialog({ result, open, onOpenChange }: { result: Calc
                 {text("Copy link")}
               </Button>
               {!nativeShare ? <p className="text-center text-xs font-light text-[var(--muted-ink)]">{text("This browser cannot open the share menu with an image. Download it or copy the link.")}</p> : null}
+              {invite ? (
+                <p className="text-center text-xs font-light text-[var(--muted-ink)]" data-testid="share-invite-note">
+                  {text("This link includes your invite code.")} {rewardSentence(invite.program, locale, text)}
+                </p>
+              ) : null}
             </div>
           ) : null}
 

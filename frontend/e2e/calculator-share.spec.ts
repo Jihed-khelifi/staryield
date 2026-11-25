@@ -46,7 +46,7 @@ test.describe("share a calculator result as a 9:16 image", () => {
       if (r.url().endsWith("/api/v1/analytics/events") && r.method() === "POST") events.push(...((r.postDataJSON()?.events ?? []) as typeof events));
     });
     await page.goto("/en/calculators/tarot-birth-card#v=1&d=1987-06-15");
-    await expect(page.getByTestId("tarot-headline")).toHaveText("Your tarot birth card is Wheel Of Fortune");
+    await expect(page.getByTestId("tarot-headline")).toHaveText("Your tarot birth card is Wheel of Fortune");
     // A share button next to the date and again by the call to action.
     await expect(page.getByTestId("share-result-button")).toHaveCount(2);
 
@@ -54,7 +54,7 @@ test.describe("share a calculator result as a 9:16 image", () => {
     expect([png.width, png.height]).toEqual([1080, 1920]);
     expect(png.bytes).toBeGreaterThan(50_000); // a real picture, not a blank canvas
     const preview = page.getByTestId("share-preview");
-    await expect(preview).toHaveAttribute("alt", /My tarot birth card is Wheel Of Fortune/);
+    await expect(preview).toHaveAttribute("alt", /My tarot birth card is Wheel of Fortune/);
     expect(art.map((a) => a.url.replace(/\?.*$/, ""))).toEqual(
       expect.arrayContaining(["https://assets.staryield.net/assets/tarot/wheel-of-fortune.png", "https://assets.staryield.net/assets/tarot/the-magician.png"]),
     );
