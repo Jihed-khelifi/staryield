@@ -16,8 +16,10 @@ import {
   MessageCircle,
   MessageCircleX,
   ScrollText,
+  Sparkles,
   Star,
   UserCheck,
+  UserPlus,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -55,6 +57,11 @@ const icons: Record<string, LucideIcon> = {
   "subscription.renewed": CreditCard,
   "subscription.payment_failed": CreditCard,
   "subscription.canceled": CreditCard,
+  // growth: lifecycle and onboarding
+  "lifecycle.verify_reminder": Mail,
+  "lifecycle.first_reading": MessageCircle,
+  "lifecycle.invite_friends": UserPlus,
+  "lifecycle.win_back": Sparkles,
 };
 
 function useMinuteTick(active: boolean) {
